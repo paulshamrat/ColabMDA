@@ -1,6 +1,10 @@
 # ColabMDA: Using Google Colab to perform Molecular Dynamics Simulation and Analysis
 
 ColabMDA is a user-friendly platform for conducting molecular dynamics simulations and analysis of proteins using Google Colaboratory. This project aims to make molecular dynamics simulations more accessible to researchers and reduce the computational burden on the user's computer.
+## Access the Notebook
+**ColabMDA** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/ColabMDA/ColabMDA.ipynb)
+
+
 
 ## Features
 - Molecular dynamics simulations of proteins using popular simulation packages
