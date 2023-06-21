@@ -31,3 +31,8 @@ This project was made possible with the help of the following open-source softwa
 
 ## Citation
 If you use ColabMDA in your research, please
+
+# Tutorial 
+This is the guideline, and please find the executable google collab file here.
+
+
