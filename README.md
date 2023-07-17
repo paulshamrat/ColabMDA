@@ -1,5 +1,5 @@
 # ColabMDA: Using Google Colab to perform Molecular Dynamics Simulation and Analysis
-Coming soon...
+User friendly molecular dynamics simulation combining GROMACS (GROningen MAchine for Chemical Simulations) and Google Collaboratory framework:  A complete guide 
 
 # Test 230717
 
