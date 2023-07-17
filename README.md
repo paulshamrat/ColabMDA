@@ -3,7 +3,7 @@ User friendly molecular dynamics simulation combining GROMACS (GROningen MAchine
 
 # Test 230717
 
-[**Open `md-simulation.ipynb` in Colab**](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md-simulation.ipynb)
+1. **SIMULATION** [![Open In Colab](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md-simulation.ipynb)  - `Using GROMACS to perform Protein in Water Simulation`
 
-[**Open `mdtraj-analysis.ipynb` in Colab**](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/mdtraj-analysis.ipynb)
+2. **TRAJANALYSIS** [![Open In Colab](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/mdtraj-analysis.ipynb)  - `Fundamntal and Essential Dynamics Analysis using MDAnalysis, MDTraj and necessary libraries`
 
