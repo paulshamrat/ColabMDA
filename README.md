@@ -1,6 +1,7 @@
 # User friendly molecular dynamics simulation combining GROMACS and Google Colab: A complete guide 
 
 
+
 ### 1. COLLABMD [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMD.ipynb)   ```Using GROMACS to perform protein in water simulation. ```
 
 ### 2. COLLABMDAnalysis [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMDAnalysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
@@ -32,5 +33,11 @@ We would like to thanks the authors who developed jupyter notebook framework for
 - Gowers, R. J., Linke, M., Barnoud, J., Reddy, T. J., Melo, M. N., Seyler, S. L., ... & Beckstein, O. (2016, July). MDAnalysis: a Python package for the rapid analysis of molecular dynamics simulations. In Proceedings of the 15th python in science conference (Vol. 98, p. 105). Austin, TX: SciPy.
 
 - Abraham, M. J., Murtola, T., Schulz, R., Páll, S., Smith, J. C., Hess, B., & Lindahl, E. (2015). GROMACS: High performance molecular simulations through multi-level parallelism from laptops to supercomputers. SoftwareX, 1, 19-25.
+
+
+All these datasets are uploaded as 
+**Dataset of Molecular Dynamics Simulations for the Upregulated Biomarker PSMB8: 3UNF and its G210V Mutant in Experimental Autoimmune Encephalomyelitis.** 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8070983.svg)](https://doi.org/10.5281/zenodo.8070983)
 
 *Tested on: 2023-07-17*
