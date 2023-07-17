@@ -2,9 +2,9 @@
 
 
 
-### 1. COLLABMD [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMD.ipynb)   ```Using GROMACS to perform protein in water simulation. ```
+### 1. COLABMD [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMD.ipynb)   ```Using GROMACS to perform protein in water simulation. ```
 
-### 2. COLLABMDAnalysis [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMDAnalysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
+### 2. COLABMDAnalysis [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMDAnalysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
 
 
 
