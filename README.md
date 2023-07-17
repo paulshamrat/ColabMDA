@@ -1,9 +1,9 @@
 # User friendly molecular dynamics simulation combining GROMACS (GROningen MAchine for Chemical Simulations) and Google Collaboratory framework:  A complete guide 
 
 
-### 1. Google Colab for MD Simulation: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md_simulation_230717.ipynb)
+### 1. Google Colab for MD Simulation: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md_simulation_230717.ipynb) ```Using GROMACS to perform protein in water simulation. ```
 
-### 2. Google Colab for MD Trajectory Analysis: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md_trajanalysis_230717.ipynb)
+### 2. Google Colab for MD Trajectory Analysis: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md_trajanalysis_230717.ipynb) ```Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
 
 
 
