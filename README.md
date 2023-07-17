@@ -1,9 +1,9 @@
 # User friendly molecular dynamics simulation combining GROMACS and Google Colab: A complete guide 
 
 
-### 1. COLLABMD [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md_simulation_230717.ipynb)   ```Using GROMACS to perform protein in water simulation. ```
+### 1. COLLABMD [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMD.ipynb)   ```Using GROMACS to perform protein in water simulation. ```
 
-### 2. COLLABMDA [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md_trajanalysis_230717.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
+### 2. COLLABMDAnalysis [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/COLLABMDAnalysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
 
 
 
