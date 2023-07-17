@@ -1,4 +1,4 @@
-# User friendly molecular dynamics simulation combining GROMACS (GROningen MAchine for Chemical Simulations) and Google Collaboratory framework:  A complete guide 
+# User friendly molecular dynamics simulation combining GROMACS and Google Colab: A complete guide 
 
 
 ### 1.[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/md_simulation_230717.ipynb)  Google Colab for MD Simulation: ```Using GROMACS to perform protein in water simulation. ```
