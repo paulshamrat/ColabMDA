@@ -53,7 +53,6 @@ import mdtraj as md
 traj = md.load('CA-only.h5')
 print(traj)
 
-
 # Atom count
 print('How many atoms?    %s' % traj.n_atoms)
 print('How many residues? %s' % traj.n_residues)
@@ -81,6 +80,11 @@ atom = topology.atom(10)
 print('''Hi! I am the %sth atom, and my name is %s.
 I am a %s atom with %s bonds.
 I am part of an %s residue.''' % ( atom.index, atom.name, atom.element.name, atom.n_bonds, atom.residue.name))
+
+
+
+
+
 
 #====================================
 # 03 Put Everything Together 
