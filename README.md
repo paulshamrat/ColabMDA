@@ -1,6 +1,7 @@
 # User friendly molecular dynamics simulation combining GROMACS and Google Colab: A complete guide 
 
-!
+![Flowchart](https://raw.githubusercontent.com/paulshamrat/repository-name/main/ColabMDA/images/flowchart.png)
+
 
 
 - 01. **Engelberger et al 2021** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/01-simulaiton-engelberger.ipynb)   ```Simulation using Engelberger et al 2021```
