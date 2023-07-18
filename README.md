@@ -1,6 +1,6 @@
 # User friendly molecular dynamics simulation combining GROMACS and Google Colab: A complete guide 
 
-![Flowchart](https://raw.githubusercontent.com/paulshamrat/repository-name/main/ColabMDA/images/flowchart.png)
+![Flowchart](https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/images/flowchart.png)
 
 
 
