@@ -3,6 +3,7 @@
 ![Flowchart](https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/images/flowchart.png)
 
 
+## Notebooks:
 
 - 01. **Engelberger et al 2021** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/01-simulaiton-engelberger.ipynb)   ```Simulation using Engelberger et al 2021```
 
@@ -11,8 +12,7 @@
 - 03. **Colab MD Analysis** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
 
 
-
----
+## Summary
 
 This Jupyter notebook is designed to facilitate Molecular Dynamics (MD) simulations using GROMACS. It serves as an adaptable jupyter notebook for conducting MD simulations and accompanies the supplimentary file for the follwoing Article:
 
