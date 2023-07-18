@@ -14,7 +14,7 @@
 
 ## Summary
 
-This Jupyter notebook is designed to facilitate Molecular Dynamics (MD) simulations using GROMACS. It serves as an adaptable jupyter notebook for conducting MD simulations and accompanies the supplimentary file for the follwoing Article:
+This Github repository is opened to facilitate Molecular Dynamics (MD) simulations using GROMACS. It serves as an adaptable jupyter notebook for conducting MD simulations and accompanies the supplimentary file for the follwoing Article:
 
 Molecular Dynamics Simulation of Wild and Mutant PSMB8 Protein Using Google Collaboratory Framework: Implications for the Restoration of Inflammation in Experimental Autoimmune Encephalomyelitis (EAE) Pathogenesis** ([link here](link will be updated asap)).
 
