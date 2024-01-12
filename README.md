@@ -5,6 +5,7 @@
 
 ## Notebooks:
 
+### [Not working Previous notebooks]
 01. **Engelberger et al 2021** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/01-simulaiton-engelberger.ipynb)   ```Simulation using Engelberger et al 2021```
 
 02. **Colab MD Simulation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/02-colabmd-simulation.ipynb) ``` Using GROMACS to perform protein in water simulation. [No more functional; please follow number 04 which is fixed /w gmx 2023x]```
@@ -13,11 +14,13 @@
 
 ## Update 2024 [in progress...]
 
-04. **Colab gmx Install** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/colab-gmx-install-simu-concat-240112.ipynb) ``` Installation Error Fixed updated with gmx 2023x version ```
+04. **Colab GMX Installation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb) ``` Installing GROMACS 2023x for molecular dynamics simulations in Colab.
 
-05. **Colab MD Simulation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/colab-gmx-install-simu-concat-240112.ipynb) ``` Installation Error Fixed updated with gmx 2023x version ```
+05. **Colab MD Simulation 2024** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) ``` Performing molecular dynamics simulation with GROMACS in Colab using the 2024 version.
 
-05. **Colab MD Analysis** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/colab-gmx-install-simu-concat-240112.ipynb) ``` Installation Error Fixed updated with gmx 2023x version ```
+
+06. **Colab MD Analysis** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
+
 
 
 
