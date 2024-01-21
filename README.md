@@ -1,25 +1,11 @@
-# User friendly molecular dynamics simulation combining GROMACS and Google Colab: A complete guide 
+## Update 2024 [Completed]
 
-![Flowchart](https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/images/flowchart.svg)
+01. **Colab gmx Installation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb) ``` Installing GROMACS 2023x for molecular dynamics simulations in Colab. ``` 
 
+02. **Colab MD Simulation 2024** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) ``` Performing molecular dynamics simulation with GROMACS in Google Colab. ``` 
 
-## Notebooks:
-
-### [Not working Previous notebooks]
-01. **Engelberger et al 2021** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/01-simulaiton-engelberger.ipynb)   ```Simulation using Engelberger et al 2021```
-
-02. **Colab MD Simulation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/02-colabmd-simulation.ipynb) ``` Using GROMACS to perform protein in water simulation. [No more functional; please follow number 04 which is fixed /w gmx 2023x]```
 
 03. **Colab MD Analysis** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
-
-## Update 2024 [in progress...]
-
-04. **Colab GMX Installation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb) ``` Installing GROMACS 2023x for molecular dynamics simulations in Colab.
-
-05. **Colab MD Simulation 2024** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) ``` Performing molecular dynamics simulation with GROMACS in Colab using the 2024 version.
-
-
-06. **Colab MD Analysis** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
 
 
 
@@ -55,4 +41,4 @@ All these datasets are uploaded as
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8070983.svg)](https://doi.org/10.5281/zenodo.8070983)
 
-*Tested on: 2023-07-17*
+*Last tested on: 2024-01-21*
