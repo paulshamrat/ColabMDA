@@ -39,6 +39,6 @@ We would like to thanks the authors who developed jupyter notebook framework for
 All these datasets are uploaded as 
 **Dataset of Molecular Dynamics Simulations for the Upregulated Biomarker PSMB8: 3UNF and its G210V Mutant in Experimental Autoimmune Encephalomyelitis.** 
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8070983.svg)](https://doi.org/10.5281/zenodo.8070983)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8070983.svg)](https://zenodo.org/records/8157201)
 
 *Last tested on: 2024-01-21*
