@@ -17,7 +17,7 @@ This Github repository is opened to facilitate Molecular Dynamics (MD) simulatio
 Published Paper: ([Molecular dynamics simulation of wild and mutant proteasome
 subunit beta type 8 (PSMB8) protein: Implications for restoration
 of inflammation in experimental autoimmune
-encephalomyelitis pathogenesis](https://www.cell.com/action/showPdf?pii=S2405-8440%2824%2917197-6)).
+encephalomyelitis pathogenesis](https://www.sciencedirect.com/science/article/pii/S2405844024171976)).
 
 ---
 **Repository link:** ColabMDA: https://github.com/paulshamrat/ColabMDA
