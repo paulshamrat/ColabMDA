@@ -14,7 +14,10 @@
 
 This Github repository is opened to facilitate Molecular Dynamics (MD) simulations using GROMACS. It serves as an adaptable jupyter notebook for conducting MD simulations and accompanies the supplimentary file for the follwoing Article:
 
-Molecular Dynamics Simulation of Wild and Mutant PSMB8 Protein Using Google Collaboratory Framework: Implications for the Restoration of Inflammation in Experimental Autoimmune Encephalomyelitis (EAE) Pathogenesis** ([link here](link will be updated asap)).
+Published Paper: ([Molecular dynamics simulation of wild and mutant proteasome
+subunit beta type 8 (PSMB8) protein: Implications for restoration
+of inflammation in experimental autoimmune
+encephalomyelitis pathogenesis](https://www.cell.com/action/showPdf?pii=S2405-8440%2824%2917197-6)).
 
 ---
 **Repository link:** ColabMDA: https://github.com/paulshamrat/ColabMDA
