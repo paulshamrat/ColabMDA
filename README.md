@@ -5,7 +5,7 @@
 02. **Colab MD Simulation 2024** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) ``` Performing MD simulation with GROMACS in Colab. ``` 
 
 
-03. **Colab MD Analysis** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory Analysis. ```
+03. **Colab MD Analysis** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb) ``` Using MDAnalysis and MDtraj to perform MD trajectory analysis. ```
 
 ![](https://github.com/paulshamrat/ColabMDA/blob/main/images/flowchart.png)
 
