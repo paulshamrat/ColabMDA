@@ -2,7 +2,9 @@
 ![](https://github.com/paulshamrat/ColabMDA/blob/main/images/flowchart.png)
 ## Update July 2025 [Ongoing]
 ⚠️ **Notice July 2025:** Due to `cmake` issues gmx installaiton failed! work in-progress!
-01. **[issues072025: cmake] Colab gmx Installation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb) ``` Installing GROMACS 2023x for MD simulations in Colab. ``` 
+01. **[New updated cmake: work i progress] Colab gmx Installation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb) ``` Installing GROMACS 2023x for MD simulations in Colab. ``` 
+
+01. **[Retired: issues072025: cmake] Colab gmx Installation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb) ``` Installing GROMACS 2023x for MD simulations in Colab. ``` 
 
 02. **Colab MD Simulation 2024** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) ``` Performing MD simulation with GROMACS in Colab. ``` 
 
