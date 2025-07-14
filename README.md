@@ -1,3 +1,5 @@
+# ColabMDA: Google Colaboratory-based Molecular Dynamics Simulation & Analysis
+![](https://github.com/paulshamrat/ColabMDA/blob/main/images/flowchart.png)
 ## Update July 2025 [Ongoing]
 ⚠️ **Notice July 2025:** Due to `cmake` issues gmx installaiton failed! work in-progress!
 01. **[issues072025: cmake] Colab gmx Installation** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb) ``` Installing GROMACS 2023x for MD simulations in Colab. ``` 
