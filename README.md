@@ -8,25 +8,12 @@
 
 ⚠️ **Notice:** CMake issues are under investigation; GROMACS installation is a work in progress.
 
-1. **New (WIP): Updated CMake**  
-   - **Notebook:** `04-colab-gmx-install.ipynb`  
-   - **Description:** Installing GROMACS 2023.x for MD simulations in Colab  
-   - [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04.1_colab_gmx_install.ipynb)
-
-2. **Retired: CMake Issue v072025**  
-   - **Notebook:** `04-colab-gmx-install.ipynb`  
-   - **Description:** Installing GROMACS 2023.x for MD simulations in Colab  
-   - [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb)
-
-3. **Colab MD Simulation 2024**  
-   - **Notebook:** `05-colabmd-simulation-2024.ipynb`  
-   - **Description:** Performing MD simulation with GROMACS in Colab  
-   - [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb)
-
-4. **Colab MD Analysis**  
-   - **Notebook:** `03-colabmd-analysis.ipynb`  
-   - **Description:** Using MDAnalysis and MDTraj to perform MD trajectory analysis  
-   - [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb)
+| Status                             | Notebook                          | Description                                                | Colab Link                                                                                                                                           |
+|------------------------------------|-----------------------------------|------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🚧 **New (WIP): Updated CMake**     | `04.1_colab_gmx_install.ipynb`      | Install & configure GROMACS 2023.x with patched CMake      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04.1_colab_gmx_install.ipynb) |
+| ❌ **Retired: CMake Issue v072025** | `04-colab-gmx-install.ipynb`      | Legacy install failing due to CMake version mismatch       | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb)    |
+| ✅ **Simulation (2024)**            | `05-colabmd-simulation-2024.ipynb`| Execute MD runs for PSMB8 wild-type & G210V mutant         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) |
+| ✅ **Analysis**                     | `03-colabmd-analysis.ipynb`       | Process & visualize trajectories using MDAnalysis & MDTraj | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb)     |
 
 
 
@@ -78,3 +65,5 @@ We would like to thank the authors who developed the Jupyter notebook framework 
 _Last tested on: 2025-07-14_
 
 ![Visitor Badge](https://visitor-badge.laobi.icu/badge?page_id=paulshamrat.ColabMDA)
+
+
