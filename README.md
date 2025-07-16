@@ -16,6 +16,11 @@
 | ✅ **Analysis**                     | `03-colabmd-analysis.ipynb`       | Process & visualize trajectories using MDAnalysis & MDTraj | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb)     |
 
 
+## Other Notebooks
+
+| Notebook                  | Description                                | Colab Link                                                                                                                                       |
+|---------------------------|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| `250417_modeller.ipynb`   | Rebuild missing residues using Modeller     | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/250417_modeller.ipynb) |
 
 
 ## Overview
