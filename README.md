@@ -4,24 +4,142 @@
 
 ---
 
-## Update July 2025 [Ongoing]
 
-⚠️ **Notice:** CMake issues are under investigation; GROMACS installation is a work in progress.
+## 🚩 Update July 2025
 
-| Status                             | Notebook                          | Description                                                | Colab Link                                                                                                                                           |
-|------------------------------------|-----------------------------------|------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🚧 **New (WIP): Updated CMake**     | `04.1_colab_gmx_install.ipynb`      | Install & configure GROMACS 2023.x with patched CMake      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04.1_colab_gmx_install.ipynb) |
-| ❌ **Retired: CMake Issue v072025** | `04-colab-gmx-install.ipynb`      | Legacy install failing due to CMake version mismatch       | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/04-colab-gmx-install.ipynb)    |
-| ✅ **Simulation (2024)**            | `05-colabmd-simulation-2024.ipynb`| Execute MD runs for PSMB8 wild-type & G210V mutant         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) |
-| ✅ **Analysis**                     | `03-colabmd-analysis.ipynb`       | Process & visualize trajectories using MDAnalysis & MDTraj | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb)     |
+> ⚠️ **CMake Issue (2025) Resolved:**
+>
+> The standard GROMACS installation is currently unavailable due to CMake version issues. However, you can seamlessly run molecular dynamics simulations using the robust OpenMM Colab workflow as an alternative protocol.
+>
+> 👉 **See the detailed OpenMM Colab workflow below or [`openmm/README.md`](openmm/README.md) for a complete guide.**
+
+### Notebooks for PSMB8 Publication
+
+| Status         | Notebook                          | Description                                                | Colab Link |
+|---------------|------------------------------------|------------------------------------------------------------|------------|
+| ✅ Simulation  | `05-colabmd-simulation-2024.ipynb` | Execute MD runs for PSMB8 wild-type & G210V mutant         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) |
+| ✅ Analysis    | `03-colabmd-analysis.ipynb`        | Process & visualize trajectories using MDAnalysis & MDTraj  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/03-colabmd-analysis.ipynb) |
+| ❌ Retired     | `04-colab-gmx-install.ipynb`       | (Retired) GROMACS installation with GPU support on Colab; no longer maintained due to CMake issues | — |
 
 
-## Other Notebooks
 
-| Notebook                  | Description                                | Colab Link                                                                                                                                       |
-|---------------------------|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `250417_modeller.ipynb`   | Rebuild missing residues using Modeller     | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/250417_modeller.ipynb) |
 
+
+
+
+
+## OpenMM Colab Workflow (Alternative Protocol)
+
+If you are unable to install GROMACS due to CMake issues, you can run molecular dynamics simulations using OpenMM on Google Colab GPU. This workflow provides a robust, GPU-accelerated alternative for MD simulation and analysis, with checkpoint/restart support and easy setup.
+
+### Features
+- **GPU-accelerated MD simulations** with OpenMM
+- **Checkpoint and restart**: Resume simulations from the last saved state
+- **Basic trajectory analysis**: Compute and plot RMSD, per-residue RMSF, and radius of gyration
+- **Minimal setup**: All dependencies installed in Colab with a few commands
+
+### Workflow Overview
+
+
+#### 1. Notebook Setup
+1. Open a new Colab notebook in Google Drive.
+2. In the first cell, mount Google Drive and check GPU allocation:
+    ```python
+    from google.colab import drive
+    drive.mount('/content/drive')
+    !nvidia-smi
+    ```
+   *(This ensures your session has access to Google Drive and a GPU is available.)*
+
+All environment setup and package installation (including Conda, Mamba, OpenMM, and analysis libraries) should be performed in the Colab Terminal, not in notebook cells.
+
+#### 2. Terminal Installation
+In the Colab Terminal (⋮ → Terminal), run the following steps one at a time:
+
+**Step 1:** Download and install Miniforge (Conda)
+```bash
+wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
+```
+
+**Step 2:** Clear PYTHONPATH and initialize Conda
+```bash
+unset PYTHONPATH
+export PATH="$HOME/miniforge3/bin:$PATH"
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+```
+
+**Step 3:** Install Mamba into base
+```bash
+conda install -y -n base -c conda-forge mamba
+```
+
+**Step 4:** Install OpenMM and OpenMMTools
+```bash
+mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools
+```
+
+**Step 5:** Install PDBFixer
+```bash
+conda install -y -c conda-forge pdbfixer || pip install pdbfixer
+```
+
+**Step 6:** Install analysis libraries
+```bash
+mamba install -y -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
+```
+
+**Step 7:** Verify installations
+```python
+python3 - << 'EOF'
+from openmm import Platform
+print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
+import MDAnalysis, mdtraj, Bio
+print("MDAnalysis:", MDAnalysis.__version__)
+print("MDTraj:", mdtraj.__version__)
+print("Biopython:", Bio.__version__)
+EOF
+```
+
+#### 3. Running the Simulation
+In the same terminal, run:
+```bash
+python3 01_md_openmm.py
+```
+Outputs will be saved to `/content/drive/MyDrive/openmm/1aki/` including:
+- `solvated.pdb`, `system.xml`, `prod.chk`, `prod_<ms>ps.dcd`, `prod_<ms>ps.log`, `nvt.log`, `npt.log`
+
+#### 4. Trajectory Analysis
+After frames exist in `prod_<ms>ps.dcd`, run:
+```bash
+python3 02_trajectory_analysis.py
+```
+Plots will be saved in `1aki/` as:
+- `rmsd.png`, `rmsf.png`, `rg.png`
+
+#### 5. Directory Structure
+```text
+.
+├── 00_installation.sh
+├── 01_md_openmm.py
+├── 02_trajectory_analysis.py
+└── 1aki/
+    ├── solvated.pdb
+    ├── system.xml
+    ├── prod.chk
+    ├── prod_<ms>ps.dcd
+    ├── prod_<ms>ps.log
+    ├── nvt.log
+    ├── npt.log
+    ├── rmsd.png
+    ├── rmsf.png
+    └── rg.png
+```
+
+**Tip:** If you interrupt the simulation, rerun `01_md_openmm.py` to resume from the last checkpoint.
+
+For full details and scripts, see [`openmm/README.md`](openmm/README.md).
+
+----
 
 ## Overview
 
