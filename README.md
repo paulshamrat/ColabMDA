@@ -61,12 +61,6 @@ In the Colab Terminal (⋮ → Terminal), run the following steps one at a time:
 wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
 ```
 
-**Step 2:** Clear PYTHONPATH and initialize Conda
-```bash
-unset PYTHONPATH
-export PATH="$HOME/miniforge3/bin:$PATH"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
-```
 
 **Step 3:** Install Mamba into base
 ```bash
