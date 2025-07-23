@@ -1,44 +1,31 @@
-#!/usr/bin/env bash
-# 00_installation.sh — Conda+Mamba installer + OpenMM stack + MDAnalysis + Biopython + PDBFixer
+# Step 1: Download & install Miniforge (Conda)
+wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
 
-set -e
+# Step 2: Initialize Conda in this shell
+export PATH="$HOME/miniforge3/bin:$PATH" && source "$HOME/miniforge3/etc/profile.d/conda.sh"
 
-# 1) Install Miniforge (Conda) into $HOME/miniforge3
-wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
-     -O /tmp/miniforge.sh
-bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
-
-# 2) Initialize Conda in this shell
-export PATH="$HOME/miniforge3/bin:$PATH"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
-
-# 3) Ensure 'mamba' is available in base
+# Step 3: Install Mamba into the base environment
 conda install -y -n base -c conda-forge mamba
 
-# 4) Install all required packages into base
-mamba install -y -c conda-forge \
-    cudatoolkit=11.8 \
-    openmm openmmtools pdbfixer \
-    mdanalysis mdtraj matplotlib numpy biopython
+# Step 4: Install CUDA-enabled OpenMM and OpenMMTools
+mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools
 
-# 5) Fallback pip install of PDBFixer (if needed)
+# Step 5: Install PDBFixer (conda, fallback to pip)
+conda install -y -c conda-forge pdbfixer || pip install pdbfixer
+
+# Step 6: Install MDAnalysis, MDTraj, NumPy, Matplotlib, and Biopython
+mamba install -y -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
+
+# Step 7: Verify installations
 python3 - << 'EOF'
-try:
-    import pdbfixer
-except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "pdbfixer"])
+from openmm import Platform; print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
+import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MDTraj:", mdtraj.__version__, "Biopython:", Bio.__version__)
 EOF
 
-# 6) Smoke-test installations
-python3 - << 'EOF'
-from openmm import Platform
-print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
-import MDAnalysis, mdtraj, Bio, pdbfixer
-print("MDAnalysis:", MDAnalysis.__version__)
-print("MDTraj:", mdtraj.__version__)
-print("Biopython:", Bio.__version__)
-print("PDBFixer:", pdbfixer.__version__ if hasattr(pdbfixer, "__version__") else "import OK")
-EOF
-
-echo "✅ Installation complete: OpenMM, MDAnalysis, MDTraj, Biopython, PDBFixer, and dependencies are ready."
+# Step 8: Run your simulation and analysis
+#
+# To run a production MD simulation:
+#   python3 01_openmm_full.py
+#
+# To analyze the trajectory:
+#   python3 02_analysis.py
