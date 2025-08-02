@@ -33,61 +33,42 @@ This repository explains how to run GPU-accelerated OpenMM simulations in Google
 
 ---
 
-## 2. Terminal Installation
+## 2. Installation on Terminal
 
 In the Colab Terminal (⋮ → Terminal), run each step one at a time:
 
-**Step 1: Download and install Miniforge (Conda)**
 ```bash
+#Step 1: Download & install Miniforge (Conda)
 wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
-```
 
-**Step 2: Clear PYTHONPATH and initialize Conda**
-```bash
-unset PYTHONPATH
-export PATH="$HOME/miniforge3/bin:$PATH"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
-```
+#Step 2: Initialize Conda in this shell
+export PATH="$HOME/miniforge3/bin:$PATH" && source "$HOME/miniforge3/etc/profile.d/conda.sh"
 
-**Step 3: Install Mamba into base**
-```bash
+#Step 3: Install Mamba into the base environment
 conda install -y -n base -c conda-forge mamba
-```
 
-**Step 4: Install OpenMM and OpenMMTools**
-```bash
+#Step 4: Install CUDA-enabled OpenMM and OpenMMTools
 mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools
-```
 
-**Step 5: Install PDBFixer**
-```bash
+#Step 5: Install PDBFixer (conda, fallback to pip)
 conda install -y -c conda-forge pdbfixer || pip install pdbfixer
-```
 
-**Step 6: Install analysis libraries**
-```bash
+#Step 6: Install MDAnalysis, MDTraj, NumPy, Matplotlib, and Biopython
 mamba install -y -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
-```
 
-**Step 7: Verify installations**
-```python
+#Step 7: Verify installations
 python3 - << 'EOF'
-from openmm import Platform
-print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
-import MDAnalysis, mdtraj, Bio
-print("MDAnalysis:", MDAnalysis.__version__)
-print("MDTraj:", mdtraj.__version__)
-print("Biopython:", Bio.__version__)
+from openmm import Platform; print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
+import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MDTraj:", mdtraj.__version__, "Biopython:", Bio.__version__)
 EOF
-```
 
----
+```
 
 ## 3. Running the Simulation
 
 In the same terminal, run:
 ```bash
-python3 01_md_openmm.py
+python3 01_openmm_full.py
 ```
 Outputs will be saved to `/content/drive/MyDrive/openmm/1aki/` including:
 
