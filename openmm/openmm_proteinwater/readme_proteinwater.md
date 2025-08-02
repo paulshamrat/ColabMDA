@@ -54,9 +54,9 @@ EOF
    - Download and clean a PDB structure, removing heterogens (except water), building missing residues/atoms, and adding hydrogens at pH 7.0.
    - Command:
      ```bash
-     python3 pdbfixer.py <pdbid>
+     python3 pdbfixer_cleaning.py <pdbid>
      # Example:
-     python3 pdbfixer.py 4ldj
+     python3 pdbfixer_cleaning.py 4ldj
      ```
    - Output: Creates a folder `<pdbid>/` containing `<pdbid>.pdb` (raw) and `<pdbid>_cleaned.pdb` (processed).
 
