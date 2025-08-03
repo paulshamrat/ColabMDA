@@ -105,7 +105,7 @@ You can increase the simulation length, change how often trajectory frames and c
 - `--equil-time`: **Equilibration phase duration in picoseconds.**
   - Example: `--equil-time 100` for longer equilibration.
 - `--checkpoint-ps`: **Checkpoint interval in picoseconds.**
-  - Example: `--checkpoint-ps 1000` saves a checkpoint every 1000 ps.
+  - Example: `--checkpoint-ps 100` saves a checkpoint every 100 ps.
 
 **To run a longer simulation (e.g., 100 ns) with less frequent trajectory and checkpoint writes:**
 ```bash
@@ -113,10 +113,9 @@ python3 openmm_proteinwater.py 4ldj \
     --total-ns 100 \
     --traj-interval 100 \
     --equil-time 100 \
-    --checkpoint-ps 1000
+    --checkpoint-ps 100
 ```
-This will run a 100 ns simulation, write trajectory frames every 100 ps, equilibrate for 100 ps per phase, and save checkpoints every 1000 ps.
+This will run a 100 ns simulation, write trajectory frames every 100 ps, equilibrate for 100 ps per phase, and save checkpoints every 100 ps.
 
----
 ---
 For questions or issues, please contact the repository maintainer.
