@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-run_md_inplace.py
+openmm_proteinwater.py
 
 Runs minimization, equilibration, and production MD directly in the
 same directory where <pdbid>_cleaned.pdb lives.
 
 Usage:
-    python3 run_md_inplace.py <pdbid> [options]
+    python3 openmm_proteinwater.py <pdbid> [options]
 
 Positional arguments:
   pdbid                4-letter PDB identifier (e.g. 4ldj)

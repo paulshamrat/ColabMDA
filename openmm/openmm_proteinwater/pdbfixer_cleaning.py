@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-preprocess_by_id.py
+pdbfixer_cleaning.py
 
 Given a PDB ID, this script will:
  1. Create a folder ./<pdbid>/
@@ -11,7 +11,7 @@ Given a PDB ID, this script will:
  6. Write out <pdbid>_cleaned.pdb in that folder.
 
 Usage:
-    python3 preprocess_by_id.py 4ldj
+    python3 pdbfixer_cleaning.py 4ldj
 
 Requirements:
     conda install -c conda-forge pdbfixer openmm
