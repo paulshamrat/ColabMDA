@@ -86,7 +86,23 @@ This will:
 - Insert CRYST1 record into final PDB
 
 
-### 6. Analyze and Summarize Results
+
+### 6. (Optional) Truncate Model to Residue Range
+
+If you need to truncate your model PDB file to a specific residue range (e.g., for analysis or visualization), use the `truncate_model.py` script:
+
+```bash
+python3 truncate_model.py \
+  --input   target.B99990001_with_cryst.pdb \
+  --chain   A \
+  --start   1 \
+  --end     169 \
+  --output  4ldj_truncated_9-170.pdb
+```
+
+This will create a new PDB file containing only the specified residue range, preserving header lines such as CRYST1.
+
+### 7. Analyze and Summarize Results
 
 Use the analysis script to compute metrics and plot DOPE profile:
 
