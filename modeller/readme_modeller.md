@@ -107,6 +107,38 @@ This will:
 - `modeller4.py`: Homology modeling pipeline (CLI, logging, alignment, model building).
 - `modeller_analysis.py`: Summarizes results, computes metrics, plots DOPE profile.
 
+
+
+
+## Directory Structure: `modeller/`
+
+```
+modeller/
+├── install_modeller.sh
+├── modeller4.py
+├── modeller_analysis.py
+├── readme_modeller.md
+├── obsolete/
+│   └── run_modeller2.py
+└── 4ldj/
+    ├── 4ldj_clean.pdb
+    ├── 4ldj_truncated_1-170.pdb
+    ├── dope_profile.png
+    ├── target.B99990001.pdb
+    ├── target.B99990001_with_cryst.pdb
+    ├── target.D00000001
+    ├── target.ini
+    ├── target.rsr
+    ├── target.sch
+    ├── target.V99990001
+    ├── 4ldj_orig.pdb
+    ├── alignment.ali
+    ├── P01116.fasta
+    ├── cryst1.txt
+    ├── pipeline.log
+    └── 4ldj.pdb
+```
+
 ## Notes
 - Edit `install_modeller.sh` to use your own valid Modeller license key.
 - All output and logs are saved in the folder named after your PDB ID.
