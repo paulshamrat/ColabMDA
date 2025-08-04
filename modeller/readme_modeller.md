@@ -29,14 +29,20 @@ Run the installation script in your Colab or terminal:
 
 This sets up a dedicated conda environment (`modeller_env`) and installs Modeller.
 
+
 ### 3. Configure License and Activate Environment
+
+You must obtain a valid Modeller license key from the official Modeller website:
+- Visit: https://salilab.org/modeller/registration.html
+- Register for a free academic license or purchase a commercial license as needed.
+- The license key will be sent to your email address.
 
 After installation, run the following commands to activate the environment and set the license key:
 
 ```bash
 source ~/miniforge/etc/profile.d/conda.sh
 conda activate modeller_env
-# Replace YOUR_LICENSE_KEY with your actual Modeller license key
+# Replace YOUR_LICENSE_KEY with the license key you received from Modeller
 LICENSE_KEY="YOUR_LICENSE_KEY"
 CONFIG="$HOME/miniforge/envs/modeller_env/lib/modeller-10.7/modlib/modeller/config.py"
 sed -i "s/^license *=.*/license = '${LICENSE_KEY}'/" "$CONFIG"
@@ -44,7 +50,7 @@ grep "^license" "$CONFIG"
 python -c "import modeller; print('Modeller OK, version', modeller.__version__)"
 ```
 
-This confirms that Modeller is installed and licensed correctly. You must use your own valid Modeller license key.
+This adds your license key to the Modeller configuration file (`config.py`) and confirms that Modeller is installed and licensed correctly.
 
 ### 4. Install Biopython
 
