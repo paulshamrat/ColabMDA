@@ -1,5 +1,8 @@
 
+
 # Modeller Workflow (Updated Protocol)
+
+This workflow enables automated homology modeling of proteins using the Modeller software, designed for use in Colab or Linux environments. It streamlines the process of building 3D protein structures from sequence and template information, including environment setup, license configuration, model building, and result analysis. Researchers can utilize this protocol for tasks such as protein structure prediction, comparative modeling, and downstream analysis of model quality and structural features. The workflow is suitable for both educational and research purposes, supporting reproducible and efficient modeling projects.
 
 This folder provides an updated, streamlined workflow for homology modeling with Modeller in Colab or Linux environments. The protocol now uses three main scripts:
 
