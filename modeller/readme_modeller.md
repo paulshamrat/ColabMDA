@@ -14,12 +14,25 @@ This folder provides an updated, streamlined workflow for homology modeling with
 ## Workflow Steps
 
 
+
+### 0. Download Required Scripts
+
+You can download all necessary scripts using wget:
+
+```bash
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/install_modeller.sh
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/modeller4.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/modeller_analysis.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/truncate_model.py
+```
+
 ### 1. Make Scripts Executable
 
 ```bash
 chmod +x install_modeller.sh
 chmod +x modeller4.py
 chmod +x modeller_analysis.py
+chmod +x truncate_model.py
 ```
 
 ### 2. Install Modeller
