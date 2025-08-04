@@ -93,14 +93,21 @@ If you need to truncate your model PDB file to a specific residue range (e.g., f
 
 ```bash
 python3 truncate_model.py \
-  --input   target.B99990001_with_cryst.pdb \
+  --input   4ldj/target.B99990001_with_cryst.pdb \
   --chain   A \
   --start   1 \
   --end     169 \
-  --output  4ldj_truncated_9-170.pdb
+  --output  4ldj/4ldj_truncated_1-169.pdb
 ```
 
 This will create a new PDB file containing only the specified residue range, preserving header lines such as CRYST1.
+
+
+# Before running the analysis step, install required Python packages:
+
+```bash
+pip install pandas matplotlib
+```
 
 ### 7. Analyze and Summarize Results
 
