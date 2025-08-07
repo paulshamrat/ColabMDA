@@ -79,10 +79,10 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
    - Perform minimization, equilibration (NVT & NPT), and chunked production MD in the same folder.
    - Command:
      ```bash
-     python3 openmm_proteinwater_chunked_auto.py <pdbid> \
+     python3 openmm_proteinwater.py <pdbid> \
        --total-ns 1 --traj-interval 10.0 --equil-time 10.0 --checkpoint-ps 10.0
      # Example:
-     python3 openmm_proteinwater_chunked_auto.py 4ldj \
+     python3 openmm_proteinwater.py 4ldj \
        --total-ns 1 --traj-interval 10.0 --equil-time 10.0 --checkpoint-ps 10.0
      ```
    - Output: Multiple trajectory chunks (`prod_*.dcd`), logs, checkpoints, and final system files in `<pdbid>/`.
