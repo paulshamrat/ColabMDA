@@ -48,6 +48,7 @@ EOF
 ```
 
 
+
 ## Workflow Overview
 
 1. **Preprocess the PDB Structure**
@@ -60,62 +61,51 @@ EOF
      ```
    - Output: Creates a folder `<pdbid>/` containing `<pdbid>.pdb` (raw) and `<pdbid>_cleaned.pdb` (processed).
 
-
-2. **Run MD Simulation**
-   - Perform minimization, equilibration (NVT & NPT), and production MD in the same folder.
+2. **Run Chunked MD Simulation**
+   - Perform minimization, equilibration (NVT & NPT), and chunked production MD in the same folder.
    - Command:
      ```bash
-     python3 openmm_proteinwater.py <pdbid> \
-         --total-ns 1 \
-         --traj-interval 10.0 \
-         --equil-time 10.0 \
-         --checkpoint-ps 10.0
+     python3 openmm_proteinwater_chunked_auto.py <pdbid> \
+       --total-ns 1 --traj-interval 10.0 --equil-time 10.0 --checkpoint-ps 10.0
      # Example:
-     python3 openmm_proteinwater.py 4ldj --total-ns 1 --traj-interval 10.0 --equil-time 10.0 --checkpoint-ps 10.0
+     python3 openmm_proteinwater_chunked_auto.py 4ldj \
+       --total-ns 1 --traj-interval 10.0 --equil-time 10.0 --checkpoint-ps 10.0
      ```
-   - Output: Trajectory files (`.dcd`), logs, checkpoints, and final system files in `<pdbid>/`.
+   - Output: Multiple trajectory chunks (`prod_*.dcd`), logs, checkpoints, and final system files in `<pdbid>/`.
 
-
-**Note on Colab GPU Allocation:**
-
-Colab sessions may lose GPU allocation after some time, interrupting long MD simulations. If this happens:
-
-1. Re-do the Google Colab setup (mount Google Drive, check GPU).
-2. Re-run the installation steps in the Colab Terminal (if needed).
-3. Run the same MD command:
-   ```bash
-     python3 openmm_proteinwater.py <pdbid> \
-         --total-ns 1 \
-         --traj-interval 10.0 \
-         --equil-time 10.0 \
-         --checkpoint-ps 10.0
+3. **Merge Trajectory Chunks**
+   - After simulation, merge all trajectory chunks into a single trajectory and log file.
+   - Command:
+     ```bash
+     python3 openmm_trajmerge.py <pdbid> \
+       --topology <pdbid>/solvated.pdb \
+       --out-traj prod_full.dcd \
+       --out-log prod_full.log
      # Example:
-     python3 openmm_proteinwater.py 4ldj --total-ns 1 --traj-interval 10.0 --equil-time 10.0 --checkpoint-ps 10.0
-   ```
-   The simulation will automatically resume from the last checkpoint file (`prod.chk`).
+     python3 openmm_trajmerge.py 4ldj \
+       --topology 4ldj/solvated.pdb \
+       --out-traj prod_full.dcd \
+       --out-log prod_full.log
+     ```
+   - Output: Merged trajectory (`prod_full.dcd`) and log (`prod_full.log`).
 
-### Adjusting Simulation Parameters
-
-You can increase the simulation length, change how often trajectory frames and checkpoints are written, and adjust equilibration time using the command-line options:
-
-- `--total-ns`: **Total production time in nanoseconds.**
-  - Example: `--total-ns 100` for a 100 ns simulation.
-- `--traj-interval`: **Trajectory write interval in picoseconds.**
-  - Example: `--traj-interval 100` writes a frame every 100 ps.
-- `--equil-time`: **Equilibration phase duration in picoseconds.**
-  - Example: `--equil-time 100` for longer equilibration.
-- `--checkpoint-ps`: **Checkpoint interval in picoseconds.**
-  - Example: `--checkpoint-ps 100` saves a checkpoint every 100 ps.
-
-**To run a longer simulation (e.g., 100 ns) with less frequent trajectory and checkpoint writes:**
-```bash
-python3 openmm_proteinwater.py 4ldj \
-    --total-ns 100 \
-    --traj-interval 100 \
-    --equil-time 100 \
-    --checkpoint-ps 100
-```
-This will run a 100 ns simulation, write trajectory frames every 100 ps, equilibrate for 100 ps per phase, and save checkpoints every 100 ps.
+4. **Analyze Trajectory**
+   - Perform analysis on the merged trajectory using the analysis script.
+   - Command:
+     ```bash
+     python3 openmm_trajanalysis.py <pdbid> \
+       --interval 1.0 \
+       --topology <pdbid>/solvated.pdb \
+       --trajectory <pdbid>/prod_full.dcd \
+       --outdir analysis_<pdbid>
+     # Example:
+     python3 openmm_trajanalysis.py 4ldj \
+       --interval 10.0 \
+       --topology 4ldj/solvated.pdb \
+       --trajectory 4ldj/prod_full.dcd \
+       --outdir analysis_4ldj
+     ```
+   - Output: Analysis results in `analysis_<pdbid>/`.
 
 ---
 For questions or issues, please contact the repository maintainer.
