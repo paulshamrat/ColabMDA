@@ -49,6 +49,20 @@ EOF
 
 
 
+
+# Download Required Scripts
+
+After setting up your working directory, download all necessary workflow scripts using wget:
+
+```bash
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_proteinwater.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_trajanalysis.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_trajmerge.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/pdbfixer_cleaning.py
+```
+
+These scripts enable the full workflow: preprocessing, simulation, merging, and analysis.
+
 ## Workflow Overview
 
 1. **Preprocess the PDB Structure**
@@ -106,6 +120,23 @@ EOF
        --outdir analysis_4ldj
      ```
    - Output: Analysis results in `analysis_<pdbid>/`.
+
+
+## Acknowledgements
+
+This workflow was made possible by the following open-source tools and libraries:
+
+- **OpenMM**: High-performance molecular dynamics engine for biomolecular simulations ([openmm.org](https://openmm.org/)).
+- **PDBFixer**: Tool for fixing and preparing PDB files for simulation ([github.com/openmm/pdbfixer](https://github.com/openmm/pdbfixer)).
+- **MDAnalysis**: Python library for analysis of molecular dynamics trajectories ([www.mdanalysis.org](https://www.mdanalysis.org/)).
+- **MDTraj**: Modern, open library for analyzing molecular dynamics trajectories ([mdtraj.org](https://mdtraj.org/)).
+- **NumPy**: Fundamental package for scientific computing with Python ([numpy.org](https://numpy.org/)).
+- **Matplotlib**: Comprehensive library for creating static, animated, and interactive visualizations in Python ([matplotlib.org](https://matplotlib.org/)).
+- **Biopython**: Collection of Python tools for computational biology ([biopython.org](https://biopython.org/)).
+- **Google Colab**: Free cloud-based Jupyter notebook environment with GPU support ([colab.research.google.com](https://colab.research.google.com/)).
+- **Miniforge/Conda/Mamba**: Package and environment management for reproducible scientific workflows.
+
+We gratefully acknowledge the developers and maintainers of these projects for their contributions to the scientific and open-source communities.
 
 ---
 For questions or issues, please contact the repository maintainer.
