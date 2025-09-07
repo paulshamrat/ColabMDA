@@ -1,64 +1,40 @@
+# Modeller Homology Modeling & Mutation Pipeline
 
+This folder provides a simple, unified workflow for homology modeling and mutation of proteins using Modeller in Colab or Linux environments. The protocol is designed for researchers and students who want to build 3D protein models from sequence and template, and optionally introduce mutations, all from the command line.
 
-# Modeller Workflow (Updated Protocol)
+---
 
-This workflow enables automated homology modeling of proteins using the Modeller software, designed for use in Colab or Linux environments. It streamlines the process of building 3D protein structures from sequence and template information, including environment setup, license configuration, model building, and result analysis. Researchers can utilize this protocol for tasks such as protein structure prediction, comparative modeling, and downstream analysis of model quality and structural features. The workflow is suitable for both educational and research purposes, supporting reproducible and efficient modeling projects.
+## 1. Download Required Scripts
 
-This folder provides an updated, streamlined workflow for homology modeling with Modeller in Colab or Linux environments. The protocol now uses three main scripts:
-
-- `install_modeller.sh`: Automated installer for Modeller and environment setup (conda/mamba).
-- `modeller4.py`: Main homology modeling pipeline (CLI, logging, alignment, model building).
-- `modeller_analysis.py`: Summarizes and analyzes Modeller output (metrics, RMSD, DOPE profile).
-
-
-## Workflow Steps
-
-
-
-### 0. Download Required Scripts
-
-You can download all necessary scripts using wget:
+Download the main scripts (no analysis script needed for basic modeling):
 
 ```bash
-wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/install_modeller.sh
-wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/modeller4.py
-wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/modeller_analysis.py
-wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/modeller/truncate_model.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/modeller/install_modeller.sh
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/modeller/modeller6.py
+chmod +x install_modeller.sh modeller6.py
 ```
 
-### 1. Make Scripts Executable
+---
 
-```bash
-chmod +x install_modeller.sh
-chmod +x modeller4.py
-chmod +x modeller_analysis.py
-chmod +x truncate_model.py
-```
+## 2. Install Modeller
 
-### 2. Install Modeller
-
-Run the installation script in your Colab or terminal:
+Run the installation script (creates a conda environment and installs Modeller):
 
 ```bash
 ./install_modeller.sh
 ```
 
-This sets up a dedicated conda environment (`modeller_env`) and installs Modeller.
+---
 
+## 3. Configure Modeller License
 
-### 3. Configure License and Activate Environment
-
-You must obtain a valid Modeller license key from the official Modeller website:
-- Visit: https://salilab.org/modeller/registration.html
-- Register for a free academic license or purchase a commercial license as needed.
-- The license key will be sent to your email address.
-
-After installation, run the following commands to activate the environment and set the license key:
+Obtain a free academic license from https://salilab.org/modeller/registration.html
+After installation, activate the environment and set your license key:
 
 ```bash
 source ~/miniforge/etc/profile.d/conda.sh
 conda activate modeller_env
-# Replace YOUR_LICENSE_KEY with the license key you received from Modeller
+# Replace YOUR_LICENSE_KEY with your actual key
 LICENSE_KEY="YOUR_LICENSE_KEY"
 CONFIG="$HOME/miniforge/envs/modeller_env/lib/modeller-10.7/modlib/modeller/config.py"
 sed -i "s/^license *=.*/license = '${LICENSE_KEY}'/" "$CONFIG"
@@ -66,117 +42,91 @@ grep "^license" "$CONFIG"
 python -c "import modeller; print('Modeller OK, version', modeller.__version__)"
 ```
 
-This adds your license key to the Modeller configuration file (`config.py`) and confirms that Modeller is installed and licensed correctly.
+---
 
-### 4. Install Biopython
+## 4. Install Biopython
 
-Before running the Modeller script, install Biopython (required for many modeling tasks):
+Biopython is required for many modeling tasks:
 
 ```bash
 pip install biopython
 ```
 
+---
 
-### 5. Run Homology Modeling Pipeline
+## 5. Usage: modeller6.py (Command Line)
 
-Use the main pipeline script to build a model:
+`modeller6.py` is a unified script for building homology models and introducing mutations (single or batch) with flexible options for chain, residue range, truncation, and output. All major steps are handled from the command line.
 
+### Build a model (default mode)
 ```bash
-python3 modeller4.py <PDB_ID> <UNIPROT_ID>
+python3 modeller6.py <PDB_ID> <UNIPROT_ID> [--chain A] [--range START END] [--truncate] [--mut K76E] [--list mutations.txt] [--outdir DIR] [--outdir-mut DIR]
 ```
 
-**Example:**
+**Examples:**
+- Basic build:
+  ```bash
+  python3 modeller6.py 4bgq O76039
+  ```
+- Specify chain and range:
+  ```bash
+  python3 modeller6.py 4bgq O76039 --chain A --range 1 303
+  ```
+- Build and mutate:
+  ```bash
+  python3 modeller6.py 4bgq O76039 --chain A --range 1 303 --mut K76E
+  ```
+- Batch mutations:
+  ```bash
+  python3 modeller6.py 4bgq O76039 --chain A --range 1 303 --list mutations.txt --outdir-mut 4bgq_fix/mutants
+  ```
+- Truncate after build:
+  ```bash
+  python3 modeller6.py 4bgq O76039 --chain A --range 1 303 --truncate
+  ```
+
+### Mutate-only mode (mutate an existing PDB)
 ```bash
-python3 modeller4.py 4ldj P01116
+python3 modeller6.py --pdb-in <PDB_FILE> --chain A --mut K76E [--list mutations.txt] [--outdir-mut DIR]
 ```
 
-This will:
-- Create a folder named after the PDB ID
-- Download PDB and UniProt FASTA files
-- Clean the PDB, extract template sequence
-- Write alignment.ali
-- Run Modeller automodel (output in pipeline.log)
-- Insert CRYST1 record into final PDB
+**Examples:**
+- Single mutation:
+  ```bash
+  python3 modeller6.py --pdb-in 4bgq_fix/target.B99990001_with_cryst.pdb --chain A --mut K76E
+  ```
+- Batch mutations:
+  ```bash
+  python3 modeller6.py --pdb-in 4bgq_fix/target.B99990001_with_cryst.pdb --chain A --list mutations.txt --outdir-mut 4bgq_fix/mutants
+  ```
 
+### Options
+- `--chain` : Specify chain (default: A)
+- `--range START END` : UniProt residue range (inclusive)
+- `--truncate` : Truncate model to specified range after build
+- `--mut` : Single mutation (e.g., K76E)
+- `--list` : File with one mutation per line
+- `--outdir` / `--outdir-mut` : Output directories
+- `--seed` : Set Modeller random seed
+- `--logfile` : Custom log file path
+- `--verbose` : Verbose Modeller logs
 
+See `python3 modeller6.py --help` for all options.
 
-### 6. (Optional) Truncate Model to Residue Range
+---
 
-If you need to truncate your model PDB file to a specific residue range (e.g., for analysis or visualization), use the `truncate_model.py` script:
-
-```bash
-python3 truncate_model.py \
-  --input   4ldj/target.B99990001_with_cryst.pdb \
-  --chain   A \
-  --start   1 \
-  --end     169 \
-  --output  4ldj/4ldj_truncated_1-169.pdb
-```
-
-This will create a new PDB file containing only the specified residue range, preserving header lines such as CRYST1.
-
-
-# Before running the analysis step, install required Python packages:
-
-```bash
-pip install pandas matplotlib
-```
-
-### 7. Analyze and Summarize Results
-
-Use the analysis script to compute metrics and plot DOPE profile:
-
-```bash
-python3 modeller_analysis.py --dir <PDB_ID>
-```
-
-**Example:**
-```bash
-python3 modeller_analysis.py --dir 4ldj
-```
-
-This will:
-- Parse pipeline.log for molpdf, DOPE, GA341
-- Compute sequence identity and coverage from alignment.ali
-- Superimpose CA atoms and calculate RMSD
-- Plot per-residue DOPE profile (saved as dope_profile.png)
-
-## Files
-- `install_modeller.sh`: Installs Miniforge, creates conda env, installs Modeller, sets license.
-- `modeller4.py`: Homology modeling pipeline (CLI, logging, alignment, model building).
-- `modeller_analysis.py`: Summarizes results, computes metrics, plots DOPE profile.
-
-
-
-
-## Directory Structure: `modeller/`
+## Directory Structure
 
 ```
 modeller/
 ├── install_modeller.sh
-├── modeller4.py
-├── modeller_analysis.py
+├── modeller6.py
 ├── readme_modeller.md
-├── obsolete/
-│   └── run_modeller2.py
-└── 4ldj/
-    ├── 4ldj_clean.pdb
-    ├── 4ldj_truncated_1-170.pdb
-    ├── dope_profile.png
-    ├── target.B99990001.pdb
-    ├── target.B99990001_with_cryst.pdb
-    ├── target.D00000001
-    ├── target.ini
-    ├── target.rsr
-    ├── target.sch
-    ├── target.V99990001
-    ├── 4ldj_orig.pdb
-    ├── alignment.ali
-    ├── P01116.fasta
-    ├── cryst1.txt
-    ├── pipeline.log
-    └── 4ldj.pdb
+├── obsolete2/
+└── ...
 ```
+
+---
 
 ## Notes
 - Edit `install_modeller.sh` to use your own valid Modeller license key.
