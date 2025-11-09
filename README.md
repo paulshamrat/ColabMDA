@@ -1,4 +1,12 @@
-# Modeller Homology Modeling & Mutation Pipeline
+
+Note: the sections below include the original `modeller/README.MD` and `openmm/openmm_proteinwater/readme_proteinwater.md` content (verbatim blocks follow). `README_old.md` is preserved separately as the older top-level README.
+
+---
+
+<!-- COMPUTE NOTE: Modeller (CPU) -->
+*Compute: Modeller is CPU-based — runs on the CPU (no GPU required).* 
+
+<!-- BEGIN_VERBATIM_MODELLER --># Modeller Homology Modeling & Mutation Pipeline
 
 This folder provides a simple, unified workflow for homology modeling and mutation of proteins using Modeller in Colab or Linux environments. The protocol is designed for researchers and students who want to build 3D protein models from sequence and template, and optionally introduce mutations, all from the command line.
 
@@ -137,8 +145,13 @@ modeller/
 For questions or issues, please contact the repository maintainer.
 
 ---
+<!-- END_VERBATIM_MODELLER -->
 
-# OpenMM Protein-Water MD Workflow
+
+<!-- COMPUTE NOTE: OpenMM (GPU) -->
+*Compute: OpenMM is optimized for GPU acceleration — use a Colab GPU or a local CUDA-enabled platform for best performance.*
+
+<!-- BEGIN_VERBATIM_OPENMM --># OpenMM Protein-Water MD Workflow
 
 This folder provides a streamlined workflow for running molecular dynamics (MD) simulations of proteins in explicit water using OpenMM and PDBFixer. The workflow is designed for ease of use and reproducibility, from PDB download and cleaning to full MD production runs.
 
@@ -189,7 +202,7 @@ EOF
 
 
 
-# Download Required Scripts
+## Download Required Scripts
 
 After setting up your working directory, download all necessary workflow scripts using wget:
 
@@ -279,5 +292,8 @@ We gratefully acknowledge the developers and maintainers of these projects for t
 
 ---
 For questions or issues, please contact the repository maintainer.
+
+<!-- END_VERBATIM_OPENMM -->
+
 
 
