@@ -1,9 +1,4 @@
-
-Note: the sections below include the original `modeller/README.MD` and `openmm/openmm_proteinwater/readme_proteinwater.md` content (verbatim blocks follow). `README_old.md` is preserved separately as the older top-level README.
-
----
-
-<!-- COMPUTE NOTE: Modeller (CPU) -->
+# A)  Modeller: COMPUTE NOTE (CPU)
 *Compute: Modeller is CPU-based — runs on the CPU (no GPU required).* 
 
 <!-- BEGIN_VERBATIM_MODELLER --># Modeller Homology Modeling & Mutation Pipeline
@@ -147,11 +142,10 @@ For questions or issues, please contact the repository maintainer.
 ---
 <!-- END_VERBATIM_MODELLER -->
 
-
-<!-- COMPUTE NOTE: OpenMM (GPU) -->
+# B) OpenMM Protein-Water MD Workflow
 *Compute: OpenMM is optimized for GPU acceleration — use a Colab GPU or a local CUDA-enabled platform for best performance.*
 
-<!-- BEGIN_VERBATIM_OPENMM --># OpenMM Protein-Water MD Workflow
+
 
 This folder provides a streamlined workflow for running molecular dynamics (MD) simulations of proteins in explicit water using OpenMM and PDBFixer. The workflow is designed for ease of use and reproducibility, from PDB download and cleaning to full MD production runs.
 
