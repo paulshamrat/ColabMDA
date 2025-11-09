@@ -44,7 +44,7 @@ source ~/miniforge/etc/profile.d/conda.sh
 conda activate modeller_env
 # Replace YOUR_LICENSE_KEY with your actual key
 LICENSE_KEY="YOUR_LICENSE_KEY"
-CONFIG="$HOME/miniforge/envs/modeller_env/lib/modeller-10.7/modlib/modeller/config.py"
+CONFIG="$HOME/miniforge/envs/modeller_env/lib/modeller-10.8/modlib/modeller/config.py"
 sed -i "s/^license *=.*/license = '${LICENSE_KEY}'/" "$CONFIG"
 grep "^license" "$CONFIG"
 python -c "import modeller; print('Modeller OK, version', modeller.__version__)"
