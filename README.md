@@ -1,4 +1,4 @@
-# A)  Modeller: COMPUTE NOTE (CPU)
+# A)  Modeller-Molecular Modeling: COMPUTE NODE: CPU
 *Compute: Modeller is CPU-based — runs on the CPU (no GPU required).* 
 
 <!-- BEGIN_VERBATIM_MODELLER --># Modeller Homology Modeling & Mutation Pipeline
@@ -142,7 +142,7 @@ For questions or issues, please contact the repository maintainer.
 ---
 <!-- END_VERBATIM_MODELLER -->
 
-# B) OpenMM Protein-Water MD Workflow
+# B) OpenMM Protein-Water MD Workflow: COMPUTE NODE (GPU)
 *Compute: OpenMM is optimized for GPU acceleration — use a Colab GPU or a local CUDA-enabled platform for best performance.*
 
 
@@ -268,7 +268,21 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
 	 - Output: Analysis results in `analysis_<pdbid>/`.
 
 
-## Acknowledgements
+## Reference
+All notebooks accompany the following published study:
+
+> **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis**  
+> _Heliyon_, 11 (2025) e41166 • [https://doi.org/10.1016/j.heliyon.2024.e41166](https://www.sciencedirect.com/science/article/pii/S2405844024171976)
+
+
+> **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice**  
+> Heliyon. 2022 Oct 23;8(10):e11232. • [doi: 10.1016/j.heliyon.2022.e11232](https://www.cell.com/heliyon/fulltext/S2405-8440(22)02520-8)
+
+
+---
+
+## Acknowledgement
+Acknowledgements
 
 This workflow was made possible by the following open-source tools and libraries:
 
@@ -284,10 +298,8 @@ This workflow was made possible by the following open-source tools and libraries
 
 We gratefully acknowledge the developers and maintainers of these projects for their contributions to the scientific and open-source communities.
 
+
 ---
 For questions or issues, please contact the repository maintainer.
 
 <!-- END_VERBATIM_OPENMM -->
-
-
-
