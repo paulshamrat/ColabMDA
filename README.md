@@ -104,23 +104,57 @@ pip install -e .
 
 Note: the dot at the end is required. `pip install -e` without `.` will fail.
 
-## Quickstart (Terminal-Only)
+## Workflow (CD-Based, Step-by-Step)
 
-All workflows are exposed through the `colabmda` CLI.
+All outputs go to your **current working directory**. Use `cd` to choose where you want files written.
 
-Where to run commands:
+### 1) Install (once per environment)
 
-- Install and clone in `/content/ColabMDA` (fast local SSD).
-- Run simulations in `/content` for speed and stability.
-- Outputs are written to your **current working directory** unless you pass `--outdir` or `--workdir`.
-- **Do not** write trajectories directly to Drive; always run in `/content` and sync after each chunk.
+OpenMM environment:
 
-### OpenMM (GPU) Workflow
+```bash
+conda activate openmm_gpu
+cd /content/ColabMDA
+pip install -e .
+```
 
-Wild-type (4ldj) example:
+Modeller environment:
+
+```bash
+conda activate modeller_env
+cd /content/ColabMDA
+pip install -e .
+```
+
+### 2) Prepare Structures (WT first, then mutants)
+
+Work in `/content` for speed and stability:
+
+```bash
+cd /content
+```
+
+WT prep:
 
 ```bash
 colabmda openmm prep --pdb-id 4ldj
+```
+
+Mutant prep (run in `modeller_env`):
+
+```bash
+conda activate modeller_env
+cd /content
+colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_G12C
+```
+
+### 3) Simulate WT, then Mutants (OpenMM GPU)
+
+WT simulation:
+
+```bash
+conda activate openmm_gpu
+cd /content
 colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
   --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
 colabmda openmm status --pdb-id 4ldj
@@ -128,72 +162,17 @@ colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
 ```
 
-Mutant example (G12C). First generate a mutant PDB in the **modeller_env**, then run OpenMM in the **openmm_gpu** env:
+Mutant simulation:
 
 ```bash
-# In modeller_env:
-colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_G12C
-
-# In openmm_gpu:
+conda activate openmm_gpu
+cd /content
 colabmda openmm prep --pdb-file 4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C --outdir 4ldj_G12C
 colabmda openmm run --workdir 4ldj_G12C --name 4ldj_G12C --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
   --sync-dir /content/drive/MyDrive/openmm_runs/4ldj_G12C
+colabmda openmm status --pdb-id 4ldj_G12C
 colabmda openmm merge --pdb-dir 4ldj_G12C
 colabmda openmm analysis --pdb-dir 4ldj_G12C
-```
-
-Use a local PDB file instead of `--pdb-id` when needed:
-
-```bash
-colabmda openmm prep --pdb-file /content/drive/MyDrive/4ldj.pdb --name 4ldj --outdir 4ldj
-```
-
-### Colab-Safe Workflow (Copy/Paste)
-
-Use this exact pattern: install in `/content`, run in `/content`, and sync to Drive after each chunk.
-
-```bash
-cd /content
-git clone https://github.com/paulshamrat/ColabMDA.git
-cd /content/ColabMDA
-pip install -e .
-
-cd /content
-colabmda openmm prep --pdb-id 4ldj
-colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
-colabmda openmm status --pdb-id 4ldj
-colabmda openmm merge --pdb-id 4ldj
-colabmda openmm analysis --pdb-id 4ldj
-```
-
-### Short Drive-First Commands (Optional, Not Recommended)
-
-If you still want to run directly in Drive, use `--drive` for short commands:
-
-```bash
-colabmda openmm prep --pdb-id 4ldj --drive
-colabmda openmm run --pdb-id 4ldj --drive --total-ns 1 --traj-interval 100 --checkpoint-ps 100
-colabmda openmm status --pdb-id 4ldj --drive
-colabmda openmm merge --pdb-id 4ldj --drive
-colabmda openmm analysis --pdb-id 4ldj --drive
-```
-
-### Set a Custom Drive Root Once (Recommended for Power Users)
-
-If you want a custom Drive path without repeating it in every command, set:
-
-```bash
-export COLABMDA_ROOT="/content/drive/MyDrive/MyProject/md_runs"
-```
-
-The directory will be created automatically if it does not exist. Then the standard commands will write to that root automatically:
-
-```bash
-colabmda openmm prep --pdb-id 4ldj
-colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100
-colabmda openmm status --pdb-id 4ldj
-colabmda openmm merge --pdb-id 4ldj
-colabmda openmm analysis --pdb-id 4ldj
 ```
 
 ### Where Each Command Writes Files
