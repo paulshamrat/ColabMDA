@@ -112,7 +112,8 @@ Wild-type (4ldj) example:
 
 ```bash
 colabmda openmm prep --pdb-id 4ldj
-colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100
+colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
+  --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
 colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
 ```
@@ -122,7 +123,8 @@ Mutant example (G12C). First generate a mutant PDB (e.g., with Modeller), then r
 ```bash
 colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_mut
 colabmda openmm prep --pdb-file 4ldj_mut/4ldj_G12C.pdb --name 4ldj_g12c --outdir 4ldj_g12c
-colabmda openmm run --workdir 4ldj_g12c --name 4ldj_g12c --total-ns 1 --traj-interval 100 --checkpoint-ps 100
+colabmda openmm run --workdir 4ldj_g12c --name 4ldj_g12c --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
+  --sync-dir /content/drive/MyDrive/openmm_runs/4ldj_g12c
 colabmda openmm merge --pdb-dir 4ldj_g12c
 colabmda openmm analysis --pdb-dir 4ldj_g12c
 ```
