@@ -138,7 +138,7 @@ colabmda openmm prep --pdb-file /content/drive/MyDrive/4ldj.pdb --name 4ldj --ou
 
 ### Colab-Safe Workflow (Copy/Paste)
 
-Use this exact pattern: install + run in `/content`, then sync to Drive after each chunk.
+Use this exact pattern: install in `/content`, run in `/content`, and sync to Drive after each chunk.
 
 ```bash
 cd /content
@@ -151,6 +151,17 @@ colabmda openmm prep --pdb-id 4ldj
 colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
 colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
+```
+
+### Short Drive-First Commands (Optional, Not Recommended)
+
+If you still want to run directly in Drive, use `--drive` for short commands:
+
+```bash
+colabmda openmm prep --pdb-id 4ldj --drive
+colabmda openmm run --pdb-id 4ldj --drive --total-ns 1 --traj-interval 100 --checkpoint-ps 100
+colabmda openmm merge --pdb-id 4ldj --drive
+colabmda openmm analysis --pdb-id 4ldj --drive
 ```
 
 ### Where Each Command Writes Files

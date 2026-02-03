@@ -23,7 +23,7 @@ def _py():
 def _script_path(pkg: str, name: str) -> Path:
     return resources.files(pkg).joinpath(name)
 
-def _run(script: Path, argv: list[str]):
+def _run(script: Path, argv: list[str], cwd: str | None = None):
     if not script.exists():
         raise SystemExit(
             "ERROR: expected bundled script not found:\n"
@@ -33,11 +33,11 @@ def _run(script: Path, argv: list[str]):
         )
     cmd = [_py(), str(script)] + argv
     print("\n[RUN]", " ".join(cmd), "\n")
-    raise SystemExit(subprocess.call(cmd))
+    raise SystemExit(subprocess.call(cmd, cwd=cwd))
 
-def openmm_prep_from_pdbid(pdbid: str):
+def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None):
     pkg, name = SCRIPTS["clean_by_pdbid"]
-    _run(_script_path(pkg, name), [pdbid])
+    _run(_script_path(pkg, name), [pdbid], cwd=root_dir)
 
 def openmm_prep_from_file(pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0):
     pkg, name = SCRIPTS["clean_from_file"]
