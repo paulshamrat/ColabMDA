@@ -115,6 +115,7 @@ Wild-type (4ldj) example:
 colabmda openmm prep --pdb-id 4ldj
 colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
   --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+colabmda openmm status --pdb-id 4ldj
 colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
 ```
@@ -149,6 +150,7 @@ pip install -e .
 cd /content
 colabmda openmm prep --pdb-id 4ldj
 colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+colabmda openmm status --pdb-id 4ldj
 colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
 ```
@@ -160,6 +162,7 @@ If you still want to run directly in Drive, use `--drive` for short commands:
 ```bash
 colabmda openmm prep --pdb-id 4ldj --drive
 colabmda openmm run --pdb-id 4ldj --drive --total-ns 1 --traj-interval 100 --checkpoint-ps 100
+colabmda openmm status --pdb-id 4ldj --drive
 colabmda openmm merge --pdb-id 4ldj --drive
 colabmda openmm analysis --pdb-id 4ldj --drive
 ```
@@ -177,6 +180,7 @@ Then the standard commands will write to that root automatically:
 ```bash
 colabmda openmm prep --pdb-id 4ldj
 colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100
+colabmda openmm status --pdb-id 4ldj
 colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
 ```
