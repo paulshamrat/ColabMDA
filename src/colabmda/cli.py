@@ -29,6 +29,9 @@ def _resolve_root(use_drive: bool, root: str | None) -> str | None:
         return DEFAULT_DRIVE_ROOT
     return None
 
+def _ensure_dir(path: str):
+    Path(path).mkdir(parents=True, exist_ok=True)
+
 def _guess_pdbid_from_workdir(workdir: str) -> str | None:
     candidates = list(Path(workdir).glob("*_cleaned.pdb"))
     if not candidates:
@@ -139,16 +142,22 @@ def main():
         if args.cmd == "prep":
             if args.pdb_id:
                 root = _resolve_root(args.drive, args.root)
+                if root:
+                    _ensure_dir(root)
                 openmm_prep_from_pdbid(args.pdb_id, root_dir=root)
             else:
                 name = args.name or Path(args.pdb_file).stem
                 root = _resolve_root(args.drive, args.root)
+                if root:
+                    _ensure_dir(root)
                 outdir = args.outdir or (str(Path(root) / name) if root else name)
                 openmm_prep_from_file(args.pdb_file, outdir, pdbid=name, ph=args.ph)
 
         elif args.cmd == "run":
             if args.pdb_id:
                 root = _resolve_root(args.drive, args.root)
+                if root:
+                    _ensure_dir(root)
                 workdir = str(Path(root) / args.pdb_id) if root else args.pdb_id
                 name = args.name or args.pdb_id
             else:
