@@ -55,18 +55,27 @@ PY
 
 ### 3. Modeller CPU Environment + License
 
-Create a Modeller environment and set your license key:
+Modeller is **not** on conda-forge. Install it from the official `salilab` channel:
 
 ```bash
-conda create -y -n modeller_env -c conda-forge python=3.10 modeller biopython
+conda config --add channels salilab
+conda create -y -n modeller_env python=3.10 modeller biopython
 conda activate modeller_env
 ```
 
-Get a free academic license at the Modeller site, then update the config:
+Get a free academic license at the Modeller site, then set it (choose one method):
+
+Option A: set `KEY_MODELLER` before install (recommended for Colab):
+
+```bash
+export KEY_MODELLER="YOUR_LICENSE_KEY"
+```
+
+Option B: edit the config after install:
 
 ```bash
 LICENSE_KEY="YOUR_LICENSE_KEY"
-CONFIG="$HOME/miniforge/envs/modeller_env/lib/modeller-10.8/modlib/modeller/config.py"
+CONFIG="$HOME/miniforge/envs/modeller_env/lib/modeller-*/modlib/modeller/config.py"
 sed -i "s/^license *=.*/license = '${LICENSE_KEY}'/" "$CONFIG"
 python - << 'PY'
 import modeller
@@ -76,9 +85,11 @@ PY
 
 ## Install ColabMDA (Editable)
 
-From the repository root:
+Clone the repo, then install from the repository root:
 
 ```bash
+git clone https://github.com/paulshamrat/ColabMDA.git
+cd ColabMDA
 pip install -e .
 ```
 
