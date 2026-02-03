@@ -43,6 +43,10 @@ conda create -y -n openmm_gpu -c conda-forge \
   matplotlib \
   biopython
 conda activate openmm_gpu
+
+# Install ColabMDA into this env
+cd /content/ColabMDA
+pip install -e .
 ```
 
 Quick sanity check (optional):
@@ -62,6 +66,10 @@ Modeller is **not** on conda-forge. Install it from the official `salilab` chann
 conda config --add channels salilab
 conda create -y -n modeller_env python=3.10 modeller biopython
 conda activate modeller_env
+
+# Install ColabMDA into this env (so the CLI is available)
+cd /content/ColabMDA
+pip install -e .
 ```
 
 Get a free academic license at the Modeller site, then set it (choose one method):
@@ -120,15 +128,18 @@ colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
 ```
 
-Mutant example (G12C). First generate a mutant PDB (e.g., with Modeller), then run OpenMM using the local file:
+Mutant example (G12C). First generate a mutant PDB in the **modeller_env**, then run OpenMM in the **openmm_gpu** env:
 
 ```bash
-colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_mut
-colabmda openmm prep --pdb-file 4ldj_mut/4ldj_G12C.pdb --name 4ldj_g12c --outdir 4ldj_g12c
-colabmda openmm run --workdir 4ldj_g12c --name 4ldj_g12c --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
-  --sync-dir /content/drive/MyDrive/openmm_runs/4ldj_g12c
-colabmda openmm merge --pdb-dir 4ldj_g12c
-colabmda openmm analysis --pdb-dir 4ldj_g12c
+# In modeller_env:
+colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_G12C
+
+# In openmm_gpu:
+colabmda openmm prep --pdb-file 4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C --outdir 4ldj_G12C
+colabmda openmm run --workdir 4ldj_G12C --name 4ldj_G12C --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
+  --sync-dir /content/drive/MyDrive/openmm_runs/4ldj_G12C
+colabmda openmm merge --pdb-dir 4ldj_G12C
+colabmda openmm analysis --pdb-dir 4ldj_G12C
 ```
 
 Use a local PDB file instead of `--pdb-id` when needed:

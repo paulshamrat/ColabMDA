@@ -51,6 +51,30 @@ def _parse_last_step_time(log_path: Path):
     except Exception:
         return None, None
 
+def _parse_chunk_ranges(workdir: Path):
+    ranges = []
+    rx = re.compile(r"^prod_(\d+)to(\d+)ps\.(?:dcd|log)$")
+    for p in workdir.iterdir():
+        m = rx.match(p.name)
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2))
+            ranges.append((start, end))
+    # de-dup and sort
+    ranges = sorted(set(ranges))
+    return ranges
+
+def _range_gaps(ranges):
+    gaps = []
+    if not ranges:
+        return gaps
+    prev_end = ranges[0][1]
+    for start, end in ranges[1:]:
+        if start > prev_end:
+            gaps.append((prev_end, start))
+        prev_end = max(prev_end, end)
+    return gaps
+
 def openmm_status(pdbid_dir: str):
     workdir = Path(pdbid_dir).resolve()
     if not workdir.exists():
@@ -60,6 +84,9 @@ def openmm_status(pdbid_dir: str):
     dcds = sorted(workdir.glob("prod_*to*ps.dcd"))
     merged_dcd = workdir / "prod_full.dcd"
     merged_log = workdir / "prod_full.log"
+
+    ranges = _parse_chunk_ranges(workdir)
+    gaps = _range_gaps(ranges)
 
     total_frames = 0
     max_step = None
@@ -87,11 +114,19 @@ def openmm_status(pdbid_dir: str):
     else:
         print("  Frames           : (no chunk logs found)")
 
-    if max_time_ps is not None:
+    if ranges:
+        max_end_ps = max(end for _, end in ranges)
+        ns = max_end_ps / 1000.0
+        print(f"  Sim time (ps/ns) : {max_end_ps:.2f} ps / {ns:.4f} ns (from chunk names)")
+    elif max_time_ps is not None:
         ns = max_time_ps / 1000.0
-        print(f"  Sim time (ps/ns) : {max_time_ps:.2f} ps / {ns:.4f} ns")
+        print(f"  Sim time (ps/ns) : {max_time_ps:.2f} ps / {ns:.4f} ns (from logs)")
     else:
         print("  Sim time         : (unknown)")
+
+    if gaps:
+        gap_str = ", ".join([f"{a}to{b}ps" for a, b in gaps])
+        print(f"  Gaps detected    : {gap_str}")
 
     if max_step is not None:
         print(f"  Last step        : {max_step}")
