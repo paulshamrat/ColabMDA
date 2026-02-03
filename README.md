@@ -135,13 +135,9 @@ Use a local PDB file instead of `--pdb-id` when needed:
 colabmda openmm prep --pdb-file /content/drive/MyDrive/4ldj.pdb --name 4ldj --outdir 4ldj
 ```
 
-### Output Location Options (Colab-Safe)
+### Colab-Safe Workflow (Copy/Paste)
 
-Pick one of these two clear patterns.
-
-**Option A (Recommended): run everything in `/content` and sync to Drive**
-
-This is the safest and fastest option. You compute on `/content` and copy results to Drive after each chunk.
+Use this exact pattern: install + run in `/content`, then sync to Drive after each chunk.
 
 ```bash
 cd /content
@@ -156,16 +152,6 @@ colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
 ```
 
-**Option B (Not recommended): write directly to Drive**
-
-This is slower and risks 0-byte or corrupted trajectory files. Only use if you understand the risk.
-
-```bash
-cd /content/drive/MyDrive
-colabmda openmm prep --pdb-id 4ldj
-colabmda openmm run --pdb-id 4ldj
-```
-
 ### Where Each Command Writes Files
 
 - `openmm prep --pdb-id 4ldj` → `./4ldj/`
@@ -174,13 +160,7 @@ colabmda openmm run --pdb-id 4ldj
 - `openmm merge` → writes merged files in the same work directory
 - `openmm analysis` → writes plots to `analysis_<pdbid>_TIMESTAMP/` unless `--outdir` is set
 
-To keep data across Colab disconnects, always use `--sync-dir` with `openmm run`:
-
-```bash
-colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
-```
-
-This copies essential outputs to Drive after each chunk. If a runtime disconnects, re-run the same command and it will resume from the checkpoint in the synced folder.
+To keep data across Colab disconnects, always use `--sync-dir` with `openmm run`. This copies essential outputs to Drive after each chunk. If a runtime disconnects, re-run the same command and it will resume from the checkpoint in the synced folder.
 
 ### Modeller (CPU) Workflow
 
