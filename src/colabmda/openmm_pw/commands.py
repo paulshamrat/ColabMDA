@@ -148,10 +148,14 @@ def _run(script: Path, argv: list[str], cwd: str | None = None):
 
 def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None):
     pkg, name = SCRIPTS["clean_by_pdbid"]
+    base = Path(root_dir or os.getcwd()).resolve()
+    outdir = base / pdbid
+    print(f"[INFO] Prep output will be written to: {outdir}")
     _run(_script_path(pkg, name), [pdbid], cwd=root_dir)
 
 def openmm_prep_from_file(pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0):
     pkg, name = SCRIPTS["clean_from_file"]
+    print(f"[INFO] Prep output will be written to: {Path(outdir).resolve()}")
     _run(_script_path(pkg, name), ["--in", pdb_file, "--outdir", outdir, "--pdbid", pdbid, "--ph", str(ph)])
 
 def openmm_run_colab(workdir: str, pdbid: str, total_ns: float, traj_interval: float,
