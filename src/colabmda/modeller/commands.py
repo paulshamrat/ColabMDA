@@ -2,17 +2,20 @@
 import sys
 import subprocess
 from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parents[3]  # repo root
-MODELLER6 = REPO_ROOT / "modeller" / "modeller6.py"
+from importlib import resources
 
 def _py():
     return sys.executable
 
 def _run(argv: list[str]):
-    if not MODELLER6.exists():
-        raise SystemExit(f"ERROR: modeller6.py not found at:\n  {MODELLER6}")
-    cmd = [_py(), str(MODELLER6)] + argv
+    script = resources.files("colabmda.legacy.modeller").joinpath("modeller6.py")
+    if not script.exists():
+        raise SystemExit(
+            "ERROR: bundled modeller6.py not found.\n"
+            "This indicates an incomplete install. Reinstall with:\n"
+            "  pip install -e .\n"
+        )
+    cmd = [_py(), str(script)] + argv
     print("\n[RUN]", " ".join(cmd), "\n")
     raise SystemExit(subprocess.call(cmd))
 
