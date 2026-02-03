@@ -124,6 +124,20 @@ Use a local PDB file instead of `--pdb-id` when needed:
 colabmda openmm prep --pdb-file /content/drive/MyDrive/4ldj.pdb --name 4ldj --outdir 4ldj
 ```
 
+### Where Outputs Go (and How to Sync)
+
+- `colabmda openmm prep --pdb-id 4ldj` writes to `./4ldj/`
+- `colabmda openmm prep --pdb-file ... --outdir 4ldj_g12c` writes to `./4ldj_g12c/`
+- `colabmda openmm run` writes all trajectories, checkpoints, and logs inside the work directory you pass (e.g., `4ldj/` or `4ldj_g12c/`)
+
+To keep data across Colab disconnects, always use `--sync-dir`:
+
+```bash
+colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+```
+
+This copies essential outputs to Drive after each chunk. If a runtime disconnects, re-run the same command and it will resume from the checkpoint in the synced folder.
+
 ### Modeller (CPU) Workflow
 
 ```bash
