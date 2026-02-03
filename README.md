@@ -164,6 +164,23 @@ colabmda openmm merge --pdb-id 4ldj --drive
 colabmda openmm analysis --pdb-id 4ldj --drive
 ```
 
+### Set a Custom Drive Root Once (Recommended for Power Users)
+
+If you want a custom Drive path without repeating it in every command, set:
+
+```bash
+export COLABMDA_ROOT="/content/drive/MyDrive/MyProject/md_runs"
+```
+
+Then the standard commands will write to that root automatically:
+
+```bash
+colabmda openmm prep --pdb-id 4ldj
+colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100
+colabmda openmm merge --pdb-id 4ldj
+colabmda openmm analysis --pdb-id 4ldj
+```
+
 ### Where Each Command Writes Files
 
 - `openmm prep --pdb-id 4ldj` → `./4ldj/`
