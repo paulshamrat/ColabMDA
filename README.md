@@ -6,6 +6,7 @@ Key ideas:
 - Colab-first: designed for frequent disconnects and limited storage.
 - Terminal-only: no notebooks required.
 - Resume-safe MD: OpenMM runs use checkpoint-based chunks.
+- Software-style packaging: required workflow scripts are bundled inside the `colabmda` package.
 
 ## Installation (Colab Terminal)
 
@@ -179,7 +180,7 @@ colabmda modeller mutate --pdb-in 4bgq_fix/target.B99990001_with_cryst.pdb --cha
 
 ## Notes
 
-- This repo preserves legacy research scripts; the CLI wraps them without refactoring.
+- This repo preserves legacy research scripts, but the CLI runs **bundled** copies inside the package for reliability.
 - Keep dependencies minimal in `pyproject.toml`; OpenMM and Modeller are installed via Conda environments.
 
 If anything in the setup is unclear, open an issue with your exact terminal output.
