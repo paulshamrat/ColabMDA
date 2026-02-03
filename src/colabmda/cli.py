@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import os
 from pathlib import Path
 
 from colabmda.openmm_pw.commands import (
@@ -15,10 +16,14 @@ from colabmda.modeller.commands import (
 )
 
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/openmm_runs"
+ENV_ROOT = "COLABMDA_ROOT"
 
 def _resolve_root(use_drive: bool, root: str | None) -> str | None:
     if root:
         return root
+    env_root = os.environ.get(ENV_ROOT)
+    if env_root:
+        return env_root
     if use_drive:
         return DEFAULT_DRIVE_ROOT
     return None
@@ -50,7 +55,7 @@ def main():
     p_prep.add_argument("--name", default=None, help="Prefix name (default: from --pdb-id or file stem)")
     p_prep.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
     p_prep.add_argument("--drive", action="store_true", help="Create outputs under Drive root")
-    p_prep.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_prep.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # run (colab-safe runner)
     p_run = sub_openmm.add_parser("run", help="Run/resume chunked MD (colab-safe)")
@@ -64,7 +69,7 @@ def main():
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
     p_run.add_argument("--drive", action="store_true", help="Run directly in Drive root (slower)")
-    p_run.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_run.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # merge
     p_merge = sub_openmm.add_parser("merge", help="Merge chunk DCDs/logs")
@@ -75,7 +80,7 @@ def main():
     p_merge.add_argument("--out-traj", default="prod_full.dcd")
     p_merge.add_argument("--out-log", default="prod_full.log")
     p_merge.add_argument("--drive", action="store_true", help="Read/write from Drive root")
-    p_merge.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_merge.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # analysis
     p_ana = sub_openmm.add_parser("analysis", help="RMSD/Rg/RMSF analysis")
@@ -87,7 +92,7 @@ def main():
     p_ana.add_argument("--interval", type=float, default=None, help="ps per frame (if not auto-detected)")
     p_ana.add_argument("--outdir", default=None)
     p_ana.add_argument("--drive", action="store_true", help="Read/write from Drive root")
-    p_ana.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_ana.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # ---------------- Modeller ----------------
     p_mod = sub.add_parser("modeller", help="Modeller workflows")
