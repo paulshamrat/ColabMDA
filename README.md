@@ -175,7 +175,7 @@ If you want a custom Drive path without repeating it in every command, set:
 export COLABMDA_ROOT="/content/drive/MyDrive/MyProject/md_runs"
 ```
 
-Then the standard commands will write to that root automatically:
+The directory will be created automatically if it does not exist. Then the standard commands will write to that root automatically:
 
 ```bash
 colabmda openmm prep --pdb-id 4ldj
