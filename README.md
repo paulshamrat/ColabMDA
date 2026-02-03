@@ -93,9 +93,16 @@ cd ColabMDA
 pip install -e .
 ```
 
+Note: the dot at the end is required. `pip install -e` without `.` will fail.
+
 ## Quickstart (Terminal-Only)
 
 All workflows are exposed through the `colabmda` CLI.
+
+Where to run commands:
+
+- Run install commands from the repo root: `/content/ColabMDA`
+- Run `colabmda` commands from **any** directory, but outputs are written to your **current working directory** unless you pass `--outdir` or `--workdir`.
 
 ### OpenMM (GPU) Workflow
 
@@ -137,6 +144,18 @@ colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/
 ```
 
 This copies essential outputs to Drive after each chunk. If a runtime disconnects, re-run the same command and it will resume from the checkpoint in the synced folder.
+
+Typical Colab flow (run from `/content`):
+
+```bash
+cd /content
+git clone https://github.com/paulshamrat/ColabMDA.git
+cd /content/ColabMDA
+pip install -e .
+cd /content
+colabmda openmm prep --pdb-id 4ldj
+colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+```
 
 ### Modeller (CPU) Workflow
 
