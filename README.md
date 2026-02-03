@@ -10,6 +10,11 @@ Key ideas:
 ## Installation (Colab Terminal)
 
 All setup should be done in the Colab Terminal (not notebook cells). These steps also work on any Linux machine.
+Start in `/content` so all outputs land on Colab's local SSD:
+
+```bash
+cd /content
+```
 
 ### 1. Install Miniforge
 
