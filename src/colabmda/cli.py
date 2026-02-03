@@ -9,6 +9,7 @@ from colabmda.openmm_pw.commands import (
     openmm_run_colab,
     openmm_merge,
     openmm_analysis,
+    openmm_status,
 )
 from colabmda.modeller.commands import (
     modeller_build,
@@ -94,6 +95,14 @@ def main():
     p_ana.add_argument("--drive", action="store_true", help="Read/write from Drive root")
     p_ana.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
+    # status
+    p_stat = sub_openmm.add_parser("status", help="Sanity-check frames/time/resume readiness")
+    g = p_stat.add_mutually_exclusive_group(required=True)
+    g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
+    g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
+    p_stat.add_argument("--drive", action="store_true", help="Read/write from Drive root")
+    p_stat.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
+
     # ---------------- Modeller ----------------
     p_mod = sub.add_parser("modeller", help="Modeller workflows")
     sub_mod = p_mod.add_subparsers(dest="cmd", required=True)
@@ -172,6 +181,14 @@ def main():
             else:
                 pdbid_dir = args.pdb_id or args.pdb_dir
             openmm_analysis(pdbid_dir, args.topology, args.trajectory, args.interval, args.outdir)
+
+        elif args.cmd == "status":
+            root = _resolve_root(args.drive, args.root)
+            if args.pdb_id and root:
+                pdbid_dir = str(Path(root) / args.pdb_id)
+            else:
+                pdbid_dir = args.pdb_id or args.pdb_dir
+            openmm_status(pdbid_dir)
 
     elif args.tool == "modeller":
         if args.cmd == "build":

@@ -4,6 +4,7 @@ import sys
 import subprocess
 from pathlib import Path
 from importlib import resources
+import re
 
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
@@ -23,6 +24,81 @@ def _py():
 def _script_path(pkg: str, name: str) -> Path:
     return resources.files(pkg).joinpath(name)
 
+def _iter_data_lines(path: Path):
+    if not path.exists():
+        return
+    with path.open("r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            s = line.strip()
+            if not s:
+                continue
+            if s[0].isdigit():
+                yield s
+
+def _parse_last_step_time(log_path: Path):
+    last = None
+    for s in _iter_data_lines(log_path):
+        last = s
+    if not last:
+        return None, None
+    parts = re.split(r"\s+", last)
+    if len(parts) < 2:
+        return None, None
+    try:
+        step = int(float(parts[0]))
+        time_ps = float(parts[1])
+        return step, time_ps
+    except Exception:
+        return None, None
+
+def openmm_status(pdbid_dir: str):
+    workdir = Path(pdbid_dir).resolve()
+    if not workdir.exists():
+        raise SystemExit(f"ERROR: directory not found: {workdir}")
+
+    logs = sorted(workdir.glob("prod_*to*ps.log"))
+    dcds = sorted(workdir.glob("prod_*to*ps.dcd"))
+    merged_dcd = workdir / "prod_full.dcd"
+    merged_log = workdir / "prod_full.log"
+
+    total_frames = 0
+    max_step = None
+    max_time_ps = None
+    for lp in logs:
+        # Count frames by data lines
+        frames = sum(1 for _ in _iter_data_lines(lp))
+        total_frames += frames
+        step, time_ps = _parse_last_step_time(lp)
+        if step is not None and (max_step is None or step > max_step):
+            max_step = step
+        if time_ps is not None and (max_time_ps is None or time_ps > max_time_ps):
+            max_time_ps = time_ps
+
+    chk = workdir / "prod.chk"
+    xml = workdir / "system.xml"
+    solv = workdir / "solvated.pdb"
+    can_resume = chk.exists() and xml.exists() and solv.exists()
+
+    print("\n[STATUS]")
+    print(f"  Workdir          : {workdir}")
+    print(f"  Chunks (DCD/log) : {len(dcds)} / {len(logs)}")
+    if total_frames:
+        print(f"  Frames (from logs): {total_frames}")
+    else:
+        print("  Frames           : (no chunk logs found)")
+
+    if max_time_ps is not None:
+        ns = max_time_ps / 1000.0
+        print(f"  Sim time (ps/ns) : {max_time_ps:.2f} ps / {ns:.4f} ns")
+    else:
+        print("  Sim time         : (unknown)")
+
+    if max_step is not None:
+        print(f"  Last step        : {max_step}")
+
+    print(f"  Resume-ready     : {'YES' if can_resume else 'NO'} (needs prod.chk, system.xml, solvated.pdb)")
+    print(f"  Merged DCD       : {'YES' if merged_dcd.exists() else 'NO'}")
+    print(f"  Merged log       : {'YES' if merged_log.exists() else 'NO'}")
 def _run(script: Path, argv: list[str], cwd: str | None = None):
     if not script.exists():
         raise SystemExit(
