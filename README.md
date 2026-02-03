@@ -101,8 +101,10 @@ All workflows are exposed through the `colabmda` CLI.
 
 Where to run commands:
 
-- Run install commands from the repo root: `/content/ColabMDA`
-- Run `colabmda` commands from **any** directory, but outputs are written to your **current working directory** unless you pass `--outdir` or `--workdir`.
+- Install and clone in `/content/ColabMDA` (fast local SSD).
+- Run simulations in `/content` for speed and stability.
+- Outputs are written to your **current working directory** unless you pass `--outdir` or `--workdir`.
+- **Do not** write trajectories directly to Drive; always run in `/content` and sync after each chunk.
 
 ### OpenMM (GPU) Workflow
 
@@ -131,31 +133,52 @@ Use a local PDB file instead of `--pdb-id` when needed:
 colabmda openmm prep --pdb-file /content/drive/MyDrive/4ldj.pdb --name 4ldj --outdir 4ldj
 ```
 
-### Where Outputs Go (and How to Sync)
+### Output Location Options (Colab-Safe)
 
-- `colabmda openmm prep --pdb-id 4ldj` writes to `./4ldj/`
-- `colabmda openmm prep --pdb-file ... --outdir 4ldj_g12c` writes to `./4ldj_g12c/`
-- `colabmda openmm run` writes all trajectories, checkpoints, and logs inside the work directory you pass (e.g., `4ldj/` or `4ldj_g12c/`)
+Pick one of these two clear patterns.
 
-To keep data across Colab disconnects, always use `--sync-dir`:
+**Option A (Recommended): run everything in `/content` and sync to Drive**
 
-```bash
-colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
-```
-
-This copies essential outputs to Drive after each chunk. If a runtime disconnects, re-run the same command and it will resume from the checkpoint in the synced folder.
-
-Typical Colab flow (run from `/content`):
+This is the safest and fastest option. You compute on `/content` and copy results to Drive after each chunk.
 
 ```bash
 cd /content
 git clone https://github.com/paulshamrat/ColabMDA.git
 cd /content/ColabMDA
 pip install -e .
+
 cd /content
 colabmda openmm prep --pdb-id 4ldj
 colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+colabmda openmm merge --pdb-id 4ldj
+colabmda openmm analysis --pdb-id 4ldj
 ```
+
+**Option B (Not recommended): write directly to Drive**
+
+This is slower and risks 0-byte or corrupted trajectory files. Only use if you understand the risk.
+
+```bash
+cd /content/drive/MyDrive
+colabmda openmm prep --pdb-id 4ldj
+colabmda openmm run --pdb-id 4ldj
+```
+
+### Where Each Command Writes Files
+
+- `openmm prep --pdb-id 4ldj` → `./4ldj/`
+- `openmm prep --pdb-file ... --outdir 4ldj_g12c` → `./4ldj_g12c/`
+- `openmm run` → all trajectories, checkpoints, logs inside the work directory
+- `openmm merge` → writes merged files in the same work directory
+- `openmm analysis` → writes plots to `analysis_<pdbid>_TIMESTAMP/` unless `--outdir` is set
+
+To keep data across Colab disconnects, always use `--sync-dir` with `openmm run`:
+
+```bash
+colabmda openmm run --pdb-id 4ldj --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+```
+
+This copies essential outputs to Drive after each chunk. If a runtime disconnects, re-run the same command and it will resume from the checkpoint in the synced folder.
 
 ### Modeller (CPU) Workflow
 
