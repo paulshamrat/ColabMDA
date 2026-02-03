@@ -14,6 +14,15 @@ from colabmda.modeller.commands import (
     modeller_mutate,
 )
 
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/openmm_runs"
+
+def _resolve_root(use_drive: bool, root: str | None) -> str | None:
+    if root:
+        return root
+    if use_drive:
+        return DEFAULT_DRIVE_ROOT
+    return None
+
 def _guess_pdbid_from_workdir(workdir: str) -> str | None:
     candidates = list(Path(workdir).glob("*_cleaned.pdb"))
     if not candidates:
@@ -40,6 +49,8 @@ def main():
     p_prep.add_argument("--outdir", default=None, help="Output directory for --pdb-file (default: ./<name>)")
     p_prep.add_argument("--name", default=None, help="Prefix name (default: from --pdb-id or file stem)")
     p_prep.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
+    p_prep.add_argument("--drive", action="store_true", help="Create outputs under Drive root")
+    p_prep.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # run (colab-safe runner)
     p_run = sub_openmm.add_parser("run", help="Run/resume chunked MD (colab-safe)")
@@ -52,6 +63,8 @@ def main():
     p_run.add_argument("--equil-time", type=float, default=100.0, help="ps for NVT and ps for NPT")
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
+    p_run.add_argument("--drive", action="store_true", help="Run directly in Drive root (slower)")
+    p_run.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # merge
     p_merge = sub_openmm.add_parser("merge", help="Merge chunk DCDs/logs")
@@ -61,6 +74,8 @@ def main():
     p_merge.add_argument("--topology", default=None, help="Topology PDB (default: <dir>/solvated.pdb)")
     p_merge.add_argument("--out-traj", default="prod_full.dcd")
     p_merge.add_argument("--out-log", default="prod_full.log")
+    p_merge.add_argument("--drive", action="store_true", help="Read/write from Drive root")
+    p_merge.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # analysis
     p_ana = sub_openmm.add_parser("analysis", help="RMSD/Rg/RMSF analysis")
@@ -71,6 +86,8 @@ def main():
     p_ana.add_argument("--trajectory", default=None)
     p_ana.add_argument("--interval", type=float, default=None, help="ps per frame (if not auto-detected)")
     p_ana.add_argument("--outdir", default=None)
+    p_ana.add_argument("--drive", action="store_true", help="Read/write from Drive root")
+    p_ana.add_argument("--root", default=None, help=f"Override base directory (default: {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # ---------------- Modeller ----------------
     p_mod = sub.add_parser("modeller", help="Modeller workflows")
@@ -107,15 +124,18 @@ def main():
     if args.tool == "openmm":
         if args.cmd == "prep":
             if args.pdb_id:
-                openmm_prep_from_pdbid(args.pdb_id)
+                root = _resolve_root(args.drive, args.root)
+                openmm_prep_from_pdbid(args.pdb_id, root_dir=root)
             else:
                 name = args.name or Path(args.pdb_file).stem
-                outdir = args.outdir or name
+                root = _resolve_root(args.drive, args.root)
+                outdir = args.outdir or (str(Path(root) / name) if root else name)
                 openmm_prep_from_file(args.pdb_file, outdir, pdbid=name, ph=args.ph)
 
         elif args.cmd == "run":
             if args.pdb_id:
-                workdir = args.pdb_id
+                root = _resolve_root(args.drive, args.root)
+                workdir = str(Path(root) / args.pdb_id) if root else args.pdb_id
                 name = args.name or args.pdb_id
             else:
                 workdir = args.workdir
@@ -133,11 +153,19 @@ def main():
             )
 
         elif args.cmd == "merge":
-            pdbid_dir = args.pdb_id or args.pdb_dir
+            root = _resolve_root(args.drive, args.root)
+            if args.pdb_id and root:
+                pdbid_dir = str(Path(root) / args.pdb_id)
+            else:
+                pdbid_dir = args.pdb_id or args.pdb_dir
             openmm_merge(pdbid_dir, args.topology, args.out_traj, args.out_log)
 
         elif args.cmd == "analysis":
-            pdbid_dir = args.pdb_id or args.pdb_dir
+            root = _resolve_root(args.drive, args.root)
+            if args.pdb_id and root:
+                pdbid_dir = str(Path(root) / args.pdb_id)
+            else:
+                pdbid_dir = args.pdb_id or args.pdb_dir
             openmm_analysis(pdbid_dir, args.topology, args.trajectory, args.interval, args.outdir)
 
     elif args.tool == "modeller":
