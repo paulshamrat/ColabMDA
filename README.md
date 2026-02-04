@@ -34,6 +34,8 @@ cd ColabMDA
 bash envs/install_miniforge.sh
 ```
 
+If you ran Miniforge in the same session, the installer scripts will auto-detect `~/miniforge3` even if `conda` is not on `PATH`.
+
 ### 2. Create the Environments (Simple)
 
 OpenMM (GPU) environment:
