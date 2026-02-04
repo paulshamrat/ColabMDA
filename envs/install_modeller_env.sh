@@ -5,6 +5,12 @@ ENV_NAME=${ENV_NAME:-modeller_env}
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if ! command -v conda >/dev/null 2>&1; then
+  if [[ -x "$HOME/miniforge3/bin/conda" ]]; then
+    export PATH="$HOME/miniforge3/bin:$PATH"
+  fi
+fi
+
+if ! command -v conda >/dev/null 2>&1; then
   echo "ERROR: conda not found. Install Miniforge/Conda and try again." >&2
   exit 1
 fi
