@@ -8,9 +8,11 @@ Key ideas:
 - Resume-safe MD: OpenMM runs use checkpoint-based chunks.
 - Software-style packaging: required workflow scripts are bundled inside the `colabmda` package.
 
-## Installation (Colab Terminal)
+## Installation
 
-Optional (Colab notebook only): mount Drive and check GPU, then do all installs in the Terminal.
+### 1. Notebook Setup (Colab)
+
+Open a new Colab notebook in Google Drive. In the first cell, mount Drive and confirm GPU access:
 
 ```python
 from google.colab import drive
@@ -18,97 +20,96 @@ drive.mount('/content/drive')
 !nvidia-smi
 ```
 
-> All environment setup and package installation should be performed in the Colab Terminal (not notebook cells).
+> All environment setup and package installation (Conda, Mamba, OpenMM, analysis libraries) should be performed in the Colab Terminal, not notebook cells.
 
-### 0. Get the Repo
+### 2. Installation on Terminal
+
+In the Colab Terminal (⋮ → Terminal), run each step one at a time:
 
 ```bash
-cd /content/drive/MyDrive/openmm_runs   # or: cd /content
+## 00 installation
+# Step 1: Download & install Miniforge (Conda)
+wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && \
+  bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
+
+# Step 2: Initialize Conda in this shell
+export PATH="$HOME/miniforge3/bin:$PATH" && source "$HOME/miniforge3/etc/profile.d/conda.sh"
+
+# Step 3: Install Mamba into the base environment
+conda install -y -n base -c conda-forge mamba
+
+# Step 4: Install CUDA-enabled OpenMM and OpenMMTools
+mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools
+
+# Step 5: Install PDBFixer (conda, fallback to pip)
+conda install -y -c conda-forge pdbfixer || pip install pdbfixer
+
+# Step 6: Install MDAnalysis, MDTraj, NumPy, Matplotlib, and Biopython
+mamba install -y -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
+
+# Step 7: Verify installations
+python3 - << 'EOF'
+from openmm import Platform; print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
+import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MDTraj:", mdtraj.__version__, "Biopython:", Bio.__version__)
+EOF
+```
+
+### 3. Install ColabMDA
+
+```bash
+cd /content/drive/MyDrive/openmm_runs
 git clone https://github.com/paulshamrat/ColabMDA.git
 cd ColabMDA
+pip install -e .
 ```
 
-### 1. Install Miniforge
+### 4. Modeller CPU Environment + License
 
 ```bash
-bash envs/install_miniforge.sh
+conda config --add channels salilab
+mamba create -y -n modeller_env python=3.10 modeller biopython
+conda activate modeller_env
+
+cd /content/drive/MyDrive/openmm_runs/ColabMDA
+pip install -e .
 ```
 
-If you ran Miniforge in the same session, the installer scripts will auto-detect `~/miniforge3` even if `conda` is not on `PATH`.
-
-### 2. Create the Environments (Simple)
-
-OpenMM (GPU) environment:
-
-```bash
-bash envs/install_openmm_env.sh
-```
-
-Modeller (CPU) environment:
-
-```bash
-bash envs/install_modeller_env.sh
-```
-
-Set your Modeller license (required to run Modeller). The installer will default to `MODELIRANJE` if `KEY_MODELLER` is not set:
+Set your Modeller license (required to run Modeller):
 
 ```bash
 export KEY_MODELLER="MODELIRANJE"
 ```
 
-Optional overrides for HPC:
-
-- Use a specific CUDA version (conda-forge): `CUDA_VERSION=12.4 bash envs/install_openmm_env.sh`
-- Use a custom environment name: `ENV_NAME=myenv bash envs/install_openmm_env.sh`
-
-HPC quick install (module-based):
+### HPC Quick Install (module-based)
 
 ```bash
 module purge
 module load miniforge3/24.3.0-0
-bash envs/install_openmm_env.sh
-bash envs/install_modeller_env.sh
 ```
 
-## Quickstart (CLI)
+Then use the same OpenMM/Modeller env steps above.
 
-These commands are safe for Colab and will resume from checkpoints on reconnect. Use Drive as the working directory so all outputs are already persisted.
+## Workflow Overview (Updated CLI)
+
+All commands run from your working directory. For Colab, use Drive so outputs persist:
 
 ```bash
-conda activate openmm_gpu
 cd /content/drive/MyDrive/openmm_runs
-colabmda openmm prep --pdb-id 4ldj
-colabmda openmm run --pdb-id 4ldj --total-ns 5 --traj-interval 1 --checkpoint-ps 1000
-colabmda openmm status --pdb-id 4ldj
-colabmda openmm merge --pdb-id 4ldj
-colabmda openmm analysis --pdb-id 4ldj
 ```
-
-## OpenMM Workflow Overview (CLI)
-
-All outputs go to your **current working directory**. Use `cd` to choose where you want files written. For Colab, you can use `/content` (faster) or Drive (persistent).
 
 ### 1. Prepare the PDB Structure
 
-From RCSB:
+Download and clean a PDB structure, removing heterogens (except water), building missing residues/atoms, and adding hydrogens at pH 7.0.
 
 ```bash
-cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda openmm prep --pdb-id 4ldj
 ```
 
-From a local PDB file:
+Output: creates `4ldj/` containing `4ldj.pdb` (raw) and `4ldj_cleaned.pdb` (processed).
+
+### 2. Run Chunked MD Simulation (5 ns, 1 ps frames, 1000 ps chunks)
 
 ```bash
-colabmda openmm prep --pdb-file /content/4ldj.pdb --name 4ldj --outdir 4ldj
-```
-
-Outputs are written to `./<pdbid>/` and include `<pdbid>_cleaned.pdb`.
-
-### 2. Run Chunked MD Simulation (Production)
-
-```bash
-cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda openmm run --pdb-id 4ldj \
   --total-ns 5 \
   --traj-interval 1 \
@@ -116,7 +117,7 @@ colabmda openmm run --pdb-id 4ldj \
   --checkpoint-ps 1000
 ```
 
-This runs minimization, equilibration (NVT + NPT), then production in chunks. If the session disconnects, re-run the same command to resume.
+Output: multiple chunk files (`prod_*`), logs, checkpoints, and system files in `4ldj/`.
 
 ### 3. Merge Trajectory Chunks
 
@@ -124,7 +125,7 @@ This runs minimization, equilibration (NVT + NPT), then production in chunks. If
 colabmda openmm merge --pdb-id 4ldj
 ```
 
-Outputs `prod_full.dcd` and `prod_full.log` in the same directory.
+Output: merged trajectory (`prod_full.dcd`) and log (`prod_full.log`).
 
 ### 4. Analyze Trajectory
 
@@ -132,13 +133,7 @@ Outputs `prod_full.dcd` and `prod_full.log` in the same directory.
 colabmda openmm analysis --pdb-id 4ldj
 ```
 
-Outputs go to `analysis_<pdbid>_TIMESTAMP/` unless `--outdir` is set.
-
-### 5. Status Check (Resume Readiness)
-
-```bash
-colabmda openmm status --pdb-id 4ldj
-```
+Output: analysis results in `analysis_<pdbid>_TIMESTAMP/`.
 
 ## Modeller Workflow (CLI)
 
