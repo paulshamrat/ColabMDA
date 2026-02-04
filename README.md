@@ -23,95 +23,60 @@ drive.mount('/content/drive')
 ### 0. Get the Repo
 
 ```bash
-cd /content
+cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 git clone https://github.com/paulshamrat/ColabMDA.git
 cd ColabMDA
 ```
 
-### 1. Install Miniforge + Mamba
+### 1. Install Miniforge
 
 ```bash
-wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh
-bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
-export PATH="$HOME/miniforge3/bin:$PATH"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda install -y -n base -c conda-forge mamba
+bash envs/install_miniforge.sh
 ```
 
-### 2. OpenMM GPU Environment (CUDA)
+### 2. Create the Environments (Simple)
+
+OpenMM (GPU) environment:
 
 ```bash
-mamba create -y -n openmm_gpu -c conda-forge \
-  python=3.10 \
-  cudatoolkit=11.8 \
-  openmm \
-  openmmtools \
-  pdbfixer \
-  mdanalysis \
-  mdtraj \
-  numpy \
-  matplotlib \
-  biopython
-conda activate openmm_gpu
+bash envs/install_openmm_env.sh
 ```
 
-Install ColabMDA into this environment:
+Modeller (CPU) environment:
 
 ```bash
-cd /content/ColabMDA
-pip install -e .
+bash envs/install_modeller_env.sh
 ```
 
-Quick sanity check (optional):
+Set your Modeller license (required to run Modeller). The installer will default to `MODELIRANJE` if `KEY_MODELLER` is not set:
 
 ```bash
-python - << 'PY'
-from openmm import Platform
-print([Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
-PY
+export KEY_MODELLER="MODELIRANJE"
 ```
 
-### 3. Modeller CPU Environment + License
+Optional overrides for HPC:
+
+- Use a specific CUDA version: `CUDA_VERSION=12.4 bash envs/install_openmm_env.sh`
+- Use a custom environment name: `ENV_NAME=myenv bash envs/install_openmm_env.sh`
+
+HPC quick install (module-based):
 
 ```bash
-conda config --add channels salilab
-mamba create -y -n modeller_env python=3.10 modeller biopython
-conda activate modeller_env
-
-cd /content/ColabMDA
-pip install -e .
-```
-
-Set your Modeller license (choose one method):
-
-Option A (recommended for Colab):
-
-```bash
-export KEY_MODELLER="YOUR_LICENSE_KEY"
-```
-
-Option B (edit config after install):
-
-```bash
-LICENSE_KEY="YOUR_LICENSE_KEY"
-CONFIG="$HOME/miniforge3/envs/modeller_env/lib/modeller-*/modlib/modeller/config.py"
-sed -i "s/^license *=.*/license = '${LICENSE_KEY}'/" "$CONFIG"
-python - << 'PY'
-import modeller
-print('Modeller OK, version', modeller.__version__)
-PY
+module purge
+module load miniforge3/24.3.0-0
+bash envs/install_openmm_env.sh
+bash envs/install_modeller_env.sh
 ```
 
 ## Quickstart (CLI)
 
-These commands are safe for Colab and will resume from checkpoints on reconnect.
+These commands are safe for Colab and will resume from checkpoints on reconnect. Use Drive as the working directory so all outputs are already persisted.
 
 ```bash
 conda activate openmm_gpu
-cd /content
+cd /content/drive/MyDrive/openmm_runs
 colabmda openmm prep --pdb-id 4ldj
-colabmda openmm run --pdb-id 4ldj --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
-  --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+colabmda openmm run --pdb-id 4ldj --total-ns 5 --traj-interval 1 --checkpoint-ps 1000
 colabmda openmm status --pdb-id 4ldj
 colabmda openmm merge --pdb-id 4ldj
 colabmda openmm analysis --pdb-id 4ldj
@@ -119,14 +84,14 @@ colabmda openmm analysis --pdb-id 4ldj
 
 ## OpenMM Workflow Overview (CLI)
 
-All outputs go to your **current working directory**. Use `cd` to choose where you want files written. For Colab, use `/content` for speed and stability.
+All outputs go to your **current working directory**. Use `cd` to choose where you want files written. For Colab, you can use `/content` (faster) or Drive (persistent).
 
 ### 1. Prepare the PDB Structure
 
 From RCSB:
 
 ```bash
-cd /content
+cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda openmm prep --pdb-id 4ldj
 ```
 
@@ -138,16 +103,15 @@ colabmda openmm prep --pdb-file /content/4ldj.pdb --name 4ldj --outdir 4ldj
 
 Outputs are written to `./<pdbid>/` and include `<pdbid>_cleaned.pdb`.
 
-### 2. Run Chunked MD Simulation
+### 2. Run Chunked MD Simulation (Production)
 
 ```bash
-cd /content
+cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda openmm run --pdb-id 4ldj \
-  --total-ns 1 \
-  --traj-interval 100 \
+  --total-ns 5 \
+  --traj-interval 1 \
   --equil-time 100 \
-  --checkpoint-ps 100 \
-  --sync-dir /content/drive/MyDrive/openmm_runs/4ldj
+  --checkpoint-ps 1000
 ```
 
 This runs minimization, equilibration (NVT + NPT), then production in chunks. If the session disconnects, re-run the same command to resume.
@@ -177,8 +141,37 @@ colabmda openmm status --pdb-id 4ldj
 ## Modeller Workflow (CLI)
 
 ```bash
-colabmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303
-colabmda modeller mutate --pdb-in 4bgq_fix/target.B99990001_with_cryst.pdb --chain A --mut K76E
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169
+```
+
+Before making mutants, confirm whether the PDB is WT or already mutated by comparing against the UniProt reference sequence (P01116). If the PDB is already a mutant (e.g., G12C), flag it and **revert to WT first**, then generate mutants from the WT.
+
+Recommended folder layout under Drive:
+
+```
+/content/drive/MyDrive/openmm_runs/4ldj/
+  original/
+  wt/
+  mutants/
+```
+
+Example (revert mutant to WT, then make mutants):
+
+```bash
+# Revert G12C -> WT (C12G)
+colabmda modeller mutate --pdb-in 4ldj/original/4ldj_cleaned.pdb --chain A --mut C12G --outdir-mut 4ldj/wt
+
+# Now make mutants from the WT
+colabmda modeller mutate --pdb-in 4ldj/wt/4ldj_wt.pdb --chain A --mut G12C --outdir-mut 4ldj/mutants/4ldj_G12C
+```
+
+Example mutant list (one per line):
+
+```text
+G12C
+I36M
+G60R
+T58I
 ```
 
 ## Mutant Workflow Walkthrough (WT → Mutant MD)
@@ -189,7 +182,7 @@ This shows a full WT + mutant flow using the current CLI. The mutant is built wi
 
 ```bash
 conda activate openmm_gpu
-cd /content
+cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda openmm prep --pdb-id 4ldj
 ```
 
@@ -197,7 +190,7 @@ colabmda openmm prep --pdb-id 4ldj
 
 ```bash
 conda activate modeller_env
-cd /content
+cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_G12C
 ```
 
@@ -207,15 +200,14 @@ This produces a mutant PDB at `4ldj_G12C/4ldj_G12C.pdb`.
 
 ```bash
 conda activate openmm_gpu
-cd /content
+cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda openmm prep --pdb-file 4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C --outdir 4ldj_G12C
 ```
 
 ### 4. Run Mutant MD (Resume-safe)
 
 ```bash
-colabmda openmm run --workdir 4ldj_G12C --name 4ldj_G12C --total-ns 1 --traj-interval 100 --checkpoint-ps 100 \
-  --sync-dir /content/drive/MyDrive/openmm_runs/4ldj_G12C
+colabmda openmm run --workdir 4ldj_G12C --name 4ldj_G12C --total-ns 5 --traj-interval 1 --checkpoint-ps 1000
 colabmda openmm status --pdb-id 4ldj_G12C
 colabmda openmm merge --pdb-dir 4ldj_G12C
 colabmda openmm analysis --pdb-dir 4ldj_G12C
@@ -235,11 +227,22 @@ Then run Modeller in batch mode:
 
 ```bash
 conda activate modeller_env
-cd /content
+cd /content/drive/MyDrive/openmm_runs   # or: cd /content
 colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --list mutations.txt --outdir-mut 4ldj_mutants
 ```
 
 This creates one mutant PDB per line in `4ldj_mutants/`. For each mutant, run the same OpenMM prep/run/merge/analysis steps as shown above.
+
+## Project Strategy (WT + Mutants)
+
+Organize work in three phases:
+
+1. Preparation (WT and mutants)
+Place the original PDB in a dedicated folder, then create `wt/` and `mutants/` subfolders. Use Modeller to confirm or revert mutations as needed using UniProt as the reference sequence.
+2. Simulation (WT and mutants)
+Run OpenMM for `wt/` first, then each mutant in its own folder.
+3. Analysis (WT + mutants)
+Generate RMSD/RMSF/Rg for each system, then plot WT and all mutants together for comparison.
 
 ## Where Files Go
 
@@ -256,6 +259,90 @@ This creates one mutant PDB per line in `4ldj_mutants/`. For each mutant, run th
 - Avoid saving trajectories too frequently. Recommended: 1 frame per 100 ps.
 - Do not write large trajectories directly to Google Drive.
 - Expect GPU disconnects after a few hours; resume-safe runs are mandatory.
+- On a new Colab session (same day or next day), re-run the installation steps and then run the exact same `colabmda openmm run` command to resume from checkpoints.
+
+## HPC (Slurm) Workflow
+
+This section mirrors the CLI workflow for HPC systems using modules and Slurm. Adjust module names, GPU types, and time limits to match your cluster.
+
+### 1. Prepare Environments (login node)
+
+```bash
+module purge
+module load miniforge3/24.3.0-0
+cd /path/to/ColabMDA
+bash envs/install_openmm_env.sh
+```
+
+### 2. Recommended Runtime Settings
+
+```bash
+export OPENMM_DEFAULT_PLATFORM=CUDA
+export OPENMM_CUDA_DEFAULT_PRECISION=mixed
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8}
+```
+
+Sanity check:
+
+```bash
+python - << 'PY'
+from openmm import Platform
+print("Platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
+PY
+```
+
+### 3. Batch Script Example (Slurm)
+
+Save as `run_on_hpc.sh`:
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=4bgq_10ns
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+#SBATCH --gpus=a100:1
+#SBATCH --mem=16gb
+#SBATCH --time=12:00:00
+
+module purge
+module load miniforge3/24.3.0-0
+source activate pw310
+
+PDBID="4bgq"
+TOTAL_NS=5.0
+INTERVAL_PS=1.0
+EQUIL_PS=100.0
+CHUNK_PS=1000.0
+
+export OPENMM_DEFAULT_PLATFORM=CUDA
+export OPENMM_CUDA_DEFAULT_PRECISION=mixed
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-2}
+
+echo "Step 1: Cleaning PDB..."
+colabmda openmm prep --pdb-id "$PDBID"
+
+echo "Step 2: Running Production..."
+colabmda openmm run --pdb-id "$PDBID" \
+  --total-ns "$TOTAL_NS" \
+  --traj-interval "$INTERVAL_PS" \
+  --equil-time "$EQUIL_PS" \
+  --checkpoint-ps "$CHUNK_PS"
+
+echo "Step 3: Merging Trajectories..."
+colabmda openmm merge --pdb-id "$PDBID"
+
+echo "Step 4: Analysis..."
+colabmda openmm analysis --pdb-id "$PDBID"
+
+echo "Done."
+```
+
+Submit with:
+
+```bash
+sbatch run_on_hpc.sh
+```
 
 ## Notes
 
