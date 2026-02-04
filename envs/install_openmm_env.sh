@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ENV_NAME=${ENV_NAME:-openmm_gpu}
-CUDA_VERSION=${CUDA_VERSION:-11.8}
+CUDA_VERSION=${CUDA_VERSION:-}
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if ! command -v conda >/dev/null 2>&1; then
@@ -29,6 +29,13 @@ else
   conda config --set solver libmamba
 fi
 
+CUDA_SPEC=()
+if [[ -n "${CUDA_VERSION}" ]]; then
+  CUDA_SPEC=("cuda-version=${CUDA_VERSION}")
+else
+  CUDA_SPEC=("cudatoolkit=11.8")
+fi
+
 $SOLVER create -y -n "$ENV_NAME" -c conda-forge --override-channels \
   python=3.10 \
   openmm \
@@ -39,7 +46,7 @@ $SOLVER create -y -n "$ENV_NAME" -c conda-forge --override-channels \
   numpy \
   matplotlib \
   biopython \
-  "cuda-version=${CUDA_VERSION}"
+  "${CUDA_SPEC[@]}"
 
 conda activate "$ENV_NAME"
 
