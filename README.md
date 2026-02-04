@@ -58,7 +58,7 @@ export KEY_MODELLER="MODELIRANJE"
 
 Optional overrides for HPC:
 
-- Use a specific CUDA version: `CUDA_VERSION=12.4 bash envs/install_openmm_env.sh`
+- Use a specific CUDA version (conda-forge): `CUDA_VERSION=12.4 bash envs/install_openmm_env.sh`
 - Use a custom environment name: `ENV_NAME=myenv bash envs/install_openmm_env.sh`
 
 HPC quick install (module-based):

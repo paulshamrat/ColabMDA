@@ -30,7 +30,7 @@ fi
 
 conda config --add channels salilab
 
-$SOLVER create -y -n "$ENV_NAME" -c conda-forge --override-channels \
+$SOLVER create -y -n "$ENV_NAME" -c salilab -c conda-forge \
   python=3.10 \
   modeller \
   biopython
