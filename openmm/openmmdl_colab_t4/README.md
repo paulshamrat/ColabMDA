@@ -24,6 +24,18 @@ bash 01_install_openmmdl_colab_t4.sh
 bash 02_run_quick_protein_ligand_simulation.sh
 ```
 
+## Colab Notebook Cell (works with `!`)
+
+Each `!` line runs in a fresh shell, so `!cd ...` does not persist.
+Use full paths in `!bash` commands:
+
+```bash
+!cd /content
+!git clone https://github.com/paulshamrat/ColabMDA.git ColabMDA
+!bash /content/ColabMDA/openmm/openmmdl_colab_t4/01_install_openmmdl_colab_t4.sh
+!bash /content/ColabMDA/openmm/openmmdl_colab_t4/02_run_quick_protein_ligand_simulation.sh
+```
+
 ## What gets installed
 
 - micromamba at `/content/micromamba`
