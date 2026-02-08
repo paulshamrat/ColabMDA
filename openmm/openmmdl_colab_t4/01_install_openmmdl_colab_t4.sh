@@ -22,7 +22,6 @@ cp /tmp/bin/micromamba "${MAMBA_ROOT_PREFIX}/bin/"
 echo "[3/7] Activate micromamba shell"
 export MAMBA_ROOT_PREFIX
 export PATH="${MAMBA_ROOT_PREFIX}/bin:${PATH}"
-eval "$(micromamba shell hook -s bash)"
 
 echo "[4/7] Recreate env: openmmdl"
 if micromamba env list | awk '{print $1}' | grep -qx "openmmdl"; then
@@ -31,17 +30,16 @@ fi
 micromamba env create -y -n openmmdl -f "${OPENMMDL_DIR}/environment.yml"
 
 echo "[5/7] Install OpenMMDL package"
-micromamba activate openmmdl
 cd "${OPENMMDL_DIR}"
-pip install .
+micromamba run -n openmmdl pip install .
 
 echo "[6/7] Basic checks"
 nvidia-smi || true
-openmmdl --help >/tmp/openmmdl_help.txt
+micromamba run -n openmmdl openmmdl --help >/tmp/openmmdl_help.txt
 head -n 20 /tmp/openmmdl_help.txt
 
 echo "[7/7] OpenMM CUDA check"
-python - <<'PY'
+micromamba run -n openmmdl python - <<'PY'
 import openmm as mm
 platforms = [mm.Platform.getPlatform(i).getName() for i in range(mm.Platform.getNumPlatforms())]
 print("OpenMM version:", mm.__version__)

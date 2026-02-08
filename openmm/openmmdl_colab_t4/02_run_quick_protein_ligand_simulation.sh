@@ -19,13 +19,11 @@ fi
 
 export MAMBA_ROOT_PREFIX
 export PATH="${MAMBA_ROOT_PREFIX}/bin:${PATH}"
-eval "$(micromamba shell hook -s bash)"
 
 if ! micromamba env list | awk '{print $1}' | grep -qx "openmmdl"; then
   echo "ERROR: environment 'openmmdl' not found. Run install script first."
   exit 1
 fi
-micromamba activate openmmdl
 
 for f in "5wyz-moe-processed_openMMDL.pdb" "5VF.sdf"; do
   if [[ ! -f "${TUTORIAL_DIR}/${f}" ]]; then
@@ -38,7 +36,7 @@ cp "${SCRIPT_DIR}/openmmdl_protein_ligand_quickrun.py" "${OPENMMDL_DIR}/openmmdl
 
 cd "${OPENMMDL_DIR}"
 rm -rf "${RUN_DIR}"
-openmmdl simulation \
+micromamba run -n openmmdl openmmdl simulation \
   -f "${RUN_DIR}" \
   -s "${OPENMMDL_DIR}/openmmdl_protein_ligand_quickrun.py" \
   -t "${TUTORIAL_DIR}/5wyz-moe-processed_openMMDL.pdb" \
