@@ -66,6 +66,9 @@ def _guess_pdbid_from_workdir(workdir: str) -> str | None:
                          f"Please specify --name.")
     return candidates[0].name.replace("_cleaned.pdb", "")
 
+def _default_project_root() -> str:
+    return _resolve_root(use_drive=True, root=None) or DEFAULT_DRIVE_ROOT
+
 def main():
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
@@ -88,7 +91,7 @@ def main():
 
     # run (colab-safe runner)
     p_run = sub_openmm.add_parser("run", help="Run/resume chunked MD (colab-safe)")
-    g = p_run.add_mutually_exclusive_group(required=True)
+    g = p_run.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as workdir (pdb-id download workflow)")
     g.add_argument("--workdir", help="Folder containing <name>_cleaned.pdb")
     p_run.add_argument("--name", default=None, help="Prefix name (default: --pdb-id or inferred from workdir)")
@@ -102,7 +105,7 @@ def main():
 
     # merge
     p_merge = sub_openmm.add_parser("merge", help="Merge chunk DCDs/logs")
-    g = p_merge.add_mutually_exclusive_group(required=True)
+    g = p_merge.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
     p_merge.add_argument("--topology", default=None, help="Topology PDB (default: <dir>/solvated.pdb)")
@@ -114,7 +117,7 @@ def main():
 
     # analysis
     p_ana = sub_openmm.add_parser("analysis", help="RMSD/Rg/RMSF analysis")
-    g = p_ana.add_mutually_exclusive_group(required=True)
+    g = p_ana.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
     p_ana.add_argument("--topology", default=None)
@@ -126,11 +129,18 @@ def main():
 
     # status
     p_stat = sub_openmm.add_parser("status", help="Sanity-check frames/time/resume readiness")
-    g = p_stat.add_mutually_exclusive_group(required=True)
+    g = p_stat.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
     p_stat.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_stat.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
+
+    # stage
+    p_stage = sub_openmm.add_parser("stage", help="Stage a WT/mutant structure into simulations/<name>")
+    p_stage.add_argument("--pdb-file", required=True, help="Input structure PDB file (typically from structures/)")
+    p_stage.add_argument("--name", required=True, help="Simulation name (e.g. 4ldj_wt, 4ldj_G12C)")
+    p_stage.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
+    p_stage.add_argument("--root", default=None, help=f"Project root (default: ${ENV_ROOT} or {DEFAULT_DRIVE_ROOT})")
 
     # ---------------- Modeller ----------------
     p_mod = sub.add_parser("modeller", help="Modeller workflows")
@@ -184,15 +194,20 @@ def main():
                 root = _resolve_root(args.drive, args.root)
                 if root:
                     _ensure_dir(root)
-                workdir = str(Path(root) / args.pdb_id / "run") if root else args.pdb_id
+                workdir = str(Path(root) / args.pdb_id / "run") if root else str(Path(args.pdb_id) / "run")
                 name = args.name or args.pdb_id
                 if root:
                     _prepare_run_inputs(root=root, pdbid=args.pdb_id, name=name)
-            else:
+            elif args.workdir:
                 workdir = args.workdir
                 name = args.name or _guess_pdbid_from_workdir(workdir)
                 if not name:
                     raise SystemExit("ERROR: could not infer pdbid from workdir; please specify --name.")
+            else:
+                workdir = "."
+                name = args.name or _guess_pdbid_from_workdir(workdir)
+                if not name:
+                    raise SystemExit("ERROR: could not infer pdbid from current directory; please specify --name.")
             openmm_run_colab(
                 workdir=workdir,
                 pdbid=name,
@@ -207,8 +222,12 @@ def main():
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
                 pdbid_dir = str(Path(root) / args.pdb_id / "run")
-            else:
+            elif args.pdb_id:
+                pdbid_dir = str(Path(args.pdb_id) / "run")
+            elif args.pdb_dir:
                 pdbid_dir = args.pdb_id or args.pdb_dir
+            else:
+                pdbid_dir = "."
             openmm_merge(pdbid_dir, args.topology, args.out_traj, args.out_log, stride=args.stride)
 
         elif args.cmd == "analysis":
@@ -219,8 +238,14 @@ def main():
                 if outdir is None:
                     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                     outdir = str(Path(root) / args.pdb_id / "analysis" / f"analysis_{args.pdb_id}_{ts}")
+            elif args.pdb_id:
+                pdbid_dir = str(Path(args.pdb_id) / "run")
+                outdir = args.outdir
+            elif args.pdb_dir:
+                pdbid_dir = args.pdb_dir
+                outdir = args.outdir
             else:
-                pdbid_dir = args.pdb_id or args.pdb_dir
+                pdbid_dir = "."
                 outdir = args.outdir
             openmm_analysis(pdbid_dir, args.topology, args.trajectory, args.interval, outdir)
 
@@ -228,9 +253,21 @@ def main():
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
                 pdbid_dir = str(Path(root) / args.pdb_id / "run")
-            else:
+            elif args.pdb_id:
+                pdbid_dir = str(Path(args.pdb_id) / "run")
+            elif args.pdb_dir:
                 pdbid_dir = args.pdb_id or args.pdb_dir
+            else:
+                pdbid_dir = "."
             openmm_status(pdbid_dir)
+
+        elif args.cmd == "stage":
+            root = args.root or _default_project_root()
+            _ensure_dir(root)
+            outdir = str(Path(root) / "simulations" / args.name)
+            _ensure_dir(outdir)
+            openmm_prep_from_file(args.pdb_file, outdir, pdbid=args.name, ph=args.ph)
+            print(f"[INFO] Staged simulation folder: {outdir}")
 
     elif args.tool == "modeller":
         if args.cmd == "build":

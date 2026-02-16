@@ -115,91 +115,95 @@ MODELIRANJE
 
 The script persists the key for the conda environment and future shells.
 
-### HPC Quick Install (module-based)
-
-```bash
-module purge
-module load miniforge3/24.3.0-0
-```
-
-Then use the same OpenMM/Modeller env steps above.
 
 ## Workflow Overview (WT First, Recommended)
 
-Canonical protocol is:
-1. Build/confirm WT with Modeller (`--pdb-id` + `--uniprot-id`)
-2. Generate mutants from that WT
-3. Run OpenMM for WT and each mutant
-4. Compare WT vs mutant analyses
+Canonical protocol:
+1. Build WT and mutant structures in one place (`structures/`)
+2. Stage one selected structure into simulation folder (`simulations/<name>`)
+3. `cd` into that folder and run short commands (no long paths)
+4. Save per-system analysis in `analysis/single/` and compare in `analysis/compare/`
 
-Default project root is `/content/drive/MyDrive/openmm`.
+Default project root: `/content/drive/MyDrive/openmm`
 
 ### Folder Layout
 
 ```text
 /content/drive/MyDrive/openmm/
-  4ldj/
-    wt/
-      modeller/
-      openmm/
-    mutants/
-      4ldj_G12C/
-        modeller/
-        openmm/
-      4ldj_G12D/
-        modeller/
-        openmm/
+  structures/
+    4ldj/
+      wt/
+      mutants/
+  simulations/
+    4ldj_wt/
+    4ldj_G12C/
+    4ldj_G12D/
+  analysis/
+    single/
+    compare/
 ```
 
-### 1. Build WT (Modeller, First Step)
+### 1. Build WT and Mutants in `structures/`
 
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 cd /content/drive/MyDrive/openmm
 
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --outdir 4ldj/wt/modeller
+# WT
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --outdir structures/4ldj/wt
+
+# Mutants from WT
+colabmda modeller mutate --pdb-in structures/4ldj/wt/<wt_model>.pdb --chain A --mut G12C --outdir-mut structures/4ldj/mutants/4ldj_G12C
+colabmda modeller mutate --pdb-in structures/4ldj/wt/<wt_model>.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
 ```
 
-Use the produced WT PDB as the input for OpenMM WT prep.
-
-### 2. Create Mutants from WT
-
-```bash
-# Single mutant
-colabmda modeller mutate --pdb-in 4ldj/wt/modeller/<wt_model>.pdb --chain A --mut G12C --outdir-mut 4ldj/mutants/4ldj_G12C/modeller
-
-# Batch mutants
-colabmda modeller mutate --pdb-in 4ldj/wt/modeller/<wt_model>.pdb --chain A --list mutations.txt --outdir-mut 4ldj/mutants
-```
-
-### 3. Run OpenMM for WT
+### 2. Stage One Structure into `simulations/<name>`
 
 ```bash
 conda activate base
+cd /content/drive/MyDrive/openmm
 
-# Prep from WT model file
-colabmda openmm prep --pdb-file 4ldj/wt/modeller/<wt_model>.pdb --name 4ldj_wt --outdir 4ldj/wt/openmm/run
+# Stage WT
+colabmda openmm stage --pdb-file structures/4ldj/wt/<wt_model>.pdb --name 4ldj_wt
 
-# Run / merge / analysis
-colabmda openmm run --workdir /content/drive/MyDrive/openmm/4ldj/wt/openmm/run --name 4ldj_wt --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
-colabmda openmm merge --pdb-dir /content/drive/MyDrive/openmm/4ldj/wt/openmm/run --stride 10
-colabmda openmm analysis --pdb-dir /content/drive/MyDrive/openmm/4ldj/wt/openmm/run --interval 10 --outdir /content/drive/MyDrive/openmm/4ldj/wt/openmm/analysis
+# Stage one mutant
+colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C
 ```
 
-### 4. Run OpenMM for Each Mutant
+This creates:
+- `/content/drive/MyDrive/openmm/simulations/4ldj_wt`
+- `/content/drive/MyDrive/openmm/simulations/4ldj_G12C`
+
+### 3. Run from Inside Simulation Folder (Short Commands)
 
 ```bash
-# Example: G12C
-colabmda openmm prep --pdb-file 4ldj/mutants/4ldj_G12C/modeller/4ldj_G12C.pdb --name 4ldj_G12C --outdir 4ldj/mutants/4ldj_G12C/openmm/run
-colabmda openmm run --workdir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/run --name 4ldj_G12C --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
-colabmda openmm merge --pdb-dir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/run --stride 10
-colabmda openmm analysis --pdb-dir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/run --interval 10 --outdir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/analysis
+cd /content/drive/MyDrive/openmm/simulations/4ldj_wt
+colabmda openmm run --name 4ldj_wt --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
+colabmda openmm merge --stride 10
+colabmda openmm analysis --interval 10 --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_wt
+```
+
+For mutant:
+
+```bash
+cd /content/drive/MyDrive/openmm/simulations/4ldj_G12C
+colabmda openmm run --name 4ldj_G12C --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
+colabmda openmm merge --stride 10
+colabmda openmm analysis --interval 10 --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_G12C
+```
+
+### 4. Compare WT vs Mutants in `analysis/compare`
+
+```bash
+python openmm/openmm_proteinwater/openmm_compare_plots.py \
+  --series WT=/content/drive/MyDrive/openmm/analysis/single/4ldj_wt \
+  --series G12C=/content/drive/MyDrive/openmm/analysis/single/4ldj_G12C \
+  --series G12D=/content/drive/MyDrive/openmm/analysis/single/4ldj_G12D \
+  --outdir /content/drive/MyDrive/openmm/analysis/compare/4ldj_wt_vs_mutants
 ```
 
 ### 5. Quick OpenMM-Only Path (No Modeller)
-
-If you only want direct protein-in-water MD from PDB ID:
 
 ```bash
 colabmda openmm prep --pdb-id 4ldj
@@ -213,111 +217,27 @@ colabmda openmm analysis --pdb-id 4ldj --interval 10
 Organize work in three phases:
 
 1. Preparation (WT and mutants)
-Place the original PDB in a dedicated folder, then create `wt/` and `mutants/` subfolders. Use Modeller to confirm or revert mutations as needed using UniProt as the reference sequence.
+Build WT first in `structures/<pdbid>/wt/`, then generate mutants in `structures/<pdbid>/mutants/`.
 2. Simulation (WT and mutants)
-Run OpenMM for `wt/` first, then each mutant in its own folder.
+Run WT and mutants in separate folders under `simulations/` (for example: `simulations/4ldj_wt`, `simulations/4ldj_G12C`).
 3. Analysis (WT + mutants)
-Generate RMSD/RMSF/Rg for each system, then plot WT and all mutants together for comparison.
+Store per-system analysis in `analysis/single/`, then generate overlays in `analysis/compare/`.
 
 ## Where Files Go
 
-- `openmm prep --pdb-id 4ldj` writes to `/content/drive/MyDrive/openmm/4ldj/prep/`
-- `openmm prep --pdb-file ... --name 4ldj_g12c` writes to `/content/drive/MyDrive/openmm/4ldj_g12c/prep/`
-- `openmm run --pdb-id 4ldj` writes to `/content/drive/MyDrive/openmm/4ldj/run/`
-- `openmm merge --pdb-id 4ldj` writes merged files in `/content/drive/MyDrive/openmm/4ldj/run/`
-- `openmm analysis --pdb-id 4ldj` writes plots under `/content/drive/MyDrive/openmm/4ldj/analysis/`
+- WT/mutant structures: `/content/drive/MyDrive/openmm/structures/...`
+- Staged simulation folders: `/content/drive/MyDrive/openmm/simulations/<name>/`
+- Single-system analysis: `/content/drive/MyDrive/openmm/analysis/single/<name>/`
+- WT vs mutant overlays: `/content/drive/MyDrive/openmm/analysis/compare/<project>/`
 
 ## Colab Limitations and Best Practices
 
 - Default workflow writes directly to Google Drive for persistence.
-- For faster local SSD runs, you can still use explicit `--workdir /content/work/...` plus `--sync-dir`.
+- For faster local SSD runs, you can still use explicit `--workdir /content/work/...` and optionally `--sync-dir`.
 - Avoid saving trajectories too frequently. Recommended: 1 frame per 100 ps.
 - Do not write large trajectories directly to Google Drive.
 - Expect GPU disconnects after a few hours; resume-safe runs are mandatory.
 - On a new Colab session (same day or next day), re-run the installation steps and then run the exact same `colabmda openmm run` command to resume from checkpoints.
-
-## HPC (Slurm) Workflow
-
-This section mirrors the CLI workflow for HPC systems using modules and Slurm. Adjust module names, GPU types, and time limits to match your cluster.
-
-### 1. Prepare Environments (login node)
-
-```bash
-module purge
-module load miniforge3/24.3.0-0
-cd /path/to/ColabMDA
-bash envs/install_openmm_env.sh
-```
-
-### 2. Recommended Runtime Settings
-
-```bash
-export OPENMM_DEFAULT_PLATFORM=CUDA
-export OPENMM_CUDA_DEFAULT_PRECISION=mixed
-export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8}
-```
-
-Sanity check:
-
-```bash
-python - << 'PY'
-from openmm import Platform
-print("Platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
-PY
-```
-
-### 3. Batch Script Example (Slurm)
-
-Save as `run_on_hpc.sh`:
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=4bgq_10ns
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --gpus=a100:1
-#SBATCH --mem=16gb
-#SBATCH --time=12:00:00
-
-module purge
-module load miniforge3/24.3.0-0
-source activate pw310
-
-PDBID="4bgq"
-TOTAL_NS=5.0
-INTERVAL_PS=1.0
-EQUIL_PS=100.0
-CHUNK_PS=1000.0
-
-export OPENMM_DEFAULT_PLATFORM=CUDA
-export OPENMM_CUDA_DEFAULT_PRECISION=mixed
-export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-2}
-
-echo "Step 1: Cleaning PDB..."
-colabmda openmm prep --pdb-id "$PDBID"
-
-echo "Step 2: Running Production..."
-colabmda openmm run --pdb-id "$PDBID" \
-  --total-ns "$TOTAL_NS" \
-  --traj-interval "$INTERVAL_PS" \
-  --equil-time "$EQUIL_PS" \
-  --checkpoint-ps "$CHUNK_PS"
-
-echo "Step 3: Merging Trajectories..."
-colabmda openmm merge --pdb-id "$PDBID"
-
-echo "Step 4: Analysis..."
-colabmda openmm analysis --pdb-id "$PDBID"
-
-echo "Done."
-```
-
-Submit with:
-
-```bash
-sbatch run_on_hpc.sh
-```
 
 ## Notes
 
