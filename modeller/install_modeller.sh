@@ -4,7 +4,7 @@ set -euo pipefail
 ## CONFIGURATION
 ROOT="$HOME/miniforge"
 ENV_NAME="modeller_env"
-LICENSE_KEY="MODELIRANJE"   # ← replace with your actual key
+LICENSE_KEY="${KEY_MODELLER:-${MODELLER_LICENSE:-}}"
 LOG="$PWD/install_modeller.log"
 
 exec > >(tee -a "$LOG") 2>&1
@@ -38,8 +38,28 @@ fi
 echo "--- Configuring channels and installing MODELLER"
 conda config --env --add channels salilab
 conda config --env --add channels conda-forge
-# set license key as an env var so it never prompts
+
+if [[ -z "${LICENSE_KEY}" ]]; then
+  if [[ -t 0 ]]; then
+    read -r -p "Enter MODELLER license key (KEY_MODELLER): " LICENSE_KEY
+  else
+    echo "❌ KEY_MODELLER is not set and no interactive prompt is available"
+    echo "Set it before running, e.g.: export KEY_MODELLER='MODELIRANJE'"
+    exit 1
+  fi
+fi
+
+if [[ -z "${LICENSE_KEY}" ]]; then
+  echo "❌ Empty MODELLER license key."
+  exit 1
+fi
+
+# Set license key as an env var so MODELLER does not prompt later.
 conda env config vars set KEY_MODELLER="$LICENSE_KEY"
+if ! grep -q 'KEY_MODELLER=' "$HOME/.bashrc" 2>/dev/null; then
+  echo "export KEY_MODELLER='${LICENSE_KEY}'" >> "$HOME/.bashrc"
+fi
+
 mamba install -y modeller
 
 # 5) Verify

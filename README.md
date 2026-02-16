@@ -32,9 +32,18 @@ curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/b
 bash bootstrap_colab_openmm_gpu.sh latest
 ```
 
+Install OpenMM + Modeller in one flow (with MODELLER license prompt):
+
+```bash
+cd /content
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
+WITH_MODELLER=1 bash bootstrap_colab_openmm_gpu.sh latest
+```
+
 This will:
 - install Miniforge (if missing)
 - install OpenMM + analysis stack in conda `base` (legacy-compatible path)
+- optionally install MODELLER in `modeller_env` when `WITH_MODELLER=1`
 - install `colabmda` from GitHub Release wheel (no full repo clone)
 - validate GPU/OpenMM platforms and CLI
 - create `/content/work` and `/content/drive/MyDrive/openmm`
@@ -93,19 +102,18 @@ pip install -e .
 ### 5. Modeller CPU Environment + License
 
 ```bash
-conda config --add channels salilab
-mamba create -y -n modeller_env python=3.10 modeller biopython
-conda activate modeller_env
-
 cd /content/drive/MyDrive/openmm/ColabMDA
-pip install -e .
+bash envs/install_modeller_env.sh
 ```
 
-Set your Modeller license (required to run Modeller):
+During installation, the script prompts for MODELLER license key (`KEY_MODELLER`).
+Example key:
 
 ```bash
-export KEY_MODELLER="MODELIRANJE"
+MODELIRANJE
 ```
+
+The script persists the key for the conda environment and future shells.
 
 ### HPC Quick Install (module-based)
 

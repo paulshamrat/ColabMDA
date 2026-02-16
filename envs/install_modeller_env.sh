@@ -43,11 +43,34 @@ else
   echo "WARNING: pyproject.toml not found in $REPO_ROOT. Skipping pip install -e ." >&2
 fi
 
-if [[ -z "${KEY_MODELLER:-}" ]]; then
-  export KEY_MODELLER="MODELIRANJE"
-  echo "NOTE: KEY_MODELLER was not set; defaulting to MODELIRANJE." >&2
-else
-  echo "KEY_MODELLER is set." >&2
+# License handling:
+# Priority: KEY_MODELLER > MODELLER_LICENSE > interactive prompt
+if [[ -z "${KEY_MODELLER:-}" && -n "${MODELLER_LICENSE:-}" ]]; then
+  export KEY_MODELLER="${MODELLER_LICENSE}"
 fi
 
+if [[ -z "${KEY_MODELLER:-}" ]]; then
+  if [[ -t 0 ]]; then
+    read -r -p "Enter MODELLER license key (KEY_MODELLER): " KEY_MODELLER
+    export KEY_MODELLER
+  else
+    echo "ERROR: KEY_MODELLER is not set and no interactive prompt is available." >&2
+    echo "Set it before running, e.g.:" >&2
+    echo "  export KEY_MODELLER='MODELIRANJE'" >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "${KEY_MODELLER:-}" ]]; then
+  echo "ERROR: empty MODELLER license key." >&2
+  exit 1
+fi
+
+# Persist key for this conda env and future shells.
+conda env config vars set KEY_MODELLER="${KEY_MODELLER}" >/dev/null
+if ! grep -q 'KEY_MODELLER=' "$HOME/.bashrc" 2>/dev/null; then
+  echo "export KEY_MODELLER='${KEY_MODELLER}'" >> "$HOME/.bashrc"
+fi
+
+echo "KEY_MODELLER configured for env '$ENV_NAME'."
 echo "Modeller environment '$ENV_NAME' is ready."
