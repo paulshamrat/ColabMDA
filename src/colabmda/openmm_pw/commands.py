@@ -2,6 +2,7 @@
 import os
 import sys
 import subprocess
+import shutil
 from pathlib import Path
 from importlib import resources
 import re
@@ -144,19 +145,42 @@ def _run(script: Path, argv: list[str], cwd: str | None = None):
         )
     cmd = [_py(), str(script)] + argv
     print("\n[RUN]", " ".join(cmd), "\n")
-    raise SystemExit(subprocess.call(cmd, cwd=cwd))
+    rc = subprocess.call(cmd, cwd=cwd)
+    if rc != 0:
+        raise SystemExit(rc)
 
-def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None):
+def _sync_tree(src_dir: Path, dst_dir: Path):
+    if not src_dir.exists():
+        print(f"[WARN] Sync source does not exist: {src_dir}")
+        return
+    if src_dir.resolve() == dst_dir.resolve():
+        print(f"[INFO] Sync skipped (same path): {src_dir}")
+        return
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for p in src_dir.iterdir():
+        if p.is_file():
+            shutil.copy2(p, dst_dir / p.name)
+            copied += 1
+    print(f"[INFO] Synced {copied} files: {src_dir} -> {dst_dir}")
+
+def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: str | None = None):
     pkg, name = SCRIPTS["clean_by_pdbid"]
     base = Path(root_dir or os.getcwd()).resolve()
-    outdir = base / pdbid
+    outdir = base / pdbid / "prep"
+    outdir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Prep output will be written to: {outdir}")
-    _run(_script_path(pkg, name), [pdbid], cwd=root_dir)
+    _run(_script_path(pkg, name), [pdbid, "--outdir", str(outdir)])
+    if sync_dir:
+        _sync_tree(outdir, Path(sync_dir).resolve())
 
-def openmm_prep_from_file(pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0):
+def openmm_prep_from_file(pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0, sync_dir: str | None = None):
     pkg, name = SCRIPTS["clean_from_file"]
-    print(f"[INFO] Prep output will be written to: {Path(outdir).resolve()}")
+    outdir_path = Path(outdir).resolve()
+    print(f"[INFO] Prep output will be written to: {outdir_path}")
     _run(_script_path(pkg, name), ["--in", pdb_file, "--outdir", outdir, "--pdbid", pdbid, "--ph", str(ph)])
+    if sync_dir:
+        _sync_tree(outdir_path, Path(sync_dir).resolve())
 
 def openmm_run_colab(workdir: str, pdbid: str, total_ns: float, traj_interval: float,
                      equil_time: float, checkpoint_ps: float, sync_dir: str | None):
@@ -173,8 +197,8 @@ def openmm_run_colab(workdir: str, pdbid: str, total_ns: float, traj_interval: f
     pkg, name = SCRIPTS["run_colab"]
     _run(_script_path(pkg, name), argv)
 
-def openmm_merge(pdbid_dir: str, topology: str | None, out_traj: str, out_log: str):
-    argv = [pdbid_dir, "--out-traj", out_traj, "--out-log", out_log]
+def openmm_merge(pdbid_dir: str, topology: str | None, out_traj: str, out_log: str, stride: int = 1):
+    argv = [pdbid_dir, "--out-traj", out_traj, "--out-log", out_log, "--stride", str(stride)]
     if topology:
         argv += ["--topology", topology]
     pkg, name = SCRIPTS["merge"]

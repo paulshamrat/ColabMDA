@@ -37,7 +37,7 @@ This will:
 - install OpenMM + analysis stack in conda `base` (legacy-compatible path)
 - install `colabmda` from GitHub Release wheel (no full repo clone)
 - validate GPU/OpenMM platforms and CLI
-- create `/content/work` and `/content/drive/MyDrive/openmm_runs`
+- create `/content/work` and `/content/drive/MyDrive/openmm`
 
 ### 3. Installation on Terminal (Manual Alternative)
 
@@ -84,7 +84,7 @@ This installs from the latest GitHub Release wheel and avoids cloning the full r
 Developer-only option (if you need source editing):
 
 ```bash
-cd /content/drive/MyDrive/openmm_runs
+cd /content/drive/MyDrive/openmm
 git clone https://github.com/paulshamrat/ColabMDA.git
 cd ColabMDA
 pip install -e .
@@ -97,7 +97,7 @@ conda config --add channels salilab
 mamba create -y -n modeller_env python=3.10 modeller biopython
 conda activate modeller_env
 
-cd /content/drive/MyDrive/openmm_runs/ColabMDA
+cd /content/drive/MyDrive/openmm/ColabMDA
 pip install -e .
 ```
 
@@ -118,17 +118,19 @@ Then use the same OpenMM/Modeller env steps above.
 
 ## Workflow Overview (Updated CLI)
 
-For Colab runtime performance and resume safety:
+For Colab runtime performance and persistence:
 - Install software in `/content` (fast local SSD)
-- Run MD in `/content/work/...`
-- Sync outputs/checkpoints to Google Drive
+- Default OpenMM project root is `/content/drive/MyDrive/openmm`
+- Per-system layout is automatic:
+  - `<pdbid>/prep`
+  - `<pdbid>/run`
+  - `<pdbid>/analysis`
 
 Example:
 
 ```bash
-mkdir -p /content/work
-mkdir -p /content/drive/MyDrive/openmm_runs
-cd /content/work
+mkdir -p /content/drive/MyDrive/openmm
+cd /content
 ```
 
 ### 1. Prepare the PDB Structure
@@ -139,7 +141,7 @@ Download and clean a PDB structure, removing heterogens (except water), building
 colabmda openmm prep --pdb-id 4ldj
 ```
 
-Output: creates `4ldj/` containing `4ldj.pdb` (raw) and `4ldj_cleaned.pdb` (processed).
+Output: creates `/content/drive/MyDrive/openmm/4ldj/prep/` containing `4ldj.pdb` and `4ldj_cleaned.pdb`.
 
 ### 2. Run Chunked MD Simulation (5 ns, 1 ps frames, 1000 ps chunks)
 
@@ -151,7 +153,7 @@ colabmda openmm run --pdb-id 4ldj \
   --checkpoint-ps 1000
 ```
 
-Output: multiple chunk files (`prod_*`), logs, checkpoints, and system files in `4ldj/`.
+Output: writes chunk files, checkpoints, and system files in `/content/drive/MyDrive/openmm/4ldj/run/`.
 
 ### 3. Merge Trajectory Chunks
 
@@ -159,15 +161,23 @@ Output: multiple chunk files (`prod_*`), logs, checkpoints, and system files in 
 colabmda openmm merge --pdb-id 4ldj
 ```
 
-Output: merged trajectory (`prod_full.dcd`) and log (`prod_full.log`).
+Output: merged trajectory/log in `/content/drive/MyDrive/openmm/4ldj/run/`.
+
+For long runs on Colab, keep every Nth frame while merging to reduce RAM/disk load:
+
+```bash
+colabmda openmm merge --pdb-id 4ldj --stride 10
+```
+
+If you merge with `--stride 10`, analysis interval should be multiplied by 10 (e.g. from 1 ps to 10 ps).
 
 ### 4. Analyze Trajectory
 
 ```bash
-colabmda openmm analysis --pdb-id 4ldj
+colabmda openmm analysis --pdb-id 4ldj --interval 1
 ```
 
-Output: analysis results in `analysis_<pdbid>_TIMESTAMP/`.
+Output: analysis results in `/content/drive/MyDrive/openmm/4ldj/analysis/analysis_<pdbid>_TIMESTAMP/`.
 
 ## Modeller Workflow (CLI)
 
@@ -180,7 +190,7 @@ Before making mutants, confirm whether the PDB is WT or already mutated by compa
 Recommended folder layout under Drive:
 
 ```
-/content/drive/MyDrive/openmm_runs/4ldj/
+/content/drive/MyDrive/openmm/4ldj/
   original/
   wt/
   mutants/
@@ -213,7 +223,7 @@ This shows a full WT + mutant flow using the current CLI. The mutant is built wi
 
 ```bash
 conda activate openmm_gpu
-cd /content/drive/MyDrive/openmm_runs   # or: cd /content
+cd /content/drive/MyDrive/openmm   # or: cd /content
 colabmda openmm prep --pdb-id 4ldj
 ```
 
@@ -221,7 +231,7 @@ colabmda openmm prep --pdb-id 4ldj
 
 ```bash
 conda activate modeller_env
-cd /content/drive/MyDrive/openmm_runs   # or: cd /content
+cd /content/drive/MyDrive/openmm   # or: cd /content
 colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_G12C
 ```
 
@@ -231,7 +241,7 @@ This produces a mutant PDB at `4ldj_G12C/4ldj_G12C.pdb`.
 
 ```bash
 conda activate openmm_gpu
-cd /content/drive/MyDrive/openmm_runs   # or: cd /content
+cd /content/drive/MyDrive/openmm   # or: cd /content
 colabmda openmm prep --pdb-file 4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C --outdir 4ldj_G12C
 ```
 
@@ -258,7 +268,7 @@ Then run Modeller in batch mode:
 
 ```bash
 conda activate modeller_env
-cd /content/drive/MyDrive/openmm_runs   # or: cd /content
+cd /content/drive/MyDrive/openmm   # or: cd /content
 colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --list mutations.txt --outdir-mut 4ldj_mutants
 ```
 
@@ -277,16 +287,16 @@ Generate RMSD/RMSF/Rg for each system, then plot WT and all mutants together for
 
 ## Where Files Go
 
-- `openmm prep --pdb-id 4ldj` writes to `./4ldj/`
-- `openmm prep --pdb-file ... --outdir 4ldj_g12c` writes to `./4ldj_g12c/`
-- `openmm run` writes trajectories, checkpoints, logs inside the work directory
-- `openmm merge` writes merged files in the same work directory
-- `openmm analysis` writes plots to `analysis_<pdbid>_TIMESTAMP/` unless `--outdir` is set
+- `openmm prep --pdb-id 4ldj` writes to `/content/drive/MyDrive/openmm/4ldj/prep/`
+- `openmm prep --pdb-file ... --name 4ldj_g12c` writes to `/content/drive/MyDrive/openmm/4ldj_g12c/prep/`
+- `openmm run --pdb-id 4ldj` writes to `/content/drive/MyDrive/openmm/4ldj/run/`
+- `openmm merge --pdb-id 4ldj` writes merged files in `/content/drive/MyDrive/openmm/4ldj/run/`
+- `openmm analysis --pdb-id 4ldj` writes plots under `/content/drive/MyDrive/openmm/4ldj/analysis/`
 
 ## Colab Limitations and Best Practices
 
-- Run MD in `/content/` (local SSD) for speed and stability.
-- Sync only completed chunks to Google Drive.
+- Default workflow writes directly to Google Drive for persistence.
+- For faster local SSD runs, you can still use explicit `--workdir /content/work/...` plus `--sync-dir`.
 - Avoid saving trajectories too frequently. Recommended: 1 frame per 100 ps.
 - Do not write large trajectories directly to Google Drive.
 - Expect GPU disconnects after a few hours; resume-safe runs are mandatory.
