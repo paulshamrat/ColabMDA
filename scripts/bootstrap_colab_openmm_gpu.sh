@@ -23,6 +23,14 @@ INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/openmm}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
+INSTALL_REF="${INSTALL_REF:-}"
+if [[ -z "${INSTALL_REF}" ]]; then
+  if [[ "${TAG}" == "latest" ]]; then
+    INSTALL_REF="main"
+  else
+    INSTALL_REF="${TAG}"
+  fi
+fi
 
 echo "[STEP] GPU check"
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -153,13 +161,8 @@ if ! command -v colabmda >/dev/null 2>&1; then
 fi
 
 if ! command -v colabmda >/dev/null 2>&1; then
-  if [[ "${TAG}" == "latest" ]]; then
-    REF="main"
-  else
-    REF="${TAG}"
-  fi
-  echo "[INFO] Fallback: installing from GitHub source (${REF})"
-  python -m pip install --upgrade "git+https://github.com/${REPO}.git@${REF}"
+  echo "[INFO] Fallback: installing from GitHub source (${INSTALL_REF})"
+  python -m pip install --upgrade "git+https://github.com/${REPO}.git@${INSTALL_REF}"
 fi
 
 echo "[STEP] Validate OpenMM + analysis libs + ColabMDA"
@@ -174,6 +177,19 @@ print("Biopython:", Bio.__version__)
 PY
 
 colabmda --help >/dev/null
+
+if [[ "${WITH_MODELLER}" == "1" ]]; then
+  echo "[STEP] Ensure ColabMDA is available in ${MODELLER_ENV_NAME}"
+  conda activate "${MODELLER_ENV_NAME}"
+  python -m pip install --upgrade pip
+  if [[ -f "${INSTALL_DIR}/colabmda.whl" ]]; then
+    python -m pip install --upgrade "${INSTALL_DIR}/colabmda.whl"
+  else
+    python -m pip install --upgrade "git+https://github.com/${REPO}.git@${INSTALL_REF}"
+  fi
+  colabmda --help >/dev/null
+  conda activate base
+fi
 
 mkdir -p "${WORK_DIR}" "${DRIVE_RUNS_DIR}"
 

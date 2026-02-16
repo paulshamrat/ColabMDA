@@ -45,6 +45,7 @@ This will:
 - install OpenMM + analysis stack in conda `base` (legacy-compatible path)
 - optionally install MODELLER in `modeller_env` when `WITH_MODELLER=1`
 - install `colabmda` from GitHub Release wheel (no full repo clone)
+- when `WITH_MODELLER=1`, install `colabmda` into both `base` and `modeller_env`
 - validate GPU/OpenMM platforms and CLI
 - create `/content/work` and `/content/drive/MyDrive/openmm`
 
