@@ -52,10 +52,18 @@ def safe_remove_if_empty(path):
             pass
 
 def atomic_rename(tmp_path, final_path):
-    # Replace if exists
-    if os.path.exists(final_path):
-        os.remove(final_path)
-    os.rename(tmp_path, final_path)
+    os.replace(tmp_path, final_path)
+
+def cleanup_stale_artifacts(workdir):
+    # Remove incomplete tmp files and zero-byte outputs from interrupted sessions.
+    for f in os.listdir(workdir):
+        if f.endswith(".tmp") and f.startswith("prod_"):
+            try:
+                os.remove(os.path.join(workdir, f))
+            except Exception:
+                pass
+        if f.startswith("prod_") and (f.endswith(".dcd") or f.endswith(".log")):
+            safe_remove_if_empty(os.path.join(workdir, f))
 
 def make_sim(top, sys_, dt):
     integ = LangevinMiddleIntegrator(300*unit.kelvin, 1/unit.picosecond, dt)
@@ -135,10 +143,7 @@ def main():
     if not os.path.exists(cleaned_pdb):
         sys.exit(f"Error: cleaned PDB not found: {cleaned_pdb}")
 
-    # Remove any empty trajectory/log segments left from prior interruption
-    for f in os.listdir(workdir):
-        if f.startswith("prod_") and (f.endswith(".dcd") or f.endswith(".log")):
-            safe_remove_if_empty(f)
+    cleanup_stale_artifacts(workdir)
 
     # MD setup
     dt      = 2.0*unit.femtoseconds
@@ -184,36 +189,50 @@ def main():
         sim.reporters.append(CheckpointReporter(chk_file, chk_steps))
 
         interrupted = False
+        step_failed = False
         try:
             sim.step(steps_to_run)
         except KeyboardInterrupt:
             interrupted = True
             print("⚠ Interrupted — checkpoint saved")
+        except Exception as e:
+            step_failed = True
+            print(f"⚠ Step failed: {e}")
         finally:
             sim.saveCheckpoint(chk_file)
 
-        # If tmp outputs are empty, remove them; if non-empty, rename atomically.
-        if os.path.exists(dcd_tmp) and os.path.getsize(dcd_tmp) > 0:
-            atomic_rename(dcd_tmp, dcd_fin)
+        new_steps = sim.context.getState().getStepCount()
+        expected_end = steps_done + steps_to_run
+        chunk_complete = (not interrupted) and (not step_failed) and (new_steps >= expected_end)
+
+        completed_files = []
+        if chunk_complete:
+            if os.path.exists(dcd_tmp) and os.path.getsize(dcd_tmp) > 0:
+                atomic_rename(dcd_tmp, dcd_fin)
+                completed_files.append(dcd_fin)
+            else:
+                safe_remove_if_empty(dcd_tmp)
+
+            if os.path.exists(log_tmp) and os.path.getsize(log_tmp) > 0:
+                atomic_rename(log_tmp, log_fin)
+                completed_files.append(log_fin)
+            else:
+                safe_remove_if_empty(log_tmp)
         else:
-            safe_remove_if_empty(dcd_tmp)
+            # Never publish partial chunks under a full-range filename.
+            if os.path.exists(dcd_tmp):
+                os.remove(dcd_tmp)
+            if os.path.exists(log_tmp):
+                os.remove(log_tmp)
 
-        if os.path.exists(log_tmp) and os.path.getsize(log_tmp) > 0:
-            atomic_rename(log_tmp, log_fin)
-        else:
-            safe_remove_if_empty(log_tmp)
+        steps_done = new_steps
 
-        # Only advance steps_done if chunk ran (even partially) — we *did* call sim.step()
-        # If interrupted very early, it still advanced some steps; but OpenMM doesn’t expose partial steps cleanly here.
-        # Safer: reload step count from context.
-        steps_done = sim.context.getState().getStepCount()
-
-        # Sync to Drive (only the essentials + the completed chunk files)
-        sync_outputs(workdir, args.sync_dir, extra_files=[dcd_fin, log_fin])
+        # Sync to Drive (only essentials + fully completed chunk files)
+        sync_outputs(workdir, args.sync_dir, extra_files=completed_files)
 
         print(f"  ✔ Reached step {steps_done}/{total_steps}")
 
-        if interrupted:
+        if interrupted or step_failed:
             # Stop cleanly so user can restart in next Colab session.
             break
 
