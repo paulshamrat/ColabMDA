@@ -62,6 +62,7 @@ wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/open
 wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_rmsd.py
 wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_rg.py
 wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_rmsf.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_compare_plots.py
 ```
 
 These scripts enable the full workflow: preprocessing, simulation, merging, and analysis.
@@ -139,6 +140,16 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
    - RMSF (with optional zoom controls):
      ```bash
      python3 openmm_rmsf.py <pdbid> --resid-min 2 --ylim 0 0.12 --outdir analysis_<pdbid>_rmsf
+     ```
+
+6. **Optional: Compare WT vs Mutants (Overlay Plots)**
+   - After generating `rmsd.csv`, `rg.csv`, and `rmsf.csv` for each system:
+     ```bash
+     python3 openmm_compare_plots.py \
+       --series WT=analysis_4ldj_wt \
+       --series G12C=analysis_4ldj_G12C \
+       --series G12D=analysis_4ldj_G12D \
+       --outdir analysis_compare_wt_vs_mutants
      ```
 
 
