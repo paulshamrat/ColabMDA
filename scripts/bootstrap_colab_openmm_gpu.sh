@@ -73,7 +73,8 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
   fi
   if [[ -z "${KEY_MODELLER:-}" ]]; then
     echo "[WARN] MODELLER installed but KEY_MODELLER not set."
-    echo "[WARN] Set it later: export KEY_MODELLER='YOUR_LICENSE'"
+    echo "[WARN] Obtain a key at: https://salilab.org/modeller/"
+    echo "[WARN] Set it later: export KEY_MODELLER='YOUR_MODELLER_LICENSE_KEY'"
   else
     conda env config vars set KEY_MODELLER="${KEY_MODELLER}" >/dev/null || true
     if ! grep -q 'KEY_MODELLER=' "$HOME/.bashrc" 2>/dev/null; then
