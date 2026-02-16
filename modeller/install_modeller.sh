@@ -62,6 +62,20 @@ fi
 
 mamba install -y modeller
 
+# Patch MODELLER config.py directly; required on some builds.
+cfg_glob="${ROOT}/envs/${ENV_NAME}/lib/modeller-*/modlib/modeller/config.py"
+cfg_updated=0
+for cfg in $cfg_glob; do
+  if [[ -f "$cfg" ]]; then
+    sed -i "s/^license *=.*/license = r'${LICENSE_KEY}'/" "$cfg"
+    cfg_updated=1
+    echo "--- Updated MODELLER license in: $cfg"
+  fi
+done
+if [[ "$cfg_updated" -eq 0 ]]; then
+  echo "WARNING: Could not locate MODELLER config.py for direct license patch."
+fi
+
 # 5) Verify
 echo "--- Verifying installation"
 if command -v mod10.7 >/dev/null 2>&1; then
