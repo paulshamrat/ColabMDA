@@ -124,163 +124,89 @@ module load miniforge3/24.3.0-0
 
 Then use the same OpenMM/Modeller env steps above.
 
-## Workflow Overview (Updated CLI)
+## Workflow Overview (WT First, Recommended)
 
-For Colab runtime performance and persistence:
-- Install software in `/content` (fast local SSD)
-- Default OpenMM project root is `/content/drive/MyDrive/openmm`
-- Per-system layout is automatic:
-  - `<pdbid>/prep`
-  - `<pdbid>/run`
-  - `<pdbid>/analysis`
+Canonical protocol is:
+1. Build/confirm WT with Modeller (`--pdb-id` + `--uniprot-id`)
+2. Generate mutants from that WT
+3. Run OpenMM for WT and each mutant
+4. Compare WT vs mutant analyses
 
-Example:
+Default project root is `/content/drive/MyDrive/openmm`.
 
-```bash
-mkdir -p /content/drive/MyDrive/openmm
-cd /content
+### Folder Layout
+
+```text
+/content/drive/MyDrive/openmm/
+  4ldj/
+    wt/
+      modeller/
+      openmm/
+    mutants/
+      4ldj_G12C/
+        modeller/
+        openmm/
+      4ldj_G12D/
+        modeller/
+        openmm/
 ```
 
-### 1. Prepare the PDB Structure
+### 1. Build WT (Modeller, First Step)
 
-Download and clean a PDB structure, removing heterogens (except water), building missing residues/atoms, and adding hydrogens at pH 7.0.
+```bash
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda activate modeller_env
+cd /content/drive/MyDrive/openmm
+
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --outdir 4ldj/wt/modeller
+```
+
+Use the produced WT PDB as the input for OpenMM WT prep.
+
+### 2. Create Mutants from WT
+
+```bash
+# Single mutant
+colabmda modeller mutate --pdb-in 4ldj/wt/modeller/<wt_model>.pdb --chain A --mut G12C --outdir-mut 4ldj/mutants/4ldj_G12C/modeller
+
+# Batch mutants
+colabmda modeller mutate --pdb-in 4ldj/wt/modeller/<wt_model>.pdb --chain A --list mutations.txt --outdir-mut 4ldj/mutants
+```
+
+### 3. Run OpenMM for WT
+
+```bash
+conda activate base
+
+# Prep from WT model file
+colabmda openmm prep --pdb-file 4ldj/wt/modeller/<wt_model>.pdb --name 4ldj_wt --outdir 4ldj/wt/openmm/run
+
+# Run / merge / analysis
+colabmda openmm run --workdir /content/drive/MyDrive/openmm/4ldj/wt/openmm/run --name 4ldj_wt --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
+colabmda openmm merge --pdb-dir /content/drive/MyDrive/openmm/4ldj/wt/openmm/run --stride 10
+colabmda openmm analysis --pdb-dir /content/drive/MyDrive/openmm/4ldj/wt/openmm/run --interval 10 --outdir /content/drive/MyDrive/openmm/4ldj/wt/openmm/analysis
+```
+
+### 4. Run OpenMM for Each Mutant
+
+```bash
+# Example: G12C
+colabmda openmm prep --pdb-file 4ldj/mutants/4ldj_G12C/modeller/4ldj_G12C.pdb --name 4ldj_G12C --outdir 4ldj/mutants/4ldj_G12C/openmm/run
+colabmda openmm run --workdir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/run --name 4ldj_G12C --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
+colabmda openmm merge --pdb-dir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/run --stride 10
+colabmda openmm analysis --pdb-dir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/run --interval 10 --outdir /content/drive/MyDrive/openmm/4ldj/mutants/4ldj_G12C/openmm/analysis
+```
+
+### 5. Quick OpenMM-Only Path (No Modeller)
+
+If you only want direct protein-in-water MD from PDB ID:
 
 ```bash
 colabmda openmm prep --pdb-id 4ldj
-```
-
-Output: creates `/content/drive/MyDrive/openmm/4ldj/prep/` containing `4ldj.pdb` and `4ldj_cleaned.pdb`.
-
-### 2. Run Chunked MD Simulation (5 ns, 1 ps frames, 1000 ps chunks)
-
-```bash
-colabmda openmm run --pdb-id 4ldj \
-  --total-ns 5 \
-  --traj-interval 1 \
-  --equil-time 100 \
-  --checkpoint-ps 1000
-```
-
-Output: writes chunk files, checkpoints, and system files in `/content/drive/MyDrive/openmm/4ldj/run/`.
-
-### 3. Merge Trajectory Chunks
-
-```bash
-colabmda openmm merge --pdb-id 4ldj
-```
-
-Output: merged trajectory/log in `/content/drive/MyDrive/openmm/4ldj/run/`.
-
-For long runs on Colab, keep every Nth frame while merging to reduce RAM/disk load:
-
-```bash
+colabmda openmm run --pdb-id 4ldj --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
 colabmda openmm merge --pdb-id 4ldj --stride 10
+colabmda openmm analysis --pdb-id 4ldj --interval 10
 ```
-
-If you merge with `--stride 10`, analysis interval should be multiplied by 10 (e.g. from 1 ps to 10 ps).
-
-### 4. Analyze Trajectory
-
-```bash
-colabmda openmm analysis --pdb-id 4ldj --interval 1
-```
-
-Output: analysis results in `/content/drive/MyDrive/openmm/4ldj/analysis/analysis_<pdbid>_TIMESTAMP/`.
-
-## Modeller Workflow (CLI)
-
-```bash
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169
-```
-
-Before making mutants, confirm whether the PDB is WT or already mutated by comparing against the UniProt reference sequence (P01116). If the PDB is already a mutant (e.g., G12C), flag it and **revert to WT first**, then generate mutants from the WT.
-
-Recommended folder layout under Drive:
-
-```
-/content/drive/MyDrive/openmm/4ldj/
-  original/
-  wt/
-  mutants/
-```
-
-Example (revert mutant to WT, then make mutants):
-
-```bash
-# Revert G12C -> WT (C12G)
-colabmda modeller mutate --pdb-in 4ldj/original/4ldj_cleaned.pdb --chain A --mut C12G --outdir-mut 4ldj/wt
-
-# Now make mutants from the WT
-colabmda modeller mutate --pdb-in 4ldj/wt/4ldj_wt.pdb --chain A --mut G12C --outdir-mut 4ldj/mutants/4ldj_G12C
-```
-
-Example mutant list (one per line):
-
-```text
-G12C
-I36M
-G60R
-T58I
-```
-
-## Mutant Workflow Walkthrough (WT → Mutant MD)
-
-This shows a full WT + mutant flow using the current CLI. The mutant is built with Modeller, then simulated with OpenMM.
-
-### 1. Prepare WT (OpenMM)
-
-```bash
-conda activate openmm_gpu
-cd /content/drive/MyDrive/openmm   # or: cd /content
-colabmda openmm prep --pdb-id 4ldj
-```
-
-### 2. Create Mutant (Modeller)
-
-```bash
-conda activate modeller_env
-cd /content/drive/MyDrive/openmm   # or: cd /content
-colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --mut G12C --outdir-mut 4ldj_G12C
-```
-
-This produces a mutant PDB at `4ldj_G12C/4ldj_G12C.pdb`.
-
-### 3. Prep Mutant for OpenMM
-
-```bash
-conda activate openmm_gpu
-cd /content/drive/MyDrive/openmm   # or: cd /content
-colabmda openmm prep --pdb-file 4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C --outdir 4ldj_G12C
-```
-
-### 4. Run Mutant MD (Resume-safe)
-
-```bash
-colabmda openmm run --workdir 4ldj_G12C --name 4ldj_G12C --total-ns 5 --traj-interval 1 --checkpoint-ps 1000
-colabmda openmm status --pdb-id 4ldj_G12C
-colabmda openmm merge --pdb-dir 4ldj_G12C
-colabmda openmm analysis --pdb-dir 4ldj_G12C
-```
-
-## Batch Mutants (List File)
-
-If you have many mutations, put one per line in a text file:
-
-```text
-G12C
-G12D
-Q61L
-```
-
-Then run Modeller in batch mode:
-
-```bash
-conda activate modeller_env
-cd /content/drive/MyDrive/openmm   # or: cd /content
-colabmda modeller mutate --pdb-in 4ldj/4ldj_cleaned.pdb --chain A --list mutations.txt --outdir-mut 4ldj_mutants
-```
-
-This creates one mutant PDB per line in `4ldj_mutants/`. For each mutant, run the same OpenMM prep/run/merge/analysis steps as shown above.
 
 ## Project Strategy (WT + Mutants)
 
