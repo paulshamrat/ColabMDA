@@ -29,6 +29,8 @@ import os
 import sys
 import datetime
 import argparse
+import glob
+import re
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,6 +45,53 @@ def detect_interval_ps(u):
         return float(u.trajectory.ts.dt)
     except Exception:
         return None
+
+def _data_lines(path):
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            s = line.strip()
+            if s and s[0].isdigit():
+                yield s
+
+def _infer_interval_from_merged_log(sim_dir, n_frames):
+    if n_frames < 2:
+        return None
+    merged_log = os.path.join(sim_dir, "prod_full.log")
+    if not os.path.isfile(merged_log):
+        return None
+    times = []
+    for s in _data_lines(merged_log):
+        parts = s.split()
+        if len(parts) < 2:
+            continue
+        try:
+            times.append(float(parts[1]))
+        except Exception:
+            continue
+    if len(times) < 2:
+        return None
+    dt = (times[-1] - times[0]) / max(1, len(times) - 1)
+    return dt if dt > 0 else None
+
+def _infer_interval_from_chunk_logs(sim_dir):
+    logs = glob.glob(os.path.join(sim_dir, "prod_*to*ps.log"))
+    if not logs:
+        return None
+    total_ps = 0.0
+    total_frames = 0
+    rx = re.compile(r"prod_(\d+)to(\d+)ps\.log$")
+    for lp in logs:
+        m = rx.search(os.path.basename(lp))
+        if not m:
+            continue
+        start_ps = float(m.group(1))
+        end_ps = float(m.group(2))
+        total_ps += max(0.0, end_ps - start_ps)
+        total_frames += sum(1 for _ in _data_lines(lp))
+    if total_ps <= 0 or total_frames <= 0:
+        return None
+    dt = total_ps / total_frames
+    return dt if dt > 0 else None
 
 def parse_args():
     p = argparse.ArgumentParser(description="Analyze merged trajectory for a pdbid")
@@ -60,6 +109,8 @@ def parse_args():
 def main():
     args = parse_args()
     pdbid = args.pdbid
+    sim_dir = os.path.abspath(pdbid)
+    sim_label = os.path.basename(sim_dir.rstrip(os.sep)) or "sim"
 
     # Resolve paths
     top_def   = os.path.join(pdbid, "solvated.pdb")
@@ -74,7 +125,7 @@ def main():
 
     # Create output directory
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    outdir = args.outdir or f"analysis_{pdbid}_{timestamp}"
+    outdir = args.outdir or f"analysis_{sim_label}_{timestamp}"
     os.makedirs(outdir, exist_ok=True)
 
     # Load MDAnalysis Universe
@@ -82,17 +133,30 @@ def main():
     u = mda.Universe(topo_path, traj_path)
     n_frames = len(u.trajectory)
     # Determine frame spacing
-    interval = args.interval or detect_interval_ps(u)
+    interval_source = "user"
+    interval = args.interval
+    if interval is None:
+        interval = _infer_interval_from_merged_log(sim_dir, n_frames)
+        if interval is not None:
+            interval_source = "prod_full.log"
+    if interval is None:
+        interval = _infer_interval_from_chunk_logs(sim_dir)
+        if interval is not None:
+            interval_source = "chunk logs/chunk names"
+    if interval is None:
+        interval = detect_interval_ps(u)
+        if interval is not None:
+            interval_source = "DCD header"
     if interval is None:
         sys.exit("Failed to detect frame interval; please specify --interval")
     total_ns = (n_frames - 1) * interval / 1000.0
-    print(f"Detected {n_frames} frames, interval = {interval:.2f} ps → total ≈ {total_ns:.3f} ns\n")
+    print(f"Detected {n_frames} frames, interval = {interval:.3f} ps ({interval_source}) → total ≈ {total_ns:.3f} ns\n")
 
     # 1) RMSD (backbone)
     print("Computing RMSD...")
     rmsd_calc = rms.RMSD(u, u, select="backbone", ref_frame=0)
     rmsd_calc.run()
-    rmsd_data = rmsd_calc.rmsd  # [frame, time(ps), rmsd(Å), group]
+    rmsd_data = rmsd_calc.results.rmsd  # [frame, time(ps), rmsd(Å), group]
     times     = np.arange(n_frames) * interval
     rmsd_nm   = rmsd_data[:,2] / 10.0
 
