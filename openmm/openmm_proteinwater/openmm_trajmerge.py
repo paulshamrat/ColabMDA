@@ -15,6 +15,7 @@ Optional arguments:
   -t, --topology PATH    Path to topology PDB (default: <pdbid>/solvated.pdb)
   -o, --out-traj FILE    Merged trajectory filename (default: prod_full.dcd)
   -l, --out-log FILE     Merged log CSV filename (default: prod_full.log)
+  -s, --stride INT       Keep every Nth frame/row while merging (default: 1)
 """
 
 import os
@@ -24,7 +25,6 @@ import glob
 import argparse
 
 import mdtraj as md
-import pandas as pd
 
 def parse_args():
     p = argparse.ArgumentParser(description="Merge MD chunk files")
@@ -35,13 +35,15 @@ def parse_args():
                    help="Output merged trajectory")
     p.add_argument("-l", "--out-log", default="prod_full.log",
                    help="Output merged log CSV")
+    p.add_argument("-s", "--stride", type=int, default=1,
+                   help="Keep every Nth frame/row while merging")
     return p.parse_args()
 
 def extract_start_ps(filename):
     m = re.search(r'prod_(\d+)to\d+ps\.dcd$', filename)
     return int(m.group(1)) if m else float('inf')
 
-def merge_trajectories(pdbid, topology, out_traj):
+def merge_trajectories(pdbid, topology, out_traj, stride=1):
     # determine topology path
     topo = topology or os.path.join(pdbid, "solvated.pdb")
     topo = os.path.abspath(topo)
@@ -60,17 +62,18 @@ def merge_trajectories(pdbid, topology, out_traj):
     print("Merging DCD chunks:")
     for f in dcd_files:
         print("  ", f)
+    print(f"Using stride: {stride}")
 
     # load first
     try:
-        merged = md.load(dcd_files[0], top=topo)
+        merged = md.load(dcd_files[0], top=topo, stride=max(1, stride))
     except Exception as e:
         sys.exit(f"Failed to load {dcd_files[0]}: {e}")
 
     # append the rest
     for f in dcd_files[1:]:
         try:
-            chunk = md.load(f, top=topo)
+            chunk = md.load(f, top=topo, stride=max(1, stride))
             merged = merged.join(chunk)
         except Exception as e:
             print(f"Warning: skipping {f} due to load error: {e}")
@@ -80,7 +83,7 @@ def merge_trajectories(pdbid, topology, out_traj):
 
     os.chdir("..")
 
-def merge_logs(pdbid, out_log):
+def merge_logs(pdbid, out_log, stride=1):
     os.chdir(pdbid)
     log_files = sorted(glob.glob("prod_*to*ps.log"),
                        key=lambda f: extract_start_ps(f.replace(".log", ".dcd")))
@@ -88,7 +91,9 @@ def merge_logs(pdbid, out_log):
         sys.exit("Error: no .log chunk files found.")
 
     print("Merging log chunks:")
+    print(f"Using stride: {stride}")
     header_written = False
+    frame_idx = 0
     with open(out_log, "w") as fout:
         for f in log_files:
             print("  ", f)
@@ -98,7 +103,13 @@ def merge_logs(pdbid, out_log):
                         if header_written:
                             continue
                         header_written = True
-                    fout.write(line)
+                        fout.write(line)
+                        continue
+
+                    # Keep every Nth data row to match merged trajectory stride.
+                    if frame_idx % max(1, stride) == 0:
+                        fout.write(line)
+                    frame_idx += 1
     print(f"→ Wrote merged log: {out_log} ({sum(1 for _ in open(out_log))} lines)")
 
     os.chdir("..")
@@ -107,8 +118,10 @@ def main():
     args = parse_args()
     if not os.path.isdir(args.pdbid):
         sys.exit(f"Error: directory '{args.pdbid}' not found.")
-    merge_trajectories(args.pdbid, args.topology, args.out_traj)
-    merge_logs(args.pdbid, args.out_log)
+    if args.stride < 1:
+        sys.exit("Error: --stride must be >= 1")
+    merge_trajectories(args.pdbid, args.topology, args.out_traj, stride=args.stride)
+    merge_logs(args.pdbid, args.out_log, stride=args.stride)
 
 if __name__ == "__main__":
     main()

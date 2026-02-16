@@ -59,6 +59,9 @@ wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/open
 wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_trajanalysis.py
 wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_trajmerge.py
 wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/pdbfixer_cleaning.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_rmsd.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_rg.py
+wget https://raw.githubusercontent.com/paulshamrat/ColabMDA/refs/heads/main/openmm/openmm_proteinwater/openmm_rmsf.py
 ```
 
 These scripts enable the full workflow: preprocessing, simulation, merging, and analysis.
@@ -93,15 +96,18 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
      ```bash
      python3 openmm_trajmerge.py <pdbid> \
        --topology <pdbid>/solvated.pdb \
+       --stride 1 \
        --out-traj prod_full.dcd \
        --out-log prod_full.log
      # Example:
      python3 openmm_trajmerge.py 4ldj \
        --topology 4ldj/solvated.pdb \
+       --stride 10 \
        --out-traj prod_full.dcd \
        --out-log prod_full.log
      ```
    - Output: Merged trajectory (`prod_full.dcd`) and log (`prod_full.log`).
+   - Note: If `--stride 10` is used, effective frame interval becomes 10x larger for analysis.
 
 4. **Analyze Trajectory**
    - Perform analysis on the merged trajectory using the analysis script.
@@ -120,6 +126,20 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
        --outdir analysis_4ldj
      ```
    - Output: Analysis results in `analysis_<pdbid>/`.
+
+5. **Optional: Separate RMSD / Rg / RMSF Scripts**
+   - RMSD:
+     ```bash
+     python3 openmm_rmsd.py <pdbid> --interval 1 --smooth-ps 25 --plot-stride 5 --outdir analysis_<pdbid>_rmsd
+     ```
+   - Rg:
+     ```bash
+     python3 openmm_rg.py <pdbid> --interval 1 --smooth-ps 25 --plot-stride 5 --outdir analysis_<pdbid>_rg
+     ```
+   - RMSF (with optional zoom controls):
+     ```bash
+     python3 openmm_rmsf.py <pdbid> --resid-min 2 --ylim 0 0.12 --outdir analysis_<pdbid>_rmsf
+     ```
 
 
 ## Acknowledgements

@@ -47,12 +47,14 @@ def preprocess(input_pdb, output_pdb, target_pH=7.0):
 def main():
     parser = argparse.ArgumentParser(description="Download & preprocess a PDB by ID")
     parser.add_argument('pdb_id', help="4-character PDB identifier (e.g., 4ldj)")
+    parser.add_argument('--outdir', default=None,
+                        help="Output directory (default: ./<pdbid>)")
     args = parser.parse_args()
 
     pdb_id = args.pdb_id.lower()
-    # Create and enter subdirectory
-    os.makedirs(pdb_id, exist_ok=True)
-    os.chdir(pdb_id)
+    outdir = os.path.abspath(args.outdir or pdb_id)
+    os.makedirs(outdir, exist_ok=True)
+    os.chdir(outdir)
 
     raw_pdb = f"{pdb_id}.pdb"
     cleaned_pdb = f"{pdb_id}_cleaned.pdb"
@@ -67,7 +69,7 @@ def main():
     preprocess(raw_pdb, cleaned_pdb)
 
     print("✅ All done!")
-    print(f"→ Check directory ./{pdb_id}/ for {raw_pdb} and {cleaned_pdb}")
+    print(f"→ Check directory {outdir} for {raw_pdb} and {cleaned_pdb}")
 
 if __name__ == "__main__":
     main()

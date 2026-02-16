@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import shutil
+import datetime
 from pathlib import Path
 
 from colabmda.openmm_pw.commands import (
@@ -16,7 +18,7 @@ from colabmda.modeller.commands import (
     modeller_mutate,
 )
 
-DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/openmm_runs"
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/openmm"
 ENV_ROOT = "COLABMDA_ROOT"
 
 def _resolve_root(use_drive: bool, root: str | None) -> str | None:
@@ -25,12 +27,34 @@ def _resolve_root(use_drive: bool, root: str | None) -> str | None:
     env_root = os.environ.get(ENV_ROOT)
     if env_root:
         return env_root
-    if use_drive:
-        return DEFAULT_DRIVE_ROOT
-    return None
+    # Default to Drive-first layout for persistent Colab workflows.
+    return DEFAULT_DRIVE_ROOT
 
 def _ensure_dir(path: str):
     Path(path).mkdir(parents=True, exist_ok=True)
+
+def _prepare_run_inputs(root: str, pdbid: str, name: str):
+    prep_dir = Path(root) / pdbid / "prep"
+    run_dir = Path(root) / pdbid / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    prep_clean = prep_dir / f"{name}_cleaned.pdb"
+    run_clean = run_dir / f"{name}_cleaned.pdb"
+    if not run_clean.exists() and prep_clean.exists():
+        shutil.copy2(prep_clean, run_clean)
+
+    prep_raw = prep_dir / f"{name}.pdb"
+    run_raw = run_dir / f"{name}.pdb"
+    if not run_raw.exists() and prep_raw.exists():
+        shutil.copy2(prep_raw, run_raw)
+
+    if not run_clean.exists():
+        raise SystemExit(
+            f"ERROR: cleaned PDB missing for run.\n"
+            f"  Expected at: {run_clean}\n"
+            f"Run prep first, e.g.:\n"
+            f"  colabmda openmm prep --pdb-id {pdbid}\n"
+        )
 
 def _guess_pdbid_from_workdir(workdir: str) -> str | None:
     candidates = list(Path(workdir).glob("*_cleaned.pdb"))
@@ -58,7 +82,8 @@ def main():
     p_prep.add_argument("--outdir", default=None, help="Output directory for --pdb-file (default: ./<name>)")
     p_prep.add_argument("--name", default=None, help="Prefix name (default: from --pdb-id or file stem)")
     p_prep.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
-    p_prep.add_argument("--drive", action="store_true", help="Create outputs under Drive root")
+    p_prep.add_argument("--sync-dir", default=None, help="Optional: copy cleaned prep outputs to this directory")
+    p_prep.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_prep.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # run (colab-safe runner)
@@ -72,7 +97,7 @@ def main():
     p_run.add_argument("--equil-time", type=float, default=100.0, help="ps for NVT and ps for NPT")
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
-    p_run.add_argument("--drive", action="store_true", help="Run directly in Drive root (slower)")
+    p_run.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_run.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # merge
@@ -83,7 +108,8 @@ def main():
     p_merge.add_argument("--topology", default=None, help="Topology PDB (default: <dir>/solvated.pdb)")
     p_merge.add_argument("--out-traj", default="prod_full.dcd")
     p_merge.add_argument("--out-log", default="prod_full.log")
-    p_merge.add_argument("--drive", action="store_true", help="Read/write from Drive root")
+    p_merge.add_argument("--stride", type=int, default=1, help="Keep every Nth frame while merging (default: 1)")
+    p_merge.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_merge.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # analysis
@@ -95,7 +121,7 @@ def main():
     p_ana.add_argument("--trajectory", default=None)
     p_ana.add_argument("--interval", type=float, default=None, help="ps per frame (if not auto-detected)")
     p_ana.add_argument("--outdir", default=None)
-    p_ana.add_argument("--drive", action="store_true", help="Read/write from Drive root")
+    p_ana.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_ana.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # status
@@ -103,7 +129,7 @@ def main():
     g = p_stat.add_mutually_exclusive_group(required=True)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
-    p_stat.add_argument("--drive", action="store_true", help="Read/write from Drive root")
+    p_stat.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_stat.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
     # ---------------- Modeller ----------------
@@ -144,22 +170,24 @@ def main():
                 root = _resolve_root(args.drive, args.root)
                 if root:
                     _ensure_dir(root)
-                openmm_prep_from_pdbid(args.pdb_id, root_dir=root)
+                openmm_prep_from_pdbid(args.pdb_id, root_dir=root, sync_dir=args.sync_dir)
             else:
                 name = args.name or Path(args.pdb_file).stem
                 root = _resolve_root(args.drive, args.root)
                 if root:
                     _ensure_dir(root)
-                outdir = args.outdir or (str(Path(root) / name) if root else name)
-                openmm_prep_from_file(args.pdb_file, outdir, pdbid=name, ph=args.ph)
+                outdir = args.outdir or (str(Path(root) / name / "prep") if root else name)
+                openmm_prep_from_file(args.pdb_file, outdir, pdbid=name, ph=args.ph, sync_dir=args.sync_dir)
 
         elif args.cmd == "run":
             if args.pdb_id:
                 root = _resolve_root(args.drive, args.root)
                 if root:
                     _ensure_dir(root)
-                workdir = str(Path(root) / args.pdb_id) if root else args.pdb_id
+                workdir = str(Path(root) / args.pdb_id / "run") if root else args.pdb_id
                 name = args.name or args.pdb_id
+                if root:
+                    _prepare_run_inputs(root=root, pdbid=args.pdb_id, name=name)
             else:
                 workdir = args.workdir
                 name = args.name or _guess_pdbid_from_workdir(workdir)
@@ -178,23 +206,28 @@ def main():
         elif args.cmd == "merge":
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
-                pdbid_dir = str(Path(root) / args.pdb_id)
+                pdbid_dir = str(Path(root) / args.pdb_id / "run")
             else:
                 pdbid_dir = args.pdb_id or args.pdb_dir
-            openmm_merge(pdbid_dir, args.topology, args.out_traj, args.out_log)
+            openmm_merge(pdbid_dir, args.topology, args.out_traj, args.out_log, stride=args.stride)
 
         elif args.cmd == "analysis":
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
-                pdbid_dir = str(Path(root) / args.pdb_id)
+                pdbid_dir = str(Path(root) / args.pdb_id / "run")
+                outdir = args.outdir
+                if outdir is None:
+                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    outdir = str(Path(root) / args.pdb_id / "analysis" / f"analysis_{args.pdb_id}_{ts}")
             else:
                 pdbid_dir = args.pdb_id or args.pdb_dir
-            openmm_analysis(pdbid_dir, args.topology, args.trajectory, args.interval, args.outdir)
+                outdir = args.outdir
+            openmm_analysis(pdbid_dir, args.topology, args.trajectory, args.interval, outdir)
 
         elif args.cmd == "status":
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
-                pdbid_dir = str(Path(root) / args.pdb_id)
+                pdbid_dir = str(Path(root) / args.pdb_id / "run")
             else:
                 pdbid_dir = args.pdb_id or args.pdb_dir
             openmm_status(pdbid_dir)
