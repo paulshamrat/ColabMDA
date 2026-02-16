@@ -29,12 +29,12 @@ In the Colab Terminal, run:
 ```bash
 cd /content
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
-bash bootstrap_colab_openmm_gpu.sh latest openmm_gpu
+bash bootstrap_colab_openmm_gpu.sh latest
 ```
 
 This will:
 - install Miniforge (if missing)
-- create/update `openmm_gpu` environment with OpenMM + analysis stack
+- install OpenMM + analysis stack in conda `base` (legacy-compatible path)
 - install `colabmda` from GitHub Release wheel (no full repo clone)
 - validate GPU/OpenMM platforms and CLI
 - create `/content/work` and `/content/drive/MyDrive/openmm_runs`

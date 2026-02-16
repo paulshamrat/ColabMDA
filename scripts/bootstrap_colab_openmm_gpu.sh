@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# One-command Colab bootstrap:
+# One-command Colab bootstrap using the proven legacy install pattern:
 # - Installs Miniforge (if missing)
-# - Creates/updates OpenMM GPU environment
-# - Installs ColabMDA from GitHub Release wheel (no repo clone)
+# - Installs OpenMM stack in conda base environment
+# - Installs ColabMDA
 # - Verifies GPU/OpenMM/CLI
 #
 # Usage:
 #   bash bootstrap_colab_openmm_gpu.sh
-#   bash bootstrap_colab_openmm_gpu.sh <release_tag> <env_name>
+#   bash bootstrap_colab_openmm_gpu.sh <release_tag>
 #
 # Example:
-#   bash bootstrap_colab_openmm_gpu.sh latest openmm_gpu
+#   bash bootstrap_colab_openmm_gpu.sh latest
 
 REPO="${COLABMDA_REPO:-paulshamrat/ColabMDA}"
 TAG="${1:-latest}"
-ENV_NAME="${2:-openmm_gpu}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
@@ -37,27 +36,18 @@ fi
 
 export PATH="${MINIFORGE_DIR}/bin:${PATH}"
 source "${MINIFORGE_DIR}/etc/profile.d/conda.sh"
+conda activate base
 
 echo "[STEP] Ensure mamba in base"
 conda install -y -n base -c conda-forge mamba
 
-echo "[STEP] Create/update env: ${ENV_NAME}"
-mamba create -y -n "${ENV_NAME}" -c conda-forge \
-  python=3.10 \
-  cudatoolkit=11.8 \
-  openmm \
-  openmmtools \
-  pdbfixer \
-  mdanalysis \
-  mdtraj \
-  numpy \
-  matplotlib \
-  biopython
-
-conda activate "${ENV_NAME}"
+echo "[STEP] Install OpenMM stack in conda base"
+mamba install -y -n base -c conda-forge cudatoolkit=11.8 openmm openmmtools
+conda install -y -n base -c conda-forge pdbfixer || pip install pdbfixer
+mamba install -y -n base -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
 python -m pip install --upgrade pip
 
-echo "[STEP] Install ColabMDA from GitHub Release (${TAG})"
+echo "[STEP] Install ColabMDA (${TAG})"
 mkdir -p "${INSTALL_DIR}"
 cd "${INSTALL_DIR}"
 
@@ -75,22 +65,48 @@ api = (
     else f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
 )
 
-with urllib.request.urlopen(api) as r:
-    data = json.load(r)
+try:
+    with urllib.request.urlopen(api, timeout=15) as r:
+        data = json.load(r)
 
-wheels = [
-    a["browser_download_url"]
-    for a in data.get("assets", [])
-    if a.get("name", "").endswith(".whl")
-]
-if not wheels:
-    raise SystemExit("ERROR: no wheel asset found in release.")
-print(wheels[0])
+    wheels = [
+        a["browser_download_url"]
+        for a in data.get("assets", [])
+        if a.get("name", "").endswith(".whl")
+    ]
+    print(wheels[0] if wheels else "")
+except Exception:
+    print("")
 PY
 )"
 
-curl -fL "${WHEEL_URL}" -o colabmda.whl
-python -m pip install --upgrade ./colabmda.whl
+if [[ -n "${WHEEL_URL}" ]]; then
+  echo "[INFO] Downloading release wheel: ${WHEEL_URL}"
+  if curl -fsSL "${WHEEL_URL}" -o colabmda.whl; then
+    python -m pip install --upgrade ./colabmda.whl
+  else
+    echo "[WARN] Release wheel download failed."
+  fi
+else
+  echo "[WARN] Release wheel not found for ${TAG}."
+fi
+
+if ! command -v colabmda >/dev/null 2>&1; then
+  echo "[INFO] Fallback: trying PyPI package"
+  if ! python -m pip install --upgrade colabmda; then
+    echo "[WARN] PyPI install failed."
+  fi
+fi
+
+if ! command -v colabmda >/dev/null 2>&1; then
+  if [[ "${TAG}" == "latest" ]]; then
+    REF="main"
+  else
+    REF="${TAG}"
+  fi
+  echo "[INFO] Fallback: installing from GitHub source (${REF})"
+  python -m pip install --upgrade "git+https://github.com/${REPO}.git@${REF}"
+fi
 
 echo "[STEP] Validate OpenMM + analysis libs + ColabMDA"
 python - <<'PY'
@@ -108,7 +124,7 @@ colabmda --help >/dev/null
 mkdir -p "${WORK_DIR}" "${DRIVE_RUNS_DIR}"
 
 echo "[OK] Bootstrap complete"
-echo "[OK] Env: ${ENV_NAME}"
+echo "[OK] Env: base"
 echo "[OK] Local workdir: ${WORK_DIR}"
 echo "[OK] Drive run dir: ${DRIVE_RUNS_DIR}"
-echo "[NEXT] Run: conda activate ${ENV_NAME} && cd ${WORK_DIR}"
+echo "[NEXT] Run: conda activate base && cd ${WORK_DIR}"
