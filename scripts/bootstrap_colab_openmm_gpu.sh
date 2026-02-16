@@ -79,6 +79,21 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
     if ! grep -q 'KEY_MODELLER=' "$HOME/.bashrc" 2>/dev/null; then
       echo "export KEY_MODELLER='${KEY_MODELLER}'" >> "$HOME/.bashrc"
     fi
+
+    # Patch MODELLER config.py directly as fallback for builds that ignore env-only setup.
+    cfg_glob="${MINIFORGE_DIR}/envs/${MODELLER_ENV_NAME}/lib/modeller-*/modlib/modeller/config.py"
+    cfg_updated=0
+    for cfg in $cfg_glob; do
+      if [[ -f "$cfg" ]]; then
+        sed -i "s/^license *=.*/license = r'${KEY_MODELLER}'/" "$cfg"
+        cfg_updated=1
+        echo "[INFO] Updated MODELLER license in: $cfg"
+      fi
+    done
+    if [[ "$cfg_updated" -eq 0 ]]; then
+      echo "[WARN] Could not locate MODELLER config.py for direct license patch."
+    fi
+
     echo "[INFO] KEY_MODELLER configured for ${MODELLER_ENV_NAME}"
   fi
 

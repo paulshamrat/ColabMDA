@@ -72,5 +72,19 @@ if ! grep -q 'KEY_MODELLER=' "$HOME/.bashrc" 2>/dev/null; then
   echo "export KEY_MODELLER='${KEY_MODELLER}'" >> "$HOME/.bashrc"
 fi
 
+# Also patch MODELLER config.py directly; some builds ignore env var-only setup.
+cfg_glob="${CONDA_PREFIX}/lib/modeller-*/modlib/modeller/config.py"
+cfg_updated=0
+for cfg in $cfg_glob; do
+  if [[ -f "$cfg" ]]; then
+    sed -i "s/^license *=.*/license = r'${KEY_MODELLER}'/" "$cfg"
+    cfg_updated=1
+    echo "Updated MODELLER license in: $cfg"
+  fi
+done
+if [[ "$cfg_updated" -eq 0 ]]; then
+  echo "WARNING: Could not locate MODELLER config.py for direct license patch." >&2
+fi
+
 echo "KEY_MODELLER configured for env '$ENV_NAME'."
 echo "Modeller environment '$ENV_NAME' is ready."

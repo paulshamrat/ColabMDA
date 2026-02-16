@@ -113,7 +113,7 @@ Example key:
 MODELIRANJE
 ```
 
-The script persists the key for the conda environment and future shells.
+The script persists the key for the conda environment/future shells and patches MODELLER `config.py` automatically.
 
 
 ## Workflow Overview (WT First, Recommended)
