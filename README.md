@@ -22,7 +22,24 @@ drive.mount('/content/drive')
 
 > All environment setup and package installation (Conda, Mamba, OpenMM, analysis libraries) should be performed in the Colab Terminal, not notebook cells.
 
-### 2. Installation on Terminal
+### 2. One-Command Colab Bootstrap (Recommended)
+
+In the Colab Terminal, run:
+
+```bash
+cd /content
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
+bash bootstrap_colab_openmm_gpu.sh latest openmm_gpu
+```
+
+This will:
+- install Miniforge (if missing)
+- create/update `openmm_gpu` environment with OpenMM + analysis stack
+- install `colabmda` from GitHub Release wheel (no full repo clone)
+- validate GPU/OpenMM platforms and CLI
+- create `/content/work` and `/content/drive/MyDrive/openmm_runs`
+
+### 3. Installation on Terminal (Manual Alternative)
 
 In the Colab Terminal (⋮ → Terminal), run each step one at a time:
 
@@ -54,7 +71,17 @@ import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MD
 EOF
 ```
 
-### 3. Install ColabMDA
+### 4. Install ColabMDA (No Full Clone)
+
+```bash
+cd /content
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/install_colabmda_release.sh -o install_colabmda_release.sh
+bash install_colabmda_release.sh latest /content/colabmda
+```
+
+This installs from the latest GitHub Release wheel and avoids cloning the full repository.
+
+Developer-only option (if you need source editing):
 
 ```bash
 cd /content/drive/MyDrive/openmm_runs
@@ -63,7 +90,7 @@ cd ColabMDA
 pip install -e .
 ```
 
-### 4. Modeller CPU Environment + License
+### 5. Modeller CPU Environment + License
 
 ```bash
 conda config --add channels salilab
@@ -91,10 +118,17 @@ Then use the same OpenMM/Modeller env steps above.
 
 ## Workflow Overview (Updated CLI)
 
-All commands run from your working directory. For Colab, use Drive so outputs persist:
+For Colab runtime performance and resume safety:
+- Install software in `/content` (fast local SSD)
+- Run MD in `/content/work/...`
+- Sync outputs/checkpoints to Google Drive
+
+Example:
 
 ```bash
-cd /content/drive/MyDrive/openmm_runs
+mkdir -p /content/work
+mkdir -p /content/drive/MyDrive/openmm_runs
+cd /content/work
 ```
 
 ### 1. Prepare the PDB Structure
