@@ -10,16 +10,19 @@ set -euo pipefail
 # Usage:
 #   bash bootstrap_colab_openmm_gpu.sh
 #   bash bootstrap_colab_openmm_gpu.sh <release_tag>
+#   WITH_MODELLER=1 bash bootstrap_colab_openmm_gpu.sh <release_tag>
 #
 # Example:
 #   bash bootstrap_colab_openmm_gpu.sh latest
 
 REPO="${COLABMDA_REPO:-paulshamrat/ColabMDA}"
 TAG="${1:-latest}"
+WITH_MODELLER="${WITH_MODELLER:-0}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/openmm}"
+MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 
 echo "[STEP] GPU check"
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -46,6 +49,41 @@ mamba install -y -n base -c conda-forge cudatoolkit=11.8 openmm openmmtools
 conda install -y -n base -c conda-forge pdbfixer || pip install pdbfixer
 mamba install -y -n base -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
 python -m pip install --upgrade pip
+
+if [[ "${WITH_MODELLER}" != "1" && -t 0 ]]; then
+  read -r -p "Install MODELLER environment as well? [y/N]: " _ans
+  case "${_ans}" in
+    y|Y|yes|YES) WITH_MODELLER="1" ;;
+  esac
+fi
+
+if [[ "${WITH_MODELLER}" == "1" ]]; then
+  echo "[STEP] Install MODELLER environment (${MODELLER_ENV_NAME})"
+  conda config --add channels salilab || true
+  mamba create -y -n "${MODELLER_ENV_NAME}" -c salilab -c conda-forge python=3.10 modeller biopython
+  conda activate "${MODELLER_ENV_NAME}"
+  python -m pip install --upgrade pip
+
+  if [[ -z "${KEY_MODELLER:-}" && -n "${MODELLER_LICENSE:-}" ]]; then
+    export KEY_MODELLER="${MODELLER_LICENSE}"
+  fi
+  if [[ -z "${KEY_MODELLER:-}" && -t 0 ]]; then
+    read -r -p "Enter MODELLER license key (KEY_MODELLER): " KEY_MODELLER
+    export KEY_MODELLER
+  fi
+  if [[ -z "${KEY_MODELLER:-}" ]]; then
+    echo "[WARN] MODELLER installed but KEY_MODELLER not set."
+    echo "[WARN] Set it later: export KEY_MODELLER='YOUR_LICENSE'"
+  else
+    conda env config vars set KEY_MODELLER="${KEY_MODELLER}" >/dev/null || true
+    if ! grep -q 'KEY_MODELLER=' "$HOME/.bashrc" 2>/dev/null; then
+      echo "export KEY_MODELLER='${KEY_MODELLER}'" >> "$HOME/.bashrc"
+    fi
+    echo "[INFO] KEY_MODELLER configured for ${MODELLER_ENV_NAME}"
+  fi
+
+  conda activate base
+fi
 
 echo "[STEP] Install ColabMDA (${TAG})"
 mkdir -p "${INSTALL_DIR}"
@@ -127,4 +165,7 @@ echo "[OK] Bootstrap complete"
 echo "[OK] Env: base"
 echo "[OK] Local workdir: ${WORK_DIR}"
 echo "[OK] Drive run dir: ${DRIVE_RUNS_DIR}"
+if [[ "${WITH_MODELLER}" == "1" ]]; then
+  echo "[OK] MODELLER env: ${MODELLER_ENV_NAME}"
+fi
 echo "[NEXT] Run: conda activate base && cd ${WORK_DIR}"
