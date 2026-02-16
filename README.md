@@ -107,11 +107,8 @@ bash envs/install_modeller_env.sh
 ```
 
 During installation, the script prompts for MODELLER license key (`KEY_MODELLER`).
-Example key:
-
-```bash
-MODELIRANJE
-```
+Get your personal license key from the official MODELLER site:
+`https://salilab.org/modeller/`
 
 The script persists the key for the conda environment/future shells and patches MODELLER `config.py` automatically.
 

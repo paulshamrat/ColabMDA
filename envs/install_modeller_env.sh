@@ -55,8 +55,9 @@ if [[ -z "${KEY_MODELLER:-}" ]]; then
     export KEY_MODELLER
   else
     echo "ERROR: KEY_MODELLER is not set and no interactive prompt is available." >&2
+    echo "Obtain a MODELLER license key at: https://salilab.org/modeller/" >&2
     echo "Set it before running, e.g.:" >&2
-    echo "  export KEY_MODELLER='MODELIRANJE'" >&2
+    echo "  export KEY_MODELLER='YOUR_MODELLER_LICENSE_KEY'" >&2
     exit 1
   fi
 fi

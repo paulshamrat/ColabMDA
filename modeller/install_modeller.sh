@@ -44,7 +44,8 @@ if [[ -z "${LICENSE_KEY}" ]]; then
     read -r -p "Enter MODELLER license key (KEY_MODELLER): " LICENSE_KEY
   else
     echo "❌ KEY_MODELLER is not set and no interactive prompt is available"
-    echo "Set it before running, e.g.: export KEY_MODELLER='MODELIRANJE'"
+    echo "Obtain a MODELLER license key at: https://salilab.org/modeller/"
+    echo "Set it before running, e.g.: export KEY_MODELLER='YOUR_MODELLER_LICENSE_KEY'"
     exit 1
   fi
 fi
