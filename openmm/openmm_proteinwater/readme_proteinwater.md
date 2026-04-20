@@ -127,7 +127,7 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
        --outdir <dir_name>
      ```
 
-   - Examples for your Project:
+   - Example for your Project (50 ns run):
      ```bash
      # Wild Type (WT) - 50.3 ns trajectory (100ps recording + Stride 1)
      python3 openmm_trajanalysis.py 4ldj_wt \
@@ -135,13 +135,6 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
        --trajectory 4ldj_wt/prod_full.dcd \
        --interval 100.0 \
        --outdir analysis_4ldj_wt
-     
-     # G12C Mutant - 100 ns target (Assuming 100ps recording + Stride 10)
-     python3 openmm_trajanalysis.py 4ldj_g12c \
-       --topology 4ldj_g12c/solvated.pdb \
-       --trajectory 4ldj_g12c/prod_full.dcd \
-       --interval 1000.0 \
-       --outdir analysis_4ldj_g12c
      ```
    - Features:
      - **Trajectory-First Visuals:** Crisp, solid lines to emphasize simulation dynamics.
