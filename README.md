@@ -183,6 +183,7 @@ colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/
 ```
 
 > **Note:** The analysis command now automatically detects your frame interval and standardizes all metrics (RMSD, Rg, RMSF) to **Ångströms (Å)** with publication-ready visuals.
+> **Tip:** If simulation used `--traj-interval 10` and merging used `--stride 10`, use `--interval 100` for analysis.
 
 For mutant:
 
