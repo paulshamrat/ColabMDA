@@ -201,6 +201,9 @@ def main():
     plt.savefig(os.path.join(outdir, "rmsd_vs_time.png"))
     plt.savefig(os.path.join(outdir, "rmsd_vs_time.pdf"))
     plt.close()
+    
+    csv_rmsd = os.path.join(outdir, "rmsd.csv")
+    np.savetxt(csv_rmsd, np.column_stack([times, rmsd_A]), delimiter=",", header="time_ps,rmsd_A", comments="")
     print(f"  → Saved {outdir}/rmsd_vs_time.png (and .pdf)")
 
     # 2) Radius of gyration
@@ -225,6 +228,9 @@ def main():
     plt.savefig(os.path.join(outdir, "rg_vs_time.png"))
     plt.savefig(os.path.join(outdir, "rg_vs_time.pdf"))
     plt.close()
+    
+    csv_rg = os.path.join(outdir, "rg.csv")
+    np.savetxt(csv_rg, np.column_stack([times, rg_vals]), delimiter=",", header="time_ps,rg_A", comments="")
     print(f"  → Saved {outdir}/rg_vs_time.png (and .pdf)")
 
     # 3) RMSF (MDTraj)
@@ -246,6 +252,9 @@ def main():
     plt.savefig(os.path.join(outdir, "rmsf_per_residue.png"))
     plt.savefig(os.path.join(outdir, "rmsf_per_residue.pdf"))
     plt.close()
+    
+    csv_rmsf = os.path.join(outdir, "rmsf.csv")
+    np.savetxt(csv_rmsf, np.column_stack([resids, rmsf_A]), delimiter=",", header="residue,rmsf_A", comments="")
     print(f"  → Saved {outdir}/rmsf_per_residue.png (and .pdf)")
 
     print(f"\nAll publication-quality plots saved in: {outdir}")
