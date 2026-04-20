@@ -64,19 +64,29 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1):
         print("  ", f)
     print(f"Using stride: {stride}")
 
-    # load first
-    try:
-        merged = md.load(dcd_files[0], top=topo, stride=max(1, stride))
-    except Exception as e:
-        sys.exit(f"Failed to load {dcd_files[0]}: {e}")
+    # Initialize global frame counter and collection list
+    global_frame_idx = 0
+    to_join = []
 
-    # append the rest
-    for f in dcd_files[1:]:
+    for f in dcd_files:
         try:
-            chunk = md.load(f, top=topo, stride=max(1, stride))
-            merged = merged.join(chunk)
+            chunk = md.load(f, top=topo)
+            # Find which frames in this chunk belong in the thinned trajectory
+            # (global_frame_idx + i) % stride == 0
+            indices = [i for i in range(chunk.n_frames) if (global_frame_idx + i) % stride == 0]
+            if indices:
+                to_join.append(chunk[indices])
+            global_frame_idx += chunk.n_frames
         except Exception as e:
             print(f"Warning: skipping {f} due to load error: {e}")
+
+    if not to_join:
+        sys.exit("Error: No frames kept after striding. Check your stride value vs total frames.")
+
+    # Merge the selected frames
+    merged = to_join[0]
+    for subset in to_join[1:]:
+        merged = merged.join(subset)
 
     merged.save_dcd(out_traj)
     print(f"→ Wrote merged trajectory: {out_traj} ({merged.n_frames} frames)")
