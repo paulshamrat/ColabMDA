@@ -24,7 +24,7 @@ def parse_args():
     p.add_argument("simdir", help="Simulation directory (contains solvated.pdb, prod_full.dcd)")
     p.add_argument("-t", "--topology", default=None)
     p.add_argument("-x", "--trajectory", default=None)
-    p.add_argument("-i", "--interval", type=float, default=None, help="Frame interval in ps")
+    p.add_argument("-i", "--interval", type=float, default=None, help="Frame interval in ps. Effective = sim_interval * stride")
     p.add_argument("--smooth-ps", type=float, default=25.0, help="Moving-average window in ps")
     p.add_argument("--plot-stride", type=int, default=5, help="Stride for raw line plotting")
     p.add_argument("-o", "--outdir", default=None)
@@ -52,7 +52,7 @@ def detect_interval_from_logs(simdir, n_frames):
                     except Exception:
                         pass
             if len(vals) > 1:
-                dt = (vals[-1] - vals[0]) / max(1, len(vals) - 1)
+                dt = (vals[-1] - vals[0]) / max(1, n_frames - 1)
                 if dt > 0:
                     return dt, "prod_full.log"
 
@@ -104,7 +104,7 @@ def main():
     if interval is None:
         try:
             interval = float(u.trajectory.ts.dt)
-            source = "DCD header"
+            source = "DCD header (WARNING: likely inaccurate)"; print(f"!! WARNING: Using DCD header interval. If total time looks wrong, pass --interval manually.")
         except Exception:
             interval = None
     if interval is None:

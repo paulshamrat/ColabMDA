@@ -21,7 +21,7 @@ Positional arguments:
 Optional arguments:
   -t, --topology PATH      Topology PDB (default: <pdbid>/solvated.pdb)
   -x, --trajectory PATH    Trajectory DCD (default: <pdbid>/prod_full.dcd)
-  -i, --interval FLOAT     Frame interval in ps (default: detect from DCD header)
+  -i, --interval FLOAT     Frame interval in ps (Overrides detection. Effective interval = sim_interval * stride)
   -o, --outdir DIR         Output directory for plots
 """
 
@@ -70,7 +70,8 @@ def _infer_interval_from_merged_log(sim_dir, n_frames):
             continue
     if len(times) < 2:
         return None
-    dt = (times[-1] - times[0]) / max(1, len(times) - 1)
+    # Use n_frames from trajectory to handle striding correctly
+    dt = (times[-1] - times[0]) / max(1, n_frames - 1)
     return dt if dt > 0 else None
 
 def _infer_interval_from_chunk_logs(sim_dir):
@@ -101,7 +102,7 @@ def parse_args():
     p.add_argument("-x", "--trajectory",
                    help="Trajectory DCD (default: <pdbid>/prod_full.dcd)")
     p.add_argument("-i", "--interval", type=float,
-                   help="Frame interval in ps (default: detect from header)")
+                   help="Frame interval in ps. Overrides detection (Effective = sim_interval * stride)")
     p.add_argument("-o", "--outdir",
                    help="Directory to save plots (default: analysis_<pdbid>_<timestamp>)")
     return p.parse_args()
@@ -132,22 +133,34 @@ def main():
     u = mda.Universe(topo_path, traj_path)
     n_frames = len(u.trajectory)
     # Determine frame spacing
-    interval_source = "user"
     interval = args.interval
+    interval_source = "user"
+    
     if interval is None:
+        # Priority 1: Infer from merged log total time / trajectory frames
         interval = _infer_interval_from_merged_log(sim_dir, n_frames)
         if interval is not None:
-            interval_source = "prod_full.log"
+            interval_source = "prod_full.log (total time / frames)"
+            
     if interval is None:
+        # Priority 2: Infer from chunks
         interval = _infer_interval_from_chunk_logs(sim_dir)
         if interval is not None:
-            interval_source = "chunk logs/chunk names"
+            interval_source = "chunk logs (total time / frames)"
+            
     if interval is None:
+        # Priority 3: DCD header (WARNING: often unreliable)
         interval = detect_interval_ps(u)
         if interval is not None:
-            interval_source = "DCD header"
+            interval_source = "DCD header (WARNING: likely inaccurate)"
+            print(f"!! WARNING: Using interval from DCD header ({interval:.3f} ps).")
+            print(f"!! If your total time ({n_frames * interval / 1000:.3f} ns) looks wrong, please pass --interval manually.")
+
     if interval is None:
         sys.exit("Failed to detect frame interval; please specify --interval")
+
+    # Final calculation fix: ensuring dt is derived from total time / segments
+    # (If inferred from logs, it uses n_frames - 1 internally now)
     total_ns = (n_frames - 1) * interval / 1000.0
     print(f"Detected {n_frames} frames, interval = {interval:.3f} ps ({interval_source}) → total ≈ {total_ns:.3f} ns\n")
 
