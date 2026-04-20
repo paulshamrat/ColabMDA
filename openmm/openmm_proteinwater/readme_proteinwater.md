@@ -122,7 +122,8 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
      python3 openmm_trajanalysis.py <pdbid> \
        --topology <pdbid>/solvated.pdb \
        --trajectory <pdbid>/prod_full.dcd \
-       --interval <calculated_value>
+       --interval <calculated_value> \
+       --outdir <dir_name>
      ```
 
    - Examples for your Project:
