@@ -179,8 +179,10 @@ This creates:
 cd /content/drive/MyDrive/openmm/simulations/4ldj_wt
 colabmda openmm run --name 4ldj_wt --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
 colabmda openmm merge --stride 10
-colabmda openmm analysis --interval 10 --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_wt
+colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_wt
 ```
+
+> **Note:** The analysis command now automatically detects your frame interval and standardizes all metrics (RMSD, Rg, RMSF) to **Ångströms (Å)** with publication-ready visuals.
 
 For mutant:
 
@@ -188,7 +190,7 @@ For mutant:
 cd /content/drive/MyDrive/openmm/simulations/4ldj_G12C
 colabmda openmm run --name 4ldj_G12C --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
 colabmda openmm merge --stride 10
-colabmda openmm analysis --interval 10 --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_G12C
+colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_G12C
 ```
 
 ### 4. Compare WT vs Mutants in `analysis/compare`
@@ -207,7 +209,7 @@ python openmm/openmm_proteinwater/openmm_compare_plots.py \
 colabmda openmm prep --pdb-id 4ldj
 colabmda openmm run --pdb-id 4ldj --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
 colabmda openmm merge --pdb-id 4ldj --stride 10
-colabmda openmm analysis --pdb-id 4ldj --interval 10
+colabmda openmm analysis --pdb-id 4ldj
 ```
 
 ## Project Strategy (WT + Mutants)
