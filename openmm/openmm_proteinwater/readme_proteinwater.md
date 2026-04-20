@@ -120,6 +120,14 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
        --trajectory <pdbid>/prod_full.dcd \
        --outdir analysis_<pdbid>
      ```
+   - Examples for your Project:
+     ```bash
+     # Wild Type (WT)
+     python3 openmm_trajanalysis.py 4ldj_wt \
+       --topology 4ldj_wt/solvated.pdb \
+       --trajectory 4ldj_wt/prod_full.dcd \
+       --outdir analysis_4ldj_wt_final
+     ```
    - Features:
      - **Trajectory-First Visuals:** Crisp, solid lines to emphasize simulation dynamics.
      - **Scientific Fixes:** Proper protein-only Rg selection and C-alpha RMSF superposition.
