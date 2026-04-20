@@ -113,6 +113,7 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
 4. **Analyze Trajectory**
    - Perform analysis on the merged trajectory. The script automatically detects the simulation length and frame interval.
    - All results are standardized to **Ångströms (Å)** with publication-quality visuals (600 DPI PNG & vector PDF).
+   - **Tip on Interval:** If your simulation used `--traj-interval 10` and your merging used `--stride 10`, then your analysis `--interval` should be **100** (10 * 10).
    - Command:
      ```bash
      python3 openmm_trajanalysis.py <pdbid> \
