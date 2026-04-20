@@ -91,7 +91,7 @@ def main():
     if not os.path.isfile(traj):
         sys.exit(f"Trajectory not found: {traj}")
 
-    outdir = args.outdir or f"analysis_{label}_final"
+    outdir = args.outdir or f"analysis_{label}"
     os.makedirs(outdir, exist_ok=True)
 
     u = mda.Universe(topo, traj)
