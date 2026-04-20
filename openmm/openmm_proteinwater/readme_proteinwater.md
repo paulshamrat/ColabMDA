@@ -101,14 +101,15 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
        --out-traj prod_full.dcd \
        --out-log prod_full.log
      # Example:
-     python3 openmm_trajmerge.py 4ldj \
-       --topology 4ldj/solvated.pdb \
-       --stride 10 \
+     python3 openmm_trajmerge.py 4ldj_wt \
+       --topology 4ldj_wt/solvated.pdb \
+       --stride 1 \
        --out-traj prod_full.dcd \
        --out-log prod_full.log
      ```
    - Output: Merged trajectory (`prod_full.dcd`) and log (`prod_full.log`).
-   - Note: If `--stride 10` is used, effective frame interval becomes 10x larger for analysis.
+   - **Optimization Tip:** For long simulations (e.g., 100 ns), use **`--stride 10`** to keep the file size manageable (~1,000 frames total).
+   - **Note:** If you use a stride during merging, you **must** multiply your analysis interval (see below).
 
 4. **Analyze Trajectory**
    - Perform analysis on the merged trajectory. The script automatically detects the simulation length and frame interval.
@@ -128,12 +129,19 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
 
    - Examples for your Project:
      ```bash
-     # Wild Type (WT) - Assuming 10ps local recording and Stride 1
+     # Wild Type (WT) - 50.3 ns trajectory (100ps recording + Stride 1)
      python3 openmm_trajanalysis.py 4ldj_wt \
        --topology 4ldj_wt/solvated.pdb \
        --trajectory 4ldj_wt/prod_full.dcd \
-       --interval 10.0 \
+       --interval 100.0 \
        --outdir analysis_4ldj_wt
+     
+     # G12C Mutant - 100 ns target (Assuming 100ps recording + Stride 10)
+     python3 openmm_trajanalysis.py 4ldj_g12c \
+       --topology 4ldj_g12c/solvated.pdb \
+       --trajectory 4ldj_g12c/prod_full.dcd \
+       --interval 1000.0 \
+       --outdir analysis_4ldj_g12c
      ```
    - Features:
      - **Trajectory-First Visuals:** Crisp, solid lines to emphasize simulation dynamics.
