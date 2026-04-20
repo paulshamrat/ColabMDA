@@ -115,31 +115,49 @@ def main():
 
     calc = rms.RMSD(u, u, select="backbone", ref_frame=0)
     calc.run()
-    rmsd_nm = calc.results.rmsd[:, 2] / 10.0
+    # Styling for publication
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["DejaVu Serif"],
+        "font.size": 12,
+        "axes.labelsize": 14,
+        "axes.titlesize": 16,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+        "legend.fontsize": 10,
+        "lines.linewidth": 1.5,
+        "figure.figsize": (8, 6),
+        "savefig.dpi": 600,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.linestyle": "--",
+    })
+    
+    def moving_average(y, win=50):
+        if len(y) < win: return y
+        return np.convolve(y, np.ones(win)/win, mode='same')
+
+    rmsd_A = calc.results.rmsd[:, 2]
     times = np.arange(n_frames) * interval
+    rmsd_smooth = moving_average(rmsd_A, win=50)
 
     csv_path = os.path.join(outdir, "rmsd.csv")
-    np.savetxt(csv_path, np.column_stack([times, rmsd_nm]), delimiter=",", header="time_ps,rmsd_nm", comments="")
+    np.savetxt(csv_path, np.column_stack([times, rmsd_A]), delimiter=",", header="time_ps,rmsd_A", comments="")
 
-    stride = max(1, args.plot_stride)
-    plt.figure(figsize=(10, 6))
-    plt.plot(times[::stride], rmsd_nm[::stride], lw=0.9, alpha=0.4, label=f"Raw (stride={stride})")
-
-    win = max(1, int(round(args.smooth_ps / interval)))
-    y_s = moving_average(rmsd_nm, win)
-    if y_s is not None:
-        t_s = times[win - 1 :]
-        plt.plot(t_s, y_s, lw=2.0, label=f"Moving avg ({args.smooth_ps:g} ps)")
-
+    plt.figure()
+    plt.plot(times, rmsd_A, color='blue', alpha=0.3, label="Raw data")
+    plt.plot(times, rmsd_smooth, color='darkblue', lw=2, label="Moving average")
     plt.xlabel("Time (ps)")
-    plt.ylabel("RMSD (nm)")
-    plt.title("Backbone RMSD vs. Time")
-    plt.grid(True, alpha=0.3)
+    plt.ylabel("RMSD (Å)")
+    plt.title("Backbone RMSD Stability")
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
     plt.legend()
     plt.tight_layout()
-    fig_path = os.path.join(outdir, "rmsd_vs_time.png")
-    plt.savefig(fig_path, dpi=300)
+    plt.savefig(os.path.join(outdir, "rmsd_vs_time.png"))
+    plt.savefig(os.path.join(outdir, "rmsd_vs_time.pdf"))
     plt.close()
+    print(f"  → Saved {outdir}/rmsd_vs_time.png (and .pdf)")
 
     print(f"Saved: {csv_path}")
     print(f"Saved: {fig_path}")

@@ -68,54 +68,78 @@ def main():
     series = parse_series(args.series)
     os.makedirs(args.outdir, exist_ok=True)
 
+    # Styling for publication
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["DejaVu Serif"],
+        "font.size": 12,
+        "axes.labelsize": 14,
+        "axes.titlesize": 16,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+        "legend.fontsize": 10,
+        "lines.linewidth": 1.5,
+        "figure.figsize": (10, 6),
+        "savefig.dpi": 600,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.linestyle": "--",
+    })
+
     # RMSD comparison
-    plt.figure(figsize=(10, 6))
+    plt.figure()
     plotted = 0
     for label, d in series:
         arr = load_csv(os.path.join(d, "rmsd.csv"), 2)
         if arr is None:
             continue
-        plt.plot(arr[:, 0], arr[:, 1], lw=1.5, label=label)
+        plt.plot(arr[:, 0], arr[:, 1], lw=1.2, label=label)
         plotted += 1
     if plotted:
         plt.xlabel("Time (ps)")
-        plt.ylabel("RMSD (nm)")
+        plt.ylabel("RMSD (Å)")
         plt.title("Backbone RMSD: WT vs Mutants")
-        plt.grid(True, alpha=0.3)
+        plt.gca().spines['top'].set_visible(False)
+        plt.gca().spines['right'].set_visible(False)
         if args.rmsd_ylim is not None:
             plt.ylim(args.rmsd_ylim[0], args.rmsd_ylim[1])
-        plt.legend()
+        plt.legend(frameon=False)
         plt.tight_layout()
-        out = os.path.join(args.outdir, "compare_rmsd.png")
-        plt.savefig(out, dpi=300)
-        print(f"Saved: {out}")
+        out_png = os.path.join(args.outdir, "compare_rmsd.png")
+        out_pdf = os.path.join(args.outdir, "compare_rmsd.pdf")
+        plt.savefig(out_png)
+        plt.savefig(out_pdf)
+        print(f"Saved: {out_png} (and .pdf)")
     plt.close()
 
     # Rg comparison
-    plt.figure(figsize=(10, 6))
+    plt.figure()
     plotted = 0
     for label, d in series:
         arr = load_csv(os.path.join(d, "rg.csv"), 2)
         if arr is None:
             continue
-        plt.plot(arr[:, 0], arr[:, 1], lw=1.5, label=label)
+        plt.plot(arr[:, 0], arr[:, 1], lw=1.2, label=label)
         plotted += 1
     if plotted:
         plt.xlabel("Time (ps)")
-        plt.ylabel("Radius of Gyration (nm)")
-        plt.title("Rg: WT vs Mutants")
-        plt.grid(True, alpha=0.3)
+        plt.ylabel("Radius of Gyration (Å)")
+        plt.title("Protein Compactness (Rg): WT vs Mutants")
+        plt.gca().spines['top'].set_visible(False)
+        plt.gca().spines['right'].set_visible(False)
         if args.rg_ylim is not None:
             plt.ylim(args.rg_ylim[0], args.rg_ylim[1])
-        plt.legend()
+        plt.legend(frameon=False)
         plt.tight_layout()
-        out = os.path.join(args.outdir, "compare_rg.png")
-        plt.savefig(out, dpi=300)
-        print(f"Saved: {out}")
+        out_png = os.path.join(args.outdir, "compare_rg.png")
+        out_pdf = os.path.join(args.outdir, "compare_rg.pdf")
+        plt.savefig(out_png)
+        plt.savefig(out_pdf)
+        print(f"Saved: {out_png} (and .pdf)")
     plt.close()
 
     # RMSF comparison
-    plt.figure(figsize=(10, 6))
+    plt.figure()
     plotted = 0
     for label, d in series:
         arr = load_csv(os.path.join(d, "rmsf.csv"), 2)
@@ -124,17 +148,20 @@ def main():
         plt.plot(arr[:, 0], arr[:, 1], lw=1.5, label=label)
         plotted += 1
     if plotted:
-        plt.xlabel("Residue")
-        plt.ylabel("RMSF (nm)")
-        plt.title("Cα RMSF: WT vs Mutants")
-        plt.grid(True, alpha=0.3)
+        plt.xlabel("Residue Index")
+        plt.ylabel("RMSF (Å)")
+        plt.title("Residue Flexibility (RMSF): WT vs Mutants")
+        plt.gca().spines['top'].set_visible(False)
+        plt.gca().spines['right'].set_visible(False)
         if args.rmsf_ylim is not None:
             plt.ylim(args.rmsf_ylim[0], args.rmsf_ylim[1])
-        plt.legend()
+        plt.legend(frameon=False)
         plt.tight_layout()
-        out = os.path.join(args.outdir, "compare_rmsf.png")
-        plt.savefig(out, dpi=300)
-        print(f"Saved: {out}")
+        out_png = os.path.join(args.outdir, "compare_rmsf.png")
+        out_pdf = os.path.join(args.outdir, "compare_rmsf.pdf")
+        plt.savefig(out_png)
+        plt.savefig(out_pdf)
+        print(f"Saved: {out_png} (and .pdf)")
     plt.close()
 
     if not any(os.path.isfile(os.path.join(d, "rmsd.csv")) or

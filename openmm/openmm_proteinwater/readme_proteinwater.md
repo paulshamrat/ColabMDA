@@ -111,35 +111,32 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
    - Note: If `--stride 10` is used, effective frame interval becomes 10x larger for analysis.
 
 4. **Analyze Trajectory**
-   - Perform analysis on the merged trajectory using the analysis script.
+   - Perform analysis on the merged trajectory. The script automatically detects the simulation length and frame interval.
+   - All results are standardized to **Ångströms (Å)** with publication-quality visuals (600 DPI PNG & vector PDF).
    - Command:
      ```bash
      python3 openmm_trajanalysis.py <pdbid> \
-       --interval 1.0 \
        --topology <pdbid>/solvated.pdb \
        --trajectory <pdbid>/prod_full.dcd \
        --outdir analysis_<pdbid>
-     # Example:
-     python3 openmm_trajanalysis.py 4ldj \
-       --interval 10.0 \
-       --topology 4ldj/solvated.pdb \
-       --trajectory 4ldj/prod_full.dcd \
-       --outdir analysis_4ldj
      ```
-   - Output: Analysis results in `analysis_<pdbid>/`.
+   - Features:
+     - **Trajectory-First Visuals:** Crisp, solid lines to emphasize simulation dynamics.
+     - **Scientific Fixes:** Proper protein-only Rg selection and C-alpha RMSF superposition.
 
 5. **Optional: Separate RMSD / Rg / RMSF Scripts**
+   - All standalone scripts now follow the same high-fidelity Ångström standards.
    - RMSD:
      ```bash
-     python3 openmm_rmsd.py <pdbid> --interval 1 --smooth-ps 25 --plot-stride 5 --outdir analysis_<pdbid>_rmsd
+     python3 openmm_rmsd.py <pdbid> --outdir analysis_<pdbid>_rmsd
      ```
    - Rg:
      ```bash
-     python3 openmm_rg.py <pdbid> --interval 1 --smooth-ps 25 --plot-stride 5 --outdir analysis_<pdbid>_rg
+     python3 openmm_rg.py <pdbid> --outdir analysis_<pdbid>_rg
      ```
    - RMSF (with optional zoom controls):
      ```bash
-     python3 openmm_rmsf.py <pdbid> --resid-min 2 --ylim 0 0.12 --outdir analysis_<pdbid>_rmsf
+     python3 openmm_rmsf.py <pdbid> --resid-min 2 --ylim 0 5.0 --outdir analysis_<pdbid>_rmsf
      ```
 
 6. **Optional: Compare WT vs Mutants (Overlay Plots)**

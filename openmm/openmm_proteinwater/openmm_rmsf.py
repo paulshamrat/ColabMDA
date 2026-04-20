@@ -44,10 +44,28 @@ def main():
     outdir = args.outdir or f"analysis_{label}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
     os.makedirs(outdir, exist_ok=True)
 
+    # Styling for publication
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["DejaVu Serif"],
+        "font.size": 12,
+        "axes.labelsize": 14,
+        "axes.titlesize": 16,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+        "legend.fontsize": 10,
+        "lines.linewidth": 1.5,
+        "figure.figsize": (8, 6),
+        "savefig.dpi": 600,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.linestyle": "--",
+    })
+    
     t = md.load(traj, top=topo)
-    t.superpose(t, 0)
     ca_idx = t.topology.select("name CA")
-    rmsf_nm = md.rmsf(t, t, atom_indices=ca_idx) / 10.0
+    t.superpose(t, 0, atom_indices=ca_idx)
+    rmsf_A = md.rmsf(t, t, atom_indices=ca_idx) * 10.0
     resids = np.array([t.topology.atom(i).residue.resSeq for i in ca_idx], dtype=int)
 
     mask = np.ones_like(resids, dtype=bool)
@@ -57,26 +75,27 @@ def main():
         mask &= (resids <= args.resid_max)
 
     x = resids[mask]
-    y = rmsf_nm[mask]
+    y = rmsf_A[mask]
 
     csv_path = os.path.join(outdir, "rmsf.csv")
-    np.savetxt(csv_path, np.column_stack([x, y]), delimiter=",", header="residue,rmsf_nm", comments="")
+    np.savetxt(csv_path, np.column_stack([x, y]), delimiter=",", header="residue,rmsf_A", comments="")
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(x, y, lw=1.5)
-    plt.xlabel("Residue")
-    plt.ylabel("RMSF (nm)")
-    plt.title("Backbone Cα RMSF per Residue")
-    plt.grid(True, alpha=0.3)
+    plt.figure()
+    plt.plot(x, y, color='firebrick', lw=1.5)
+    plt.xlabel("Residue Index")
+    plt.ylabel("RMSF (Å)")
+    plt.title("Residue Flexibility (RMSF)")
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+    plt.tight_layout()
     if args.ylim is not None:
         plt.ylim(args.ylim[0], args.ylim[1])
-    plt.tight_layout()
-    fig_path = os.path.join(outdir, "rmsf_per_residue.png")
-    plt.savefig(fig_path, dpi=300)
+    plt.savefig(os.path.join(outdir, "rmsf_per_residue.png"))
+    plt.savefig(os.path.join(outdir, "rmsf_per_residue.pdf"))
     plt.close()
+    print(f"  → Saved {outdir}/rmsf_per_residue.png (and .pdf)")
 
     print(f"Saved: {csv_path}")
-    print(f"Saved: {fig_path}")
 
 
 if __name__ == "__main__":

@@ -110,40 +110,56 @@ def main():
     if interval is None:
         sys.exit("Could not infer interval; pass --interval.")
 
-    print(f"Frames={n_frames}, interval={interval:.3f} ps ({source})")
+    # Styling for publication
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["DejaVu Serif"],
+        "font.size": 12,
+        "axes.labelsize": 14,
+        "axes.titlesize": 16,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+        "legend.fontsize": 10,
+        "lines.linewidth": 1.5,
+        "figure.figsize": (8, 6),
+        "savefig.dpi": 600,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.linestyle": "--",
+    })
+    
+    def moving_average(y, win=50):
+        if len(y) < win: return y
+        return np.convolve(y, np.ones(win)/win, mode='same')
 
-    heavy = u.select_atoms("not name H*")
+    heavy = u.select_atoms("protein and not name H*")
     rg_vals = []
     for _ts in u.trajectory:
         coords = heavy.positions
         cog = coords.mean(axis=0)
-        rg = np.sqrt(((coords - cog) ** 2).sum(axis=1).mean()) / 10.0
+        rg = np.sqrt(((coords - cog) ** 2).sum(axis=1).mean())
         rg_vals.append(rg)
     rg_vals = np.asarray(rg_vals)
     times = np.arange(n_frames) * interval
+    rg_smooth = moving_average(rg_vals, win=50)
 
     csv_path = os.path.join(outdir, "rg.csv")
-    np.savetxt(csv_path, np.column_stack([times, rg_vals]), delimiter=",", header="time_ps,rg_nm", comments="")
+    np.savetxt(csv_path, np.column_stack([times, rg_vals]), delimiter=",", header="time_ps,rg_A", comments="")
 
-    stride = max(1, args.plot_stride)
-    plt.figure(figsize=(10, 6))
-    plt.plot(times[::stride], rg_vals[::stride], lw=0.9, alpha=0.4, label=f"Raw (stride={stride})")
-
-    win = max(1, int(round(args.smooth_ps / interval)))
-    y_s = moving_average(rg_vals, win)
-    if y_s is not None:
-        t_s = times[win - 1 :]
-        plt.plot(t_s, y_s, lw=2.0, label=f"Moving avg ({args.smooth_ps:g} ps)")
-
+    plt.figure()
+    plt.plot(times, rg_vals, color='green', alpha=0.3, label="Raw data")
+    plt.plot(times, rg_smooth, color='darkgreen', lw=2, label="Moving average")
     plt.xlabel("Time (ps)")
-    plt.ylabel("Radius of Gyration (nm)")
-    plt.title("Rg vs. Time")
-    plt.grid(True, alpha=0.3)
+    plt.ylabel("Radius of Gyration (Å)")
+    plt.title("Protein Compactness (Rg)")
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
     plt.legend()
     plt.tight_layout()
-    fig_path = os.path.join(outdir, "rg_vs_time.png")
-    plt.savefig(fig_path, dpi=300)
+    plt.savefig(os.path.join(outdir, "rg_vs_time.png"))
+    plt.savefig(os.path.join(outdir, "rg_vs_time.pdf"))
     plt.close()
+    print(f"  → Saved {outdir}/rg_vs_time.png (and .pdf)")
 
     print(f"Saved: {csv_path}")
     print(f"Saved: {fig_path}")
