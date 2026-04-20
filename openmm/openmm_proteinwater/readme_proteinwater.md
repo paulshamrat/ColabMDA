@@ -113,20 +113,25 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
 4. **Analyze Trajectory**
    - Perform analysis on the merged trajectory. The script automatically detects the simulation length and frame interval.
    - All results are standardized to **Ångströms (Å)** with publication-quality visuals (600 DPI PNG & vector PDF).
-   - **Tip on Interval:** If your simulation used `--traj-interval 10` and your merging used `--stride 10`, then your analysis `--interval` should be **100** (10 * 10).
+   - **The Golden Rule for --interval:**
+     `Analysis Interval (ps) = Simulation traj-interval * Merging stride`
+     *Example: 10ps recording interval with stride 10 = **--interval 100*** 
+
    - Command:
      ```bash
      python3 openmm_trajanalysis.py <pdbid> \
        --topology <pdbid>/solvated.pdb \
        --trajectory <pdbid>/prod_full.dcd \
-       --outdir analysis_<pdbid>
+       --interval <calculated_value>
      ```
+
    - Examples for your Project:
      ```bash
-     # Wild Type (WT)
+     # Wild Type (WT) - Assuming 10ps local recording and Stride 1
      python3 openmm_trajanalysis.py 4ldj_wt \
        --topology 4ldj_wt/solvated.pdb \
        --trajectory 4ldj_wt/prod_full.dcd \
+       --interval 10.0 \
        --outdir analysis_4ldj_wt
      ```
    - Features:
