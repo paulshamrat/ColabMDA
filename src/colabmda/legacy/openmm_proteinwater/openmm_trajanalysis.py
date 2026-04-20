@@ -152,68 +152,91 @@ def main():
     total_ns = (n_frames - 1) * interval / 1000.0
     print(f"Detected {n_frames} frames, interval = {interval:.3f} ps ({interval_source}) → total ≈ {total_ns:.3f} ns\n")
 
+    # Styling for publication
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["DejaVu Serif"],
+        "font.size": 12,
+        "axes.labelsize": 14,
+        "axes.titlesize": 16,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+        "legend.fontsize": 10,
+        "lines.linewidth": 1.5,
+        "figure.figsize": (10, 6),
+        "savefig.dpi": 600,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.linestyle": "--",
+    })
+    
     # 1) RMSD (backbone)
     print("Computing RMSD...")
     rmsd_calc = rms.RMSD(u, u, select="backbone", ref_frame=0)
     rmsd_calc.run()
     rmsd_data = rmsd_calc.results.rmsd  # [frame, time(ps), rmsd(Å), group]
     times     = np.arange(n_frames) * interval
-    rmsd_nm   = rmsd_data[:,2] / 10.0
+    rmsd_A      = rmsd_data[:,2]
 
     plt.figure()
-    plt.plot(times, rmsd_nm, "-o", markersize=3)
+    plt.plot(times, rmsd_A, color='#4C72B0', lw=1.0, alpha=1.0)
     plt.xlabel("Time (ps)")
-    plt.ylabel("RMSD (nm)")
-    plt.title("Backbone RMSD vs. Time")
-    plt.grid(True)
+    plt.ylabel("RMSD (Å)")
+    plt.title("Backbone RMSD Stability")
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
     plt.tight_layout()
-    plt.savefig(os.path.join(outdir, "rmsd_vs_time.png"), dpi=300)
+    plt.savefig(os.path.join(outdir, "rmsd_vs_time.png"))
+    plt.savefig(os.path.join(outdir, "rmsd_vs_time.pdf"))
     plt.close()
-    print(f"  → Saved {outdir}/rmsd_vs_time.png")
+    print(f"  → Saved {outdir}/rmsd_vs_time.png (and .pdf)")
 
     # 2) Radius of gyration
     print("Computing Radius of Gyration...")
-    heavy   = u.select_atoms("not name H*")
+    heavy   = u.select_atoms("protein and not name H*")
     rg_vals = []
     for ts in u.trajectory:
         coords = heavy.positions
         cog    = coords.mean(axis=0)
-        rg     = np.sqrt(((coords - cog)**2).sum(axis=1).mean()) / 10.0
+        rg     = np.sqrt(((coords - cog)**2).sum(axis=1).mean())
         rg_vals.append(rg)
     rg_vals = np.array(rg_vals)
 
     plt.figure()
-    plt.plot(times, rg_vals, "-o", markersize=3)
+    plt.plot(times, rg_vals, color='#55A868', lw=1.0, alpha=1.0)
     plt.xlabel("Time (ps)")
-    plt.ylabel("Radius of Gyration (nm)")
-    plt.title("Rg vs. Time")
-    plt.grid(True)
+    plt.ylabel("Radius of Gyration (Å)")
+    plt.title("Protein Compactness (Rg)")
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
     plt.tight_layout()
-    plt.savefig(os.path.join(outdir, "rg_vs_time.png"), dpi=300)
+    plt.savefig(os.path.join(outdir, "rg_vs_time.png"))
+    plt.savefig(os.path.join(outdir, "rg_vs_time.pdf"))
     plt.close()
-    print(f"  → Saved {outdir}/rg_vs_time.png")
+    print(f"  → Saved {outdir}/rg_vs_time.png (and .pdf)")
 
     # 3) RMSF (MDTraj)
     print("Computing RMSF...")
     traj = md.load(traj_path, top=topo_path)
-    traj.superpose(traj, 0)
     ca_idx  = traj.topology.select("name CA")
-    rmsf_A  = md.rmsf(traj, traj, atom_indices=ca_idx)
-    rmsf_nm = rmsf_A / 10.0
+    traj.superpose(traj, 0, atom_indices=ca_idx)
+    rmsf_A = md.rmsf(traj, traj, atom_indices=ca_idx) * 10.0
     resids  = [traj.topology.atom(i).residue.resSeq for i in ca_idx]
 
     plt.figure()
-    plt.plot(resids, rmsf_nm, "-o", markersize=3)
-    plt.xlabel("Residue")
-    plt.ylabel("RMSF (nm)")
-    plt.title("Backbone Cα RMSF per Residue")
-    plt.grid(True)
+    plt.plot(resids, rmsf_A, color='#C44E52', lw=1.5)
+    plt.xlabel("Residue Index")
+    plt.ylabel("RMSF (Å)")
+    plt.title("Residue Flexibility (RMSF)")
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
     plt.tight_layout()
-    plt.savefig(os.path.join(outdir, "rmsf_per_residue.png"), dpi=300)
+    plt.savefig(os.path.join(outdir, "rmsf_per_residue.png"))
+    plt.savefig(os.path.join(outdir, "rmsf_per_residue.pdf"))
     plt.close()
-    print(f"  → Saved {outdir}/rmsf_per_residue.png")
+    print(f"  → Saved {outdir}/rmsf_per_residue.png (and .pdf)")
 
-    print(f"\nAll plots saved in: {outdir}")
+    print(f"\nAll publication-quality plots saved in: {outdir}")
 
 if __name__ == "__main__":
     main()
