@@ -126,7 +126,7 @@ These scripts enable the full workflow: preprocessing, simulation, merging, and 
      python3 openmm_trajanalysis.py 4ldj_wt \
        --topology 4ldj_wt/solvated.pdb \
        --trajectory 4ldj_wt/prod_full.dcd \
-       --outdir analysis_4ldj_wt_final
+       --outdir analysis_4ldj_wt
      ```
    - Features:
      - **Trajectory-First Visuals:** Crisp, solid lines to emphasize simulation dynamics.

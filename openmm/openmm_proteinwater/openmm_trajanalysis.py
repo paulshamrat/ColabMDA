@@ -124,7 +124,7 @@ def main():
         sys.exit(f"Trajectory file not found: {traj_path}")
 
     # Create output directory
-    outdir = args.outdir or f"analysis_{sim_label}_final"
+    outdir = args.outdir or f"analysis_{sim_label}"
     os.makedirs(outdir, exist_ok=True)
 
     # Load MDAnalysis Universe
