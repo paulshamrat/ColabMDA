@@ -41,7 +41,7 @@ def main():
     if not os.path.isfile(traj):
         sys.exit(f"Trajectory not found: {traj}")
 
-    outdir = args.outdir or f"analysis_{label}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    outdir = args.outdir or f"analysis_{label}_final"
     os.makedirs(outdir, exist_ok=True)
 
     # Styling for publication
