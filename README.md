@@ -179,7 +179,7 @@ This creates:
 cd /content/drive/MyDrive/openmm/simulations/4ldj_wt
 colabmda openmm run --name 4ldj_wt --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
 colabmda openmm merge --stride 10
-colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_wt
+colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_wt_final
 ```
 
 > **Note:** The analysis command now automatically detects your frame interval and standardizes all metrics (RMSD, Rg, RMSF) to **Ångströms (Å)** with publication-ready visuals.
@@ -190,7 +190,7 @@ For mutant:
 cd /content/drive/MyDrive/openmm/simulations/4ldj_G12C
 colabmda openmm run --name 4ldj_G12C --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
 colabmda openmm merge --stride 10
-colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_G12C
+colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_G12C_final
 ```
 
 ### 4. Compare WT vs Mutants in `analysis/compare`
