@@ -248,14 +248,20 @@ def main():
                 root = Path(_resolve_root(args.drive, args.root)).resolve()
                 name = args.name
                 
-                # Search priority: 
-                # 1. simulations/{name} in root
-                # 2. simulations/{name} in cwd
-                # 3. current directory
+                # Ultimate Search Strategy:
+                # 1. Check root/simulations/{name}
+                # 2. Check root/{name}
+                # 3. Check cwd/simulations/{name}
+                # 4. Check cwd/{name}
+                # 5. Default to cwd
                 if name and (root / "simulations" / name).exists():
                     workdir = root / "simulations" / name
+                elif name and (root / name).exists():
+                    workdir = root / name
                 elif name and (Path.cwd() / "simulations" / name).exists():
                     workdir = Path.cwd() / "simulations" / name
+                elif name and (Path.cwd() / name).exists():
+                    workdir = Path.cwd() / name
                 else:
                     workdir = Path.cwd()
                 
