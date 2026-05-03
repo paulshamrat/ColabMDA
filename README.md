@@ -185,10 +185,14 @@ cd /content/drive/MyDrive/openmm
 
 # Stage WT (Replica 1)
 colabmda openmm stage --pdb-file structures/4ldj/wt/<wt_model>.pdb --name 4ldj_wt --replica r1
+```
+**Example:**
+```bash
+colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
+```
 
 # Stage one mutant (Replica 1)
 colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C --replica r1
-```
 
 This creates:
 - `/content/drive/MyDrive/openmm/simulations/4ldj_wt/r1`
@@ -233,10 +237,18 @@ colabmda openmm analysis --pdb-id 4ldj_G12C
 Once you have analyzed both WT and Mutants, generate the final publication comparison:
 
 ```bash
-python3 scripts/aggregate_analysis.py \
+colabmda openmm compare \
+  --series "LABEL=DIR1,DIR2" \
+  --series "LABEL2=DIR3,DIR4" \
+  --outdir analysis/compare/project_name
+```
+
+**Example (Your KRAS Project):**
+```bash
+colabmda openmm compare \
   --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" \
-  --series "G12C=analysis/single/4ldj_G12C/r1,analysis/single/4ldj_G12C/r2" \
-  --outdir analysis/compare/wt_vs_mutants
+  --series "G12D=analysis/single/4ldj_G12D/r1,analysis/single/4ldj_G12D/r2" \
+  --outdir analysis/compare/wt_vs_g12d_avg
 ```
 
 ## 4. Advanced Options
