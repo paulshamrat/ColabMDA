@@ -86,7 +86,7 @@ cd /content/drive/MyDrive/openmm
 colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
 
 # 2. Run the pipeline (Example: 1ns)
-colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 1.0 --traj-interval 10 --equil-time 100
+colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 1.0 --traj-interval 10 --equil-time 100 --checkpoint-ps 250
 ```
 
 ### 2.3. Merge and Center
