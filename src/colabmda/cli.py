@@ -245,11 +245,24 @@ def main():
                 workdir = str(Path(args.workdir).resolve())
                 name = args.name or _guess_pdbid_from_workdir(workdir)
             else:
-                workdir = os.getcwd()
-                name = args.name or _guess_pdbid_from_workdir(workdir)
+                root = _resolve_root(args.drive, args.root)
+                name = args.name
+                if name and root and (Path(root) / "simulations" / name).exists():
+                    workdir = str(Path(root) / "simulations" / name)
+                elif name and (Path.cwd() / "simulations" / name).exists():
+                    workdir = str(Path.cwd() / "simulations" / name)
+                else:
+                    workdir = os.getcwd()
+                
+                if not name:
+                    name = _guess_pdbid_from_workdir(workdir)
             
             if args.replica:
-                workdir = str(Path(workdir) / args.replica)
+                # If we are already inside the replica folder, don't append it again
+                if Path(workdir).name == args.replica:
+                    pass
+                else:
+                    workdir = str(Path(workdir) / args.replica)
                 _ensure_dir(workdir)
                 # If we are in a replica folder, we need the *_cleaned.pdb from the parent or here
                 local_clean = Path(workdir) / f"{name}_cleaned.pdb"
