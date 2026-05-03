@@ -11,6 +11,8 @@ Key ideas:
 ## 1. Installation
 
 ### 1.1. Notebook Setup (Colab)
+<details>
+<summary>Click to expand</summary>
 
 Open a new Colab notebook in Google Drive. In the first cell, mount Drive and confirm GPU access:
 
@@ -21,18 +23,13 @@ drive.mount('/content/drive')
 ```
 
 > All environment setup and package installation (Conda, Mamba, OpenMM, analysis libraries) should be performed in the Colab Terminal, not notebook cells.
+</details>
 
 ### 1.2. One-Command Colab Bootstrap (Recommended)
+<details open>
+<summary><b>Recommended for WT vs Mutant Projects</b></summary>
 
-In the Colab Terminal, run:
-
-```bash
-cd /content
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
-bash bootstrap_colab_openmm_gpu.sh latest
-```
-
-Install OpenMM + Modeller in one flow (with MODELLER license prompt):
+In the Colab Terminal, run this to install **OpenMM + Modeller** in one flow (recommended):
 
 ```bash
 cd /content
@@ -42,14 +39,21 @@ WITH_MODELLER=1 bash bootstrap_colab_openmm_gpu.sh latest
 
 This will:
 - install Miniforge (if missing)
-- install OpenMM + analysis stack in conda `base` (legacy-compatible path)
-- optionally install MODELLER in `modeller_env` when `WITH_MODELLER=1`
-- install `colabmda` from GitHub Release wheel (no full repo clone)
-- when `WITH_MODELLER=1`, install `colabmda` into both `base` and `modeller_env`
+- install OpenMM + analysis stack in conda `base`
+- install MODELLER in `modeller_env`
+- install `colabmda` package globally
 - validate GPU/OpenMM platforms and CLI
 - create `/content/work` and `/content/drive/MyDrive/openmm`
 
+*Alternative (OpenMM Only):*
+```bash
+bash bootstrap_colab_openmm_gpu.sh latest
+```
+</details>
+
 ### 1.3. Installation on Terminal (Manual Alternative)
+<details>
+<summary>Click to expand</summary>
 
 In the Colab Terminal (⋮ → Terminal), run each step one at a time:
 
@@ -80,8 +84,11 @@ from openmm import Platform; print("OpenMM platforms:", [Platform.getPlatform(i)
 import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MDTraj:", mdtraj.__version__, "Biopython:", Bio.__version__)
 EOF
 ```
+</details>
 
 ### 1.4. Install ColabMDA (No Full Clone)
+<details>
+<summary>Click to expand</summary>
 
 ```bash
 cd /content
@@ -99,8 +106,11 @@ git clone https://github.com/paulshamrat/ColabMDA.git
 cd ColabMDA
 pip install -e .
 ```
+</details>
 
 ### 1.5. Modeller CPU Environment + License
+<details>
+<summary>Click to expand</summary>
 
 ```bash
 cd /content/drive/MyDrive/openmm/ColabMDA
@@ -115,6 +125,7 @@ The script persists the key for the conda environment/future shells and patches 
 > export KEY_MODELLER='YOUR_KEY'
 > python3 -c "import os; from colabmda.modeller.utils import patch_modeller; patch_modeller(os.environ.get('KEY_MODELLER'))"
 > ```
+</details>
 
 
 ## 2. Simulation Workflow
