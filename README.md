@@ -99,13 +99,15 @@ colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 1.0 --traj-interval 1
 
 ### 2.3. Merge and Center
 Combine chunks into a single DCD and wrap solvent.
-```bash
-# Standard Merge
-colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
 
-# Advanced: Save space by keeping every 10th frame
-colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap --stride 10
+```bash
+# Standard Merge (Center + Wrap)
+colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
 ```
+
+> 💡 **Pro-Tip for Long Runs (100ns+):**
+> Merging is memory-efficient and processes trajectories frame-by-frame, so it won't crash your RAM. However, for 100ns+ runs, the final DCD can be very large. Use `--stride` to downsample:
+> `colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap --stride 10`
 
 ---
 
