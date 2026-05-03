@@ -268,3 +268,58 @@ def openmm_md(workdir: str, pdbid: str, total_ns: float, traj_interval: float, c
     if sync_dir:
         argv += ["--sync-dir", sync_dir]
     _run(_script_path(pkg, name), argv)
+def openmm_compare(series_list, outdir):
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+    
+    outpath = Path(outdir)
+    outpath.mkdir(parents=True, exist_ok=True)
+    
+    plt.style.use('seaborn-v0_8-muted')
+    plt.rcParams.update({"font.size": 12, "axes.grid": True, "grid.alpha": 0.3})
+    
+    metrics = {
+        "rmsd.csv": ("Time (ps)", "RMSD (Å)", "System Stability (RMSD)"),
+        "rg.csv": ("Time (ps)", "Radius of Gyration (Å)", "Compactness (Rg)"),
+        "rmsf.csv": ("Residue Index", "RMSF (Å)", "Flexibility (RMSF)")
+    }
+    
+    def aggregate_system(dirs, metric_file):
+        dfs = []
+        for d in dirs:
+            p = Path(d) / metric_file
+            if p.exists():
+                dfs.append(pd.read_csv(p))
+        if not dfs: return None, None, None
+        combined = pd.concat(dfs)
+        col_name = dfs[0].columns[1]
+        grouped = combined.groupby(combined.iloc[:, 0])
+        mean = grouped[col_name].mean()
+        std = grouped[col_name].std()
+        return mean.index, mean.values, std.values
+
+    for filename, (xlabel, ylabel, title) in metrics.items():
+        plt.figure(figsize=(10, 6))
+        found_any = False
+        for item in series_list:
+            if "=" not in item: continue
+            label, dirs_str = item.split("=", 1)
+            dirs = [d.strip() for d in dirs_str.split(",")]
+            x, mean, std = aggregate_system(dirs, filename)
+            if x is None: continue
+            found_any = True
+            p = plt.plot(x, mean, label=f"{label} (avg)", lw=2)
+            color = p[0].get_color()
+            plt.fill_between(x, mean-std, mean+std, color=color, alpha=0.2)
+        
+        if found_any:
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.title(title)
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
+        plt.close()
+    print(f"✅ Aggregate plots saved in {outdir}")

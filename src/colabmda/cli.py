@@ -17,6 +17,7 @@ from colabmda.openmm_pw.commands import (
     openmm_npt,
     openmm_check_equil,
     openmm_md,
+    openmm_compare,
 )
 from colabmda.modeller.commands import (
     modeller_build,
@@ -143,6 +144,11 @@ def main():
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
     p_stat.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_stat.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
+    
+    # compare
+    p_comp = sub_openmm.add_parser("compare", help="Compare multiple systems (aggregate replicas)")
+    p_comp.add_argument("--series", action="append", required=True, help="LABEL=DIR1,DIR2 (e.g. WT=analysis/single/wt/r1,analysis/single/wt/r2)")
+    p_comp.add_argument("--outdir", required=True, help="Output directory for plots")
 
     # stage
     p_stage = sub_openmm.add_parser("stage", help="Stage a WT/mutant structure into simulations/<name>")
@@ -347,6 +353,9 @@ def main():
                 out_base = Path(args.outdir) if args.outdir else Path("analysis/single/current")
 
             openmm_analysis(sim_dir, args.topology, args.trajectory, args.interval, str(out_base))
+            
+        elif args.cmd == "compare":
+            openmm_compare(args.series, args.outdir)
 
         elif args.cmd == "status":
             root = _resolve_root(args.drive, args.root)
