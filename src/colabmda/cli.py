@@ -247,23 +247,24 @@ def main():
             else:
                 root = Path(_resolve_root(args.drive, args.root)).resolve()
                 name = args.name
+                cwd = Path.cwd().resolve()
                 
-                # Ultimate Search Strategy:
-                # 1. Check root/simulations/{name}
-                # 2. Check root/{name}
-                # 3. Check cwd/simulations/{name}
-                # 4. Check cwd/{name}
-                # 5. Default to cwd
-                if name and (root / "simulations" / name).exists():
-                    workdir = root / "simulations" / name
-                elif name and (root / name).exists():
-                    workdir = root / name
-                elif name and (Path.cwd() / "simulations" / name).exists():
-                    workdir = Path.cwd() / "simulations" / name
-                elif name and (Path.cwd() / name).exists():
-                    workdir = Path.cwd() / name
-                else:
-                    workdir = Path.cwd()
+                # Search strategy:
+                search_paths = [
+                    root / "simulations" / name if name else None,
+                    root / name if name else None,
+                    cwd / "simulations" / name if name else None,
+                    cwd / name if name else None,
+                ]
+                
+                workdir = None
+                for p in search_paths:
+                    if p and p.exists() and p.is_dir():
+                        workdir = p
+                        break
+                
+                if workdir is None:
+                    workdir = cwd
                 
                 if not name:
                     name = _guess_pdbid_from_workdir(str(workdir))
