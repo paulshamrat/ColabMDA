@@ -117,9 +117,16 @@ colabmda openmm compare \
 ## 📂 Project Structure
 ```text
 openmm/
-  structures/    # Initial PDBs
-  simulations/   # MD data (r1, r2)
-  analysis/      # Single & Comparative reports
+  structures/
+    4ldj/
+      wt/          # Wild-type modeled PDBs
+      mutants/     # G12D/G12C modeled PDBs
+  simulations/
+    4ldj_wt/       # Wild-type replicas (r1, r2)
+    4ldj_G12D/     # Mutant replicas (r1, r2)
+  analysis/
+    single/        # Individual system results
+    compare/       # Aggregate WT vs Mutant overlays
 ```
 
 ## 📜 Acknowledgements
