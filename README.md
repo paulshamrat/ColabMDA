@@ -8,9 +8,9 @@ Key ideas:
 - Resume-safe MD: OpenMM runs use checkpoint-based chunks.
 - Software-style packaging: required workflow scripts are bundled inside the `colabmda` package.
 
-## Installation
+## 1. Installation
 
-### 1. Notebook Setup (Colab)
+### 1.1. Notebook Setup (Colab)
 
 Open a new Colab notebook in Google Drive. In the first cell, mount Drive and confirm GPU access:
 
@@ -22,7 +22,7 @@ drive.mount('/content/drive')
 
 > All environment setup and package installation (Conda, Mamba, OpenMM, analysis libraries) should be performed in the Colab Terminal, not notebook cells.
 
-### 2. One-Command Colab Bootstrap (Recommended)
+### 1.2. One-Command Colab Bootstrap (Recommended)
 
 In the Colab Terminal, run:
 
@@ -49,7 +49,7 @@ This will:
 - validate GPU/OpenMM platforms and CLI
 - create `/content/work` and `/content/drive/MyDrive/openmm`
 
-### 3. Installation on Terminal (Manual Alternative)
+### 1.3. Installation on Terminal (Manual Alternative)
 
 In the Colab Terminal (⋮ → Terminal), run each step one at a time:
 
@@ -81,7 +81,7 @@ import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MD
 EOF
 ```
 
-### 4. Install ColabMDA (No Full Clone)
+### 1.4. Install ColabMDA (No Full Clone)
 
 ```bash
 cd /content
@@ -100,21 +100,24 @@ cd ColabMDA
 pip install -e .
 ```
 
-### 5. Modeller CPU Environment + License
+### 1.5. Modeller CPU Environment + License
 
 ```bash
 cd /content/drive/MyDrive/openmm/ColabMDA
 bash envs/install_modeller_env.sh
 ```
 
-During installation, the script prompts for MODELLER license key (`KEY_MODELLER`).
-Get your personal license key from the official MODELLER site:
-`https://salilab.org/modeller/`
-
 The script persists the key for the conda environment/future shells and patches MODELLER `config.py` automatically.
 
+> **Note:** If the interactive prompt is skipped in Colab (you see a warning), you can set the key manually after installation:
+> ```bash
+> conda activate modeller_env
+> export KEY_MODELLER='YOUR_KEY'
+> python3 -c "import os; from colabmda.modeller.utils import patch_modeller; patch_modeller(os.environ.get('KEY_MODELLER'))"
+> ```
 
-## Workflow Overview (WT First, Recommended)
+
+## 2. Simulation Workflow
 
 Canonical protocol:
 1. Build WT and mutant structures in one place (`structures/`)
@@ -153,7 +156,7 @@ Default project root: `/content/drive/MyDrive/openmm`
       wt_vs_mutants/
 ```
 
-### 1. Build WT and Mutants in `structures/`
+### 2.1. Build WT and Mutants in `structures/`
 
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
@@ -168,7 +171,7 @@ colabmda modeller mutate --pdb-in structures/4ldj/wt/<wt_model>.pdb --chain A --
 colabmda modeller mutate --pdb-in structures/4ldj/wt/<wt_model>.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
 ```
 
-### 2. Stage One Structure into `simulations/<name>`
+### 2.2. Stage One Structure into `simulations/<name>`
 
 ```bash
 conda activate base
@@ -185,7 +188,7 @@ This creates:
 - `/content/drive/MyDrive/openmm/simulations/4ldj_wt/r1`
 - `/content/drive/MyDrive/openmm/simulations/4ldj_G12C/r1`
 
-### 3. Run from Inside Simulation Folder (Short Commands)
+### 2.3. Run from Inside Simulation Folder
 
 ```bash
 cd /content/drive/MyDrive/openmm/simulations/4ldj_wt/r1
@@ -196,7 +199,9 @@ colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 5 --traj-interval 1 -
 # Merge with automatic PBC centering and solvent wrapping
 colabmda openmm merge --stride 10 --center --wrap
 
-# Standard analysis (Automatically detects replicas and creates nested r1/r2/aggregate folders)
+## 3. Analysis & Comparison
+
+### 3.1. Standard Analysis
 colabmda openmm analysis --pdb-id 4ldj_wt
 ```
 
@@ -217,7 +222,7 @@ colabmda openmm merge --pdb-dir simulations/4ldj_G12C/r1 --center --wrap
 colabmda openmm analysis --pdb-id 4ldj_G12C
 ```
 
-### 4. Compare WT vs Mutants (Aggregate Overlay)
+### 3.2. Compare WT vs Mutants (Aggregate Overlay)
 
 Once you have analyzed both WT and Mutants, generate the final publication comparison:
 
@@ -228,7 +233,9 @@ python3 scripts/aggregate_analysis.py \
   --outdir analysis/compare/wt_vs_mutants
 ```
 
-### 5. Quick OpenMM-Only Path (No Modeller)
+## 4. Advanced Options
+
+### 4.1. Quick OpenMM-Only Path (No Modeller)
 
 ```bash
 colabmda openmm prep --pdb-id 4ldj
