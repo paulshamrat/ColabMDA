@@ -89,9 +89,22 @@ colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.
 colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 1.0 --traj-interval 10 --equil-time 100 --checkpoint-ps 250
 ```
 
+> **Modular Control:** You can also run individual steps for more control:
+> `colabmda openmm em --name 4ldj_wt`
+> `colabmda openmm nvt --name 4ldj_wt --seed 1`
+> `colabmda openmm check-equil --name 4ldj_wt`
+> `colabmda openmm md --name 4ldj_wt --total-ns 1.0`
+
+> **Note:** The `run` command includes an **Automated Stability Gate**. It automatically analyzes equilibration logs and aborts if the system hasn't stabilized, saving GPU time.
+
 ### 2.3. Merge and Center
+Combine chunks into a single DCD and wrap solvent.
 ```bash
+# Standard Merge
 colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
+
+# Advanced: Save space by keeping every 10th frame
+colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap --stride 10
 ```
 
 ---
@@ -110,6 +123,14 @@ colabmda openmm compare \
   --series "G12D=analysis/single/4ldj_G12D/r1,analysis/single/4ldj_G12D/r2" \
   --outdir analysis/compare/wt_vs_g12d_avg
 ```
+
+---
+
+## Project Strategy (WT + Mutants)
+Organize work in three phases:
+1. **Preparation**: Build WT first in `structures/<pdbid>/wt/`, then generate mutants.
+2. **Simulation**: Run WT and mutants in separate folders under `simulations/`.
+3. **Analysis**: Store per-system analysis in `analysis/single/`, then generate overlays in `analysis/compare/`.
 
 ---
 
