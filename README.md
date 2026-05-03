@@ -158,11 +158,8 @@ Organize work in three phases:
 ```
 
 ## 📜 Acknowledgements
-- **OpenMM & PDBFixer**
-- **Modeller**
-- **MDAnalysis & MDTraj**
-- **NumPy, Matplotlib, Biopython**
-- **Google Colab & Miniforge/Conda**
-
----
-**Maintained by**: [Paul Shamrat](https://github.com/paulshamrat)
+- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
+- [Modeller](https://salilab.org/modeller/)
+- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
+- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
+- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
