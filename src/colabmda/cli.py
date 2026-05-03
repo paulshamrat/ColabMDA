@@ -245,47 +245,57 @@ def main():
                 workdir = str(Path(args.workdir).resolve())
                 name = args.name or _guess_pdbid_from_workdir(workdir)
             else:
-                root = _resolve_root(args.drive, args.root)
+                root = Path(_resolve_root(args.drive, args.root)).resolve()
                 name = args.name
-                if name and root and (Path(root) / "simulations" / name).exists():
-                    workdir = str(Path(root) / "simulations" / name)
+                
+                # Search priority: 
+                # 1. simulations/{name} in root
+                # 2. simulations/{name} in cwd
+                # 3. current directory
+                if name and (root / "simulations" / name).exists():
+                    workdir = root / "simulations" / name
                 elif name and (Path.cwd() / "simulations" / name).exists():
-                    workdir = str(Path.cwd() / "simulations" / name)
+                    workdir = Path.cwd() / "simulations" / name
                 else:
-                    workdir = os.getcwd()
+                    workdir = Path.cwd()
                 
                 if not name:
-                    name = _guess_pdbid_from_workdir(workdir)
+                    name = _guess_pdbid_from_workdir(str(workdir))
             
+            workdir = Path(workdir).resolve()
             if args.replica:
-                # If we are already inside the replica folder, don't append it again
-                if Path(workdir).name == args.replica:
-                    pass
-                else:
-                    workdir = str(Path(workdir) / args.replica)
-                _ensure_dir(workdir)
-                # If we are in a replica folder, we need the *_cleaned.pdb from the parent or here
-                local_clean = Path(workdir) / f"{name}_cleaned.pdb"
-                parent_clean = Path(workdir).parent / f"{name}_cleaned.pdb"
+                # If we are already inside the replica folder, don't double-append
+                if workdir.name != args.replica:
+                    workdir = workdir / args.replica
+                
+                _ensure_dir(str(workdir))
+                
+                # Ensure cleaned PDB is available in the replica folder
+                local_clean = workdir / f"{name}_cleaned.pdb"
+                parent_clean = workdir.parent / f"{name}_cleaned.pdb"
                 if not local_clean.exists() and parent_clean.exists():
                     shutil.copy2(parent_clean, local_clean)
                 elif not local_clean.exists():
-                    # Check if ANY _cleaned.pdb exists here or parent to infer name
-                    guesses = list(Path(workdir).glob("*_cleaned.pdb")) or list(Path(workdir).parent.glob("*_cleaned.pdb"))
+                    # Fallback: find any cleaned PDB in parent to infer name
+                    guesses = list(workdir.parent.glob("*_cleaned.pdb"))
                     if guesses and not name:
                         name = guesses[0].name.replace("_cleaned.pdb", "")
-                        shutil.copy2(guesses[0], Path(workdir) / guesses[0].name)
+                        shutil.copy2(guesses[0], local_clean)
+
+            workdir_str = str(workdir.resolve())
+            if not name:
+                name = _guess_pdbid_from_workdir(workdir_str)
 
             if not name:
                 raise SystemExit("ERROR: could not infer pdbid; please specify --name.")
 
             # MODULAR RUN: EM -> NVT -> NPT -> Check -> MD
-            openmm_em(workdir, name)
-            openmm_nvt(workdir, name, args.equil_time, seed=args.seed)
-            openmm_npt(workdir, name, args.equil_time)
-            openmm_check_equil(workdir)
+            openmm_em(workdir_str, name)
+            openmm_nvt(workdir_str, name, args.equil_time, seed=args.seed)
+            openmm_npt(workdir_str, name, args.equil_time)
+            openmm_check_equil(workdir_str)
             openmm_md(
-                workdir=workdir,
+                workdir=workdir_str,
                 pdbid=name,
                 total_ns=args.total_ns,
                 traj_interval=args.traj_interval,
