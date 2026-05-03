@@ -76,11 +76,11 @@ colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 16
 colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
 ```
 
-### 2.2. Stage and Run MD
+### 2.2. Setup and Run MD
 The `run` command handles everything: Minimization, Equilibration (NVT/NPT), Stability Checks, and Production MD.
 
 ```bash
-# 1. Stage the folder
+# 1. Initialize the simulation folder
 colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
 
 # 2. Run the pipeline (Example: 1ns)
