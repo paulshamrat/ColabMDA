@@ -10,9 +10,8 @@ Key ideas:
 
 ## 1. Installation
 
-### 1.1. Notebook Setup (Colab)
 <details>
-<summary>Click to expand</summary>
+<summary><h3>1.1. Notebook Setup (Colab)</h3></summary>
 
 Open a new Colab notebook in Google Drive. In the first cell, mount Drive and confirm GPU access:
 
@@ -25,9 +24,8 @@ drive.mount('/content/drive')
 > All environment setup and package installation (Conda, Mamba, OpenMM, analysis libraries) should be performed in the Colab Terminal, not notebook cells.
 </details>
 
-### 1.2. One-Command Colab Bootstrap (Recommended)
 <details open>
-<summary><b>Recommended for WT vs Mutant Projects</b></summary>
+<summary><h3>1.2. One-Command Colab Bootstrap (Recommended)</h3></summary>
 
 In the Colab Terminal, run this to install **OpenMM + Modeller** in one flow (recommended):
 
@@ -51,9 +49,8 @@ bash bootstrap_colab_openmm_gpu.sh latest
 ```
 </details>
 
-### 1.3. Installation on Terminal (Manual Alternative)
 <details>
-<summary>Click to expand</summary>
+<summary><h3>1.3. Installation on Terminal (Manual Alternative)</h3></summary>
 
 In the Colab Terminal (⋮ → Terminal), run each step one at a time:
 
@@ -86,9 +83,8 @@ EOF
 ```
 </details>
 
-### 1.4. Install ColabMDA (No Full Clone)
 <details>
-<summary>Click to expand</summary>
+<summary><h3>1.4. Install ColabMDA (No Full Clone)</h3></summary>
 
 ```bash
 cd /content
@@ -108,9 +104,8 @@ pip install -e .
 ```
 </details>
 
-### 1.5. Modeller CPU Environment + License
 <details>
-<summary>Click to expand</summary>
+<summary><h3>1.5. Modeller CPU Environment + License</h3></summary>
 
 ```bash
 cd /content/drive/MyDrive/openmm/ColabMDA
