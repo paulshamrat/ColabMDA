@@ -113,4 +113,21 @@ colabmda openmm compare \
 ```
 
 ---
+
+## 📂 Project Structure
+```text
+openmm/
+  structures/    # Initial PDBs
+  simulations/   # MD data (r1, r2)
+  analysis/      # Single & Comparative reports
+```
+
+## 📜 Acknowledgements
+- **OpenMM & PDBFixer**
+- **Modeller**
+- **MDAnalysis & MDTraj**
+- **NumPy, Matplotlib, Biopython**
+- **Google Colab & Miniconda/Miniforge**
+
+---
 **Maintained by**: [Paul Shamrat](https://github.com/paulshamrat)
