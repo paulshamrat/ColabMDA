@@ -1,3 +1,17 @@
+Metadata-Version: 2.4
+Name: colabmda
+Version: 0.1.0
+Summary: Colab-friendly modelling + MD workflows (Modeller + OpenMM)
+Author: Shamrat Kumar Paul
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: biopython
+Dynamic: license-file
+
 # ColabMDA
 
 ColabMDA provides Colab-first, terminal-based workflows for molecular modeling and MD: Modeller (CPU) for homology modeling and mutations, and OpenMM (GPU) for protein-in-water simulations. The goal is a clean CLI that wraps stable legacy scripts while staying reliable in short-lived Colab GPU sessions.
@@ -134,23 +148,11 @@ Default project root: `/content/drive/MyDrive/openmm`
       mutants/
   simulations/
     4ldj_wt/
-      r1/
-      r2/
+    4ldj_G12C/
     4ldj_G12D/
-      r1/
-      r2/
   analysis/
     single/
-      4ldj_wt/
-        r1/
-        r2/
-        aggregate/
-      4ldj_G12D/
-        r1/
-        r2/
-        aggregate/
     compare/
-      wt_vs_mutants/
 ```
 
 ### 1. Build WT and Mutants in `structures/`
@@ -196,8 +198,8 @@ colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 5 --traj-interval 1 -
 # Merge with automatic PBC centering and solvent wrapping
 colabmda openmm merge --stride 10 --center --wrap
 
-# Standard analysis (Automatically detects replicas and creates nested r1/r2/aggregate folders)
-colabmda openmm analysis --pdb-id 4ldj_wt
+# Standard analysis
+colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_wt_r1
 ```
 
 > **Modular Control:** You can also run individual steps for more control:
@@ -211,21 +213,20 @@ colabmda openmm analysis --pdb-id 4ldj_wt
 For mutant:
 
 ```bash
-cd /content/drive/MyDrive/openmm
-colabmda openmm run --name 4ldj_G12C --replica r1 --total-ns 1.0 --traj-interval 10 --equil-time 100
-colabmda openmm merge --pdb-dir simulations/4ldj_G12C/r1 --center --wrap
-colabmda openmm analysis --pdb-id 4ldj_G12C
+cd /content/drive/MyDrive/openmm/simulations/4ldj_G12C
+colabmda openmm run --name 4ldj_G12C --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
+colabmda openmm merge --stride 10
+colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_G12C
 ```
 
-### 4. Compare WT vs Mutants (Aggregate Overlay)
-
-Once you have analyzed both WT and Mutants, generate the final publication comparison:
+### 4. Compare WT vs Mutants in `analysis/compare`
 
 ```bash
-python3 scripts/aggregate_analysis.py \
-  --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" \
-  --series "G12C=analysis/single/4ldj_G12C/r1,analysis/single/4ldj_G12C/r2" \
-  --outdir analysis/compare/wt_vs_mutants
+python openmm/openmm_proteinwater/openmm_compare_plots.py \
+  --series WT=/content/drive/MyDrive/openmm/analysis/single/4ldj_wt \
+  --series G12C=/content/drive/MyDrive/openmm/analysis/single/4ldj_G12C \
+  --series G12D=/content/drive/MyDrive/openmm/analysis/single/4ldj_G12D \
+  --outdir /content/drive/MyDrive/openmm/analysis/compare/4ldj_wt_vs_mutants
 ```
 
 ### 5. Quick OpenMM-Only Path (No Modeller)
@@ -251,8 +252,8 @@ Store per-system analysis in `analysis/single/`, then generate overlays in `anal
 ## Where Files Go
 
 - WT/mutant structures: `/content/drive/MyDrive/openmm/structures/...`
-- Staged simulation folders: `/content/drive/MyDrive/openmm/simulations/<name>/<replica>/`
-- Single-system analysis: `/content/drive/MyDrive/openmm/analysis/single/<name>/[r1, r2, aggregate]/`
+- Staged simulation folders: `/content/drive/MyDrive/openmm/simulations/<name>/`
+- Single-system analysis: `/content/drive/MyDrive/openmm/analysis/single/<name>/`
 - WT vs mutant overlays: `/content/drive/MyDrive/openmm/analysis/compare/<project>/`
 
 ## Colab Limitations and Best Practices

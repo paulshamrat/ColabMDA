@@ -12,6 +12,11 @@ from colabmda.openmm_pw.commands import (
     openmm_merge,
     openmm_analysis,
     openmm_status,
+    openmm_em,
+    openmm_nvt,
+    openmm_npt,
+    openmm_check_equil,
+    openmm_md,
 )
 from colabmda.modeller.commands import (
     modeller_build,
@@ -100,6 +105,8 @@ def main():
     p_run.add_argument("--equil-time", type=float, default=100.0, help="ps for NVT and ps for NPT")
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
+    p_run.add_argument("--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2)")
+    p_run.add_argument("--seed", type=int, default=None, help="Optional: random seed for velocity assignment")
     p_run.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_run.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
@@ -112,6 +119,8 @@ def main():
     p_merge.add_argument("--out-traj", default="prod_full.dcd")
     p_merge.add_argument("--out-log", default="prod_full.log")
     p_merge.add_argument("--stride", type=int, default=1, help="Keep every Nth frame while merging (default: 1)")
+    p_merge.add_argument("--center", action="store_true", help="Center protein in the box")
+    p_merge.add_argument("--wrap", action="store_true", help="Wrap solvent molecules (image_molecules)")
     p_merge.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
     p_merge.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
 
@@ -139,8 +148,42 @@ def main():
     p_stage = sub_openmm.add_parser("stage", help="Stage a WT/mutant structure into simulations/<name>")
     p_stage.add_argument("--pdb-file", required=True, help="Input structure PDB file (typically from structures/)")
     p_stage.add_argument("--name", required=True, help="Simulation name (e.g. 4ldj_wt, 4ldj_G12C)")
+    p_stage.add_argument("--replica", default=None, help="Optional: create nested replica subfolder (e.g. r1, r2)")
     p_stage.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
     p_stage.add_argument("--root", default=None, help=f"Project root (default: ${ENV_ROOT} or {DEFAULT_DRIVE_ROOT})")
+
+    # em/nvt/npt/check-equil/md (individual modular steps)
+    p_em = sub_openmm.add_parser("em", help="Modular: Minimization")
+    p_em.add_argument("--name", required=True)
+    p_em.add_argument("--workdir", default=None)
+    p_em.add_argument("--root", default=None)
+
+    p_nvt = sub_openmm.add_parser("nvt", help="Modular: NVT Equilibration")
+    p_nvt.add_argument("--name", required=True)
+    p_nvt.add_argument("--equil-time", type=float, default=100.0)
+    p_nvt.add_argument("--seed", type=int, default=None)
+    p_nvt.add_argument("--workdir", default=None)
+    p_nvt.add_argument("--root", default=None)
+
+    p_npt = sub_openmm.add_parser("npt", help="Modular: NPT Equilibration")
+    p_npt.add_argument("--name", required=True)
+    p_npt.add_argument("--equil-time", type=float, default=100.0)
+    p_npt.add_argument("--workdir", default=None)
+    p_npt.add_argument("--root", default=None)
+
+    p_chk = sub_openmm.add_parser("check-equil", help="Modular: Stability Check & QC Plots")
+    p_chk.add_argument("--name", required=True)
+    p_chk.add_argument("--workdir", default=None)
+    p_chk.add_argument("--root", default=None)
+
+    p_md = sub_openmm.add_parser("md", help="Modular: Production MD")
+    p_md.add_argument("--name", required=True)
+    p_md.add_argument("--total-ns", type=float, default=100.0)
+    p_md.add_argument("--traj-interval", type=float, default=100.0)
+    p_md.add_argument("--checkpoint-ps", type=float, default=1000.0)
+    p_md.add_argument("--sync-dir", default=None)
+    p_md.add_argument("--workdir", default=None)
+    p_md.add_argument("--root", default=None)
 
     # ---------------- Modeller ----------------
     p_mod = sub.add_parser("modeller", help="Modeller workflows")
@@ -199,21 +242,40 @@ def main():
                 if root:
                     _prepare_run_inputs(root=root, pdbid=args.pdb_id, name=name)
             elif args.workdir:
-                workdir = args.workdir
+                workdir = str(Path(args.workdir).resolve())
                 name = args.name or _guess_pdbid_from_workdir(workdir)
-                if not name:
-                    raise SystemExit("ERROR: could not infer pdbid from workdir; please specify --name.")
             else:
-                workdir = "."
+                workdir = os.getcwd()
                 name = args.name or _guess_pdbid_from_workdir(workdir)
-                if not name:
-                    raise SystemExit("ERROR: could not infer pdbid from current directory; please specify --name.")
-            openmm_run_colab(
+            
+            if args.replica:
+                workdir = str(Path(workdir) / args.replica)
+                _ensure_dir(workdir)
+                # If we are in a replica folder, we need the *_cleaned.pdb from the parent or here
+                local_clean = Path(workdir) / f"{name}_cleaned.pdb"
+                parent_clean = Path(workdir).parent / f"{name}_cleaned.pdb"
+                if not local_clean.exists() and parent_clean.exists():
+                    shutil.copy2(parent_clean, local_clean)
+                elif not local_clean.exists():
+                    # Check if ANY _cleaned.pdb exists here or parent to infer name
+                    guesses = list(Path(workdir).glob("*_cleaned.pdb")) or list(Path(workdir).parent.glob("*_cleaned.pdb"))
+                    if guesses and not name:
+                        name = guesses[0].name.replace("_cleaned.pdb", "")
+                        shutil.copy2(guesses[0], Path(workdir) / guesses[0].name)
+
+            if not name:
+                raise SystemExit("ERROR: could not infer pdbid; please specify --name.")
+
+            # MODULAR RUN: EM -> NVT -> NPT -> Check -> MD
+            openmm_em(workdir, name)
+            openmm_nvt(workdir, name, args.equil_time, seed=args.seed)
+            openmm_npt(workdir, name, args.equil_time)
+            openmm_check_equil(workdir)
+            openmm_md(
                 workdir=workdir,
                 pdbid=name,
                 total_ns=args.total_ns,
                 traj_interval=args.traj_interval,
-                equil_time=args.equil_time,
                 checkpoint_ps=args.checkpoint_ps,
                 sync_dir=args.sync_dir,
             )
@@ -228,26 +290,24 @@ def main():
                 pdbid_dir = args.pdb_id or args.pdb_dir
             else:
                 pdbid_dir = "."
-            openmm_merge(pdbid_dir, args.topology, args.out_traj, args.out_log, stride=args.stride)
+            openmm_merge(pdbid_dir, args.topology, args.out_traj, args.out_log, stride=args.stride, center=args.center, wrap=args.wrap)
 
         elif args.cmd == "analysis":
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
-                pdbid_dir = str(Path(root) / args.pdb_id / "run")
-                outdir = args.outdir
-                if outdir is None:
-                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    outdir = str(Path(root) / args.pdb_id / "analysis" / f"analysis_{args.pdb_id}_{ts}")
+                sim_dir = str(Path(root) / "simulations" / args.pdb_id)
+                out_base = Path(root) / "analysis" / "single" / args.pdb_id
             elif args.pdb_id:
-                pdbid_dir = str(Path(args.pdb_id) / "run")
-                outdir = args.outdir
+                sim_dir = str(Path("simulations") / args.pdb_id)
+                out_base = Path("analysis") / "single" / args.pdb_id
             elif args.pdb_dir:
-                pdbid_dir = args.pdb_dir
-                outdir = args.outdir
+                sim_dir = args.pdb_dir
+                out_base = Path(args.outdir) if args.outdir else Path("analysis/single") / Path(sim_dir).name
             else:
-                pdbid_dir = "."
-                outdir = args.outdir
-            openmm_analysis(pdbid_dir, args.topology, args.trajectory, args.interval, outdir)
+                sim_dir = "."
+                out_base = Path(args.outdir) if args.outdir else Path("analysis/single/current")
+
+            openmm_analysis(sim_dir, args.topology, args.trajectory, args.interval, str(out_base))
 
         elif args.cmd == "status":
             root = _resolve_root(args.drive, args.root)
@@ -264,10 +324,27 @@ def main():
         elif args.cmd == "stage":
             root = args.root or _default_project_root()
             _ensure_dir(root)
-            outdir = str(Path(root) / "simulations" / args.name)
-            _ensure_dir(outdir)
-            openmm_prep_from_file(args.pdb_file, outdir, pdbid=args.name, ph=args.ph)
+            outdir = Path(root) / "simulations" / args.name
+            if args.replica:
+                outdir = outdir / args.replica
+            _ensure_dir(str(outdir))
+            openmm_prep_from_file(args.pdb_file, str(outdir), pdbid=args.name, ph=args.ph)
             print(f"[INFO] Staged simulation folder: {outdir}")
+
+        elif args.cmd in ["em", "nvt", "npt", "check-equil", "md"]:
+            root = _resolve_root(False, args.root)
+            workdir = args.workdir or os.getcwd()
+            name = args.name
+            if args.cmd == "em":
+                openmm_em(workdir, name)
+            elif args.cmd == "nvt":
+                openmm_nvt(workdir, name, args.equil_time, args.seed)
+            elif args.cmd == "npt":
+                openmm_npt(workdir, name, args.equil_time)
+            elif args.cmd == "check-equil":
+                openmm_check_equil(workdir)
+            elif args.cmd == "md":
+                openmm_md(workdir, name, args.total_ns, args.traj_interval, args.checkpoint_ps, args.sync_dir)
 
     elif args.tool == "modeller":
         if args.cmd == "build":
