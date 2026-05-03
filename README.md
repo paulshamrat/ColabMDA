@@ -104,7 +104,7 @@ colabmda openmm analysis --pdb-id 4ldj_wt
 ### 3.2. WT vs Mutant Comparison
 Generate overlay plots with Mean + Standard Deviation bands.
 
-**Example (Your KRAS Project):**
+**Example:**
 ```bash
 colabmda openmm compare \
   --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" \
