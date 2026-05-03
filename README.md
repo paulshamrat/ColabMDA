@@ -33,7 +33,7 @@ python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.gi
 
 ### 💡 Tip: How to Resume After a Timeout
 If your Google Colab session expires:
-1. Re-run **Steps 1.2 and 1.3** to reinstall the environment.
+1. Re-run **Required Steps 1.2 and 1.3** to reinstall the environment.
 2. Run the **exact same `colabmda openmm run` command** you used before.
 3. The tool will automatically detect your `.chk` files and resume from where it left off.
 
@@ -54,13 +54,6 @@ export PATH="$HOME/miniforge3/bin:$PATH" && source "$HOME/miniforge3/etc/profile
 # Step 3: Install Core Stack
 mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools mdanalysis mdtraj numpy matplotlib biopython
 ```
-
-### Modeller License Fix
-```bash
-conda activate modeller_env
-export KEY_MODELLER='YOUR_KEY'
-python3 -c "import os; from colabmda.modeller.utils import patch_modeller; patch_modeller(os.environ.get('KEY_MODELLER'))"
-```
 </details>
 
 ---
@@ -68,7 +61,13 @@ python3 -c "import os; from colabmda.modeller.utils import patch_modeller; patch
 ## 🛠 2. Simulation Workflow
 
 ### 2.1. Build Structures (WT and Mutants)
+**Environment:** `modeller_env` | **Directory:** `/content/drive/MyDrive/openmm`
+
 ```bash
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda activate modeller_env
+cd /content/drive/MyDrive/openmm
+
 # Example: Build Wild-Type KRAS
 colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --outdir structures/4ldj/wt
 
@@ -77,9 +76,12 @@ colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst
 ```
 
 ### 2.2. Setup and Run MD
-The `run` command handles everything: Minimization, Equilibration (NVT/NPT), Stability Checks, and Production MD.
+**Environment:** `base` | **Directory:** `/content/drive/MyDrive/openmm`
 
 ```bash
+conda activate base
+cd /content/drive/MyDrive/openmm
+
 # 1. Initialize the simulation folder
 colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
 
@@ -102,9 +104,6 @@ colabmda openmm analysis --pdb-id 4ldj_wt
 ```
 
 ### 3.2. WT vs Mutant Comparison
-Generate overlay plots with Mean + Standard Deviation bands.
-
-**Example:**
 ```bash
 colabmda openmm compare \
   --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" \
@@ -116,7 +115,7 @@ colabmda openmm compare \
 
 ## 📂 Project Structure
 ```text
-openmm/
+/content/drive/MyDrive/openmm/
   structures/
     4ldj/
       wt/          # Wild-type modeled PDBs
@@ -140,7 +139,7 @@ openmm/
 - **Modeller**
 - **MDAnalysis & MDTraj**
 - **NumPy, Matplotlib, Biopython**
-- **Google Colab & Miniconda/Miniforge**
+- **Google Colab & Miniforge/Conda**
 
 ---
 **Maintained by**: [Paul Shamrat](https://github.com/paulshamrat)
