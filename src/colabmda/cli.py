@@ -249,6 +249,10 @@ def main():
                 name = args.name
                 cwd = Path.cwd().resolve()
                 
+                print(f"[DEBUG] root: {root}")
+                print(f"[DEBUG] cwd:  {cwd}")
+                print(f"[DEBUG] name: {name}")
+
                 # Search strategy:
                 search_paths = [
                     root / "simulations" / name if name else None,
@@ -259,11 +263,16 @@ def main():
                 
                 workdir = None
                 for p in search_paths:
-                    if p and p.exists() and p.is_dir():
-                        workdir = p
-                        break
+                    if p:
+                        exists = p.exists()
+                        is_dir = p.is_dir() if exists else False
+                        print(f"[DEBUG] Checking: {p} (exists={exists}, is_dir={is_dir})")
+                        if exists and is_dir:
+                            workdir = p
+                            break
                 
                 if workdir is None:
+                    print(f"[DEBUG] No folder found, defaulting to cwd: {cwd}")
                     workdir = cwd
                 
                 if not name:
