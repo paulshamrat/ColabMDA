@@ -1,0 +1,20 @@
+# Simulation Data
+simulations/
+simulations_test/
+test_run/
+
+# Binary & Data Files
+*.chk
+*.xml
+*.log
+*.dcd
+
+# Output Plots & Reports
+*.png
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints

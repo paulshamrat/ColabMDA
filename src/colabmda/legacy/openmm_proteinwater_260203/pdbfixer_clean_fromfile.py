@@ -22,7 +22,7 @@ def main():
     ap.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
     args = ap.parse_args()
 
-    pdbid = args.pdbid.lower()
+    pdbid = args.pdbid
     outdir = os.path.abspath(args.outdir)
     os.makedirs(outdir, exist_ok=True)
 

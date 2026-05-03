@@ -17,6 +17,13 @@ SCRIPTS = {
     # Bundled colab-safe workflow scripts (local pdb file cleaning + robust resume)
     "clean_from_file": ("colabmda.legacy.openmm_proteinwater_260203", "pdbfixer_clean_fromfile.py"),
     "run_colab":       ("colabmda.legacy.openmm_proteinwater_260203", "openmm_proteinwater_colab.py"),
+
+    # New Modular Workflow
+    "em":          ("colabmda.openmm_pw.modular", "01_em.py"),
+    "nvt":         ("colabmda.openmm_pw.modular", "02_nvt.py"),
+    "npt":         ("colabmda.openmm_pw.modular", "03_npt.py"),
+    "check_equil": ("colabmda.openmm_pw.modular", "check_equil.py"),
+    "md":          ("colabmda.openmm_pw.modular", "04_md.py"),
 }
 
 def _py():
@@ -197,10 +204,14 @@ def openmm_run_colab(workdir: str, pdbid: str, total_ns: float, traj_interval: f
     pkg, name = SCRIPTS["run_colab"]
     _run(_script_path(pkg, name), argv)
 
-def openmm_merge(pdbid_dir: str, topology: str | None, out_traj: str, out_log: str, stride: int = 1):
+def openmm_merge(pdbid_dir: str, topology: str | None, out_traj: str, out_log: str, stride: int = 1, center: bool = False, wrap: bool = False):
     argv = [pdbid_dir, "--out-traj", out_traj, "--out-log", out_log, "--stride", str(stride)]
     if topology:
         argv += ["--topology", topology]
+    if center:
+        argv += ["--center"]
+    if wrap:
+        argv += ["--wrap"]
     pkg, name = SCRIPTS["merge"]
     _run(_script_path(pkg, name), argv)
 
@@ -215,4 +226,45 @@ def openmm_analysis(pdbid_dir: str, topology: str | None, trajectory: str | None
     if outdir:
         argv += ["--outdir", outdir]
     pkg, name = SCRIPTS["analysis"]
+    _run(_script_path(pkg, name), argv)
+    
+    # If outdir exists, also copy equilibration plots there for completeness
+    if outdir:
+        out_path = Path(outdir)
+        out_path.mkdir(parents=True, exist_ok=True)
+        qc_file = Path(pdbid_dir) / "equilibration_qc.png"
+        if qc_file.exists():
+            shutil.copy2(qc_file, out_path / "equilibration_qc.png")
+            print(f"[INFO] Copied equilibration QC plot to {out_path}")
+
+def openmm_em(workdir: str, pdbid: str):
+    pkg, name = SCRIPTS["em"]
+    _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid])
+
+def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = None):
+    pkg, name = SCRIPTS["nvt"]
+    argv = [workdir, "--pdbid", pdbid, "--equil-time", str(equil_time)]
+    if seed is not None:
+        argv += ["--seed", str(seed)]
+    _run(_script_path(pkg, name), argv)
+
+def openmm_npt(workdir: str, pdbid: str, equil_time: float):
+    pkg, name = SCRIPTS["npt"]
+    _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid, "--equil-time", str(equil_time)])
+
+def openmm_check_equil(workdir: str):
+    pkg, name = SCRIPTS["check_equil"]
+    _run(_script_path(pkg, name), [workdir])
+
+def openmm_md(workdir: str, pdbid: str, total_ns: float, traj_interval: float, checkpoint_ps: float, sync_dir: str | None = None):
+    pkg, name = SCRIPTS["md"]
+    argv = [
+        workdir,
+        "--pdbid", pdbid,
+        "--total-ns", str(total_ns),
+        "--traj-interval", str(traj_interval),
+        "--checkpoint-ps", str(checkpoint_ps),
+    ]
+    if sync_dir:
+        argv += ["--sync-dir", sync_dir]
     _run(_script_path(pkg, name), argv)

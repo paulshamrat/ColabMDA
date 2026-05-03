@@ -134,11 +134,23 @@ Default project root: `/content/drive/MyDrive/openmm`
       mutants/
   simulations/
     4ldj_wt/
-    4ldj_G12C/
+      r1/
+      r2/
     4ldj_G12D/
+      r1/
+      r2/
   analysis/
     single/
+      4ldj_wt/
+        r1/
+        r2/
+        aggregate/
+      4ldj_G12D/
+        r1/
+        r2/
+        aggregate/
     compare/
+      wt_vs_mutants/
 ```
 
 ### 1. Build WT and Mutants in `structures/`
@@ -162,46 +174,58 @@ colabmda modeller mutate --pdb-in structures/4ldj/wt/<wt_model>.pdb --chain A --
 conda activate base
 cd /content/drive/MyDrive/openmm
 
-# Stage WT
-colabmda openmm stage --pdb-file structures/4ldj/wt/<wt_model>.pdb --name 4ldj_wt
+# Stage WT (Replica 1)
+colabmda openmm stage --pdb-file structures/4ldj/wt/<wt_model>.pdb --name 4ldj_wt --replica r1
 
-# Stage one mutant
-colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C
+# Stage one mutant (Replica 1)
+colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12C/4ldj_G12C.pdb --name 4ldj_G12C --replica r1
 ```
 
 This creates:
-- `/content/drive/MyDrive/openmm/simulations/4ldj_wt`
-- `/content/drive/MyDrive/openmm/simulations/4ldj_G12C`
+- `/content/drive/MyDrive/openmm/simulations/4ldj_wt/r1`
+- `/content/drive/MyDrive/openmm/simulations/4ldj_G12C/r1`
 
 ### 3. Run from Inside Simulation Folder (Short Commands)
 
 ```bash
-cd /content/drive/MyDrive/openmm/simulations/4ldj_wt
-colabmda openmm run --name 4ldj_wt --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
-colabmda openmm merge --stride 10
-colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_wt
+cd /content/drive/MyDrive/openmm/simulations/4ldj_wt/r1
+
+# One-click Modular Run (EM -> NVT -> NPT -> Stability Check -> MD)
+colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000 --seed 1
+
+# Merge with automatic PBC centering and solvent wrapping
+colabmda openmm merge --stride 10 --center --wrap
+
+# Standard analysis (Automatically detects replicas and creates nested r1/r2/aggregate folders)
+colabmda openmm analysis --pdb-id 4ldj_wt
 ```
 
-> **Note:** The analysis command now automatically detects your frame interval and standardizes all metrics (RMSD, Rg, RMSF) to **Ångströms (Å)** with publication-ready visuals.
-> **Tip:** If simulation used `--traj-interval 10` and merging used `--stride 10`, use `--interval 100` for analysis.
+> **Modular Control:** You can also run individual steps for more control:
+> `colabmda openmm em --name 4ldj_wt`
+> `colabmda openmm nvt --name 4ldj_wt --seed 1`
+> `colabmda openmm check-equil --name 4ldj_wt`
+> `colabmda openmm md --name 4ldj_wt --total-ns 5`
+
+> **Note:** The `run` command now includes an **Automated Stability Gate**. It will automatically analyze your equilibration logs and abort if the system hasn't stabilized, saving you valuable GPU time.
 
 For mutant:
 
 ```bash
-cd /content/drive/MyDrive/openmm/simulations/4ldj_G12C
-colabmda openmm run --name 4ldj_G12C --total-ns 5 --traj-interval 1 --equil-time 100 --checkpoint-ps 1000
-colabmda openmm merge --stride 10
-colabmda openmm analysis --outdir /content/drive/MyDrive/openmm/analysis/single/4ldj_G12C
+cd /content/drive/MyDrive/openmm
+colabmda openmm run --name 4ldj_G12C --replica r1 --total-ns 1.0 --traj-interval 10 --equil-time 100
+colabmda openmm merge --pdb-dir simulations/4ldj_G12C/r1 --center --wrap
+colabmda openmm analysis --pdb-id 4ldj_G12C
 ```
 
-### 4. Compare WT vs Mutants in `analysis/compare`
+### 4. Compare WT vs Mutants (Aggregate Overlay)
+
+Once you have analyzed both WT and Mutants, generate the final publication comparison:
 
 ```bash
-python openmm/openmm_proteinwater/openmm_compare_plots.py \
-  --series WT=/content/drive/MyDrive/openmm/analysis/single/4ldj_wt \
-  --series G12C=/content/drive/MyDrive/openmm/analysis/single/4ldj_G12C \
-  --series G12D=/content/drive/MyDrive/openmm/analysis/single/4ldj_G12D \
-  --outdir /content/drive/MyDrive/openmm/analysis/compare/4ldj_wt_vs_mutants
+python3 scripts/aggregate_analysis.py \
+  --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" \
+  --series "G12C=analysis/single/4ldj_G12C/r1,analysis/single/4ldj_G12C/r2" \
+  --outdir analysis/compare/wt_vs_mutants
 ```
 
 ### 5. Quick OpenMM-Only Path (No Modeller)
@@ -227,8 +251,8 @@ Store per-system analysis in `analysis/single/`, then generate overlays in `anal
 ## Where Files Go
 
 - WT/mutant structures: `/content/drive/MyDrive/openmm/structures/...`
-- Staged simulation folders: `/content/drive/MyDrive/openmm/simulations/<name>/`
-- Single-system analysis: `/content/drive/MyDrive/openmm/analysis/single/<name>/`
+- Staged simulation folders: `/content/drive/MyDrive/openmm/simulations/<name>/<replica>/`
+- Single-system analysis: `/content/drive/MyDrive/openmm/analysis/single/<name>/[r1, r2, aggregate]/`
 - WT vs mutant overlays: `/content/drive/MyDrive/openmm/analysis/compare/<project>/`
 
 ## Colab Limitations and Best Practices
