@@ -25,7 +25,7 @@ drive.mount('/content/drive')
 </details>
 
 <details open>
-<summary><h3>1.2. One-Command Colab Bootstrap (Recommended)</h3></summary>
+<summary><h3>1.2. Environment Setup (Required)</h3></summary>
 
 In the Colab Terminal, run this to install **OpenMM + Modeller** in one flow (recommended):
 
@@ -35,25 +35,23 @@ curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/b
 WITH_MODELLER=1 bash bootstrap_colab_openmm_gpu.sh latest
 ```
 
-### 1.3. How to Resume After a Timeout
-If your Google Colab session expires:
-1. Re-run **Steps 1.1 and 1.2** to reinstall the environment.
-2. Run the **exact same `colabmda openmm run` command** you used before.
-3. The tool will automatically detect your `.chk` files and resume from where it left off.
-
-This will:
-- install Miniforge (if missing)
-- install OpenMM + analysis stack in conda `base`
-- install MODELLER in `modeller_env`
-- install `colabmda` package globally
-- validate GPU/OpenMM platforms and CLI
-- create `/content/work` and `/content/drive/MyDrive/openmm`
-
-*Alternative (OpenMM Only):*
 ```bash
 bash bootstrap_colab_openmm_gpu.sh latest
 ```
 </details>
+
+### 1.3. Package Installation (Required)
+```bash
+python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.git@main"
+```
+
+---
+
+### 💡 Tip: How to Resume After a Timeout
+If your Google Colab session expires:
+1. Re-run **Required Steps 1.2 and 1.3** to reinstall the environment.
+2. Run the **exact same `colabmda openmm run` command** you used before.
+3. The tool will automatically detect your `.chk` files and resume from where it left off.
 
 <details>
 <summary><h3>1.3. Installation on Terminal (Manual Alternative)</h3></summary>
