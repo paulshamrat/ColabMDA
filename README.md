@@ -122,11 +122,17 @@ openmm/
       wt/          # Wild-type modeled PDBs
       mutants/     # G12D/G12C modeled PDBs
   simulations/
-    4ldj_wt/       # Wild-type replicas (r1, r2)
-    4ldj_G12D/     # Mutant replicas (r1, r2)
+    4ldj_wt/
+      r1/          # Replica 1 (em.chk, npt.chk, prod.dcd)
+      r2/          # Replica 2
+    4ldj_G12D/
+      r1/
+      r2/
   analysis/
-    single/        # Individual system results
-    compare/       # Aggregate WT vs Mutant overlays
+    single/
+      4ldj_wt/     # [r1, r2, aggregate] reports
+      4ldj_G12D/
+    compare/       # Final WT vs Mutant overlays
 ```
 
 ## 📜 Acknowledgements
