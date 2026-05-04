@@ -64,10 +64,11 @@ If your Google Colab session expires:
 
 ---
 
-<details>
-<summary>Manual / Detailed Installation (Advanced)</summary>
+## 2. Manual / Detailed Installation (Advanced)
 
-### A. Manual Terminal Installation (Step-by-Step)
+<details>
+<summary><b>🛠️ A. Manual Terminal Installation (Step-by-Step)</b></summary>
+
 In the Colab Terminal (⋮ → Terminal), run each step one at a time:
 
 ```bash
@@ -96,20 +97,27 @@ from openmm import Platform; print("OpenMM platforms:", [Platform.getPlatform(i)
 import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MDTraj:", mdtraj.__version__, "Biopython:", Bio.__version__)
 EOF
 ```
+</details>
 
-### B. Alternative: Script-based Installation
+<details>
+<summary><b>📜 B. Alternative: Script-based Installation</b></summary>
+
 ```bash
 cd /content
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/install_colabmda_release.sh -o install_colabmda_release.sh
 bash install_colabmda_release.sh latest /content/colabmda
 ```
+</details>
 
-### C. Modeller CPU Environment Setup
+<details>
+<summary><b>🧬 C. Modeller CPU Environment Setup</b></summary>
+
 ```bash
 cd /content/drive/MyDrive/openmm/ColabMDA
 bash envs/install_modeller_env.sh
 ```
 </details>
+
 
 ---
 
