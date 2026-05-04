@@ -33,7 +33,7 @@ def main():
 
     # Copy raw PDB into outdir (so everything is self-contained)
     if not os.path.exists(raw_out):
-        with open(args.inp, "r") as fin, open(raw_out, "w") as fout:
+        with open(args.inp) as fin, open(raw_out, "w") as fout:
             fout.write(fin.read())
 
     print(f"[Preprocess] Loading {raw_out}")

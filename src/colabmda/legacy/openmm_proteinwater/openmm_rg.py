@@ -37,7 +37,7 @@ def parse_args():
 
 
 def _data_lines(path):
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+    with open(path, encoding="utf-8", errors="ignore") as f:
         for line in f:
             s = line.strip()
             if s and s[0].isdigit():

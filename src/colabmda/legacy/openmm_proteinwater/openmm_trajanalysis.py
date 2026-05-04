@@ -24,7 +24,7 @@ from MDAnalysis.analysis import rms
 
 
 def _data_lines(path):
-    with open(path, "r") as f:
+    with open(path) as f:
         for line in f:
             s = line.strip()
             if not s or s[0] == "#" or s[0].isalpha():

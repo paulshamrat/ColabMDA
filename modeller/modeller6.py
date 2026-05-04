@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 modeller6.py — Build & Mutate pipeline for Modeller
 
