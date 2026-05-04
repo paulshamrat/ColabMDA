@@ -4,8 +4,6 @@ import os
 import shutil
 from pathlib import Path
 
-
-
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
 ENV_ROOT = "COLABMDA_ROOT"
 
