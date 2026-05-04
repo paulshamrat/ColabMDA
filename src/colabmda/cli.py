@@ -8,19 +8,6 @@ from colabmda.modeller.commands import (
     modeller_build,
     modeller_mutate,
 )
-from colabmda.openmm_pw.commands import (
-    openmm_analysis,
-    openmm_check_equil,
-    openmm_compare,
-    openmm_em,
-    openmm_md,
-    openmm_merge,
-    openmm_npt,
-    openmm_nvt,
-    openmm_prep_from_file,
-    openmm_prep_from_pdbid,
-    openmm_status,
-)
 
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
 ENV_ROOT = "COLABMDA_ROOT"
@@ -91,6 +78,20 @@ def _default_project_root() -> str:
 
 
 def main():
+    from colabmda.openmm_pw.commands import (
+        openmm_analysis,
+        openmm_check_equil,
+        openmm_compare,
+        openmm_em,
+        openmm_md,
+        openmm_merge,
+        openmm_npt,
+        openmm_nvt,
+        openmm_prep_from_file,
+        openmm_prep_from_pdbid,
+        openmm_status,
+    )
+
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
 

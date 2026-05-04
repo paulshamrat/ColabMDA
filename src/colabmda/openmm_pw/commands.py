@@ -7,9 +7,6 @@ import sys
 from importlib import resources
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import pandas as pd
-
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
     "clean_by_pdbid": ("colabmda.legacy.openmm_proteinwater", "pdbfixer_cleaning.py"),
@@ -336,6 +333,9 @@ def openmm_md(
 
 
 def openmm_compare(series_list, outdir):
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
     outpath = Path(outdir)
     outpath.mkdir(parents=True, exist_ok=True)
 
