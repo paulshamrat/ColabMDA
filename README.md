@@ -35,33 +35,30 @@ drive.mount('/content/drive')
 !nvidia-smi
 ```
 
-### 1.2. Environment Setup (Required)
-Install the core scientific stack. Run this in the **Colab Terminal** (⋮ → Terminal). 
+### 1.2. Environment & Package Installation (Required)
+Run the following in the **Colab Terminal** (⋮ → Terminal). 
 *Estimated time: ~3–5 minutes.*
 
-This command automatically handles:
-* **Miniforge (Conda)** for environment management.
-* **OpenMM & PDBFixer** (GPU-accelerated) for MD.
-* **Modeller** for structure modeling (when `WITH_MODELLER=1`).
-* **MDAnalysis & MDTraj** for trajectory processing.
-
 ```bash
+# 1. Install the core scientific environment
 cd /content
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
 WITH_MODELLER=1 bash bootstrap_colab_openmm_gpu.sh latest
-```
 
-### 1.3. Package Installation (Required)
-Install the ColabMDA command-line tool.
-```bash
+# 2. Install ColabMDA package
 python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.git@main"
 ```
+
+> [!IMPORTANT]
+> **Modeller License Prompt:** During Step 1, the script will **pause** and ask you to `Enter your Modeller License Key`. You must paste your key and press **Enter** to proceed. The installation will not complete without it.
+>
+> 🔑 **Get a Free License:** If you don't have one, register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html) (Academic licenses are free and sent instantly via email).
 
 ---
 
 ### 💡 Tip: How to Resume After a Timeout
 If your Google Colab session expires:
-1. Re-run **Required Steps 1.2 and 1.3** to reinstall the environment.
+1. Re-run **Required Steps 1.2** to reinstall the environment.
 2. Run the **exact same `colabmda openmm run` command** you used before.
 3. The tool will automatically detect your `.chk` files and resume from where it left off.
 
