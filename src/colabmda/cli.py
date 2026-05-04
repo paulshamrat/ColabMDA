@@ -22,18 +22,25 @@ from colabmda.openmm_pw.commands import (
     openmm_status,
 )
 
-DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/openmm"
 ENV_ROOT = "COLABMDA_ROOT"
 
-
-def _resolve_root(use_drive: bool, root: str | None) -> str | None:
+def _resolve_root(use_drive: bool, root: str | None) -> str:
+    # 1. Use explicit root if provided
     if root:
-        return root
+        return str(Path(root).resolve())
+
+    # 2. Use environment variable if provided
     env_root = os.environ.get(ENV_ROOT)
     if env_root:
-        return env_root
-    # Default to Drive-first layout for persistent Colab workflows.
-    return DEFAULT_DRIVE_ROOT
+        return str(Path(env_root).resolve())
+
+    cwd = os.getcwd()
+    # 3. If on Colab but in the temporary /content folder, fallback to Drive
+    if cwd == "/content" and os.path.exists("/content/drive/MyDrive"):
+        return "/content/drive/MyDrive/ColabMDA"
+
+    # 4. Otherwise, use the Current Working Directory (standard for HPC/Laptop)
+    return cwd
 
 
 def _ensure_dir(path: str):
