@@ -1,7 +1,7 @@
 # ColabMDA
 
 <p align="center">
-  <img src="docs/assets/logo.png" width="400">
+  <img src="./docs/assets/logo.png" width="400">
 </p>
 
 **ColabMDA** is a specialized tool that lets you run high-quality Molecular Dynamics simulations on Google Colab without the fear of losing your work. The biggest problem with Colab is that it disconnects, often destroying hours of simulation data. **ColabMDA fixes this** with a "resume-safe" system that automatically saves your progress to Google Drive. If your session expires, you can resume exactly where you left off with one simple command. From modeling protein mutations to generating publication-ready analysis, ColabMDA handles the complex setup for you, making it the easiest way to get high-quality MD results using free cloud GPUs.
