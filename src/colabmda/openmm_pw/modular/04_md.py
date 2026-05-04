@@ -52,7 +52,7 @@ def run_md(
         sim.context.setTime(0.0)
         steps_done = 0
 
-    print(f"  • Progress: {steps_done*dt_ps:.1f} / {total_ns*1000:.1f} ps")
+    print(f"  • Progress: {steps_done * dt_ps:.1f} / {total_ns * 1000:.1f} ps")
 
     # Production loop
     while steps_done < total_steps:

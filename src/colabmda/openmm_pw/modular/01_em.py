@@ -26,7 +26,9 @@ def run_em(workdir, pdbid):
         print(f"✔ EM already complete ({chk_file} found). Skipping...")
         return True
     else:
-        print(f"[DEBUG] Files not found. em.chk: {os.path.exists(chk_file)}, system.xml: {os.path.exists(xml_system)}")
+        print(
+            f"[DEBUG] Files not found. em.chk: {os.path.exists(chk_file)}, system.xml: {os.path.exists(xml_system)}"
+        )
         if os.path.exists(workdir):
             print(f"[DEBUG] Directory contents: {os.listdir(workdir)}")
 
