@@ -22,7 +22,9 @@ from colabmda.openmm_pw.commands import (
     openmm_status,
 )
 
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
 ENV_ROOT = "COLABMDA_ROOT"
+
 
 def _resolve_root(use_drive: bool, root: str | None) -> str:
     # 1. Use explicit root if provided
