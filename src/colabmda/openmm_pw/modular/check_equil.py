@@ -2,6 +2,7 @@ import os, sys, argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
+from scipy.stats import linregress
 
 def parse_em_log(workdir):
     # EM doesn't have a CSV log, but we can capture the final minimized energy
@@ -30,8 +31,6 @@ def analyze_logs(workdir):
     df_npt = pd.read_csv(npt_log)
     avg_dens = df_npt['Density (g/mL)'].tail(last_20_pct).mean()
     
-    # Simple slope check for density
-    from scipy.stats import linregress
     subset = df_npt.tail(last_20_pct)
     slope, _, _, _, _ = linregress(range(len(subset)), subset['Density (g/mL)'])
 

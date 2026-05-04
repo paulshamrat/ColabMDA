@@ -1,0 +1,20 @@
+name: colabmda
+channels:
+  - conda-forge
+  - salilab  # For modeller
+dependencies:
+  - python=3.10
+  - openmm
+  - openmmtools
+  - pdbfixer
+  - mdanalysis
+  - mdtraj
+  - numpy
+  - matplotlib
+  - biopython
+  - pandas
+  - scipy
+  - modeller
+  - pip
+  - pip:
+    - -e .
