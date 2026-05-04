@@ -17,17 +17,20 @@ Requirements:
     conda install -c conda-forge pdbfixer openmm
 """
 
-import os
 import argparse
+import os
 import urllib.request
-from pdbfixer import PDBFixer
+
 from openmm.app import PDBFile
+from pdbfixer import PDBFixer
+
 
 def download_pdb(pdb_id, out_path):
-    url = f'https://files.rcsb.org/download/{pdb_id.upper()}.pdb'
+    url = f"https://files.rcsb.org/download/{pdb_id.upper()}.pdb"
     print(f"[Download] Fetching {pdb_id} from RCSB…")
     urllib.request.urlretrieve(url, out_path)
     print(f"[Download] Saved raw PDB → {out_path}")
+
 
 def preprocess(input_pdb, output_pdb, target_pH=7.0):
     print(f"[Preprocess] Loading {input_pdb}")
@@ -41,14 +44,14 @@ def preprocess(input_pdb, output_pdb, target_pH=7.0):
     print(f"[Preprocess] Adding hydrogens at pH {target_pH}…")
     fixer.addMissingHydrogens(pH=target_pH)
     print(f"[Preprocess] Writing cleaned PDB → {output_pdb}")
-    with open(output_pdb, 'w') as out:
+    with open(output_pdb, "w") as out:
         PDBFile.writeFile(fixer.topology, fixer.positions, out)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Download & preprocess a PDB by ID")
-    parser.add_argument('pdb_id', help="4-character PDB identifier (e.g., 4ldj)")
-    parser.add_argument('--outdir', default=None,
-                        help="Output directory (default: ./<pdbid>)")
+    parser.add_argument("pdb_id", help="4-character PDB identifier (e.g., 4ldj)")
+    parser.add_argument("--outdir", default=None, help="Output directory (default: ./<pdbid>)")
     args = parser.parse_args()
 
     pdb_id = args.pdb_id.lower()
@@ -70,6 +73,7 @@ def main():
 
     print("✅ All done!")
     print(f"→ Check directory {outdir} for {raw_pdb} and {cleaned_pdb}")
+
 
 if __name__ == "__main__":
     main()

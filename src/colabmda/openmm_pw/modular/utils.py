@@ -1,6 +1,10 @@
-import os, sys, shutil
+import os
+import shutil
+
 from openmm.app import Simulation
-from openmm import Platform, unit, LangevinMiddleIntegrator
+
+from openmm import LangevinMiddleIntegrator, Platform, unit
+
 
 def pick_platform():
     for name in ["CUDA", "OpenCL", "CPU"]:
@@ -12,14 +16,17 @@ def pick_platform():
             pass
     raise RuntimeError("No OpenMM platform available")
 
+
 def make_sim(top, sys_, dt, temp=300):
-    integ = LangevinMiddleIntegrator(temp*unit.kelvin, 1/unit.picosecond, dt)
-    plat  = pick_platform()
+    integ = LangevinMiddleIntegrator(temp * unit.kelvin, 1 / unit.picosecond, dt)
+    plat = pick_platform()
     return Simulation(top, sys_, integ, plat)
+
 
 def atomic_rename(tmp_path, final_path):
     if os.path.exists(tmp_path):
         os.replace(tmp_path, final_path)
+
 
 def safe_remove_if_empty(path):
     if os.path.isfile(path) and os.path.getsize(path) == 0:
@@ -28,11 +35,22 @@ def safe_remove_if_empty(path):
         except Exception:
             pass
 
+
 def sync_outputs(workdir, sync_dir, extra_files=None):
     if not sync_dir:
         return
     os.makedirs(sync_dir, exist_ok=True)
-    essentials = ["system.xml", "solvated.pdb", "em.chk", "nvt.chk", "npt.chk", "prod.chk", "nvt.log", "npt.log", "prod_full.log"]
+    essentials = [
+        "system.xml",
+        "solvated.pdb",
+        "em.chk",
+        "nvt.chk",
+        "npt.chk",
+        "prod.chk",
+        "nvt.log",
+        "npt.log",
+        "prod_full.log",
+    ]
     if extra_files:
         essentials += extra_files
     for fn in essentials:

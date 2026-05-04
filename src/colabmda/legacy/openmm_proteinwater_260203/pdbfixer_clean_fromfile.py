@@ -9,10 +9,12 @@ Usage:
   python3 pdbfixer_clean_fromfile.py --in /path/4LDJ.pdb --outdir /content/work/4ldj_wt --pdbid 4ldj
 """
 
-import os
 import argparse
-from pdbfixer import PDBFixer
+import os
+
 from openmm.app import PDBFile
+from pdbfixer import PDBFixer
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -52,6 +54,7 @@ def main():
     print("✅ Done")
     print("Raw   :", raw_out)
     print("Clean :", cleaned_out)
+
 
 if __name__ == "__main__":
     main()

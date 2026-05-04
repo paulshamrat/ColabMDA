@@ -1,21 +1,21 @@
-from openmmdl.openmmdl_simulation.scripts.forcefield_water import (
-    ff_selection,
-    water_forcefield_selection,
-    water_model_selection,
-    generate_forcefield,
-)
-from openmmdl.openmmdl_simulation.scripts.protein_ligand_prep import (
-    prepare_ligand,
-    rdkit_to_openmm,
-    merge_protein_and_ligand,
-    water_padding_solvent_builder,
-)
+import sys
 
 import pdbfixer
 import simtk.openmm.app as app
-from simtk.openmm.app import PDBFile, PDBReporter, StateDataReporter, DCDReporter
-from simtk.openmm import unit, Platform, LangevinMiddleIntegrator, MonteCarloBarostat
-import sys
+from openmmdl.openmmdl_simulation.scripts.forcefield_water import (
+    ff_selection,
+    generate_forcefield,
+    water_forcefield_selection,
+    water_model_selection,
+)
+from openmmdl.openmmdl_simulation.scripts.protein_ligand_prep import (
+    merge_protein_and_ligand,
+    prepare_ligand,
+    rdkit_to_openmm,
+    water_padding_solvent_builder,
+)
+from simtk.openmm import LangevinMiddleIntegrator, MonteCarloBarostat, Platform, unit
+from simtk.openmm.app import DCDReporter, PDBFile, PDBReporter, StateDataReporter
 
 # Input files copied into the simulation working folder by `openmmdl simulation`
 protein = "5wyz-moe-processed_openMMDL.pdb"
@@ -136,6 +136,8 @@ simulation.reporters.append(
 simulation.step(steps)
 
 with open("final_state_5wyz_quickrun.pdb", "w") as handle:
-    PDBFile.writeFile(simulation.topology, simulation.context.getState(getPositions=True).getPositions(), handle)
+    PDBFile.writeFile(
+        simulation.topology, simulation.context.getState(getPositions=True).getPositions(), handle
+    )
 
 print("Quick protein-ligand simulation completed.")
