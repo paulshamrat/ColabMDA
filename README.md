@@ -5,7 +5,7 @@
 
 | Category | Details |
 | :--- | :--- |
-| **Release** | [![GitHub release](https://img.shields.io/github/v/release/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/releases) |
+| **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
 | **Availability** | [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) |
 | **Workflows** | [![Python CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) |
 | **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
