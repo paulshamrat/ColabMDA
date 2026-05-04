@@ -10,12 +10,13 @@ from openmm import XmlSerializer, unit
 def run_npt(workdir, pdbid, equil_time_ps=100.0):
     os.chdir(workdir)
 
-    xml_system = "system.xml"
-    pdb_saved = "solvated.pdb"
-    chk_in = "nvt.chk"
-    chk_out = "npt.chk"
-    log_file = "npt.log"
+    xml_system = os.path.join(workdir, "system.xml")
+    pdb_saved = os.path.join(workdir, "solvated.pdb")
+    chk_in = os.path.join(workdir, "nvt.chk")
+    chk_out = os.path.join(workdir, "npt.chk")
+    log_file = os.path.join(workdir, "npt.log")
 
+    print(f"[DEBUG] Checking for NPT files in: {workdir}")
     if os.path.exists(chk_out):
         print(f"✔ NPT already complete ({chk_out} found). Skipping...")
         return True
