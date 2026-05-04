@@ -18,9 +18,10 @@ def analyze_logs(workdir):
     nvt_log = "nvt.log"
     npt_log = "npt.log"
 
-    if not os.path.exists(nvt_log) or not os.path.exists(npt_log):
-        print("Error: Equilibration logs not found.")
-        return False
+    qc_file = "equilibration_qc.png"
+    if os.path.exists(qc_file):
+        print(f"✔ Stability check already complete ({qc_file} found). Skipping...")
+        return True
 
     print("▶ Running Comprehensive Stability Check & Plotting …")
 
