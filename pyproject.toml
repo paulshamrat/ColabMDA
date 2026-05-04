@@ -13,10 +13,14 @@ authors = [{name="Shamrat Kumar Paul"}]
 
 dependencies = [
   "numpy",
-  "matplotlib",
   "biopython",
+]
+
+[project.optional-dependencies]
+analysis = [
   "mdanalysis",
   "mdtraj",
+  "matplotlib",
   "pandas",
 ]
 
