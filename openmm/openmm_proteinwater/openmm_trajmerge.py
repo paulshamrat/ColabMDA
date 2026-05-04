@@ -18,30 +18,33 @@ Optional arguments:
   -s, --stride INT       Keep every Nth frame/row while merging (default: 1)
 """
 
-import os
-import sys
-import re
-import glob
 import argparse
+import glob
+import os
+import re
+import sys
 
 import mdtraj as md
+
 
 def parse_args():
     p = argparse.ArgumentParser(description="Merge MD chunk files")
     p.add_argument("pdbid", help="4-letter PDB ID directory")
-    p.add_argument("-t", "--topology", default=None,
-                   help="Topology PDB (default: <pdbid>/solvated.pdb)")
-    p.add_argument("-o", "--out-traj", default="prod_full.dcd",
-                   help="Output merged trajectory")
-    p.add_argument("-l", "--out-log", default="prod_full.log",
-                   help="Output merged log CSV")
-    p.add_argument("-s", "--stride", type=int, default=1,
-                   help="Keep every Nth frame/row while merging")
+    p.add_argument(
+        "-t", "--topology", default=None, help="Topology PDB (default: <pdbid>/solvated.pdb)"
+    )
+    p.add_argument("-o", "--out-traj", default="prod_full.dcd", help="Output merged trajectory")
+    p.add_argument("-l", "--out-log", default="prod_full.log", help="Output merged log CSV")
+    p.add_argument(
+        "-s", "--stride", type=int, default=1, help="Keep every Nth frame/row while merging"
+    )
     return p.parse_args()
 
+
 def extract_start_ps(filename):
-    m = re.search(r'prod_(\d+)to\d+ps\.dcd$', filename)
-    return int(m.group(1)) if m else float('inf')
+    m = re.search(r"prod_(\d+)to\d+ps\.dcd$", filename)
+    return int(m.group(1)) if m else float("inf")
+
 
 def merge_trajectories(pdbid, topology, out_traj, stride=1):
     # determine topology path
@@ -93,10 +96,12 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1):
 
     os.chdir("..")
 
+
 def merge_logs(pdbid, out_log, stride=1):
     os.chdir(pdbid)
-    log_files = sorted(glob.glob("prod_*to*ps.log"),
-                       key=lambda f: extract_start_ps(f.replace(".log", ".dcd")))
+    log_files = sorted(
+        glob.glob("prod_*to*ps.log"), key=lambda f: extract_start_ps(f.replace(".log", ".dcd"))
+    )
     if not log_files:
         sys.exit("Error: no .log chunk files found.")
 
@@ -124,6 +129,7 @@ def merge_logs(pdbid, out_log, stride=1):
 
     os.chdir("..")
 
+
 def main():
     args = parse_args()
     if not os.path.isdir(args.pdbid):
@@ -132,6 +138,7 @@ def main():
         sys.exit("Error: --stride must be >= 1")
     merge_trajectories(args.pdbid, args.topology, args.out_traj, stride=args.stride)
     merge_logs(args.pdbid, args.out_log, stride=args.stride)
+
 
 if __name__ == "__main__":
     main()

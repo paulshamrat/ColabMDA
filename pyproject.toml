@@ -38,3 +38,11 @@ line-length = 100
 target-version = "py310"
 select = ["E", "F", "B", "I"]
 ignore = ["E501"] # Ignore line length errors (handled by black)
+exclude = [
+    "notebooks",
+    "analysis",
+    "scripts",
+    "openmm",
+    "python",
+    "setup_colabgmx_inprogress_250714.py",
+]

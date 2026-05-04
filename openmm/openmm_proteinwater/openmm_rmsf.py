@@ -8,13 +8,12 @@ Compute C-alpha RMSF and save:
 """
 
 import argparse
-import datetime
 import os
 import sys
 
 import matplotlib.pyplot as plt
-import numpy as np
 import mdtraj as md
+import numpy as np
 
 
 def parse_args():
@@ -45,23 +44,25 @@ def main():
     os.makedirs(outdir, exist_ok=True)
 
     # Styling for publication
-    plt.rcParams.update({
-        "font.family": "serif",
-        "font.serif": ["DejaVu Serif"],
-        "font.size": 12,
-        "axes.labelsize": 14,
-        "axes.titlesize": 16,
-        "xtick.labelsize": 12,
-        "ytick.labelsize": 12,
-        "legend.fontsize": 10,
-        "lines.linewidth": 1.5,
-        "figure.figsize": (8, 6),
-        "savefig.dpi": 600,
-        "axes.grid": True,
-        "grid.alpha": 0.3,
-        "grid.linestyle": "--",
-    })
-    
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.serif": ["DejaVu Serif"],
+            "font.size": 12,
+            "axes.labelsize": 14,
+            "axes.titlesize": 16,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
+            "legend.fontsize": 10,
+            "lines.linewidth": 1.5,
+            "figure.figsize": (8, 6),
+            "savefig.dpi": 600,
+            "axes.grid": True,
+            "grid.alpha": 0.3,
+            "grid.linestyle": "--",
+        }
+    )
+
     t = md.load(traj, top=topo)
     ca_idx = t.topology.select("name CA")
     t.superpose(t, 0, atom_indices=ca_idx)
@@ -70,23 +71,25 @@ def main():
 
     mask = np.ones_like(resids, dtype=bool)
     if args.resid_min is not None:
-        mask &= (resids >= args.resid_min)
+        mask &= resids >= args.resid_min
     if args.resid_max is not None:
-        mask &= (resids <= args.resid_max)
+        mask &= resids <= args.resid_max
 
     x = resids[mask]
     y = rmsf_A[mask]
 
     csv_path = os.path.join(outdir, "rmsf.csv")
-    np.savetxt(csv_path, np.column_stack([x, y]), delimiter=",", header="residue,rmsf_A", comments="")
+    np.savetxt(
+        csv_path, np.column_stack([x, y]), delimiter=",", header="residue,rmsf_A", comments=""
+    )
 
     plt.figure()
-    plt.plot(x, y, color='firebrick', lw=1.5)
+    plt.plot(x, y, color="firebrick", lw=1.5)
     plt.xlabel("Residue Index")
     plt.ylabel("RMSF (Å)")
     plt.title("Residue Flexibility (RMSF)")
-    plt.gca().spines['top'].set_visible(False)
-    plt.gca().spines['right'].set_visible(False)
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
     plt.tight_layout()
     if args.ylim is not None:
         plt.ylim(args.ylim[0], args.ylim[1])

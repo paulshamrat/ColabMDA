@@ -8,15 +8,14 @@ Compute backbone RMSD and save:
 """
 
 import argparse
-import datetime
 import glob
 import os
 import re
 import sys
 
 import matplotlib.pyplot as plt
-import numpy as np
 import MDAnalysis as mda
+import numpy as np
 from MDAnalysis.analysis import rms
 
 
@@ -25,7 +24,13 @@ def parse_args():
     p.add_argument("simdir", help="Simulation directory (contains solvated.pdb, prod_full.dcd)")
     p.add_argument("-t", "--topology", default=None)
     p.add_argument("-x", "--trajectory", default=None)
-    p.add_argument("-i", "--interval", type=float, default=None, help="Frame interval in ps. Effective = sim_interval * stride")
+    p.add_argument(
+        "-i",
+        "--interval",
+        type=float,
+        default=None,
+        help="Frame interval in ps. Effective = sim_interval * stride",
+    )
     p.add_argument("--smooth-ps", type=float, default=25.0, help="Moving-average window in ps")
     p.add_argument("--plot-stride", type=int, default=5, help="Stride for raw line plotting")
     p.add_argument("-o", "--outdir", default=None)
@@ -105,7 +110,10 @@ def main():
     if interval is None:
         try:
             interval = float(u.trajectory.ts.dt)
-            source = "DCD header (WARNING: likely inaccurate)"; print(f"!! WARNING: Using DCD header interval. If total time looks wrong, pass --interval manually.")
+            source = "DCD header (WARNING: likely inaccurate)"
+            print(
+                "!! WARNING: Using DCD header interval. If total time looks wrong, pass --interval manually."
+            )
         except Exception:
             interval = None
     if interval is None:
@@ -116,42 +124,51 @@ def main():
     calc = rms.RMSD(u, u, select="backbone", ref_frame=0)
     calc.run()
     # Styling for publication
-    plt.rcParams.update({
-        "font.family": "serif",
-        "font.serif": ["DejaVu Serif"],
-        "font.size": 12,
-        "axes.labelsize": 14,
-        "axes.titlesize": 16,
-        "xtick.labelsize": 12,
-        "ytick.labelsize": 12,
-        "legend.fontsize": 10,
-        "lines.linewidth": 1.5,
-        "figure.figsize": (8, 6),
-        "savefig.dpi": 600,
-        "axes.grid": True,
-        "grid.alpha": 0.3,
-        "grid.linestyle": "--",
-    })
-    
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.serif": ["DejaVu Serif"],
+            "font.size": 12,
+            "axes.labelsize": 14,
+            "axes.titlesize": 16,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
+            "legend.fontsize": 10,
+            "lines.linewidth": 1.5,
+            "figure.figsize": (8, 6),
+            "savefig.dpi": 600,
+            "axes.grid": True,
+            "grid.alpha": 0.3,
+            "grid.linestyle": "--",
+        }
+    )
+
     def moving_average(y, win=50):
-        if len(y) < win: return y
-        return np.convolve(y, np.ones(win)/win, mode='same')
+        if len(y) < win:
+            return y
+        return np.convolve(y, np.ones(win) / win, mode="same")
 
     rmsd_A = calc.results.rmsd[:, 2]
     times = np.arange(n_frames) * interval
     rmsd_smooth = moving_average(rmsd_A, win=50)
 
     csv_path = os.path.join(outdir, "rmsd.csv")
-    np.savetxt(csv_path, np.column_stack([times, rmsd_A]), delimiter=",", header="time_ps,rmsd_A", comments="")
+    np.savetxt(
+        csv_path,
+        np.column_stack([times, rmsd_A]),
+        delimiter=",",
+        header="time_ps,rmsd_A",
+        comments="",
+    )
 
     plt.figure()
-    plt.plot(times, rmsd_A, color='blue', alpha=0.3, label="Raw data")
-    plt.plot(times, rmsd_smooth, color='darkblue', lw=2, label="Moving average")
+    plt.plot(times, rmsd_A, color="blue", alpha=0.3, label="Raw data")
+    plt.plot(times, rmsd_smooth, color="darkblue", lw=2, label="Moving average")
     plt.xlabel("Time (ps)")
     plt.ylabel("RMSD (Å)")
     plt.title("Backbone RMSD Stability")
-    plt.gca().spines['top'].set_visible(False)
-    plt.gca().spines['right'].set_visible(False)
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(outdir, "rmsd_vs_time.png"))

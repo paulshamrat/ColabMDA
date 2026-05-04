@@ -17,8 +17,9 @@ Example:
 import argparse
 import os
 import sys
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def parse_args():
@@ -69,22 +70,24 @@ def main():
     os.makedirs(args.outdir, exist_ok=True)
 
     # Styling for publication
-    plt.rcParams.update({
-        "font.family": "serif",
-        "font.serif": ["DejaVu Serif"],
-        "font.size": 12,
-        "axes.labelsize": 14,
-        "axes.titlesize": 16,
-        "xtick.labelsize": 12,
-        "ytick.labelsize": 12,
-        "legend.fontsize": 10,
-        "lines.linewidth": 1.5,
-        "figure.figsize": (10, 6),
-        "savefig.dpi": 600,
-        "axes.grid": True,
-        "grid.alpha": 0.3,
-        "grid.linestyle": "--",
-    })
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.serif": ["DejaVu Serif"],
+            "font.size": 12,
+            "axes.labelsize": 14,
+            "axes.titlesize": 16,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
+            "legend.fontsize": 10,
+            "lines.linewidth": 1.5,
+            "figure.figsize": (10, 6),
+            "savefig.dpi": 600,
+            "axes.grid": True,
+            "grid.alpha": 0.3,
+            "grid.linestyle": "--",
+        }
+    )
 
     # RMSD comparison
     plt.figure()
@@ -99,8 +102,8 @@ def main():
         plt.xlabel("Time (ps)")
         plt.ylabel("RMSD (Å)")
         plt.title("Backbone RMSD: WT vs Mutants")
-        plt.gca().spines['top'].set_visible(False)
-        plt.gca().spines['right'].set_visible(False)
+        plt.gca().spines["top"].set_visible(False)
+        plt.gca().spines["right"].set_visible(False)
         if args.rmsd_ylim is not None:
             plt.ylim(args.rmsd_ylim[0], args.rmsd_ylim[1])
         plt.legend(frameon=False)
@@ -125,8 +128,8 @@ def main():
         plt.xlabel("Time (ps)")
         plt.ylabel("Radius of Gyration (Å)")
         plt.title("Protein Compactness (Rg): WT vs Mutants")
-        plt.gca().spines['top'].set_visible(False)
-        plt.gca().spines['right'].set_visible(False)
+        plt.gca().spines["top"].set_visible(False)
+        plt.gca().spines["right"].set_visible(False)
         if args.rg_ylim is not None:
             plt.ylim(args.rg_ylim[0], args.rg_ylim[1])
         plt.legend(frameon=False)
@@ -151,8 +154,8 @@ def main():
         plt.xlabel("Residue Index")
         plt.ylabel("RMSF (Å)")
         plt.title("Residue Flexibility (RMSF): WT vs Mutants")
-        plt.gca().spines['top'].set_visible(False)
-        plt.gca().spines['right'].set_visible(False)
+        plt.gca().spines["top"].set_visible(False)
+        plt.gca().spines["right"].set_visible(False)
         if args.rmsf_ylim is not None:
             plt.ylim(args.rmsf_ylim[0], args.rmsf_ylim[1])
         plt.legend(frameon=False)
@@ -164,10 +167,12 @@ def main():
         print(f"Saved: {out_png} (and .pdf)")
     plt.close()
 
-    if not any(os.path.isfile(os.path.join(d, "rmsd.csv")) or
-               os.path.isfile(os.path.join(d, "rg.csv")) or
-               os.path.isfile(os.path.join(d, "rmsf.csv"))
-               for _, d in series):
+    if not any(
+        os.path.isfile(os.path.join(d, "rmsd.csv"))
+        or os.path.isfile(os.path.join(d, "rg.csv"))
+        or os.path.isfile(os.path.join(d, "rmsf.csv"))
+        for _, d in series
+    ):
         sys.exit("No rmsd.csv/rg.csv/rmsf.csv found in provided directories.")
 
 

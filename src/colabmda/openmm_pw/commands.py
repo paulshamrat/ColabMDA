@@ -1,39 +1,40 @@
 #!/usr/bin/env python3
 import os
-import sys
-import subprocess
-import shutil
 import re
-from pathlib import Path
+import shutil
+import subprocess
+import sys
 from importlib import resources
-import pandas as pd
-import numpy as np
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import pandas as pd
 
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
     "clean_by_pdbid": ("colabmda.legacy.openmm_proteinwater", "pdbfixer_cleaning.py"),
-    "run_basic":      ("colabmda.legacy.openmm_proteinwater", "openmm_proteinwater.py"),
-    "merge":          ("colabmda.legacy.openmm_proteinwater", "openmm_trajmerge.py"),
-    "analysis":       ("colabmda.legacy.openmm_proteinwater", "openmm_trajanalysis.py"),
-
+    "run_basic": ("colabmda.legacy.openmm_proteinwater", "openmm_proteinwater.py"),
+    "merge": ("colabmda.legacy.openmm_proteinwater", "openmm_trajmerge.py"),
+    "analysis": ("colabmda.legacy.openmm_proteinwater", "openmm_trajanalysis.py"),
     # Bundled colab-safe workflow scripts (local pdb file cleaning + robust resume)
     "clean_from_file": ("colabmda.legacy.openmm_proteinwater_260203", "pdbfixer_clean_fromfile.py"),
-    "run_colab":       ("colabmda.legacy.openmm_proteinwater_260203", "openmm_proteinwater_colab.py"),
-
+    "run_colab": ("colabmda.legacy.openmm_proteinwater_260203", "openmm_proteinwater_colab.py"),
     # New Modular Workflow
-    "em":          ("colabmda.openmm_pw.modular", "01_em.py"),
-    "nvt":         ("colabmda.openmm_pw.modular", "02_nvt.py"),
-    "npt":         ("colabmda.openmm_pw.modular", "03_npt.py"),
+    "em": ("colabmda.openmm_pw.modular", "01_em.py"),
+    "nvt": ("colabmda.openmm_pw.modular", "02_nvt.py"),
+    "npt": ("colabmda.openmm_pw.modular", "03_npt.py"),
     "check_equil": ("colabmda.openmm_pw.modular", "check_equil.py"),
-    "md":          ("colabmda.openmm_pw.modular", "04_md.py"),
+    "md": ("colabmda.openmm_pw.modular", "04_md.py"),
 }
+
 
 def _py():
     return sys.executable
 
+
 def _script_path(pkg: str, name: str) -> Path:
     return resources.files(pkg).joinpath(name)
+
 
 def _iter_data_lines(path: Path):
     if not path.exists():
@@ -45,6 +46,7 @@ def _iter_data_lines(path: Path):
                 continue
             if s[0].isdigit():
                 yield s
+
 
 def _parse_last_step_time(log_path: Path):
     last = None
@@ -62,6 +64,7 @@ def _parse_last_step_time(log_path: Path):
     except Exception:
         return None, None
 
+
 def _parse_chunk_ranges(workdir: Path):
     ranges = []
     rx = re.compile(r"^prod_(\d+)to(\d+)ps\.(?:dcd|log)$")
@@ -75,6 +78,7 @@ def _parse_chunk_ranges(workdir: Path):
     ranges = sorted(set(ranges))
     return ranges
 
+
 def _range_gaps(ranges):
     gaps = []
     if not ranges:
@@ -85,6 +89,7 @@ def _range_gaps(ranges):
             gaps.append((prev_end, start))
         prev_end = max(prev_end, end)
     return gaps
+
 
 def openmm_status(pdbid_dir: str):
     workdir = Path(pdbid_dir).resolve()
@@ -142,9 +147,13 @@ def openmm_status(pdbid_dir: str):
     if max_step is not None:
         print(f"  Last step        : {max_step}")
 
-    print(f"  Resume-ready     : {'YES' if can_resume else 'NO'} (needs prod.chk, system.xml, solvated.pdb)")
+    print(
+        f"  Resume-ready     : {'YES' if can_resume else 'NO'} (needs prod.chk, system.xml, solvated.pdb)"
+    )
     print(f"  Merged DCD       : {'YES' if merged_dcd.exists() else 'NO'}")
     print(f"  Merged log       : {'YES' if merged_log.exists() else 'NO'}")
+
+
 def _run(script: Path, argv: list[str], cwd: str | None = None):
     if not script.exists():
         raise SystemExit(
@@ -158,6 +167,7 @@ def _run(script: Path, argv: list[str], cwd: str | None = None):
     rc = subprocess.call(cmd, cwd=cwd)
     if rc != 0:
         raise SystemExit(rc)
+
 
 def _sync_tree(src_dir: Path, dst_dir: Path):
     if not src_dir.exists():
@@ -174,6 +184,7 @@ def _sync_tree(src_dir: Path, dst_dir: Path):
             copied += 1
     print(f"[INFO] Synced {copied} files: {src_dir} -> {dst_dir}")
 
+
 def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: str | None = None):
     pkg, name = SCRIPTS["clean_by_pdbid"]
     base = Path(root_dir or os.getcwd()).resolve()
@@ -184,30 +195,58 @@ def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: st
     if sync_dir:
         _sync_tree(outdir, Path(sync_dir).resolve())
 
-def openmm_prep_from_file(pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0, sync_dir: str | None = None):
+
+def openmm_prep_from_file(
+    pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0, sync_dir: str | None = None
+):
     pkg, name = SCRIPTS["clean_from_file"]
     outdir_path = Path(outdir).resolve()
     print(f"[INFO] Prep output will be written to: {outdir_path}")
-    _run(_script_path(pkg, name), ["--in", pdb_file, "--outdir", outdir, "--pdbid", pdbid, "--ph", str(ph)])
+    _run(
+        _script_path(pkg, name),
+        ["--in", pdb_file, "--outdir", outdir, "--pdbid", pdbid, "--ph", str(ph)],
+    )
     if sync_dir:
         _sync_tree(outdir_path, Path(sync_dir).resolve())
 
-def openmm_run_colab(workdir: str, pdbid: str, total_ns: float, traj_interval: float,
-                     equil_time: float, checkpoint_ps: float, sync_dir: str | None):
+
+def openmm_run_colab(
+    workdir: str,
+    pdbid: str,
+    total_ns: float,
+    traj_interval: float,
+    equil_time: float,
+    checkpoint_ps: float,
+    sync_dir: str | None,
+):
     argv = [
         workdir,
-        "--pdbid", pdbid,
-        "--total-ns", str(total_ns),
-        "--traj-interval", str(traj_interval),
-        "--equil-time", str(equil_time),
-        "--checkpoint-ps", str(checkpoint_ps),
+        "--pdbid",
+        pdbid,
+        "--total-ns",
+        str(total_ns),
+        "--traj-interval",
+        str(traj_interval),
+        "--equil-time",
+        str(equil_time),
+        "--checkpoint-ps",
+        str(checkpoint_ps),
     ]
     if sync_dir:
         argv += ["--sync-dir", sync_dir]
     pkg, name = SCRIPTS["run_colab"]
     _run(_script_path(pkg, name), argv)
 
-def openmm_merge(pdbid_dir: str, topology: str | None, out_traj: str, out_log: str, stride: int = 1, center: bool = False, wrap: bool = False):
+
+def openmm_merge(
+    pdbid_dir: str,
+    topology: str | None,
+    out_traj: str,
+    out_log: str,
+    stride: int = 1,
+    center: bool = False,
+    wrap: bool = False,
+):
     argv = [pdbid_dir, "--out-traj", out_traj, "--out-log", out_log, "--stride", str(stride)]
     if topology:
         argv += ["--topology", topology]
@@ -218,7 +257,14 @@ def openmm_merge(pdbid_dir: str, topology: str | None, out_traj: str, out_log: s
     pkg, name = SCRIPTS["merge"]
     _run(_script_path(pkg, name), argv)
 
-def openmm_analysis(pdbid_dir: str, topology: str | None, trajectory: str | None, interval_ps: float | None, outdir: str | None):
+
+def openmm_analysis(
+    pdbid_dir: str,
+    topology: str | None,
+    trajectory: str | None,
+    interval_ps: float | None,
+    outdir: str | None,
+):
     argv = [pdbid_dir]
     if topology:
         argv += ["--topology", topology]
@@ -230,7 +276,7 @@ def openmm_analysis(pdbid_dir: str, topology: str | None, trajectory: str | None
         argv += ["--outdir", outdir]
     pkg, name = SCRIPTS["analysis"]
     _run(_script_path(pkg, name), argv)
-    
+
     # If outdir exists, also copy equilibration plots there for completeness
     if outdir:
         out_path = Path(outdir)
@@ -240,9 +286,11 @@ def openmm_analysis(pdbid_dir: str, topology: str | None, trajectory: str | None
             shutil.copy2(qc_file, out_path / "equilibration_qc.png")
             print(f"[INFO] Copied equilibration QC plot to {out_path}")
 
+
 def openmm_em(workdir: str, pdbid: str):
     pkg, name = SCRIPTS["em"]
     _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid])
+
 
 def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = None):
     pkg, name = SCRIPTS["nvt"]
@@ -251,46 +299,63 @@ def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = N
         argv += ["--seed", str(seed)]
     _run(_script_path(pkg, name), argv)
 
+
 def openmm_npt(workdir: str, pdbid: str, equil_time: float):
     pkg, name = SCRIPTS["npt"]
     _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid, "--equil-time", str(equil_time)])
+
 
 def openmm_check_equil(workdir: str):
     pkg, name = SCRIPTS["check_equil"]
     _run(_script_path(pkg, name), [workdir])
 
-def openmm_md(workdir: str, pdbid: str, total_ns: float, traj_interval: float, checkpoint_ps: float, sync_dir: str | None = None):
+
+def openmm_md(
+    workdir: str,
+    pdbid: str,
+    total_ns: float,
+    traj_interval: float,
+    checkpoint_ps: float,
+    sync_dir: str | None = None,
+):
     pkg, name = SCRIPTS["md"]
     argv = [
         workdir,
-        "--pdbid", pdbid,
-        "--total-ns", str(total_ns),
-        "--traj-interval", str(traj_interval),
-        "--checkpoint-ps", str(checkpoint_ps),
+        "--pdbid",
+        pdbid,
+        "--total-ns",
+        str(total_ns),
+        "--traj-interval",
+        str(traj_interval),
+        "--checkpoint-ps",
+        str(checkpoint_ps),
     ]
     if sync_dir:
         argv += ["--sync-dir", sync_dir]
     _run(_script_path(pkg, name), argv)
+
+
 def openmm_compare(series_list, outdir):
     outpath = Path(outdir)
     outpath.mkdir(parents=True, exist_ok=True)
-    
-    plt.style.use('seaborn-v0_8-muted')
+
+    plt.style.use("seaborn-v0_8-muted")
     plt.rcParams.update({"font.size": 12, "axes.grid": True, "grid.alpha": 0.3})
-    
+
     metrics = {
         "rmsd.csv": ("Time (ps)", "RMSD (Å)", "System Stability (RMSD)"),
         "rg.csv": ("Time (ps)", "Radius of Gyration (Å)", "Compactness (Rg)"),
-        "rmsf.csv": ("Residue Index", "RMSF (Å)", "Flexibility (RMSF)")
+        "rmsf.csv": ("Residue Index", "RMSF (Å)", "Flexibility (RMSF)"),
     }
-    
+
     def aggregate_system(dirs, metric_file):
         dfs = []
         for d in dirs:
             p = Path(d) / metric_file
             if p.exists():
                 dfs.append(pd.read_csv(p))
-        if not dfs: return None, None, None
+        if not dfs:
+            return None, None, None
         combined = pd.concat(dfs)
         col_name = dfs[0].columns[1]
         grouped = combined.groupby(combined.iloc[:, 0])
@@ -302,16 +367,18 @@ def openmm_compare(series_list, outdir):
         plt.figure(figsize=(10, 6))
         found_any = False
         for item in series_list:
-            if "=" not in item: continue
+            if "=" not in item:
+                continue
             label, dirs_str = item.split("=", 1)
             dirs = [d.strip() for d in dirs_str.split(",")]
             x, mean, std = aggregate_system(dirs, filename)
-            if x is None: continue
+            if x is None:
+                continue
             found_any = True
             p = plt.plot(x, mean, label=f"{label} (avg)", lw=2)
             color = p[0].get_color()
-            plt.fill_between(x, mean-std, mean+std, color=color, alpha=0.2)
-        
+            plt.fill_between(x, mean - std, mean + std, color=color, alpha=0.2)
+
         if found_any:
             plt.xlabel(xlabel)
             plt.ylabel(ylabel)

@@ -2,30 +2,29 @@
 import argparse
 import os
 import shutil
-import datetime
 from pathlib import Path
 
-from colabmda.openmm_pw.commands import (
-    openmm_prep_from_pdbid,
-    openmm_prep_from_file,
-    openmm_run_colab,
-    openmm_merge,
-    openmm_analysis,
-    openmm_status,
-    openmm_em,
-    openmm_nvt,
-    openmm_npt,
-    openmm_check_equil,
-    openmm_md,
-    openmm_compare,
-)
 from colabmda.modeller.commands import (
     modeller_build,
     modeller_mutate,
 )
+from colabmda.openmm_pw.commands import (
+    openmm_analysis,
+    openmm_check_equil,
+    openmm_compare,
+    openmm_em,
+    openmm_md,
+    openmm_merge,
+    openmm_npt,
+    openmm_nvt,
+    openmm_prep_from_file,
+    openmm_prep_from_pdbid,
+    openmm_status,
+)
 
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/openmm"
 ENV_ROOT = "COLABMDA_ROOT"
+
 
 def _resolve_root(use_drive: bool, root: str | None) -> str | None:
     if root:
@@ -36,8 +35,10 @@ def _resolve_root(use_drive: bool, root: str | None) -> str | None:
     # Default to Drive-first layout for persistent Colab workflows.
     return DEFAULT_DRIVE_ROOT
 
+
 def _ensure_dir(path: str):
     Path(path).mkdir(parents=True, exist_ok=True)
+
 
 def _prepare_run_inputs(root: str, pdbid: str, name: str):
     prep_dir = Path(root) / pdbid / "prep"
@@ -62,18 +63,23 @@ def _prepare_run_inputs(root: str, pdbid: str, name: str):
             f"  colabmda openmm prep --pdb-id {pdbid}\n"
         )
 
+
 def _guess_pdbid_from_workdir(workdir: str) -> str | None:
     candidates = list(Path(workdir).glob("*_cleaned.pdb"))
     if not candidates:
         return None
     if len(candidates) > 1:
         names = ", ".join([c.name for c in candidates])
-        raise SystemExit(f"ERROR: multiple *_cleaned.pdb files found in {workdir}: {names}\n"
-                         f"Please specify --name.")
+        raise SystemExit(
+            f"ERROR: multiple *_cleaned.pdb files found in {workdir}: {names}\n"
+            f"Please specify --name."
+        )
     return candidates[0].name.replace("_cleaned.pdb", "")
+
 
 def _default_project_root() -> str:
     return _resolve_root(use_drive=True, root=None) or DEFAULT_DRIVE_ROOT
+
 
 def main():
     p = argparse.ArgumentParser(prog="colabmda")
@@ -88,42 +94,76 @@ def main():
     g = p_prep.add_mutually_exclusive_group(required=True)
     g.add_argument("--pdb-id", help="4-letter PDB id (downloads from RCSB)")
     g.add_argument("--pdb-file", help="Local PDB file path (no download)")
-    p_prep.add_argument("--outdir", default=None, help="Output directory for --pdb-file (default: ./<name>)")
-    p_prep.add_argument("--name", default=None, help="Prefix name (default: from --pdb-id or file stem)")
+    p_prep.add_argument(
+        "--outdir", default=None, help="Output directory for --pdb-file (default: ./<name>)"
+    )
+    p_prep.add_argument(
+        "--name", default=None, help="Prefix name (default: from --pdb-id or file stem)"
+    )
     p_prep.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
-    p_prep.add_argument("--sync-dir", default=None, help="Optional: copy cleaned prep outputs to this directory")
-    p_prep.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
-    p_prep.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_prep.add_argument(
+        "--sync-dir", default=None, help="Optional: copy cleaned prep outputs to this directory"
+    )
+    p_prep.add_argument(
+        "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
+    )
+    p_prep.add_argument(
+        "--root",
+        default=None,
+        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+    )
 
     # run (colab-safe runner)
     p_run = sub_openmm.add_parser("run", help="Run/resume chunked MD (colab-safe)")
     g = p_run.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as workdir (pdb-id download workflow)")
     g.add_argument("--workdir", help="Folder containing <name>_cleaned.pdb")
-    p_run.add_argument("--name", default=None, help="Prefix name (default: --pdb-id or inferred from workdir)")
+    p_run.add_argument(
+        "--name", default=None, help="Prefix name (default: --pdb-id or inferred from workdir)"
+    )
     p_run.add_argument("--total-ns", type=float, default=100.0)
     p_run.add_argument("--traj-interval", type=float, default=100.0, help="ps between saved frames")
     p_run.add_argument("--equil-time", type=float, default=100.0, help="ps for NVT and ps for NPT")
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
     p_run.add_argument("--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2)")
-    p_run.add_argument("--seed", type=int, default=None, help="Optional: random seed for velocity assignment")
-    p_run.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
-    p_run.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_run.add_argument(
+        "--seed", type=int, default=None, help="Optional: random seed for velocity assignment"
+    )
+    p_run.add_argument(
+        "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
+    )
+    p_run.add_argument(
+        "--root",
+        default=None,
+        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+    )
 
     # merge
     p_merge = sub_openmm.add_parser("merge", help="Merge chunk DCDs/logs")
     g = p_merge.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
-    p_merge.add_argument("--topology", default=None, help="Topology PDB (default: <dir>/solvated.pdb)")
+    p_merge.add_argument(
+        "--topology", default=None, help="Topology PDB (default: <dir>/solvated.pdb)"
+    )
     p_merge.add_argument("--out-traj", default="prod_full.dcd")
     p_merge.add_argument("--out-log", default="prod_full.log")
-    p_merge.add_argument("--stride", type=int, default=1, help="Keep every Nth frame while merging (default: 1)")
+    p_merge.add_argument(
+        "--stride", type=int, default=1, help="Keep every Nth frame while merging (default: 1)"
+    )
     p_merge.add_argument("--center", action="store_true", help="Center protein in the box")
-    p_merge.add_argument("--wrap", action="store_true", help="Wrap solvent molecules (image_molecules)")
-    p_merge.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
-    p_merge.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_merge.add_argument(
+        "--wrap", action="store_true", help="Wrap solvent molecules (image_molecules)"
+    )
+    p_merge.add_argument(
+        "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
+    )
+    p_merge.add_argument(
+        "--root",
+        default=None,
+        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+    )
 
     # analysis
     p_ana = sub_openmm.add_parser("analysis", help="RMSD/Rg/RMSF analysis")
@@ -132,31 +172,58 @@ def main():
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
     p_ana.add_argument("--topology", default=None)
     p_ana.add_argument("--trajectory", default=None)
-    p_ana.add_argument("--interval", type=float, default=None, help="ps per frame (if not auto-detected)")
+    p_ana.add_argument(
+        "--interval", type=float, default=None, help="ps per frame (if not auto-detected)"
+    )
     p_ana.add_argument("--outdir", default=None)
-    p_ana.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
-    p_ana.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
+    p_ana.add_argument(
+        "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
+    )
+    p_ana.add_argument(
+        "--root",
+        default=None,
+        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+    )
 
     # status
     p_stat = sub_openmm.add_parser("status", help="Sanity-check frames/time/resume readiness")
     g = p_stat.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
-    p_stat.add_argument("--drive", action="store_true", help="(compat) Use Drive root (default behavior)")
-    p_stat.add_argument("--root", default=None, help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)")
-    
+    p_stat.add_argument(
+        "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
+    )
+    p_stat.add_argument(
+        "--root",
+        default=None,
+        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+    )
+
     # compare
     p_comp = sub_openmm.add_parser("compare", help="Compare multiple systems (aggregate replicas)")
-    p_comp.add_argument("--series", action="append", required=True, help="LABEL=DIR1,DIR2 (e.g. WT=analysis/single/wt/r1,analysis/single/wt/r2)")
+    p_comp.add_argument(
+        "--series",
+        action="append",
+        required=True,
+        help="LABEL=DIR1,DIR2 (e.g. WT=analysis/single/wt/r1,analysis/single/wt/r2)",
+    )
     p_comp.add_argument("--outdir", required=True, help="Output directory for plots")
 
     # stage
-    p_stage = sub_openmm.add_parser("stage", help="Stage a WT/mutant structure into simulations/<name>")
-    p_stage.add_argument("--pdb-file", required=True, help="Input structure PDB file (typically from structures/)")
+    p_stage = sub_openmm.add_parser(
+        "stage", help="Stage a WT/mutant structure into simulations/<name>"
+    )
+    p_stage.add_argument(
+        "--pdb-file", required=True, help="Input structure PDB file (typically from structures/)"
+    )
     p_stage.add_argument("--name", required=True, help="Simulation name (e.g. 4ldj_wt, 4ldj_G12C)")
-    p_stage.add_argument("--replica", default=None, help="Optional: create nested replica subfolder (e.g. r1, r2)")
+    p_stage.add_argument(
+        "--replica", default=None, help="Optional: create nested replica subfolder (e.g. r1, r2)"
+    )
     p_stage.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
-    p_stage.add_argument("--root", default=None, help=f"Project root (default: ${ENV_ROOT} or {DEFAULT_DRIVE_ROOT})")
+    p_stage.add_argument(
+        "--root", default=None, help=f"Project root (default: ${ENV_ROOT} or {DEFAULT_DRIVE_ROOT})"
+    )
 
     # em/nvt/npt/check-equil/md (individual modular steps)
     p_em = sub_openmm.add_parser("em", help="Modular: Minimization")
@@ -236,14 +303,20 @@ def main():
                 if root:
                     _ensure_dir(root)
                 outdir = args.outdir or (str(Path(root) / name / "prep") if root else name)
-                openmm_prep_from_file(args.pdb_file, outdir, pdbid=name, ph=args.ph, sync_dir=args.sync_dir)
+                openmm_prep_from_file(
+                    args.pdb_file, outdir, pdbid=name, ph=args.ph, sync_dir=args.sync_dir
+                )
 
         elif args.cmd == "run":
             if args.pdb_id:
                 root = _resolve_root(args.drive, args.root)
                 if root:
                     _ensure_dir(root)
-                workdir = str(Path(root) / args.pdb_id / "run") if root else str(Path(args.pdb_id) / "run")
+                workdir = (
+                    str(Path(root) / args.pdb_id / "run")
+                    if root
+                    else str(Path(args.pdb_id) / "run")
+                )
                 name = args.name or args.pdb_id
                 if root:
                     _prepare_run_inputs(root=root, pdbid=args.pdb_id, name=name)
@@ -254,7 +327,7 @@ def main():
                 root = Path(_resolve_root(args.drive, args.root)).resolve()
                 name = args.name
                 cwd = Path.cwd().resolve()
-                
+
                 print(f"[DEBUG] root: {root}")
                 print(f"[DEBUG] cwd:  {cwd}")
                 print(f"[DEBUG] name: {name}")
@@ -266,7 +339,7 @@ def main():
                     cwd / "simulations" / name if name else None,
                     cwd / name if name else None,
                 ]
-                
+
                 workdir = None
                 for p in search_paths:
                     if p:
@@ -276,22 +349,22 @@ def main():
                         if exists and is_dir:
                             workdir = p
                             break
-                
+
                 if workdir is None:
                     print(f"[DEBUG] No folder found, defaulting to cwd: {cwd}")
                     workdir = cwd
-                
+
                 if not name:
                     name = _guess_pdbid_from_workdir(str(workdir))
-            
+
             workdir = Path(workdir).resolve()
             if args.replica:
                 # If we are already inside the replica folder, don't double-append
                 if workdir.name != args.replica:
                     workdir = workdir / args.replica
-                
+
                 _ensure_dir(str(workdir))
-                
+
                 # Ensure cleaned PDB is available in the replica folder
                 local_clean = workdir / f"{name}_cleaned.pdb"
                 parent_clean = workdir.parent / f"{name}_cleaned.pdb"
@@ -335,7 +408,15 @@ def main():
                 pdbid_dir = args.pdb_id or args.pdb_dir
             else:
                 pdbid_dir = "."
-            openmm_merge(pdbid_dir, args.topology, args.out_traj, args.out_log, stride=args.stride, center=args.center, wrap=args.wrap)
+            openmm_merge(
+                pdbid_dir,
+                args.topology,
+                args.out_traj,
+                args.out_log,
+                stride=args.stride,
+                center=args.center,
+                wrap=args.wrap,
+            )
 
         elif args.cmd == "analysis":
             root = _resolve_root(args.drive, args.root)
@@ -347,13 +428,17 @@ def main():
                 out_base = Path("analysis") / "single" / args.pdb_id
             elif args.pdb_dir:
                 sim_dir = args.pdb_dir
-                out_base = Path(args.outdir) if args.outdir else Path("analysis/single") / Path(sim_dir).name
+                out_base = (
+                    Path(args.outdir)
+                    if args.outdir
+                    else Path("analysis/single") / Path(sim_dir).name
+                )
             else:
                 sim_dir = "."
                 out_base = Path(args.outdir) if args.outdir else Path("analysis/single/current")
 
             openmm_analysis(sim_dir, args.topology, args.trajectory, args.interval, str(out_base))
-            
+
         elif args.cmd == "compare":
             openmm_compare(args.series, args.outdir)
 
@@ -392,7 +477,14 @@ def main():
             elif args.cmd == "check-equil":
                 openmm_check_equil(workdir)
             elif args.cmd == "md":
-                openmm_md(workdir, name, args.total_ns, args.traj_interval, args.checkpoint_ps, args.sync_dir)
+                openmm_md(
+                    workdir,
+                    name,
+                    args.total_ns,
+                    args.traj_interval,
+                    args.checkpoint_ps,
+                    args.sync_dir,
+                )
 
     elif args.tool == "modeller":
         if args.cmd == "build":
@@ -401,6 +493,7 @@ def main():
             if not (args.mut or args.list):
                 raise SystemExit("ERROR: mutate requires --mut or --list")
             modeller_mutate(args)
+
 
 if __name__ == "__main__":
     main()
