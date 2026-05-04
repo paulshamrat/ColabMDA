@@ -11,12 +11,14 @@ from openmm import XmlSerializer, unit
 def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None):
     os.chdir(workdir)
 
-    xml_system = "system.xml"
-    pdb_saved = "solvated.pdb"
-    chk_in = "em.chk"
-    chk_out = "nvt.chk"
-    log_file = "nvt.log"
+    xml_system = os.path.join(workdir, "system.xml")
+    pdb_saved = os.path.join(workdir, "solvated.pdb")
+    chk_in = os.path.join(workdir, "em.chk")
+    chk_out = os.path.join(workdir, "nvt.chk")
+    log_file = os.path.join(workdir, "nvt.log")
 
+    print(f"[DEBUG] Checking for NVT files in: {workdir}")
+    print(f"[DEBUG] xml: {xml_system}, pdb: {pdb_saved}, in: {chk_in}, out: {chk_out}")
     if os.path.exists(chk_out):
         print(f"✔ NVT already complete ({chk_out} found). Skipping...")
         return True

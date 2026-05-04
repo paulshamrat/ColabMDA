@@ -17,13 +17,18 @@ def run_em(workdir, pdbid):
         print(f"Error: cleaned PDB not found: {cleaned_pdb}")
         return False
 
-    xml_system = "system.xml"
-    pdb_saved = "solvated.pdb"
-    chk_file = "em.chk"
+    xml_system = os.path.join(workdir, "system.xml")
+    pdb_saved = os.path.join(workdir, "solvated.pdb")
+    chk_file = os.path.join(workdir, "em.chk")
 
+    print(f"[DEBUG] Checking for EM files in: {workdir}")
     if os.path.exists(chk_file) and os.path.exists(xml_system):
         print(f"✔ EM already complete ({chk_file} found). Skipping...")
         return True
+    else:
+        print(f"[DEBUG] Files not found. em.chk: {os.path.exists(chk_file)}, system.xml: {os.path.exists(xml_system)}")
+        if os.path.exists(workdir):
+            print(f"[DEBUG] Directory contents: {os.listdir(workdir)}")
 
     print("▶ Starting System Preparation & Minimization …")
     fixer = PDBFixer(filename=cleaned_pdb)
