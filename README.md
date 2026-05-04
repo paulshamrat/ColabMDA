@@ -153,9 +153,6 @@ You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes
 ### 3.1. Build Structures (WT and Mutants)
 **Environment:** `modeller_env`
 
-<details>
-<summary><b>🛠️ Click to see Build Commands</b></summary>
-
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
@@ -167,13 +164,9 @@ colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 16
 # Example: Create G12D Mutant
 colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
 ```
-</details>
 
 ### 3.2. Setup and Run MD
 **Environment:** `base`
-
-<details>
-<summary><b>🏃 Click to see MD Run Commands</b></summary>
 
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
@@ -186,7 +179,6 @@ colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.
 # 2. Run the pipeline (Example: 5ns)
 colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 5.0 --traj-interval 1 --equil-time 1000 --checkpoint-ps 1000
 ```
-</details>
 
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
@@ -195,14 +187,10 @@ colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 5.0 --traj-interval 1
 ### 3.3. Merge and Center
 Combine chunks into a single DCD and wrap solvent.
 
-<details>
-<summary><b>🌀 Click to see Merge Commands</b></summary>
-
 ```bash
 # Standard Merge (Center + Wrap)
 colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
 ```
-</details>
 
 > 💡 **Pro-Tip for Long Runs:**
 > Merging processes trajectories frame-by-frame, so it won't crash your RAM. You can merge without striding (`--stride 1`) for full resolution, or use `--stride 10` to create a lightweight file for local viewing.
@@ -212,28 +200,20 @@ colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
 ## 4. Analysis & Comparison
 
 ### 4.1. Single System Analysis
-<details>
-<summary><b>📊 Click to see Analysis Commands</b></summary>
-
 ```bash
 colabmda openmm analysis --pdb-id 4ldj_wt
 ```
-</details>
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually. For example, if you ran with `--traj-interval 10`:
 > `colabmda openmm analysis --pdb-id 4ldj_wt --interval 10`
 
 ### 4.2. WT vs Mutant Comparison
-<details>
-<summary><b>⚖️ Click to see Comparison Commands</b></summary>
-
 ```bash
 colabmda openmm compare \
   --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" \
   --series "G12D=analysis/single/4ldj_G12D/r1,analysis/single/4ldj_G12D/r2" \
   --outdir analysis/compare/wt_vs_g12d_avg
 ```
-</details>
 
 ---
 
