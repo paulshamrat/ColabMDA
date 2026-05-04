@@ -339,12 +339,12 @@ def main():
                 print(f"[DEBUG] cwd:  {cwd}")
                 print(f"[DEBUG] name: {name}")
 
-                # Search strategy:
+                # Search strategy: prioritize CWD over default root
                 search_paths = [
-                    root / "simulations" / name if name else None,
-                    root / name if name else None,
                     cwd / "simulations" / name if name else None,
                     cwd / name if name else None,
+                    root / "simulations" / name if name else None,
+                    root / name if name else None,
                 ]
 
                 workdir = None
@@ -462,7 +462,7 @@ def main():
             openmm_status(pdbid_dir)
 
         elif args.cmd == "stage":
-            root = args.root or _default_project_root()
+            root = args.root or _resolve_root(False, None)
             _ensure_dir(root)
             outdir = Path(root) / "simulations" / args.name
             if args.replica:
