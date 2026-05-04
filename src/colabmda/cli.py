@@ -345,6 +345,7 @@ def main():
                 search_paths = [
                     cwd / "simulations" / name if name else None,
                     cwd / name if name else None,
+                    cwd if (name and name in str(cwd)) else None,  # Check if we are already inside
                     root / "simulations" / name if name else None,
                     root / name if name else None,
                 ]
@@ -356,12 +357,20 @@ def main():
                         is_dir = p.is_dir() if exists else False
                         print(f"[DEBUG] Checking: {p} (exists={exists}, is_dir={is_dir})")
                         if exists and is_dir:
-                            workdir = p
+                            # If we found the replica folder itself, use its parent as the simulation base
+                            if p.name == args.replica:
+                                workdir = p.parent
+                            else:
+                                workdir = p
                             break
 
                 if workdir is None:
-                    print(f"[DEBUG] No folder found, defaulting to cwd: {cwd}")
-                    workdir = cwd
+                    # If we are in a folder named 'name', use it
+                    if name and cwd.name == name:
+                        workdir = cwd
+                    else:
+                        print(f"[DEBUG] No folder found, defaulting to cwd: {cwd}")
+                        workdir = cwd
 
                 if not name:
                     name = _guess_pdbid_from_workdir(str(workdir))
