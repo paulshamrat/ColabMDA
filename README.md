@@ -118,17 +118,12 @@ bash envs/install_modeller_env.sh
 ```
 </details>
 
-
----
-
-## 2. Beyond Colab: Local & HPC Usage
-Beyond the Cloud ☁️
-ColabMDA is not limited to the cloud. It is a full-featured MD pipeline that works on any Linux system with an NVIDIA GPU.
+</details>
 
 <details>
-<summary><b>💻 Local Workstation Setup</b></summary>
+<summary><b>💻 D. Local Workstation Setup (Laptop/Desktop)</b></summary>
 
-Use the provided `environment.yml` to create a production-ready environment in one command:
+Beyond the Cloud ☁️: ColabMDA works on any Linux system with an NVIDIA GPU. Use the provided `environment.yml` to create a production-ready environment:
 ```bash
 mamba env create -f environment.yml
 conda activate colabmda
@@ -136,10 +131,11 @@ conda activate colabmda
 </details>
 
 <details>
-<summary><b>🏢 HPC Usage (SLURM)</b></summary>
+<summary><b>🏢 E. HPC Usage (SLURM)</b></summary>
 
 You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes trajectories in chunks, it is highly efficient for long-running jobs on cluster partitions with time limits.
 </details>
+
 
 ---
 
