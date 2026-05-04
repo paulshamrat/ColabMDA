@@ -19,7 +19,7 @@
 
 ---
 
-## 1. Installation
+## 1. Quick Start (Google Colab Installation)
 
 > 💡 **Terminal Access:** All bash commands should be run in the **Colab Terminal** (Open via the **⋮** menu -> **Terminal**).
 
