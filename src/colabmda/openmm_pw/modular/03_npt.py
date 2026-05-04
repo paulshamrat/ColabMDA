@@ -16,6 +16,10 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0):
     chk_out = "npt.chk"
     log_file = "npt.log"
 
+    if os.path.exists(chk_out):
+        print(f"✔ NPT already complete ({chk_out} found). Skipping...")
+        return True
+
     if not all(os.path.exists(f) for f in [xml_system, pdb_saved, chk_in]):
         print("Error: Missing nvt.chk or system files. Run NVT first.")
         return False
