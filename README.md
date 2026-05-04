@@ -66,6 +66,8 @@ If your Google Colab session expires:
 
 ## 2. Manual / Detailed Installation (Advanced)
 
+> ⚠️ **Note:** This section is for local workstations, HPC, or advanced manual setups. For standard Google Colab runs, please use the **Quick Start (Section 1)** above.
+
 <details>
 <summary><b>🛠️ A. Manual Terminal Installation (Step-by-Step)</b></summary>
 
