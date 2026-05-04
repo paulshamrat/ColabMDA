@@ -138,12 +138,12 @@ You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes
 5. **Analyze:** Generate RMSD, Rg, and RMSF plots
 
 ### 3.1. Build Structures (WT and Mutants)
-**Environment:** `modeller_env` | **Directory:** `/content/drive/MyDrive/openmm`
+**Environment:** `modeller_env`
 
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
-cd /content/drive/MyDrive/openmm
+cd /path/to/your/project
 
 # Example: Build Wild-Type KRAS
 colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --outdir structures/4ldj/wt
@@ -153,11 +153,12 @@ colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst
 ```
 
 ### 3.2. Setup and Run MD
-**Environment:** `base` | **Directory:** `/content/drive/MyDrive/openmm`
+**Environment:** `base`
 
 ```bash
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate base
-cd /content/drive/MyDrive/openmm
+cd /path/to/your/project
 
 # 1. Initialize the simulation folder
 colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
