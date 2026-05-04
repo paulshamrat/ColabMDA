@@ -21,6 +21,10 @@ def run_em(workdir, pdbid):
     pdb_saved = "solvated.pdb"
     chk_file = "em.chk"
 
+    if os.path.exists(chk_file) and os.path.exists(xml_system):
+        print(f"✔ EM already complete ({chk_file} found). Skipping...")
+        return True
+
     print("▶ Starting System Preparation & Minimization …")
     fixer = PDBFixer(filename=cleaned_pdb)
     fixer.removeHeterogens(keepWater=True)

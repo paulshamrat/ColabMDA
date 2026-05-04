@@ -17,6 +17,10 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None):
     chk_out = "nvt.chk"
     log_file = "nvt.log"
 
+    if os.path.exists(chk_out):
+        print(f"✔ NVT already complete ({chk_out} found). Skipping...")
+        return True
+
     if not all(os.path.exists(f) for f in [xml_system, pdb_saved, chk_in]):
         print("Error: Missing em.chk or system files. Run EM first.")
         return False
