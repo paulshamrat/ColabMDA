@@ -1,14 +1,33 @@
-# ColabMDA 🧬
-**Publication-grade Molecular Dynamics on Google Colab**
+# ColabMDA
 
-ColabMDA is a modular, high-performance pipeline for protein modeling and MD simulation. It is specifically optimized for Google Colab and Google Drive, with built-in protection against GPU timeouts.
+<p align="center">
+  <img src="docs/assets/logo.png" width="400">
+</p>
+
+**ColabMDA** is a specialized tool that lets you run high-quality Molecular Dynamics simulations on Google Colab without the fear of losing your work. The biggest problem with Colab is that it disconnects, often destroying hours of simulation data. **ColabMDA fixes this** with a "resume-safe" system that automatically saves your progress to Google Drive. If your session expires, you can resume exactly where you left off with one simple command. From modeling protein mutations to generating publication-ready analysis, ColabMDA handles the complex setup for you, making it the easiest way to get high-quality MD results using free cloud GPUs.
+
+| Category | Details |
+| :--- | :--- |
+| **Release** | [![GitHub release](https://img.shields.io/github/v/release/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/releases) |
+| **Availability** | [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) |
+| **Workflows** | [![Python CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) |
+| **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
+| **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
+| **Dependencies** | `OpenMM`, `Modeller`, `MDAnalysis`, `MDTraj` |
+| **Platform** | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) `Linux` `HPC (SLURM)` |
 
 ---
 
 ## 1. Installation
 
-### 1.1. Mounting Drive (Required)
-First, mount your Google Drive to ensure your data is persistent.
+> 💡 **Terminal Access:** All bash commands should be run in the **Colab Terminal** (Open via the **⋮** menu -> **Terminal**).
+
+### 1.1. Setup Colab Runtime & Drive
+Before starting, ensure your environment is ready:
+1. **Enable GPU:** Go to `Runtime` -> `Change runtime type` and select **T4 GPU**.
+2. **Verify GPU:** Run `!nvidia-smi` in a cell to confirm GPU access.
+3. **Mount Drive:** Click the **Folder icon** 📂 in the left sidebar, then click the **Drive icon** (Mount Drive), or run the code block below:
+
 ```python
 from google.colab import drive
 drive.mount('/content/drive')
@@ -16,7 +35,15 @@ drive.mount('/content/drive')
 ```
 
 ### 1.2. Environment Setup (Required)
-Install OpenMM, Modeller, and GPU drivers. Run this in the **Colab Terminal**.
+Install the core scientific stack. Run this in the **Colab Terminal** (⋮ → Terminal). 
+*Estimated time: ~3–5 minutes.*
+
+This command automatically handles:
+* **Miniforge (Conda)** for environment management.
+* **OpenMM & PDBFixer** (GPU-accelerated) for MD.
+* **Modeller** for structure modeling (when `WITH_MODELLER=1`).
+* **MDAnalysis & MDTraj** for trajectory processing.
+
 ```bash
 cd /content
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
@@ -40,27 +67,79 @@ If your Google Colab session expires:
 ---
 
 <details>
-<summary>Manual / Advanced Installation (Not for general users)</summary>
+<summary>Manual / Detailed Installation (Advanced)</summary>
 
-### Manual Terminal Installation
+### A. Manual Terminal Installation (Step-by-Step)
+In the Colab Terminal (⋮ → Terminal), run each step one at a time:
+
 ```bash
 # Step 1: Download & install Miniforge (Conda)
-wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -o /tmp/miniforge.sh && \
+wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && \
   bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
 
-# Step 2: Initialize Conda
+# Step 2: Initialize Conda in this shell
 export PATH="$HOME/miniforge3/bin:$PATH" && source "$HOME/miniforge3/etc/profile.d/conda.sh"
 
-# Step 3: Install Core Stack
-mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools mdanalysis mdtraj numpy matplotlib biopython
+# Step 3: Install Mamba into the base environment
+conda install -y -n base -c conda-forge mamba
+
+# Step 4: Install CUDA-enabled OpenMM and OpenMMTools
+mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools
+
+# Step 5: Install PDBFixer (conda, fallback to pip)
+conda install -y -c conda-forge pdbfixer || pip install pdbfixer
+
+# Step 6: Install MDAnalysis, MDTraj, NumPy, Matplotlib, and Biopython
+mamba install -y -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
+
+# Step 7: Verify installations
+python3 - << 'EOF'
+from openmm import Platform; print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
+import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MDTraj:", mdtraj.__version__, "Biopython:", Bio.__version__)
+EOF
+```
+
+### B. Alternative: Script-based Installation
+```bash
+cd /content
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/install_colabmda_release.sh -o install_colabmda_release.sh
+bash install_colabmda_release.sh latest /content/colabmda
+```
+
+### C. Modeller CPU Environment Setup
+```bash
+cd /content/drive/MyDrive/openmm/ColabMDA
+bash envs/install_modeller_env.sh
 ```
 </details>
 
 ---
 
-## 🛠 2. Simulation Workflow
+## 2. Beyond Colab: Local & HPC Usage
+ColabMDA is not limited to the cloud. It is a full-featured MD pipeline that works on any Linux system with an NVIDIA GPU.
 
-### 2.1. Build Structures (WT and Mutants)
+### Local Workstation Setup
+Use the provided `environment.yml` to create a production-ready environment in one command:
+```bash
+mamba env create -f environment.yml
+conda activate colabmda
+```
+
+### HPC Usage (SLURM)
+You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes trajectories in chunks, it is highly efficient for long-running jobs on cluster partitions with time limits.
+
+---
+
+## 3. Simulation Workflow
+
+### Pipeline at a Glance:
+1. **Model:** Build structures (WT & Mutants) in `structures/`
+2. **Stage:** Initialize the simulation folder in `simulations/`
+3. **Run:** Execute the MD simulation (Resume-safe)
+4. **Merge:** Combine trajectory chunks into a final file
+5. **Analyze:** Generate RMSD, Rg, and RMSF plots
+
+### 3.1. Build Structures (WT and Mutants)
 **Environment:** `modeller_env` | **Directory:** `/content/drive/MyDrive/openmm`
 
 ```bash
@@ -75,7 +154,7 @@ colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 16
 colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
 ```
 
-### 2.2. Setup and Run MD
+### 3.2. Setup and Run MD
 **Environment:** `base` | **Directory:** `/content/drive/MyDrive/openmm`
 
 ```bash
@@ -85,19 +164,15 @@ cd /content/drive/MyDrive/openmm
 # 1. Initialize the simulation folder
 colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
 
-# 2. Run the pipeline (Example: 1ns)
-colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 1.0 --traj-interval 10 --equil-time 100 --checkpoint-ps 250
+# 2. Run the pipeline (Example: 5ns)
+colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 5.0 --traj-interval 1 --equil-time 1000 --checkpoint-ps 1000
 ```
 
-> **Modular Control:** You can also run individual steps for more control:
-> `colabmda openmm em --name 4ldj_wt`
-> `colabmda openmm nvt --name 4ldj_wt --seed 1`
-> `colabmda openmm check-equil --name 4ldj_wt`
-> `colabmda openmm md --name 4ldj_wt --total-ns 1.0`
+> 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
 > **Note:** The `run` command includes an **Automated Stability Gate**. It automatically analyzes equilibration logs and aborts if the system hasn't stabilized, saving GPU time.
 
-### 2.3. Merge and Center
+### 3.3. Merge and Center
 Combine chunks into a single DCD and wrap solvent.
 
 ```bash
@@ -105,20 +180,22 @@ Combine chunks into a single DCD and wrap solvent.
 colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
 ```
 
-> 💡 **Pro-Tip for Long Runs (100ns+):**
-> Merging is memory-efficient and processes trajectories frame-by-frame, so it won't crash your RAM. However, for 100ns+ runs, the final DCD can be very large. Use `--stride` to downsample:
-> `colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap --stride 10`
+> 💡 **Pro-Tip for Long Runs:**
+> Merging processes trajectories frame-by-frame, so it won't crash your RAM. You can merge without striding (`--stride 1`) for full resolution, or use `--stride 10` to create a lightweight file for local viewing.
 
 ---
 
-## 📊 3. Analysis & Comparison
+## 4. Analysis & Comparison
 
-### 3.1. Single System Analysis
+### 4.1. Single System Analysis
 ```bash
 colabmda openmm analysis --pdb-id 4ldj_wt
 ```
 
-### 3.2. WT vs Mutant Comparison
+> ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually. For example, if you ran with `--traj-interval 10`:
+> `colabmda openmm analysis --pdb-id 4ldj_wt --interval 10`
+
+### 4.2. WT vs Mutant Comparison
 ```bash
 colabmda openmm compare \
   --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" \
@@ -128,7 +205,7 @@ colabmda openmm compare \
 
 ---
 
-## Project Strategy (WT + Mutants)
+## Project Strategy
 Organize work in three phases:
 1. **Preparation**: Build WT first in `structures/<pdbid>/wt/`, then generate mutants.
 2. **Simulation**: Run WT and mutants in separate folders under `simulations/`.
@@ -136,7 +213,7 @@ Organize work in three phases:
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 ```text
 /content/drive/MyDrive/openmm/
   structures/
@@ -157,14 +234,26 @@ Organize work in three phases:
     compare/       # Final WT vs Mutant overlays
 ```
 
-## 📜 Acknowledgements
+## Acknowledgements
 - [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
 - [Modeller](https://salilab.org/modeller/)
 - [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
 - [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
 - [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
 
-## 📚 Citation
-If you use this pipeline in your research, please consider citing:
+## Changelog
+
+### v0.1.0 (Initial Beta)
+*   **Modular Pipeline:** New modular CLI for EM, NVT, NPT, and Production MD.
+*   **Resume-Safe Engine:** Integrated checkpointing logic for fail-safe simulations on Google Colab.
+*   **Modeling:** Automated Wild-Type building and mutation support via Modeller.
+*   **Analysis:** Robust trajectory merging and comparative RMSD/Rg/RMSF analysis tools.
+*   **Professional Standards:** Added CI/CD workflows, Black formatting, and Ruff linting.
+
+---
+
+## Citation
+
+This repository was inspired by the methodologies established in the research published below. Originally developed as a simple GROMACS-on-Colab workflow, ColabMDA has since evolved into a specialized OpenMM-centered pipeline. If you use this tool, please consider citing the underlying study:
 
 > Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.

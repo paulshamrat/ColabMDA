@@ -3,9 +3,12 @@ import os
 import sys
 import subprocess
 import shutil
+import re
 from pathlib import Path
 from importlib import resources
-import re
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
@@ -269,11 +272,6 @@ def openmm_md(workdir: str, pdbid: str, total_ns: float, traj_interval: float, c
         argv += ["--sync-dir", sync_dir]
     _run(_script_path(pkg, name), argv)
 def openmm_compare(series_list, outdir):
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from pathlib import Path
-    
     outpath = Path(outdir)
     outpath.mkdir(parents=True, exist_ok=True)
     

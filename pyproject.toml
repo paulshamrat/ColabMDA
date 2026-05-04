@@ -15,6 +15,9 @@ dependencies = [
   "numpy",
   "matplotlib",
   "biopython",
+  "mdanalysis",
+  "mdtraj",
+  "pandas",
 ]
 
 [project.scripts]
@@ -25,3 +28,13 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "B", "I"]
+ignore = ["E501"] # Ignore line length errors (handled by black)

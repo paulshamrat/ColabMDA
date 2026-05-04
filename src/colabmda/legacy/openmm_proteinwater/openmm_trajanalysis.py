@@ -11,6 +11,8 @@ Usage:
 
 import os, sys, re, glob, argparse, datetime
 import numpy as np
+import pandas as pd
+from pathlib import Path
 import MDAnalysis as mda
 from MDAnalysis.analysis import rms
 import mdtraj as md
@@ -205,6 +207,4 @@ def main():
     print(f"✔ Analysis complete. Nested results and raw data saved in: {outdir}")
 
 if __name__ == "__main__":
-    import pandas as pd
-    from pathlib import Path
     main()
