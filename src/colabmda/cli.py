@@ -4,10 +4,7 @@ import os
 import shutil
 from pathlib import Path
 
-from colabmda.modeller.commands import (
-    modeller_build,
-    modeller_mutate,
-)
+
 
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
 ENV_ROOT = "COLABMDA_ROOT"
@@ -78,6 +75,10 @@ def _default_project_root() -> str:
 
 
 def main():
+    from colabmda.modeller.commands import (
+        modeller_build,
+        modeller_mutate,
+    )
     from colabmda.openmm_pw.commands import (
         openmm_analysis,
         openmm_check_equil,
