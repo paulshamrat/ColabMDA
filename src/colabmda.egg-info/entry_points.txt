@@ -1,2 +1,0 @@
-[console_scripts]
-colabmda = colabmda.cli:main
