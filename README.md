@@ -174,10 +174,16 @@ conda activate base
 cd /path/to/your/project
 
 # 1. Initialize the simulation folder
+# For Wild-Type:
 colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
+# For Mutant (G12D):
+colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12D/target.B99990001_G12D.pdb --name 4ldj_G12D --replica r1
 
-# 2. Run the pipeline (Example: 5ns)
-colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 5.0 --traj-interval 1 --equil-time 1000 --checkpoint-ps 1000
+# 2. Start the Production Run (Example: 10ns)
+# For Wild-Type:
+colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
+# For Mutant (G12D):
+colabmda openmm run --name 4ldj_G12D --replica r1 --total-ns 10.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
 ```
 
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
