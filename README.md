@@ -195,7 +195,10 @@ Combine chunks into a single DCD and wrap solvent.
 
 ```bash
 # Standard Merge (Center + Wrap)
+# For Wild-Type:
 colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
+# For Mutant (G12D):
+colabmda openmm merge --pdb-dir simulations/4ldj_G12D/r1 --center --wrap
 ```
 
 > 💡 **Pro-Tip for Long Runs:**
@@ -207,7 +210,10 @@ colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
 
 ### 4.1. Single System Analysis
 ```bash
+# For Wild-Type:
 colabmda openmm analysis --pdb-id 4ldj_wt
+# For Mutant (G12D):
+colabmda openmm analysis --pdb-id 4ldj_G12D
 ```
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually. For example, if you ran with `--traj-interval 10`:
