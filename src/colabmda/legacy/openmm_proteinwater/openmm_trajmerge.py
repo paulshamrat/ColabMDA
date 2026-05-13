@@ -71,45 +71,60 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=F
         os.chdir(start_dir)
         sys.exit("Error: no valid .dcd chunk files found.")
 
-    print("Merging DCD chunks:")
+    print("Merging DCD chunks (Streaming mode):")
     for f in dcd_files:
         print("  ", f)
     print(f"Using stride: {stride} | center: {center} | wrap: {wrap}")
 
-    # Initialize global frame counter and collection list
+    # Initialize global frame counter and merged frame count
     global_frame_idx = 0
-    to_join = []
+    merged_count = 0
 
-    for f in dcd_files:
-        try:
-            chunk = md.load(f, top=topo)
-            # Find which frames in this chunk belong in the thinned trajectory
-            indices = [i for i in range(chunk.n_frames) if (global_frame_idx + i) % stride == 0]
-            if indices:
-                sub_chunk = chunk[indices]
-                if wrap:
-                    sub_chunk.image_molecules(inplace=True)
-                if center:
-                    # Select protein for centering
-                    protein_indices = sub_chunk.topology.select("protein")
-                    if len(protein_indices) > 0:
-                        sub_chunk.center_coordinates()
-                to_join.append(sub_chunk)
-            global_frame_idx += chunk.n_frames
-        except Exception as e:
-            print(f"Warning: skipping {f} due to load error: {e}")
+    # Load topology once to reuse for all chunks
+    top_obj = md.load_topology(topo)
 
-    if not to_join:
+    # Open output file for streaming
+    with md.formats.DCDTrajectoryFile(out_traj, "w") as f_out:
+        for f in dcd_files:
+            try:
+                # Load one chunk at a time
+                chunk = md.load(f, top=top_obj)
+                # Find which frames in this chunk belong in the thinned trajectory
+                indices = [i for i in range(chunk.n_frames) if (global_frame_idx + i) % stride == 0]
+
+                if indices:
+                    sub_chunk = chunk[indices]
+                    if wrap:
+                        sub_chunk.image_molecules(inplace=True)
+                    if center:
+                        # Select protein for centering
+                        protein_indices = sub_chunk.topology.select("protein")
+                        if len(protein_indices) > 0:
+                            sub_chunk.center_coordinates()
+
+                    # Write frames to disk immediately
+                    f_out.write(
+                        sub_chunk.xyz * 10.0,  # convert nm to Angstroms for DCD
+                        cell_lengths=(
+                            sub_chunk.unitcell_lengths * 10.0
+                            if sub_chunk.unitcell_lengths is not None
+                            else None
+                        ),
+                        cell_angles=sub_chunk.unitcell_angles,
+                    )
+                    merged_count += len(indices)
+
+                global_frame_idx += chunk.n_frames
+                # Explicitly delete to free RAM
+                del chunk
+            except Exception as e:
+                print(f"Warning: skipping {f} due to load error: {e}")
+
+    if merged_count == 0:
         os.chdir(start_dir)
         sys.exit("Error: No frames kept after striding. Check your stride value vs total frames.")
 
-    # Merge the selected frames
-    merged = to_join[0]
-    for subset in to_join[1:]:
-        merged = merged.join(subset)
-
-    merged.save_dcd(out_traj)
-    print(f"→ Wrote merged trajectory: {out_traj} ({merged.n_frames} frames)")
+    print(f"→ Wrote merged trajectory: {out_traj} ({merged_count} frames)")
     os.chdir(start_dir)
 
 
