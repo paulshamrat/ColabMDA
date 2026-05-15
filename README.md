@@ -17,6 +17,15 @@
 | **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
 | **Dependencies** | `OpenMM`, `Modeller`, `MDAnalysis`, `MDTraj` |
 | **Platform** | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) `Linux` `HPC (SLURM)` |
+| **Structure** | [Source Layout](#-project-structure) |
+
+### 📂 Project Structure
+ColabMDA is organized into clear, functional modules:
+*   `src/colabmda/modeller/`: Homology modeling engine (Biological numbering supported).
+*   `src/colabmda/openmm_pw/`: OpenMM simulation engines (Modular EM/NVT/NPT/MD).
+*   `envs/`: Automated installation scripts for scientific environments.
+*   `scripts/`: Quick-start bootstrap scripts for Google Colab.
+*   `notebooks/`: Ready-to-use Colab notebooks for simulation and analysis.
 
 ---
 

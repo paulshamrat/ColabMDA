@@ -9,7 +9,7 @@ def _py():
 
 
 def _run(argv: list[str]):
-    script = resources.files("colabmda.legacy.modeller").joinpath("modeller6.py")
+    script = resources.files("colabmda.modeller").joinpath("engine.py")
     if not script.exists():
         raise SystemExit(
             "ERROR: bundled modeller6.py not found.\n"

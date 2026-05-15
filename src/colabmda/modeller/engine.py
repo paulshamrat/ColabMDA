@@ -44,11 +44,10 @@ from Bio.PDB import PDBParser
 
 # Modeller
 try:
-    from modeller.automodel import assess, automodel, autosched
-    from modeller.optimizers import ConjugateGradients, MolecularDynamics
-
     from modeller import Alignment, Environ, Model, Selection
     from modeller import log as mlog
+    from modeller.automodel import assess, automodel, autosched
+    from modeller.optimizers import ConjugateGradients, MolecularDynamics
 
     _MODELLER_OK = True
 except Exception as e:
