@@ -1,5 +1,5 @@
 ColabMDA Documentation
-====================
+======================
 
 .. include:: ../README.md
    :parser: myst_parser.sphinx_
@@ -8,4 +8,4 @@ ColabMDA Documentation
    :maxdepth: 2
    :caption: Contents:
 
-   contributing
+
