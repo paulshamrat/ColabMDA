@@ -134,10 +134,11 @@ def build_template_from_atoms(clean_pdb, chain_id, logfh):
     return chain_id, start, end, template_seq
 
 
-def write_target_pir(target_seq, out_path="target.ali"):
+def write_target_pir(target_seq, start_res=1, chain_id="A", out_path="target.ali"):
+    end_res = start_res + len(target_seq) - 1
     with open(out_path, "w") as f:
         f.write(">P1;target\n")
-        f.write(f"sequence:target:1:A:{len(target_seq)}:A::::\n")
+        f.write(f"sequence:target:{start_res}:{chain_id}:{end_res}:{chain_id}::::\n")
         f.write(target_seq + "*\n")
 
 
@@ -220,6 +221,162 @@ def truncate_pdb_range(in_pdb, chain_id, start, end, out_pdb, cryst1_line=None):
                     fout.write(L)
         if cryst1_line and not inserted:
             fout.write(cryst1_line)
+
+
+def print_alignment_summary(aln_path, logfh):
+    """Parses a PIR alignment file and prints a summary to the screen."""
+    try:
+        with open(aln_path) as f:
+            lines = f.readlines()
+
+        entries = []
+        current = None
+        for L in lines:
+            if L.startswith(">P1;"):
+                if current:
+                    entries.append(current)
+                current = {"id": L[4:].strip(), "seq": ""}
+            elif current and not L.startswith(("structure", "sequence")):
+                current["seq"] += L.strip().replace("*", "")
+        if current:
+            entries.append(current)
+
+        if len(entries) < 2:
+            return
+
+        t1, t2 = entries[0], entries[1]
+        matches = sum(1 for a, b in zip(t1["seq"], t2["seq"]) if a == b and a != "-")
+        total = sum(1 for a, b in zip(t1["seq"], t2["seq"]) if a != "-" or b != "-")
+        identity = (matches / total * 100) if total > 0 else 0
+
+        write(logfh, "--- Alignment Summary ---")
+        write(logfh, f"Template: {t1['id']}")
+        write(logfh, f"Target:   {t2['id']}")
+        write(logfh, f"Identity: {identity:.1f}%")
+
+        # Show full alignment in 60-residue blocks
+        write(logfh, "\nFull Alignment (Template vs Target):")
+        full1, full2 = t1["seq"], t2["seq"]
+        for start in range(0, len(full1), 60):
+            end = min(start + 60, len(full1))
+            s1_chunk = full1[start:end]
+            s2_chunk = full2[start:end]
+            m_chunk = "".join(
+                "*" if a == b and a != "-" else " " for a, b in zip(s1_chunk, s2_chunk)
+            )
+
+            write(logfh, f"{'Template:':<12} {s1_chunk}")
+            write(logfh, f"{'Target:':<12} {s2_chunk}")
+            write(logfh, f"{'Match:':<12} {m_chunk}")
+            write(logfh, "")
+    except Exception as e:
+        write(logfh, f"Warning: Could not generate alignment summary: {e}")
+
+
+def renumber_pdb(pdb_path, start_res, logfh):
+    """
+    Physically changes residue numbers in a PDB file to start from 'start_res'.
+    """
+    try:
+        with open(pdb_path) as f:
+            lines = f.readlines()
+
+        current_min = None
+        for L in lines:
+            if L.startswith(("ATOM", "HETATM")):
+                try:
+                    resid = int(L[22:26])
+                    if current_min is None or resid < current_min:
+                        current_min = resid
+                except Exception:
+                    continue
+
+        if current_min is None:
+            return
+        offset = start_res - current_min
+        if offset == 0:
+            return
+
+        write(logfh, f"Applying numbering offset: {current_min} -> {start_res} (offset={offset})")
+        with open(pdb_path, "w") as f:
+            for L in lines:
+                if L.startswith(("ATOM", "HETATM")):
+                    try:
+                        old_id = int(L[22:26])
+                        new_id = old_id + offset
+                        new_id_str = f"{new_id:4d}"
+                        L = L[:22] + new_id_str + L[26:]
+                    except Exception:
+                        pass
+                f.write(L)
+    except Exception as e:
+        write(logfh, f"Warning: Failed to renumber PDB: {e}")
+
+
+def verify_model_sequence(pdb_path, chain_id, expected_seq, expected_start, logfh):
+    """Sanity check: verifies model residue types and numbering against UniProt."""
+    try:
+        # Extract what we actually got in the PDB
+        obs_chain, obs_start, obs_end, obs_seq = build_template_from_atoms(
+            pdb_path, chain_id, logfh
+        )
+
+        expected_end = expected_start + len(expected_seq) - 1
+        write(logfh, "--- Post-Build Sanity Check ---")
+        write(logfh, f"Requested Range: {expected_start} to {expected_end}")
+        write(logfh, f"Observed Range:  {obs_start} to {obs_end}")
+
+        status = "OK"
+        if obs_start != expected_start or obs_end != expected_end:
+            write(
+                logfh,
+                f"WARNING: Range mismatch! Expected {expected_start}-{expected_end}, got {obs_start}-{obs_end}",
+            )
+            status = "WARN"
+
+        # Compare sequences and show a snippet
+        mismatches = 0
+        comp_len = min(len(obs_seq), len(expected_seq))
+        match_str = ""
+        for i in range(comp_len):
+            o, e = obs_seq[i], expected_seq[i]
+            if o == e and o != "-":
+                match_str += "*"
+            elif o == "-" or e == "-":
+                match_str += " "
+            else:
+                match_str += "!"
+                mismatches += 1
+
+        # Show full sequence comparison in 60-residue blocks
+        write(logfh, "\nFinal PDB vs UniProt Sequence Comparison:")
+        for start in range(0, len(expected_seq), 60):
+            end = min(start + 60, len(expected_seq))
+            pdb_idx_label = f"PDB Index {obs_start + start}:"
+            ref_label = "UniProt Ref:"
+            match_label = "Match Map:"
+
+            # Align labels to 18 characters
+            write(logfh, f"{pdb_idx_label:<18} {obs_seq[start:end]}")
+            write(logfh, f"{ref_label:<18} {expected_seq[start:end]}")
+            write(logfh, f"{match_label:<18} {match_str[start:end]}")
+            write(logfh, "")
+
+        write(logfh, "(* = match, ! = mismatch, space = gap)\n")
+
+        if mismatches > 0:
+            write(logfh, f"ERROR: Found {mismatches} amino acid mismatches!")
+            status = "FAIL"
+
+        if status == "OK":
+            write(logfh, "✅ SUCCESS: Model numbering and sequence verified.")
+        elif status == "WARN":
+            write(logfh, "⚠️  COMPLETED: Model built but range is slightly different.")
+        else:
+            write(logfh, "❌ FAILED: Significant sequence errors detected.")
+
+    except Exception as e:
+        write(logfh, f"Warning: Sanity check encountered an error: {e}")
 
 
 # ───────────── mutation helpers ─────────────
@@ -538,6 +695,11 @@ def main():
         action="store_true",
         help="After modeling, also trim to --range on --chain (usually not needed if you used --range)",
     )
+    ap.add_argument(
+        "--uniprot-numbering",
+        action="store_true",
+        help="Use UniProt indices for PDB numbering (requires --range)",
+    )
 
     # Mutation options
     ap.add_argument("--mut", help="Single mutation like K76E")
@@ -709,8 +871,16 @@ def main():
         build_template_from_atoms(f"{pdb_id}.pdb", args.chain, logfh)
 
         # 5) Align & write PIR
-        write_target_pir(target_seq, out_path="target.ali")
+        if args.uniprot_numbering and args.range:
+            start_num = args.range[0]
+        else:
+            start_num = 1
+
+        write_target_pir(
+            target_seq, start_res=start_num, chain_id=args.chain, out_path="target.ali"
+        )
         run_align2d_write_pir(pdb_id, out_pir="alignment.ali", logfh=logfh)
+        print_alignment_summary("alignment.ali", logfh)
 
         # 6) Build model
         run_automodel(
@@ -731,6 +901,12 @@ def main():
         reinsert_cryst1(model_core, base_with_cryst, cryst1_line)
         base_with_cryst_abs = os.path.abspath(base_with_cryst)
         write(logfh, f"Base model (CRYST1): {base_with_cryst_abs}")
+
+        # Fix Numbering
+        renumber_pdb(base_with_cryst_abs, start_num, logfh)
+
+        # Post-build Sanity Check
+        verify_model_sequence(base_with_cryst_abs, args.chain, target_seq, start_num, logfh)
 
         # 8) Optional truncation (not needed if using --range, but available)
         trunc_for_mut = None

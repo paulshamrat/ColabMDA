@@ -5,6 +5,7 @@
 
 📖 **Full Documentation:** Visit our official manual at [colabmda.readthedocs.io](https://colabmda.readthedocs.io/)
 
+### 🛠 Project Information
 | Category | Details |
 | :--- | :--- |
 | **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
@@ -153,15 +154,22 @@ You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes
 ### 3.1. Build Structures (WT and Mutants)
 **Environment:** `modeller_env`
 
+The build workflow now includes **Biological Numbering** and **Automated Quality Control**.
+
+#### New Features:
+*   **`--uniprot-numbering`**: Physically re-numbers the PDB residues to match the UniProt biological index (Best Practice).
+*   **Automatic Alignment Summary**: Displays a full sequence comparison before building to catch range errors early.
+*   **Post-Build Sanity Check**: Verifies every residue in the final PDB against the UniProt reference and reports `✅ SUCCESS` or `❌ FAILED`.
+
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 cd /path/to/your/project
 
-# Example: Build Wild-Type KRAS
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --outdir structures/4ldj/wt
+# Example: Build Wild-Type KRAS (Starting at Residue 1)
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir structures/4ldj/wt
 
-# Example: Create G12D Mutant
+# Example: Create G12D Mutant (Preserves Numbering)
 colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
 ```
 

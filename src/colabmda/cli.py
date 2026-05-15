@@ -278,6 +278,7 @@ def main():
     p_build.add_argument("--chain", default="A", help="Chain ID (default: A)")
     p_build.add_argument("--range", nargs=2, type=int, metavar=("START", "END"))
     p_build.add_argument("--truncate", action="store_true")
+    p_build.add_argument("--uniprot-numbering", action="store_true")
     p_build.add_argument("--mut", default=None)
     p_build.add_argument("--list", default=None, help="File with one mutation per line")
     p_build.add_argument("--outdir", default=None)

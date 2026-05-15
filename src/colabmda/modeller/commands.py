@@ -29,6 +29,8 @@ def modeller_build(args):
         argv += ["--range", str(args.range[0]), str(args.range[1])]
     if args.truncate:
         argv += ["--truncate"]
+    if args.uniprot_numbering:
+        argv += ["--uniprot-numbering"]
     if args.mut:
         argv += ["--mut", args.mut]
     if args.list:
