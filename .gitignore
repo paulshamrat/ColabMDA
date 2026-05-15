@@ -2,6 +2,7 @@
 simulations/
 simulations_test/
 test_run/
+test_*/
 
 # Binary & Data Files
 *.chk
