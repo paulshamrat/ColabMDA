@@ -1,10 +1,10 @@
 import argparse
 import os
 
+from openmm import XmlSerializer, unit
 from openmm.app import CheckpointReporter, DCDReporter, PDBFile, StateDataReporter
 
 from colabmda.openmm_pw.modular.utils import atomic_rename, make_sim, sync_outputs
-from openmm import XmlSerializer, unit
 
 
 def run_md(

@@ -1,9 +1,8 @@
 import os
 import shutil
 
-from openmm.app import Simulation
-
 from openmm import LangevinMiddleIntegrator, Platform, unit
+from openmm.app import Simulation
 
 
 def pick_platform():

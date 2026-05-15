@@ -1,10 +1,10 @@
 import argparse
 import os
 
+from openmm import XmlSerializer, unit
 from openmm.app import PDBFile, StateDataReporter
 
 from colabmda.openmm_pw.modular.utils import make_sim
-from openmm import XmlSerializer, unit
 
 
 def run_npt(workdir, pdbid, equil_time_ps=100.0):

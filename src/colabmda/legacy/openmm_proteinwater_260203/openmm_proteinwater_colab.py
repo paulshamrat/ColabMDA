@@ -21,6 +21,7 @@ import os
 import shutil
 import sys
 
+from openmm import LangevinMiddleIntegrator, MonteCarloBarostat, Platform, XmlSerializer, unit
 from openmm.app import (
     PME,
     CheckpointReporter,
@@ -33,8 +34,6 @@ from openmm.app import (
     StateDataReporter,
 )
 from pdbfixer import PDBFixer
-
-from openmm import LangevinMiddleIntegrator, MonteCarloBarostat, Platform, XmlSerializer, unit
 
 
 def parse_args():
