@@ -20,3 +20,6 @@ __pycache__/
 *$py.class
 .ipynb_checkpoints
 *.egg-info/
+
+# Documentation
+_build/
