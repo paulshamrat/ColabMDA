@@ -2,10 +2,10 @@ import argparse
 import os
 import random
 
+from openmm import XmlSerializer, unit
 from openmm.app import PDBFile, StateDataReporter
 
 from colabmda.openmm_pw.modular.utils import make_sim
-from openmm import XmlSerializer, unit
 
 
 def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None):

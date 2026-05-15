@@ -1,11 +1,11 @@
 import argparse
 import os
 
+from openmm import MonteCarloBarostat, XmlSerializer, unit
 from openmm.app import PME, ForceField, HBonds, Modeller, PDBFile
 from pdbfixer import PDBFixer
 
 from colabmda.openmm_pw.modular.utils import make_sim
-from openmm import MonteCarloBarostat, XmlSerializer, unit
 
 
 def run_em(workdir, pdbid):
