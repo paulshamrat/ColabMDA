@@ -3,7 +3,7 @@ set -euo pipefail
 
 # One-command Colab bootstrap using the proven legacy install pattern:
 # - Installs Miniforge (if missing)
-# - Installs OpenMM stack in conda base environment
+# - Installs OpenMM stack in a dedicated openmm_env environment
 # - Installs ColabMDA
 # - Verifies GPU/OpenMM/CLI
 #
@@ -23,6 +23,7 @@ INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/openmm}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
+OPENMM_ENV_NAME="${OPENMM_ENV_NAME:-openmm_env}"
 INSTALL_REF="${INSTALL_REF:-}"
 if [[ -z "${INSTALL_REF}" ]]; then
   if [[ "${TAG}" == "latest" ]]; then
@@ -52,10 +53,10 @@ conda activate base
 echo "[STEP] Ensure mamba in base"
 conda install -y -n base -c conda-forge mamba
 
-echo "[STEP] Install OpenMM stack in conda base"
-mamba install -y -n base -c conda-forge cudatoolkit=11.8 openmm openmmtools
-conda install -y -n base -c conda-forge pdbfixer || pip install pdbfixer
-mamba install -y -n base -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
+echo "[STEP] Install OpenMM stack in ${OPENMM_ENV_NAME}"
+mamba create -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 cudatoolkit=11.8 openmm openmmtools mdanalysis mdtraj numpy matplotlib biopython
+conda activate "${OPENMM_ENV_NAME}"
+conda install -y -c conda-forge pdbfixer || python -m pip install pdbfixer
 python -m pip install --upgrade pip
 
 if [[ "${WITH_MODELLER}" != "1" && -t 0 ]]; then
@@ -106,7 +107,7 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
     echo "[INFO] KEY_MODELLER configured for ${MODELLER_ENV_NAME}"
   fi
 
-  conda activate base
+  conda activate "${OPENMM_ENV_NAME}"
 fi
 
 echo "[STEP] Install ColabMDA (${TAG})"
@@ -188,16 +189,16 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
     python -m pip install --upgrade "git+https://github.com/${REPO}.git@${INSTALL_REF}"
   fi
   colabmda --help >/dev/null
-  conda activate base
+  conda activate "${OPENMM_ENV_NAME}"
 fi
 
 mkdir -p "${WORK_DIR}" "${DRIVE_RUNS_DIR}"
 
 echo "[OK] Bootstrap complete"
-echo "[OK] Env: base"
+echo "[OK] Env: ${OPENMM_ENV_NAME}"
 echo "[OK] Local workdir: ${WORK_DIR}"
 echo "[OK] Drive run dir: ${DRIVE_RUNS_DIR}"
 if [[ "${WITH_MODELLER}" == "1" ]]; then
   echo "[OK] MODELLER env: ${MODELLER_ENV_NAME}"
 fi
-echo "[NEXT] Run: conda activate base && cd ${WORK_DIR}"
+echo "[NEXT] Run: conda activate ${OPENMM_ENV_NAME} && cd ${WORK_DIR}"
