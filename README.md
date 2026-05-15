@@ -5,7 +5,7 @@
 
 📖 **Full Documentation:** Visit our official manual at [colabmda.readthedocs.io](https://colabmda.readthedocs.io/)
 
-### 🛠 Project Information
+## 🛠 Project Information
 | Category | Details |
 | :--- | :--- |
 | **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
@@ -30,7 +30,7 @@ Before starting, ensure your environment is ready:
 2. **Verify GPU:** Run `!nvidia-smi` in a cell to confirm GPU access.
 3. **Mount Drive:** Click the **Folder icon** 📂 in the left sidebar, then click the **Drive icon** (Mount Drive), or run the code block below:
 
-```python
+```ipython
 from google.colab import drive
 drive.mount('/content/drive')
 !nvidia-smi
