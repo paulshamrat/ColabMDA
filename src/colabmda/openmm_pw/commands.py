@@ -9,13 +9,13 @@ from pathlib import Path
 
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
-    "clean_by_pdbid": ("colabmda.legacy.openmm_proteinwater", "pdbfixer_cleaning.py"),
-    "run_basic": ("colabmda.legacy.openmm_proteinwater", "openmm_proteinwater.py"),
-    "merge": ("colabmda.legacy.openmm_proteinwater", "openmm_trajmerge.py"),
-    "analysis": ("colabmda.legacy.openmm_proteinwater", "openmm_trajanalysis.py"),
+    "clean_by_pdbid": ("colabmda.openmm_pw.engine", "pdbfixer_cleaning.py"),
+    "run_basic": ("colabmda.openmm_pw.engine", "openmm_proteinwater.py"),
+    "merge": ("colabmda.openmm_pw.engine", "openmm_trajmerge.py"),
+    "analysis": ("colabmda.openmm_pw.engine", "openmm_trajanalysis.py"),
     # Bundled colab-safe workflow scripts (local pdb file cleaning + robust resume)
-    "clean_from_file": ("colabmda.legacy.openmm_proteinwater_260203", "pdbfixer_clean_fromfile.py"),
-    "run_colab": ("colabmda.legacy.openmm_proteinwater_260203", "openmm_proteinwater_colab.py"),
+    "clean_from_file": ("colabmda.openmm_pw.engine", "pdbfixer_clean_fromfile.py"),
+    "run_colab": ("colabmda.openmm_pw.engine", "openmm_proteinwater_colab.py"),
     # New Modular Workflow
     "em": ("colabmda.openmm_pw.modular", "01_em.py"),
     "nvt": ("colabmda.openmm_pw.modular", "02_nvt.py"),
