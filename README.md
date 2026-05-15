@@ -174,11 +174,11 @@ colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst
 ```
 
 ### 3.2. Setup and Run MD
-**Environment:** `base`
+**Environment:** `openmm_env`
 
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate base
+conda activate openmm_env
 cd /path/to/your/project
 
 # 1. Initialize the simulation folder
