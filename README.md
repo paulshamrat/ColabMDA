@@ -413,6 +413,46 @@ zoom kras and polymer, buffer=4
 
 </details>
 
+### 5.3. Generating Comparative Snapshot Grids
+To render publication-quality structural snapshot grids comparing transitions over simulation trajectories (such as WT vs Mutants across specific frames), you can use the `colabmda openmm snapshots` command.
+
+> ⚠️ **Prerequisite:** This command requires the Python `pymol` and `Pillow` (PIL) libraries to be installed in the active environment (e.g., `pymol-viz`).
+
+```bash
+# Generate the default 3x8 transition snapshot grid (WT vs G12C vs G12D)
+colabmda openmm snapshots
+```
+
+#### Customization:
+By default, the command uses a built-in template designed for the KRAS WT/G12C/G12D trajectory transition grid. You can customize the behavior by supplying a custom JSON configuration file:
+
+```bash
+colabmda openmm snapshots --config my_config.json --output figures/comparison_grid.png
+```
+
+#### JSON Configuration Schema:
+```json
+{
+  "align_ref_pdb": "structures/4ldj/wt/target.B99990001_with_cryst.pdb",
+  "stable_core_sel": "resi 1-10 or resi 40-55 or resi 80-169",
+  "camera_view": [
+    0.0, 1.0, 0.0,
+    0.0, 0.0, 1.0,
+    1.0, 0.0, 0.0,
+    0.0, 0.0, -50.0
+  ],
+  "systems": {
+    "WT": {
+      "pdb": "simulations/4ldj_wt/r1/prod_full.pdb",
+      "dcd": "simulations/4ldj_wt/r1/prod_full.dcd",
+      "states": [1, 200],
+      "times": ["0.00 ns", "2.00 ns"],
+      "mut_residue": 12
+    }
+  }
+}
+```
+
 ---
 
 ## 6. Project Strategy
