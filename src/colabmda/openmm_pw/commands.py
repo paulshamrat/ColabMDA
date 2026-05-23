@@ -783,6 +783,7 @@ def openmm_snapshots(
 
         cmd.dss("prot")
         cmd.cartoon("automatic", "prot")
+        cmd.cartoon("loop", "prot and resid 57-75")
         cmd.show("cartoon", "prot")
 
         # Colors
