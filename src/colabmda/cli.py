@@ -73,25 +73,6 @@ def _default_project_root() -> str:
 
 
 def main():
-    from colabmda.modeller.commands import (
-        modeller_build,
-        modeller_mutate,
-    )
-    from colabmda.openmm_pw.commands import (
-        openmm_analysis,
-        openmm_check_equil,
-        openmm_compare,
-        openmm_em,
-        openmm_md,
-        openmm_merge,
-        openmm_npt,
-        openmm_nvt,
-        openmm_prep_from_file,
-        openmm_prep_from_pdbid,
-        openmm_status,
-        openmm_view,
-    )
-
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
 
@@ -331,6 +312,21 @@ def main():
     args = p.parse_args()
 
     if args.tool == "openmm":
+        from colabmda.openmm_pw.commands import (
+            openmm_analysis,
+            openmm_check_equil,
+            openmm_compare,
+            openmm_em,
+            openmm_md,
+            openmm_merge,
+            openmm_npt,
+            openmm_nvt,
+            openmm_prep_from_file,
+            openmm_prep_from_pdbid,
+            openmm_status,
+            openmm_view,
+        )
+
         if args.cmd == "prep":
             if args.pdb_id:
                 root = _resolve_root(args.drive, args.root)
@@ -543,6 +539,11 @@ def main():
                 )
 
     elif args.tool == "modeller":
+        from colabmda.modeller.commands import (
+            modeller_build,
+            modeller_mutate,
+        )
+
         if args.cmd == "build":
             modeller_build(args)
         elif args.cmd == "mutate":
