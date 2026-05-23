@@ -9,6 +9,7 @@ from colabmda.openmm_pw.modular.utils import make_sim
 
 
 def run_em(workdir, pdbid):
+    workdir = os.path.abspath(workdir)
     os.makedirs(workdir, exist_ok=True)
     os.chdir(workdir)
 
