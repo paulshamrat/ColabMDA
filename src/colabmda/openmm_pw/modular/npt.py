@@ -8,6 +8,7 @@ from colabmda.openmm_pw.modular.utils import make_sim
 
 
 def run_npt(workdir, pdbid, equil_time_ps=100.0):
+    workdir = os.path.abspath(workdir)
     os.chdir(workdir)
 
     xml_system = os.path.join(workdir, "system.xml")

@@ -10,6 +10,7 @@ from colabmda.openmm_pw.modular.utils import atomic_rename, make_sim, sync_outpu
 def run_md(
     workdir, pdbid, total_ns=1.0, traj_interval_ps=10.0, checkpoint_ps=1000.0, sync_dir=None
 ):
+    workdir = os.path.abspath(workdir)
     os.chdir(workdir)
 
     xml_system = "system.xml"
