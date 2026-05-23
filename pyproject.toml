@@ -41,12 +41,9 @@ target-version = ["py310"]
 line-length = 100
 target-version = "py310"
 exclude = [
+    "ci_test_env",
     "notebooks",
-    "analysis",
     "scripts",
-    "openmm",
-    "python",
-    "setup_colabgmx_inprogress_250714.py",
 ]
 
 [tool.ruff.lint]

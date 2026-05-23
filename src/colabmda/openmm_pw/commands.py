@@ -7,21 +7,23 @@ import sys
 from importlib import resources
 from pathlib import Path
 
+# Imports relocated internally to functions to avoid module-level import errors
+# when running visualization subcommands in environments without simulation packages.
+
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
-    "clean_by_pdbid": ("colabmda.legacy.openmm_proteinwater", "pdbfixer_cleaning.py"),
-    "run_basic": ("colabmda.legacy.openmm_proteinwater", "openmm_proteinwater.py"),
-    "merge": ("colabmda.legacy.openmm_proteinwater", "openmm_trajmerge.py"),
-    "analysis": ("colabmda.legacy.openmm_proteinwater", "openmm_trajanalysis.py"),
+    "clean_by_pdbid": ("colabmda.openmm_pw.engine", "pdbfixer_cleaning.py"),
+    "merge": ("colabmda.openmm_pw.engine", "openmm_trajmerge.py"),
+    "analysis": ("colabmda.openmm_pw.engine", "openmm_trajanalysis.py"),
     # Bundled colab-safe workflow scripts (local pdb file cleaning + robust resume)
-    "clean_from_file": ("colabmda.legacy.openmm_proteinwater_260203", "pdbfixer_clean_fromfile.py"),
-    "run_colab": ("colabmda.legacy.openmm_proteinwater_260203", "openmm_proteinwater_colab.py"),
+    "clean_from_file": ("colabmda.openmm_pw.engine", "pdbfixer_clean_fromfile.py"),
+    "run_colab": ("colabmda.openmm_pw.engine", "openmm_proteinwater_colab.py"),
     # New Modular Workflow
-    "em": ("colabmda.openmm_pw.modular", "01_em.py"),
-    "nvt": ("colabmda.openmm_pw.modular", "02_nvt.py"),
-    "npt": ("colabmda.openmm_pw.modular", "03_npt.py"),
+    "em": ("colabmda.openmm_pw.modular", "em.py"),
+    "nvt": ("colabmda.openmm_pw.modular", "nvt.py"),
+    "npt": ("colabmda.openmm_pw.modular", "npt.py"),
     "check_equil": ("colabmda.openmm_pw.modular", "check_equil.py"),
-    "md": ("colabmda.openmm_pw.modular", "04_md.py"),
+    "md": ("colabmda.openmm_pw.modular", "md.py"),
 }
 
 
@@ -276,12 +278,13 @@ def _sync_tree(src_dir: Path, dst_dir: Path):
 
 
 def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: str | None = None):
-    pkg, name = SCRIPTS["clean_by_pdbid"]
+    from colabmda.openmm_pw.engine.pdbfixer_cleaning import run_clean_by_pdbid
+
     base = Path(root_dir or os.getcwd()).resolve()
     outdir = base / pdbid / "prep"
     outdir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Prep output will be written to: {outdir}")
-    _run(_script_path(pkg, name), [pdbid, "--outdir", str(outdir)])
+    run_clean_by_pdbid(pdbid, outdir=str(outdir))
     if sync_dir:
         _sync_tree(outdir, Path(sync_dir).resolve())
 
@@ -289,13 +292,11 @@ def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: st
 def openmm_prep_from_file(
     pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0, sync_dir: str | None = None
 ):
-    pkg, name = SCRIPTS["clean_from_file"]
+    from colabmda.openmm_pw.engine.pdbfixer_clean_fromfile import run_clean_from_file
+
     outdir_path = Path(outdir).resolve()
     print(f"[INFO] Prep output will be written to: {outdir_path}")
-    _run(
-        _script_path(pkg, name),
-        ["--in", pdb_file, "--outdir", outdir, "--pdbid", pdbid, "--ph", str(ph)],
-    )
+    run_clean_from_file(pdb_file, outdir, pdbid=pdbid, ph=ph)
     if sync_dir:
         _sync_tree(outdir_path, Path(sync_dir).resolve())
 
@@ -309,23 +310,17 @@ def openmm_run_colab(
     checkpoint_ps: float,
     sync_dir: str | None,
 ):
-    argv = [
-        workdir,
-        "--pdbid",
-        pdbid,
-        "--total-ns",
-        str(total_ns),
-        "--traj-interval",
-        str(traj_interval),
-        "--equil-time",
-        str(equil_time),
-        "--checkpoint-ps",
-        str(checkpoint_ps),
-    ]
-    if sync_dir:
-        argv += ["--sync-dir", sync_dir]
-    pkg, name = SCRIPTS["run_colab"]
-    _run(_script_path(pkg, name), argv)
+    from colabmda.openmm_pw.engine.openmm_proteinwater_colab import run_colab_md
+
+    run_colab_md(
+        workdir=workdir,
+        pdbid=pdbid,
+        total_ns=total_ns,
+        traj_interval=traj_interval,
+        equil_time=equil_time,
+        checkpoint_ps=checkpoint_ps,
+        sync_dir=sync_dir,
+    )
 
 
 def openmm_merge(
@@ -341,23 +336,37 @@ def openmm_merge(
     ca_only: bool = False,
     protein_only: bool = False,
 ):
-    argv = [pdbid_dir, "--out-traj", out_traj, "--out-log", out_log, "--stride", str(stride)]
-    if topology:
-        argv += ["--topology", topology]
-    if center:
-        argv += ["--center"]
-    if wrap:
-        argv += ["--wrap"]
-    if mda:
-        argv += ["--mda"]
-    if selection:
-        argv += ["--selection", selection]
-    if ca_only:
-        argv += ["--ca-only"]
-    if protein_only:
-        argv += ["--protein-only"]
-    pkg, name = SCRIPTS["merge"]
-    _run(_script_path(pkg, name), argv)
+    from colabmda.openmm_pw.engine.openmm_trajmerge import (
+        merge_logs,
+        merge_trajectories,
+        merge_trajectories_mda,
+    )
+
+    # Automatically trigger MDAnalysis mode if any MDAnalysis specific flags are active
+    mda_active = mda or ca_only or protein_only or (selection is not None)
+
+    if mda_active:
+        merge_trajectories_mda(
+            pdbid=pdbid_dir,
+            topology=topology,
+            out_traj=out_traj,
+            stride=stride,
+            center=center,
+            wrap=wrap,
+            selection=selection,
+            ca_only=ca_only,
+            protein_only=protein_only,
+        )
+    else:
+        merge_trajectories(
+            pdbid=pdbid_dir,
+            topology=topology,
+            out_traj=out_traj,
+            stride=stride,
+            center=center,
+            wrap=wrap,
+        )
+    merge_logs(pdbid_dir, out_log, stride=stride)
 
 
 def openmm_analysis(
@@ -367,49 +376,54 @@ def openmm_analysis(
     interval_ps: float | None,
     outdir: str | None,
 ):
-    argv = [pdbid_dir]
-    if topology:
-        argv += ["--topology", topology]
-    if trajectory:
-        argv += ["--trajectory", trajectory]
-    if interval_ps is not None:
-        argv += ["--interval", str(interval_ps)]
-    if outdir:
-        argv += ["--outdir", outdir]
-    pkg, name = SCRIPTS["analysis"]
-    _run(_script_path(pkg, name), argv)
+    from colabmda.openmm_pw.engine.openmm_trajanalysis import run_trajectory_analysis
+
+    run_trajectory_analysis(
+        pdbid=pdbid_dir,
+        topology=topology,
+        trajectory=trajectory,
+        interval=interval_ps,
+        outdir=outdir,
+    )
 
     # If outdir exists, also copy equilibration plots there for completeness
     if outdir:
         out_path = Path(outdir)
         out_path.mkdir(parents=True, exist_ok=True)
         qc_file = Path(pdbid_dir) / "equilibration_qc.png"
-        if qc_file.exists():
+        if qc_file.exists() and qc_file.resolve() != (out_path / "equilibration_qc.png").resolve():
             shutil.copy2(qc_file, out_path / "equilibration_qc.png")
             print(f"[INFO] Copied equilibration QC plot to {out_path}")
 
 
 def openmm_em(workdir: str, pdbid: str):
-    pkg, name = SCRIPTS["em"]
-    _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid])
+    from colabmda.openmm_pw.modular.em import run_em
+
+    success = run_em(workdir, pdbid)
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = None):
-    pkg, name = SCRIPTS["nvt"]
-    argv = [workdir, "--pdbid", pdbid, "--equil-time", str(equil_time)]
-    if seed is not None:
-        argv += ["--seed", str(seed)]
-    _run(_script_path(pkg, name), argv)
+    from colabmda.openmm_pw.modular.nvt import run_nvt
+
+    success = run_nvt(workdir, pdbid, equil_time_ps=equil_time, seed=seed)
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_npt(workdir: str, pdbid: str, equil_time: float):
-    pkg, name = SCRIPTS["npt"]
-    _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid, "--equil-time", str(equil_time)])
+    from colabmda.openmm_pw.modular.npt import run_npt
+
+    success = run_npt(workdir, pdbid, equil_time_ps=equil_time)
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_check_equil(workdir: str):
-    pkg, name = SCRIPTS["check_equil"]
-    _run(_script_path(pkg, name), [workdir])
+    from colabmda.openmm_pw.modular.check_equil import analyze_logs
+
+    analyze_logs(workdir)
 
 
 def openmm_md(
@@ -420,21 +434,18 @@ def openmm_md(
     checkpoint_ps: float,
     sync_dir: str | None = None,
 ):
-    pkg, name = SCRIPTS["md"]
-    argv = [
-        workdir,
-        "--pdbid",
-        pdbid,
-        "--total-ns",
-        str(total_ns),
-        "--traj-interval",
-        str(traj_interval),
-        "--checkpoint-ps",
-        str(checkpoint_ps),
-    ]
-    if sync_dir:
-        argv += ["--sync-dir", sync_dir]
-    _run(_script_path(pkg, name), argv)
+    from colabmda.openmm_pw.modular.md import run_md
+
+    success = run_md(
+        workdir=workdir,
+        pdbid=pdbid,
+        total_ns=total_ns,
+        traj_interval_ps=traj_interval,
+        checkpoint_ps=checkpoint_ps,
+        sync_dir=sync_dir,
+    )
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_compare(series_list, outdir):
@@ -609,3 +620,339 @@ zoom kras and polymer, buffer=4
         subprocess.run(["pymol", "visualize.pml"], cwd=str(sim_dir), check=True)
     except Exception as e:
         print(f"Error running PyMOL: {e}")
+
+
+def openmm_snapshots(
+    config_path: str | None = None,
+    output: str = "manuscript/figures/master_3x8_snapshots.png",
+    temp_dir: str = "scratch/master_grid_3x8",
+    font_path: str | None = None,
+):
+    import json
+    from pathlib import Path
+
+    # 1. Load configuration
+    default_config = {
+        "camera_view": [
+            -0.597478449,
+            -0.617595792,
+            -0.511463583,
+            -0.502994895,
+            0.785388291,
+            -0.360776752,
+            0.624511778,
+            0.041705273,
+            -0.779902637,
+            0.000050262,
+            -0.000109358,
+            -182.850265503,
+            31.930021286,
+            32.076828003,
+            34.52369679,
+            141.553222656,
+            224.141143799,
+            -20.000000000,
+        ],
+        "align_ref_pdb": "analysis/clean_trajectories/g12c_protein.pdb",
+        "stable_core_sel": "name CA and (resi 1-24 or resi 41-54 or resi 81-166)",
+        "systems": {
+            "WT": {
+                "pdb": "analysis/clean_trajectories/wt_protein.pdb",
+                "dcd": "analysis/clean_trajectories/wt_protein.dcd",
+                "states": [1, 51, 91, 100, 101, 106, 111, 121],
+                "times": [
+                    "t = 0.00 ns",
+                    "t = 0.50 ns",
+                    "t = 0.90 ns",
+                    "t = 0.99 ns",
+                    "t = 1.00 ns",
+                    "t = 1.05 ns",
+                    "t = 1.10 ns",
+                    "t = 1.20 ns",
+                ],
+                "mut_residue": 12,
+            },
+            "G12C": {
+                "pdb": "analysis/clean_trajectories/g12c_protein.pdb",
+                "dcd": "analysis/clean_trajectories/g12c_protein.dcd",
+                "states": [1, 51, 91, 100, 101, 106, 111, 121],
+                "times": [
+                    "t = 0.00 ns",
+                    "t = 0.50 ns",
+                    "t = 0.90 ns",
+                    "t = 0.99 ns",
+                    "t = 1.00 ns",
+                    "t = 1.05 ns",
+                    "t = 1.10 ns",
+                    "t = 1.20 ns",
+                ],
+                "mut_residue": 12,
+            },
+            "G12D": {
+                "pdb": "analysis/clean_trajectories/g12d_protein.pdb",
+                "dcd": "analysis/clean_trajectories/g12d_protein.dcd",
+                "states": [1, 51, 91, 100, 101, 106, 111, 121],
+                "times": [
+                    "t = 0.00 ns",
+                    "t = 0.50 ns",
+                    "t = 0.90 ns",
+                    "t = 0.99 ns",
+                    "t = 1.00 ns",
+                    "t = 1.05 ns",
+                    "t = 1.10 ns",
+                    "t = 1.20 ns",
+                ],
+                "mut_residue": 12,
+            },
+        },
+    }
+
+    if config_path:
+        print(f"Loading custom configuration from {config_path}...")
+        with open(config_path) as f:
+            config = json.load(f)
+    else:
+        print("Using default KRAS 3x8 snapshot configuration...")
+        config = default_config
+
+    camera_view = config["camera_view"]
+    align_ref_pdb = config.get("align_ref_pdb")
+    stable_core_sel = config.get(
+        "stable_core_sel", "name CA and (resi 1-24 or resi 41-54 or resi 81-166)"
+    )
+    systems = config["systems"]
+
+    # 2. Check for PyMOL
+    try:
+        import pymol
+        from pymol import cmd
+    except ImportError:
+        print("[ERROR] PyMOL python package is not installed in the active environment.")
+        print("Please run this command using an environment with PyMOL (e.g. 'pymol-viz').")
+        sys.exit(1)
+
+    # Start PyMOL headlessly
+    pymol.finish_launching(["pymol", "-qc"])
+
+    # Create temp directory
+    temp_path = Path(temp_dir)
+    temp_path.mkdir(parents=True, exist_ok=True)
+
+    rendered_files = {}
+
+    for sys_name, sys_cfg in systems.items():
+        pdb_path = sys_cfg["pdb"]
+        dcd_path = sys_cfg["dcd"]
+        states = sys_cfg["states"]
+        mut_residue = sys_cfg.get("mut_residue", 12)
+
+        if not os.path.exists(pdb_path):
+            sys.exit(f"Error: PDB file not found: {pdb_path}")
+        if not os.path.exists(dcd_path):
+            sys.exit(f"Error: DCD file not found: {dcd_path}")
+
+        print(f"Rendering snapshots for {sys_name}...")
+        cmd.reinitialize()
+        cmd.bg_color("white")
+
+        # Load reference PDB for alignment if specified
+        if align_ref_pdb and os.path.exists(align_ref_pdb):
+            cmd.load(align_ref_pdb, "ref_align")
+
+        # Load system
+        cmd.load(pdb_path, "prot")
+        cmd.load_traj(dcd_path, "prot")
+
+        # Hide nonbonded
+        cmd.hide("everything", "all")
+        cmd.hide("nonbonded", "all")
+        cmd.hide("nb_spheres", "all")
+
+        # Step 1: Align all states of prot to state 1 of prot using stable core
+        cmd.intra_fit(f"prot and {stable_core_sel}", 1)
+
+        # Step 2: Align state 1 of prot to ref_align using stable core and apply to all states
+        if align_ref_pdb and os.path.exists(align_ref_pdb):
+            cmd.align(
+                f"prot and {stable_core_sel}",
+                f"ref_align and {stable_core_sel}",
+                mobile_state=1,
+                target_state=1,
+            )
+            cmd.delete("ref_align")
+
+        cmd.dss("prot")
+        cmd.cartoon("automatic", "prot")
+        cmd.show("cartoon", "prot")
+
+        # Colors
+        cmd.color("gray90", "prot")
+        cmd.color("orange", "prot and resid 57-75")  # Switch II
+        cmd.color("yellow", f"prot and resid {mut_residue}")
+
+        # Mutation sticks
+        cmd.show("sticks", f"prot and resi {mut_residue} and not name N+C+O+H")
+        cmd.set("stick_radius", 0.25)
+
+        # Transparency
+        cmd.set("cartoon_transparency", 0.6, f"prot and not (resid 57-75 or resid {mut_residue})")
+        cmd.set("cartoon_transparency", 0.0, f"resid 57-75 or resid {mut_residue}")
+
+        # Ray tracing options
+        cmd.set("ray_shadows", 1)
+        cmd.set("ray_trace_mode", 1)
+        cmd.set("ray_trace_gain", 0.5)
+        cmd.set("depth_cue", 1)
+        cmd.set("specular", 0.3)
+        cmd.set("ray_opaque_background", 1)
+
+        cmd.set_view(camera_view)
+
+        rendered_files[sys_name] = []
+        for state in states:
+            p_out = temp_path / f"{sys_name}_state_{state}.png"
+            rendered_files[sys_name].append(str(p_out))
+            cmd.set("state", state)
+            cmd.png(str(p_out), width=800, height=800, ray=1)
+
+    pymol.cmd.quit()
+
+    print("All snapshots rendered! Compiling image grid...")
+
+    import PIL.ImageOps
+    from PIL import Image, ImageDraw, ImageFont
+
+    all_images = []
+    for sys_name in systems.keys():
+        for path in rendered_files[sys_name]:
+            all_images.append(Image.open(path))
+
+    # Bounding boxes for cropping
+    bboxes = []
+    for img in all_images:
+        gray = img.convert("L")
+        inverted = PIL.ImageOps.invert(gray)
+        bbox = inverted.getbbox()
+        if bbox:
+            bboxes.append(bbox)
+
+    orig_width, orig_height = all_images[0].size
+    if bboxes:
+        left_crop = min(b[0] for b in bboxes)
+        top_crop = min(b[1] for b in bboxes)
+        right_crop = max(b[2] for b in bboxes)
+        bottom_crop = max(b[3] for b in bboxes)
+
+        padding = 20
+        left_crop = max(0, left_crop - padding)
+        top_crop = max(0, top_crop - padding)
+        right_crop = min(orig_width, right_crop + padding)
+        bottom_crop = min(orig_height, bottom_crop + padding)
+
+        cropped_images = [
+            img.crop((left_crop, top_crop, right_crop, bottom_crop)) for img in all_images
+        ]
+    else:
+        cropped_images = all_images
+
+    # Grid configuration (N columns, M rows total)
+    num_rows = len(systems)
+    num_cols = len(list(systems.values())[0]["states"])
+
+    panel_w, panel_h = cropped_images[0].size
+    spacing_x = 12
+    spacing_y = 15
+    label_y_area = 120
+
+    total_width = panel_w * num_cols + spacing_x * (num_cols - 1)
+    total_height = (panel_h + label_y_area) * num_rows + spacing_y * (num_rows - 1)
+
+    combined = Image.new("RGB", (total_width, total_height), "white")
+    draw = ImageDraw.Draw(combined)
+
+    # Font resolution
+    font_path_to_use = font_path
+    if not font_path_to_use:
+        for path in [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+            "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
+        ]:
+            if os.path.exists(path):
+                font_path_to_use = path
+                break
+
+    try:
+        if font_path_to_use:
+            font_panel_letter = ImageFont.truetype(font_path_to_use, 64)
+            # Find corresponding regular font for time labels
+            regular_font_path = font_path_to_use.replace("-Bold", "").replace("Bold", "")
+            if not os.path.exists(regular_font_path):
+                regular_font_path = font_path_to_use
+            font_time = ImageFont.truetype(regular_font_path, 72)
+        else:
+            font_panel_letter = ImageFont.load_default()
+            font_time = ImageFont.load_default()
+    except OSError:
+        font_panel_letter = ImageFont.load_default()
+        font_time = ImageFont.load_default()
+
+    img_idx = 0
+    for r, (sys_name, sys_cfg) in enumerate(systems.items()):
+        row_y = r * (panel_h + label_y_area + spacing_y)
+        for c in range(num_cols):
+            img = cropped_images[img_idx]
+            x = c * (panel_w + spacing_x)
+            combined.paste(img, (x, row_y))
+
+            # Panel letter on the first panel of each row
+            if c == 0:
+                letter = chr(65 + r)  # A, B, C...
+                draw.text((x + 20, row_y + 20), letter, fill="black", font=font_panel_letter)
+
+            # Time label
+            time_str = sys_cfg["times"][c]
+            try:
+                time_w = draw.textlength(time_str, font=font_time)
+            except AttributeError:
+                time_w, _ = draw.textsize(time_str, font=font_time)
+
+            time_x = x + (panel_w - time_w) // 2
+            time_y = row_y + panel_h + 20
+            draw.text((time_x, time_y), time_str, fill="black", font=font_time)
+
+            img_idx += 1
+
+    # Draw faint dashed separator line only for G12C row (row r = 1) between columns 3 (0.99ns) and 4 (1.00ns)
+    # If the system name G12C exists as the second row (standard KRAS layout)
+    sys_list = list(systems.keys())
+    if "G12C" in sys_list and sys_list.index("G12C") == 1 and num_cols >= 8:
+        x_divider = 4 * panel_w + 3 * spacing_x + spacing_x // 2
+        y_start = 1 * (panel_h + label_y_area + spacing_y)
+        y_end = y_start + panel_h
+        dash_len = 15
+        gap_len = 10
+        curr_y = y_start
+        while curr_y < y_end:
+            draw.line(
+                [(x_divider, curr_y), (x_divider, min(curr_y + dash_len, y_end))],
+                fill=(180, 180, 180),
+                width=4,
+            )
+            curr_y += dash_len + gap_len
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    combined.save(str(output_path), dpi=(300, 300))
+    print(f"Master snapshots grid successfully saved to {output_path}!")
+
+    # Clean up temp files
+    for sys_name in systems.keys():
+        for path in rendered_files[sys_name]:
+            if os.path.exists(path):
+                os.remove(path)
+    if temp_path.exists():
+        try:
+            temp_path.rmdir()
+        except OSError:
+            pass

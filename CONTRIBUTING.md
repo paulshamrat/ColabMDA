@@ -24,10 +24,29 @@ mamba env create -f environment.yml
 conda activate colabmda
 ```
 
-## Code Quality Standards
+## Project Architecture & Modularity Guide
 
-We use the following tools to maintain code quality:
-*   **Black:** For code formatting.
-*   **Ruff:** For linting and static analysis.
+ColabMDA is designed with a **Modular Command-Line Architecture**. This separates the "User Interface" (CLI) from the "Scientific Logic" (Engines).
+
+### 1. The Core Structure
+*   **`src/colabmda/cli.py`**: The central entry point. It handles argument parsing and basic path resolution. It **should not** contain heavy scientific logic.
+*   **`src/colabmda/modeller/`**: Contains everything related to protein modeling.
+    *   `engine.py`: The core MODELLER logic.
+    *   `commands.py`: Bridge between the CLI and the engine.
+*   **`src/colabmda/openmm_pw/`**: Contains everything related to OpenMM simulations.
+    *   `engine/`: Contains core simulation scripts.
+    *   `modular/`: Contains individual EM, NVT, NPT, and MD steps.
+    *   `commands.py`: Bridge between the CLI and the engine.
+
+### 2. Adding a New Feature
+1.  **Logic First:** Add your core logic in a new file within the appropriate engine directory (e.g., `src/colabmda/openmm_pw/analysis_tools.py`).
+2.  **Add Command Handler:** Update the `commands.py` file in that directory to expose your logic as a function.
+3.  **Update CLI:** Add a new subcommand to `cli.py` that calls your command handler.
+4.  **Test Locally:** Run your new command with a `test_` prefix to ensure it doesn't get tracked by Git.
+
+### 3. Coding Style
+*   **Functional Programming:** Prefer clean, standalone functions over complex classes where possible.
+*   **Logging:** Use the project's logging patterns (writing to a `pipeline.log` in the output directory) to help users debug.
+*   **Linting:** Always run `black .` and `ruff check . --fix` before committing.
 
 Happy coding!

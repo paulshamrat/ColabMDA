@@ -73,25 +73,6 @@ def _default_project_root() -> str:
 
 
 def main():
-    from colabmda.modeller.commands import (
-        modeller_build,
-        modeller_mutate,
-    )
-    from colabmda.openmm_pw.commands import (
-        openmm_analysis,
-        openmm_check_equil,
-        openmm_compare,
-        openmm_em,
-        openmm_md,
-        openmm_merge,
-        openmm_npt,
-        openmm_nvt,
-        openmm_prep_from_file,
-        openmm_prep_from_pdbid,
-        openmm_status,
-        openmm_view,
-    )
-
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
 
@@ -248,6 +229,24 @@ def main():
         "-r", "--resi", type=int, default=12, help="Highlight residue index (default: 12)"
     )
 
+    # snapshots
+    p_snap = sub_openmm.add_parser(
+        "snapshots", help="Generate comparative snapshot grid (e.g. 3x8 WT vs Mutants)"
+    )
+    p_snap.add_argument(
+        "-c", "--config", default=None, help="Path to custom JSON configuration file"
+    )
+    p_snap.add_argument(
+        "-o",
+        "--output",
+        default="manuscript/figures/master_3x8_snapshots.png",
+        help="Path to output image grid file",
+    )
+    p_snap.add_argument(
+        "--temp-dir", default="scratch/master_grid_3x8", help="Temporary folder for panel rendering"
+    )
+    p_snap.add_argument("--font-path", default=None, help="Custom TrueType font path")
+
     # stage
     p_stage = sub_openmm.add_parser(
         "stage", help="Stage a WT/mutant structure into simulations/<name>"
@@ -331,6 +330,22 @@ def main():
     args = p.parse_args()
 
     if args.tool == "openmm":
+        from colabmda.openmm_pw.commands import (
+            openmm_analysis,
+            openmm_check_equil,
+            openmm_compare,
+            openmm_em,
+            openmm_md,
+            openmm_merge,
+            openmm_npt,
+            openmm_nvt,
+            openmm_prep_from_file,
+            openmm_prep_from_pdbid,
+            openmm_snapshots,
+            openmm_status,
+            openmm_view,
+        )
+
         if args.cmd == "prep":
             if args.pdb_id:
                 root = _resolve_root(args.drive, args.root)
@@ -498,6 +513,14 @@ def main():
         elif args.cmd == "view":
             openmm_view(args.pdb_dir, args.topology, args.trajectory, resi=args.resi)
 
+        elif args.cmd == "snapshots":
+            openmm_snapshots(
+                config_path=args.config,
+                output=args.output,
+                temp_dir=args.temp_dir,
+                font_path=args.font_path,
+            )
+
         elif args.cmd == "status":
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
@@ -543,6 +566,11 @@ def main():
                 )
 
     elif args.tool == "modeller":
+        from colabmda.modeller.commands import (
+            modeller_build,
+            modeller_mutate,
+        )
+
         if args.cmd == "build":
             modeller_build(args)
         elif args.cmd == "mutate":
