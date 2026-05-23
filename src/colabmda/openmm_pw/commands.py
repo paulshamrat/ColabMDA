@@ -88,6 +88,63 @@ def _range_gaps(ranges):
     return gaps
 
 
+def _read_dcd_frames(dcd_path: Path) -> int | None:
+    try:
+        with open(dcd_path, "rb") as f:
+            header = f.read(12)
+            if len(header) < 12:
+                return None
+            import struct
+
+            block_size, signature, nset = struct.unpack("i4sI", header[:12])
+            if block_size != 84:
+                block_size, signature, nset = struct.unpack(">i4sI", header[:12])
+            if signature == b"CORD":
+                return nset
+    except Exception:
+        pass
+    return None
+
+
+def _read_topology_info(pdb_path: Path) -> dict | None:
+    if not pdb_path.is_file():
+        return None
+    try:
+        atoms = 0
+        residues = set()
+        waters = 0
+        ions = 0
+        ion_names = {"NA", "CL", "SOD", "CLA", "K", "MG", "CA", "ZN"}
+        water_names = {"HOH", "WAT", "SOL", "TIP3"}
+
+        with open(pdb_path) as f:
+            for line in f:
+                if line.startswith(("ATOM", "HETATM")):
+                    atoms += 1
+                    res_name = line[17:20].strip()
+                    res_seq = line[22:26].strip()
+                    chain_id = line[21].strip()
+                    res_key = (chain_id, res_seq, res_name)
+                    if res_key not in residues:
+                        residues.add(res_key)
+                        if res_name in water_names:
+                            waters += 1
+                        elif res_name.upper() in ion_names:
+                            ions += 1
+
+        protein_res = len(residues) - waters - ions
+        return {
+            "atoms": atoms,
+            "residues": len(residues),
+            "protein_residues": protein_res,
+            "waters": waters,
+            "ions": ions,
+        }
+    except Exception:
+        pass
+    return None
+
+
 def openmm_status(pdbid_dir: str):
     workdir = Path(pdbid_dir).resolve()
     if not workdir.exists():
@@ -119,9 +176,47 @@ def openmm_status(pdbid_dir: str):
     solv = workdir / "solvated.pdb"
     can_resume = chk.exists() and xml.exists() and solv.exists()
 
+    topo_pdb = (
+        solv
+        if solv.exists()
+        else (merged_dcd.with_suffix(".pdb") if merged_dcd.with_suffix(".pdb").exists() else None)
+    )
+
     print("\n[STATUS]")
     print(f"  Workdir          : {workdir}")
     print(f"  Chunks (DCD/log) : {len(dcds)} / {len(logs)}")
+    if topo_pdb:
+        t_info = _read_topology_info(topo_pdb)
+        if t_info:
+            print(f"  Topology File    : {topo_pdb.name}")
+            print(f"                     └─ {t_info['atoms']} atoms, {t_info['residues']} residues")
+            print(
+                f"                     └─ ({t_info['protein_residues']} protein, {t_info['waters']} water, {t_info['ions']} ions)"
+            )
+    else:
+        print("  Topology File    : NOT FOUND")
+
+    merged_dcd_str = "NOT FOUND"
+    if merged_dcd.exists():
+        frames = _read_dcd_frames(merged_dcd)
+        if frames is not None:
+            merged_dcd_str = f"{merged_dcd.name} ({frames} frames)"
+        else:
+            merged_dcd_str = f"{merged_dcd.name} (exists)"
+
+    merged_log_str = "NOT FOUND"
+    if merged_log.exists():
+        try:
+            with open(merged_log) as f:
+                lines = sum(1 for line in f if line.strip())
+                frames = max(0, lines - 1)
+                merged_log_str = f"{merged_log.name} ({frames} frames)"
+        except Exception:
+            merged_log_str = f"{merged_log.name} (exists)"
+
+    print(f"  Trajectory File  : {merged_dcd_str}")
+    print(f"  Log File         : {merged_log_str}")
+
     if total_frames:
         print(f"  Frames (from logs): {total_frames}")
     else:
@@ -147,8 +242,6 @@ def openmm_status(pdbid_dir: str):
     print(
         f"  Resume-ready     : {'YES' if can_resume else 'NO'} (needs prod.chk, system.xml, solvated.pdb)"
     )
-    print(f"  Merged DCD       : {'YES' if merged_dcd.exists() else 'NO'}")
-    print(f"  Merged log       : {'YES' if merged_log.exists() else 'NO'}")
 
 
 def _run(script: Path, argv: list[str], cwd: str | None = None):
@@ -243,6 +336,10 @@ def openmm_merge(
     stride: int = 1,
     center: bool = False,
     wrap: bool = False,
+    mda: bool = False,
+    selection: str | None = None,
+    ca_only: bool = False,
+    protein_only: bool = False,
 ):
     argv = [pdbid_dir, "--out-traj", out_traj, "--out-log", out_log, "--stride", str(stride)]
     if topology:
@@ -251,6 +348,14 @@ def openmm_merge(
         argv += ["--center"]
     if wrap:
         argv += ["--wrap"]
+    if mda:
+        argv += ["--mda"]
+    if selection:
+        argv += ["--selection", selection]
+    if ca_only:
+        argv += ["--ca-only"]
+    if protein_only:
+        argv += ["--protein-only"]
     pkg, name = SCRIPTS["merge"]
     _run(_script_path(pkg, name), argv)
 
@@ -388,3 +493,119 @@ def openmm_compare(series_list, outdir):
             plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
         plt.close()
     print(f"✅ Aggregate plots saved in {outdir}")
+
+
+def openmm_view(pdb_dir: str | None, topology: str | None, trajectory: str | None, resi: int = 12):
+    import subprocess
+    from pathlib import Path
+
+    # 1. Resolve simulation directory
+    sim_dir = Path(pdb_dir or os.getcwd()).resolve()
+    if not sim_dir.is_dir():
+        sys.exit(f"Error: directory '{sim_dir}' does not exist.")
+
+    # 2. Resolve topology and trajectory filenames
+    topo_name = topology
+    traj_name = trajectory
+
+    if not topo_name:
+        for candidate in ["prod_full.pdb", "kras_protein.pdb", "solvated.pdb"]:
+            if (sim_dir / candidate).is_file():
+                topo_name = candidate
+                break
+        if not topo_name:
+            sys.exit(f"Error: No topology PDB file found in '{sim_dir}'. Run merge first.")
+
+    if not traj_name:
+        for candidate in ["prod_full.dcd", "kras_protein.dcd"]:
+            if (sim_dir / candidate).is_file():
+                traj_name = candidate
+                break
+        if not traj_name:
+            sys.exit(f"Error: No trajectory DCD file found in '{sim_dir}'. Run merge first.")
+
+    topo_path = sim_dir / topo_name
+    traj_path = sim_dir / traj_name
+
+    if not topo_path.is_file():
+        sys.exit(f"Error: topology file not found: {topo_path}")
+    if not traj_path.is_file():
+        sys.exit(f"Error: trajectory file not found: {traj_path}")
+
+    # Find crystal reference PDB (e.g., 4ldj_wt.pdb) to align coordinate space
+    ref_name = f"{sim_dir.parent.name}.pdb"
+    ref_path = sim_dir / ref_name
+    if not ref_path.is_file():
+        for p in sim_dir.glob("*.pdb"):
+            if (
+                p.name not in [topo_name, "solvated.pdb", "equilibrated.pdb"]
+                and "cleaned" not in p.name
+                and "protein" not in p.name
+            ):
+                ref_name = p.name
+                ref_path = p
+                break
+
+    align_cmds = ""
+    if ref_path.is_file():
+        align_cmds = f"""
+# 2b. Align trajectory to the crystal reference to ensure identical viewing orientation
+load {ref_name}, crystal_ref
+align kras and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
+delete crystal_ref
+"""
+
+    # 3. Create visualize.pml file
+    pml_content = f"""# PyMOL Script generated by ColabMDA
+# 1. Clear out all the old overlapping objects from memory
+reinitialize
+bg_color white
+
+# 2. Load the trajectory files
+load {topo_name}, kras
+load_traj {traj_name}, kras
+{align_cmds}
+# 3. Hide solvent water and ions
+hide everything, all
+hide nonbonded, all
+hide nb_spheres, all
+
+# 4. Freeze the backbone tumbling rotation frame-by-frame
+intra_fit kras and name CA
+
+# 5. Generate your crisp secondary structure ribbon
+dss kras
+cartoon automatic, kras
+show cartoon, kras
+
+# 6. Apply your smooth cyan color scheme
+color cyan, kras and name C*
+util.cnc("kras")
+
+# 7. Highlight the mutated residue side chain sticks
+show sticks, kras and resi {resi} and not name N+C+O+H
+color yellow, kras and resi {resi} and name SG
+set stick_radius, 0.25
+
+# 8. Focus camera right onto the protein
+zoom kras and polymer, buffer=4
+"""
+    pml_file = sim_dir / "visualize.pml"
+    try:
+        pml_file.write_text(pml_content)
+        print(f"→ Generated PyMOL script: {pml_file}")
+    except Exception as e:
+        sys.exit(f"Error writing PyMOL script: {e}")
+
+    # 4. Run PyMOL
+    if not shutil.which("pymol"):
+        print("[WARN] PyMOL executable ('pymol') not found in PATH.")
+        print("Please install PyMOL or run manually using the generated visualize.pml file:")
+        print(f"  cd {sim_dir} && pymol visualize.pml")
+        return
+
+    print(f"→ Launching PyMOL: pymol visualize.pml in {sim_dir}...")
+    try:
+        subprocess.run(["pymol", "visualize.pml"], cwd=str(sim_dir), check=True)
+    except Exception as e:
+        print(f"Error running PyMOL: {e}")

@@ -24,8 +24,6 @@ import os
 import re
 import sys
 
-import mdtraj as md
-
 
 def parse_args():
     p = argparse.ArgumentParser(description="Merge MD chunk files")
@@ -44,6 +42,14 @@ def parse_args():
         action="store_true",
         help="Wrap solvent molecules back into the primary box (image_molecules)",
     )
+    p.add_argument(
+        "--mda", action="store_true", help="Use MDAnalysis for merging and PBC correction"
+    )
+    p.add_argument("--selection", default=None, help="MDAnalysis selection string (implies --mda)")
+    p.add_argument("--ca-only", action="store_true", help="Extract Cα atoms only (implies --mda)")
+    p.add_argument(
+        "--protein-only", action="store_true", help="Extract protein-only atoms (implies --mda)"
+    )
     return p.parse_args()
 
 
@@ -53,6 +59,8 @@ def extract_start_ps(filename):
 
 
 def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=False):
+    import mdtraj as md
+
     pdbid = os.path.abspath(pdbid)
     # determine topology path
     topo = topology or os.path.join(pdbid, "solvated.pdb")
@@ -163,20 +171,135 @@ def merge_logs(pdbid, out_log, stride=1):
     os.chdir(start_dir)
 
 
+def merge_trajectories_mda(
+    pdbid,
+    topology,
+    out_traj,
+    stride=1,
+    center=False,
+    wrap=False,
+    selection=None,
+    ca_only=False,
+    protein_only=False,
+):
+    try:
+        import MDAnalysis as mda_lib
+        from MDAnalysis.transformations import center_in_box, unwrap
+    except ImportError:
+        sys.exit(
+            "Error: MDAnalysis is required for --mda options. Install with: pip install mdanalysis"
+        )
+
+    pdbid = os.path.abspath(pdbid)
+    topo = topology or os.path.join(pdbid, "solvated.pdb")
+    topo = os.path.abspath(topo)
+    if not os.path.isfile(topo):
+        sys.exit(f"Error: topology file not found: {topo}")
+
+    start_dir = os.getcwd()
+    os.chdir(pdbid)
+    candidates = glob.glob("prod_*to*ps.dcd")
+    dcd_files = [f for f in candidates if os.path.isfile(f) and os.path.getsize(f) > 0]
+    dcd_files.sort(key=extract_start_ps)
+    if not dcd_files:
+        os.chdir(start_dir)
+        sys.exit("Error: no valid .dcd chunk files found.")
+
+    print("Merging DCD chunks (MDAnalysis mode):")
+    for f in dcd_files:
+        print("  ", f)
+    print(
+        f"Using stride: {stride} | center: {center} | wrap: {wrap} | "
+        f"ca_only: {ca_only} | protein_only: {protein_only} | selection: {selection}"
+    )
+
+    out_traj_abs = os.path.abspath(out_traj)
+    out_topo_abs = out_traj_abs.replace(".dcd", ".pdb")
+
+    # Load Universe
+    u = mda_lib.Universe(topo, dcd_files)
+
+    # Determine selection
+    if ca_only:
+        sel_str = "protein and name CA"
+    elif protein_only:
+        sel_str = "protein"
+    elif selection:
+        sel_str = selection
+    else:
+        sel_str = "all"
+
+    output_sel = u.select_atoms(sel_str)
+    if len(output_sel) == 0:
+        os.chdir(start_dir)
+        sys.exit(f"Error: Selection '{sel_str}' matched 0 atoms.")
+
+    # Transformations
+    protein = u.select_atoms("protein")
+    if (wrap or center) and len(protein) > 0:
+        protein.guess_bonds()
+
+    workflow = []
+    if wrap and len(protein) > 0:
+        workflow.append(unwrap(protein))
+    if center and len(protein) > 0:
+        workflow.append(center_in_box(protein, center="mass"))
+
+    if workflow:
+        u.trajectory.add_transformations(*workflow)
+
+    # Write topology first
+    output_sel.write(out_topo_abs)
+    print(f"→ Wrote merged topology: {out_topo_abs}")
+
+    # Write trajectory
+    total_frames = len(u.trajectory)
+    print(f"Writing merged trajectory (total frames: {total_frames})...")
+    merged_count = 0
+    with mda_lib.Writer(out_traj_abs, output_sel.n_atoms) as W:
+        for i, ts in enumerate(u.trajectory):
+            if i % stride == 0:
+                W.write(output_sel)
+                merged_count += 1
+            if i % 100 == 0 or i == total_frames - 1:
+                print(f" -> Processed frame {i}/{total_frames} ({(i/total_frames)*100:.1f}%)")
+                sys.stdout.flush()
+
+    print(f"→ Wrote merged trajectory: {out_traj_abs} ({merged_count} frames)")
+    os.chdir(start_dir)
+
+
 def main():
     args = parse_args()
     if not os.path.isdir(args.pdbid):
         sys.exit(f"Error: directory '{args.pdbid}' not found.")
     if args.stride < 1:
         sys.exit("Error: --stride must be >= 1")
-    merge_trajectories(
-        args.pdbid,
-        args.topology,
-        args.out_traj,
-        stride=args.stride,
-        center=args.center,
-        wrap=args.wrap,
-    )
+
+    # Automatically trigger MDAnalysis mode if any MDAnalysis specific flags are active
+    mda_active = args.mda or args.ca_only or args.protein_only or (args.selection is not None)
+
+    if mda_active:
+        merge_trajectories_mda(
+            args.pdbid,
+            args.topology,
+            args.out_traj,
+            stride=args.stride,
+            center=args.center,
+            wrap=args.wrap,
+            selection=args.selection,
+            ca_only=args.ca_only,
+            protein_only=args.protein_only,
+        )
+    else:
+        merge_trajectories(
+            args.pdbid,
+            args.topology,
+            args.out_traj,
+            stride=args.stride,
+            center=args.center,
+            wrap=args.wrap,
+        )
     merge_logs(args.pdbid, args.out_log, stride=args.stride)
 
 

@@ -5,7 +5,7 @@
 
 📖 **Full Documentation:** Visit our official manual at [colabmda.readthedocs.io](https://colabmda.readthedocs.io/)
 
-### 🛠 Project Information
+## 🛠 Project Information
 | Category | Details |
 | :--- | :--- |
 | **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
@@ -39,7 +39,7 @@ Before starting, ensure your environment is ready:
 2. **Verify GPU:** Run `!nvidia-smi` in a cell to confirm GPU access.
 3. **Mount Drive:** Click the **Folder icon** 📂 in the left sidebar, then click the **Drive icon** (Mount Drive), or run the code block below:
 
-```python
+```ipython
 from google.colab import drive
 drive.mount('/content/drive')
 !nvidia-smi
@@ -183,11 +183,11 @@ colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst
 ```
 
 ### 3.2. Setup and Run MD
-**Environment:** `base`
+**Environment:** `openmm_env`
 
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate base
+conda activate openmm_env
 cd /path/to/your/project
 
 # 1. Initialize the simulation folder
@@ -208,18 +208,92 @@ colabmda openmm run --name 4ldj_G12D --replica r1 --total-ns 10.0 --traj-interva
 > **Note:** The `run` command includes an **Automated Stability Gate**. It automatically analyzes equilibration logs and aborts if the system hasn't stabilized, saving GPU time.
 
 ### 3.3. Merge and Center
-Combine chunks into a single DCD and wrap solvent.
+Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine (`--mda`).
 
 ```bash
-# Standard Merge (Center + Wrap)
+# Standard Merge (Center + Wrap, All Atoms)
 # For Wild-Type:
 colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
+
 # For Mutant (G12D):
 colabmda openmm merge --pdb-dir simulations/4ldj_G12D/r1 --center --wrap
 ```
 
+#### Output Files:
+After a standard merge, the following files are created in the simulation replica folder:
+*   `prod_full.dcd`: The final, concatenated, and centered/wrapped trajectory file.
+*   `prod_full.log`: The consolidated log file containing energy and temperature statistics.
+
 > 💡 **Pro-Tip for Long Runs:**
 > Merging processes trajectories frame-by-frame, so it won't crash your RAM. You can merge without striding (`--stride 1`) for full resolution, or use `--stride 10` to create a lightweight file for local viewing.
+> 
+> When you merge with `--stride 10`, the logs are automatically strided to match, and the analysis command (`colabmda openmm analysis`) will read the logs to correctly infer the time scale.
+
+> 💡 **Protein-Only Trajectory (Optional):**  
+> If you wish to save significant disk space (saving >85% storage), you can add the `--protein-only` flag to the merge command. This will extract only the protein atoms, discarding water and ions:  
+> `colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap --protein-only`
+> 
+> **Outputs with `--protein-only`:**
+> * `prod_full.dcd`: Thinned trajectory containing protein atoms only.
+> * `prod_full.pdb`: Matching protein-only topology PDB file (crucial for subsequent analysis/visualization to avoid atom mismatch).
+> * `prod_full.log`: Consolidated log file.
+
+### 3.4. Post-Merge Guidelines & Verification (FAQ)
+
+#### 3.4.1. 🔍 Verifying Trajectory Frames
+To quickly check the status, simulation time, and number of frames in your merged files, run:
+```bash
+colabmda openmm status --pdb-dir simulations/4ldj_wt/r1
+```
+This will print a comprehensive status report including topology stats, chunks, and exact frame counts:
+```text
+[STATUS]
+  Workdir          : /path/to/simulations/4ldj_wt/r1
+  Chunks (DCD/log) : 100 / 100
+  Topology File    : solvated.pdb
+                     └─ 27273 atoms, 8388 residues
+                     └─ (169 protein, 8170 water, 49 ions)
+  Trajectory File  : prod_full.dcd (10000 frames)
+  Log File         : prod_full.log (10000 frames)
+  Frames (from logs): 10000
+```
+
+Alternatively, you can query the frame count using a python one-liner with MDAnalysis:
+```bash
+python3 -c "import MDAnalysis as mda; u = mda.Universe('prod_full.pdb', 'prod_full.dcd'); print('Frames:', len(u.trajectory))"
+```
+
+#### 3.4.2. ⏱️ Understanding Simulation Time vs. Frame Counts
+To calculate how much simulation time (in nanoseconds) your trajectory represents or how many frames you should expect, use this quick guide:
+
+*   **Total Simulation Time**: Controlled by `--total-ns` (e.g., `100.0` ns = `100,000` ps).
+*   **Frame Saving Frequency**: Controlled by `--traj-interval` in picoseconds (default is `10.0` ps = `0.01` ns).
+*   **Calculating Expected Frames**:
+    $$\text{Expected Frames} = \frac{\text{Total Time (ps)}}{\text{Trajectory Saving Interval (ps)}}$$
+    *   *Example:* If you run a `100.0` ns simulation with a `10.0` ps saving interval:
+        $$\text{Expected Frames} = \frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$$
+
+*   **Effect of Striding on Merged Trajectories**:
+    If you merge chunks using a stride (e.g., `--stride 10` for lightweight local viewing):
+    $$\text{Merged Frames} = \frac{\text{Total Frames}}{\text{Stride}} = \frac{10,000}{10} = 1,000\text{ frames}$$
+    The `status` command will display this discrepancy clearly:
+    ```text
+    Frames (from logs): 10000        # Original simulation frames
+    Merged DCD        : YES (1000 frames) # Thinned frames after striding
+    ```
+
+#### 3.4.3. 🧬 Reference Topology Guidelines
+When merging trajectories, the reference topology file used and the resulting output files depend on your merge options:
+
+| Merge Mode | Command Flags | Reference Topology | Generated Topology File | Subsequent Command Usage |
+| :--- | :--- | :--- | :--- | :--- |
+| **Standard Merge** | `colabmda openmm merge --center --wrap` | `solvated.pdb` | *None* (only `prod_full.dcd` is written) | Use `solvated.pdb` for analysis/visualization. |
+| **MDAnalysis Merge** | `colabmda openmm merge --mda --center --wrap` | `solvated.pdb` | `prod_full.pdb` (all atoms) | Use `prod_full.pdb` (or `solvated.pdb`). |
+| **Protein-Only Merge** | `colabmda openmm merge --protein-only` | `solvated.pdb` | `prod_full.pdb` (protein atoms only) | **Must** use `prod_full.pdb` (since `prod_full.dcd` contains only protein coordinates). |
+
+##### Why does this matter?
+If you merge using the `--protein-only` flag, your `prod_full.dcd` will only contain protein coordinates (~2,600 atoms). Attempting to load this trajectory along with the original `solvated.pdb` (~27,000 atoms) in PyMOL or MDAnalysis will result in a **fatal atom mismatch error**. Always match the trajectory file with its corresponding topology file as shown in the table above.
+
 
 ---
 
@@ -246,7 +320,102 @@ colabmda openmm compare \
 
 ---
 
-## Project Strategy
+## 5. Trajectory Visualization in PyMOL
+
+To visualize molecular dynamics trajectories in PyMOL with full secondary structure (ribbon/cartoon) and detailed sidechain representations, you can use the built-in `colabmda openmm view` command.
+
+### 5.1. Local Setup and Installation
+Since molecular dynamics simulations are performed on Google Colab, trajectory visualization is run locally on your workstation/laptop. 
+
+> [!NOTE]
+> **For Windows Users:** It is highly recommended to run the visualization locally either using **WSL (Windows Subsystem for Linux)** or using native **PyMOL on Windows** (by running the CLI to generate `visualize.pml`, then opening it in the Windows PyMOL GUI).
+
+It is highly recommended to create a dedicated conda environment (e.g. `colabmda_env`) containing both PyMOL and the ColabMDA package:
+
+```bash
+# 1. Create a clean environment and install PyMOL
+conda create -y -n colabmda_env -c conda-forge python=3.11 pymol-open-source
+
+# 2. Activate the environment
+conda activate colabmda_env
+
+# 3. Install ColabMDA package (Lightweight local installation)
+python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.git@main"
+
+# 4. Verify PyMOL installation and version
+pymol --version
+```
+*(Note: This local installation is extremely lightweight and does not require heavy simulation engines like OpenMM or MDAnalysis just to view files).*
+
+### 5.2. Running the Visualization in PyMOL
+Simply run the view command from your simulation folder (it will automatically look for `prod_full.pdb` and `prod_full.dcd`, generate a PyMOL script, and launch PyMOL):
+```bash
+# 1. Run view command from within your replica directory:
+cd simulations/4ldj_wt/r1
+colabmda openmm view
+
+# 2. Or run it by specifying the directory path:
+# For Wild-Type:
+colabmda openmm view --pdb-dir simulations/4ldj_wt/r1
+
+# For Mutant (e.g., G12D):
+colabmda openmm view --pdb-dir simulations/4ldj_G12D/r1
+```
+
+> 💡 **Custom Residue/Topology/Trajectory:**  
+> By default, the tool highlights residue index 12 (mutant site). You can customize the highlighted residue and load custom trajectory files using flags:  
+> `colabmda openmm view --pdb-dir simulations/4ldj_wt/r1 --resi 12 -t prod_full.pdb -x prod_full.dcd`
+
+The command automatically generates a `visualize.pml` script in the folder. 
+
+<details>
+<summary><b>Click to view the generated PyMOL script configuration (<code>visualize.pml</code>)</b></summary>
+
+```pymol
+# 1. Clear out all the old overlapping objects from memory
+reinitialize
+bg_color white
+
+# 2. Load the merged trajectory files (prod_full.pdb and prod_full.dcd)
+load prod_full.pdb, kras
+load_traj prod_full.dcd, kras
+
+# 2b. Align trajectory to the crystal reference to ensure identical viewing orientation (e.g., 4ldj_wt.pdb)
+load 4ldj_wt.pdb, crystal_ref
+align kras and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
+delete crystal_ref
+
+# 3. Hide solvent water and ions
+hide everything, all
+hide nonbonded, all
+hide nb_spheres, all
+
+# 4. Freeze the backbone tumbling rotation frame-by-frame
+intra_fit kras and name CA
+
+# 5. Generate your crisp secondary structure ribbon
+dss kras
+cartoon automatic, kras
+show cartoon, kras
+
+# 6. Apply your smooth cyan color scheme
+color cyan, kras and name C*
+util.cnc("kras")
+
+# 7. Highlight your mutated Cysteine 12 side chain sticks flawlessly
+show sticks, kras and resi 12 and not name N+C+O+H
+color yellow, kras and resi 12 and name SG
+set stick_radius, 0.25
+
+# 8. Focus camera right onto the protein
+zoom kras and polymer, buffer=4
+```
+
+</details>
+
+---
+
+## 6. Project Strategy
 Organize work in three phases:
 1. **Preparation**: Build WT first in `structures/<pdbid>/wt/`, then generate mutants.
 2. **Simulation**: Run WT and mutants in separate folders under `simulations/`.
@@ -254,7 +423,7 @@ Organize work in three phases:
 
 ---
 
-## Project Structure
+## 7. Project Structure
 ```text
 /content/drive/MyDrive/openmm/
   structures/
