@@ -389,7 +389,7 @@ def openmm_analysis(
         out_path = Path(outdir)
         out_path.mkdir(parents=True, exist_ok=True)
         qc_file = Path(pdbid_dir) / "equilibration_qc.png"
-        if qc_file.exists():
+        if qc_file.exists() and qc_file.resolve() != (out_path / "equilibration_qc.png").resolve():
             shutil.copy2(qc_file, out_path / "equilibration_qc.png")
             print(f"[INFO] Copied equilibration QC plot to {out_path}")
 
