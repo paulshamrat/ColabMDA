@@ -264,7 +264,7 @@ def merge_trajectories_mda(
                 W.write(output_sel)
                 merged_count += 1
             if i % 100 == 0 or i == total_frames - 1:
-                print(f" -> Processed frame {i}/{total_frames} ({(i/total_frames)*100:.1f}%)")
+                print(f" -> Processed frame {i}/{total_frames} ({(i / total_frames) * 100:.1f}%)")
                 sys.stdout.flush()
 
     print(f"→ Wrote merged trajectory: {out_traj_abs} ({merged_count} frames)")
