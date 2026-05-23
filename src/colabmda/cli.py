@@ -89,6 +89,7 @@ def main():
         openmm_prep_from_file,
         openmm_prep_from_pdbid,
         openmm_status,
+        openmm_view,
     )
 
     p = argparse.ArgumentParser(prog="colabmda")
@@ -166,6 +167,18 @@ def main():
         "--wrap", action="store_true", help="Wrap solvent molecules (image_molecules)"
     )
     p_merge.add_argument(
+        "--mda", action="store_true", help="Use MDAnalysis for merging and PBC correction"
+    )
+    p_merge.add_argument(
+        "--selection", default=None, help="MDAnalysis selection string (implies --mda)"
+    )
+    p_merge.add_argument(
+        "--ca-only", action="store_true", help="Extract Cα atoms only (implies --mda)"
+    )
+    p_merge.add_argument(
+        "--protein-only", action="store_true", help="Extract protein-only atoms (implies --mda)"
+    )
+    p_merge.add_argument(
         "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
     )
     p_merge.add_argument(
@@ -217,6 +230,23 @@ def main():
         help="LABEL=DIR1,DIR2 (e.g. WT=analysis/single/wt/r1,analysis/single/wt/r2)",
     )
     p_comp.add_argument("--outdir", required=True, help="Output directory for plots")
+
+    # view
+    p_view = sub_openmm.add_parser("view", help="View trajectory in PyMOL")
+    p_view.add_argument(
+        "--pdb-dir",
+        default=None,
+        help="Directory containing the merged files (default: current directory)",
+    )
+    p_view.add_argument(
+        "-t", "--topology", default=None, help="Topology file (default: prod_full.pdb)"
+    )
+    p_view.add_argument(
+        "-x", "--trajectory", default=None, help="Trajectory file (default: prod_full.dcd)"
+    )
+    p_view.add_argument(
+        "-r", "--resi", type=int, default=12, help="Highlight residue index (default: 12)"
+    )
 
     # stage
     p_stage = sub_openmm.add_parser(
@@ -435,6 +465,10 @@ def main():
                 stride=args.stride,
                 center=args.center,
                 wrap=args.wrap,
+                mda=args.mda,
+                selection=args.selection,
+                ca_only=args.ca_only,
+                protein_only=args.protein_only,
             )
 
         elif args.cmd == "analysis":
@@ -460,6 +494,9 @@ def main():
 
         elif args.cmd == "compare":
             openmm_compare(args.series, args.outdir)
+
+        elif args.cmd == "view":
+            openmm_view(args.pdb_dir, args.topology, args.trajectory, resi=args.resi)
 
         elif args.cmd == "status":
             root = _resolve_root(args.drive, args.root)

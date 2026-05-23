@@ -37,7 +37,7 @@ def parse_args():
 
 
 def _data_lines(path):
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+    with open(path, encoding="utf-8", errors="ignore") as f:
         for line in f:
             s = line.strip()
             if s and s[0].isdigit():
@@ -118,6 +118,8 @@ def main():
     if interval is None:
         sys.exit("Could not infer interval; pass --interval.")
 
+    print(f"Frames={n_frames}, interval={interval:.3f} ps ({source})")
+
     # Styling for publication
     plt.rcParams.update(
         {
@@ -179,7 +181,7 @@ def main():
     print(f"  → Saved {outdir}/rg_vs_time.png (and .pdf)")
 
     print(f"Saved: {csv_path}")
-    print(f"Saved: {fig_path}")
+    print(f"Saved: {os.path.join(outdir, 'rg_vs_time.png')}")
 
 
 if __name__ == "__main__":
