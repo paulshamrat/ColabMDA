@@ -48,31 +48,39 @@ def preprocess(input_pdb, output_pdb, target_pH=7.0):
         PDBFile.writeFile(fixer.topology, fixer.positions, out)
 
 
+def run_clean_by_pdbid(pdb_id: str, outdir: str | None = None):
+    pdb_id = pdb_id.lower()
+    target_dir = os.path.abspath(outdir or pdb_id)
+    os.makedirs(target_dir, exist_ok=True)
+
+    start_dir = os.getcwd()
+    try:
+        os.chdir(target_dir)
+        raw_pdb = f"{pdb_id}.pdb"
+        cleaned_pdb = f"{pdb_id}_cleaned.pdb"
+
+        # 1) Download raw PDB if missing
+        if not os.path.exists(raw_pdb):
+            download_pdb(pdb_id, raw_pdb)
+        else:
+            print(f"[Download] Raw PDB already exists: {raw_pdb}")
+
+        # 2–5) Preprocess
+        preprocess(raw_pdb, cleaned_pdb)
+
+        print("✅ All done!")
+        print(f"→ Check directory {target_dir} for {raw_pdb} and {cleaned_pdb}")
+    finally:
+        os.chdir(start_dir)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Download & preprocess a PDB by ID")
     parser.add_argument("pdb_id", help="4-character PDB identifier (e.g., 4ldj)")
     parser.add_argument("--outdir", default=None, help="Output directory (default: ./<pdbid>)")
     args = parser.parse_args()
 
-    pdb_id = args.pdb_id.lower()
-    outdir = os.path.abspath(args.outdir or pdb_id)
-    os.makedirs(outdir, exist_ok=True)
-    os.chdir(outdir)
-
-    raw_pdb = f"{pdb_id}.pdb"
-    cleaned_pdb = f"{pdb_id}_cleaned.pdb"
-
-    # 1) Download raw PDB if missing
-    if not os.path.exists(raw_pdb):
-        download_pdb(pdb_id, raw_pdb)
-    else:
-        print(f"[Download] Raw PDB already exists: {raw_pdb}")
-
-    # 2–5) Preprocess
-    preprocess(raw_pdb, cleaned_pdb)
-
-    print("✅ All done!")
-    print(f"→ Check directory {outdir} for {raw_pdb} and {cleaned_pdb}")
+    run_clean_by_pdbid(args.pdb_id, args.outdir)
 
 
 if __name__ == "__main__":

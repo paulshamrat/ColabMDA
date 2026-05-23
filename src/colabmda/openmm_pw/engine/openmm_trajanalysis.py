@@ -12,7 +12,6 @@ Usage:
 import argparse
 import glob
 import os
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -79,48 +78,40 @@ def analyze_single(sim_dir, topo_path, traj_path, interval_user=None):
     return {"times": times, "rmsd": rmsd, "rg": rg, "rmsf": rmsf, "resids": resids}
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("pdbid", help="Simulation directory")
-    parser.add_argument("-t", "--topology")
-    parser.add_argument("-x", "--trajectory")
-    parser.add_argument("-i", "--interval", type=float)
-    parser.add_argument("-o", "--outdir")
-    args = parser.parse_args()
-
-    sim_dir = os.path.abspath(args.pdbid)
-    outdir = Path(args.outdir or f"analysis_{os.path.basename(sim_dir)}").resolve()
-    outdir.mkdir(parents=True, exist_ok=True)
+def run_trajectory_analysis(pdbid, topology=None, trajectory=None, interval=None, outdir=None):
+    sim_dir = os.path.abspath(pdbid)
+    outdir_path = Path(outdir or f"analysis_{os.path.basename(sim_dir)}").resolve()
+    outdir_path.mkdir(parents=True, exist_ok=True)
 
     # Detect replicas
     replica_dirs = sorted(glob.glob(os.path.join(sim_dir, "r[0-9]*")))
     results = []
     labels = []
+    res_outdirs = []
 
     if not replica_dirs:
         # Single mode
-        topo = args.topology or os.path.join(sim_dir, "solvated.pdb")
-        traj = args.trajectory or os.path.join(sim_dir, "prod_full.dcd")
+        topo = topology or os.path.join(sim_dir, "solvated.pdb")
+        traj = trajectory or os.path.join(sim_dir, "prod_full.dcd")
         if os.path.exists(traj):
-            results.append(analyze_single(sim_dir, topo, traj, args.interval))
+            results.append(analyze_single(sim_dir, topo, traj, interval))
             labels.append("Sim")
             # For single mode, save directly in outdir
-            res_outdirs = [outdir]
+            res_outdirs = [outdir_path]
     else:
         # Multi-replica mode
         print(
             f"Detected {len(replica_dirs)} replicas: {[os.path.basename(r) for r in replica_dirs]}"
         )
-        res_outdirs = []
         for rd in replica_dirs:
             topo = os.path.join(rd, "solvated.pdb")
             traj = os.path.join(rd, "prod_full.dcd")
             if os.path.exists(traj):
-                results.append(analyze_single(rd, topo, traj, args.interval))
+                results.append(analyze_single(rd, topo, traj, interval))
                 rep_name = os.path.basename(rd)
                 labels.append(rep_name)
                 # Individual replica output folder
-                rep_out = outdir / rep_name
+                rep_out = outdir_path / rep_name
                 rep_out.mkdir(parents=True, exist_ok=True)
                 res_outdirs.append(rep_out)
 
@@ -132,7 +123,7 @@ def main():
                     shutil.copy2(qc_src, rep_out / "equilibration_qc.png")
 
     if not results:
-        sys.exit("Error: No valid trajectory data found.")
+        raise ValueError("Error: No valid trajectory data found.")
 
     # Plotting Styles
     plt.rcParams.update(
@@ -184,7 +175,7 @@ def main():
 
     # 2. Aggregated Plots (if multiple replicas)
     if len(results) > 1:
-        agg_dir = outdir / "aggregate"
+        agg_dir = outdir_path / "aggregate"
         agg_dir.mkdir(parents=True, exist_ok=True)
 
         # RMSD Avg
@@ -275,7 +266,25 @@ def main():
         plt.savefig(agg_dir / "rmsf_aggregate.png", dpi=300)
         plt.close()
 
-    print(f"✔ Analysis complete. Nested results and raw data saved in: {outdir}")
+    print(f"✔ Analysis complete. Nested results and raw data saved in: {outdir_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("pdbid", help="Simulation directory")
+    parser.add_argument("-t", "--topology")
+    parser.add_argument("-x", "--trajectory")
+    parser.add_argument("-i", "--interval", type=float)
+    parser.add_argument("-o", "--outdir")
+    args = parser.parse_args()
+
+    run_trajectory_analysis(
+        args.pdbid,
+        topology=args.topology,
+        trajectory=args.trajectory,
+        interval=args.interval,
+        outdir=args.outdir,
+    )
 
 
 if __name__ == "__main__":

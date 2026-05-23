@@ -16,16 +16,8 @@ from openmm.app import PDBFile
 from pdbfixer import PDBFixer
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--in", dest="inp", required=True, help="Input PDB file path (e.g., 4LDJ.pdb)")
-    ap.add_argument("--outdir", required=True, help="Output directory (created if missing)")
-    ap.add_argument("--pdbid", default="4ldj", help="Folder/name prefix (default: 4ldj)")
-    ap.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
-    args = ap.parse_args()
-
-    pdbid = args.pdbid
-    outdir = os.path.abspath(args.outdir)
+def run_clean_from_file(pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0):
+    outdir = os.path.abspath(outdir)
     os.makedirs(outdir, exist_ok=True)
 
     raw_out = os.path.join(outdir, f"{pdbid}.pdb")
@@ -33,7 +25,7 @@ def main():
 
     # Copy raw PDB into outdir (so everything is self-contained)
     if not os.path.exists(raw_out):
-        with open(args.inp) as fin, open(raw_out, "w") as fout:
+        with open(pdb_file) as fin, open(raw_out, "w") as fout:
             fout.write(fin.read())
 
     print(f"[Preprocess] Loading {raw_out}")
@@ -44,8 +36,8 @@ def main():
     fixer.findMissingResidues()
     fixer.findMissingAtoms()
     fixer.addMissingAtoms()
-    print(f"[Preprocess] Adding hydrogens at pH {args.ph}...")
-    fixer.addMissingHydrogens(pH=args.ph)
+    print(f"[Preprocess] Adding hydrogens at pH {ph}...")
+    fixer.addMissingHydrogens(pH=ph)
 
     print(f"[Preprocess] Writing cleaned PDB -> {cleaned_out}")
     with open(cleaned_out, "w") as out:
@@ -54,6 +46,17 @@ def main():
     print("✅ Done")
     print("Raw   :", raw_out)
     print("Clean :", cleaned_out)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--in", dest="inp", required=True, help="Input PDB file path (e.g., 4LDJ.pdb)")
+    ap.add_argument("--outdir", required=True, help="Output directory (created if missing)")
+    ap.add_argument("--pdbid", default="4ldj", help="Folder/name prefix (default: 4ldj)")
+    ap.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
+    args = ap.parse_args()
+
+    run_clean_from_file(args.inp, args.outdir, args.pdbid, args.ph)
 
 
 if __name__ == "__main__":

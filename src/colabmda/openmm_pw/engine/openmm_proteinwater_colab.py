@@ -19,7 +19,6 @@ Usage example:
 import argparse
 import os
 import shutil
-import sys
 
 from openmm import LangevinMiddleIntegrator, MonteCarloBarostat, Platform, XmlSerializer, unit
 from openmm.app import (
@@ -169,121 +168,146 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
             shutil.copy2(src, os.path.join(sync_dir, fn))
 
 
+def run_colab_md(
+    workdir,
+    pdbid,
+    total_ns=1.0,
+    traj_interval=100.0,
+    equil_time=100.0,
+    checkpoint_ps=1000.0,
+    sync_dir=None,
+):
+    pdbid = pdbid.lower()
+    workdir = os.path.abspath(workdir)
+    os.makedirs(workdir, exist_ok=True)
+
+    start_dir = os.getcwd()
+    try:
+        os.chdir(workdir)
+
+        cleaned_pdb = os.path.join(workdir, f"{pdbid}_cleaned.pdb")
+        if not os.path.exists(cleaned_pdb):
+            raise FileNotFoundError(f"Error: cleaned PDB not found: {cleaned_pdb}")
+
+        cleanup_stale_artifacts(workdir)
+
+        # MD setup
+        dt = 2.0 * unit.femtoseconds
+        dt_ps = dt.value_in_unit(unit.picoseconds)
+        total_steps = int((total_ns * unit.nanoseconds) / dt)
+        snapshot_steps = max(1, int((traj_interval * unit.picoseconds) / dt))
+        eq_steps = max(1, int((equil_time * unit.picoseconds) / dt))
+        chk_steps = max(1, int((checkpoint_ps * unit.picoseconds) / dt))
+
+        xml_system = "system.xml"
+        pdb_saved = "solvated.pdb"
+        chk_file = "prod.chk"
+
+        # Setup or resume
+        if os.path.isfile(chk_file) and os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
+            print("▶ Resuming …")
+            sim, steps_done = resume_sim(xml_system, pdb_saved, chk_file, dt)
+        else:
+            print("▶ Fresh setup + equilibration …")
+            sim, steps_done = setup_and_equilibrate(
+                cleaned_pdb, dt, eq_steps, xml_system, pdb_saved, chk_file
+            )
+
+        # Production loop
+        while steps_done < total_steps:
+            steps_to_run = min(chk_steps, total_steps - steps_done)
+            ps_start = int(steps_done * dt_ps)
+            ps_end = int(ps_start + steps_to_run * dt_ps)
+            tag = f"{ps_start}to{ps_end}ps"
+            print(f"▶ Running chunk {tag} …")
+
+            dcd_tmp = f"prod_{tag}.dcd.tmp"
+            log_tmp = f"prod_{tag}.log.tmp"
+            dcd_fin = f"prod_{tag}.dcd"
+            log_fin = f"prod_{tag}.log"
+
+            # attach reporters (write to tmp)
+            sim.reporters = []
+            sim.reporters.append(DCDReporter(dcd_tmp, snapshot_steps))
+            sim.reporters.append(
+                StateDataReporter(
+                    log_tmp,
+                    snapshot_steps,
+                    step=True,
+                    time=True,
+                    potentialEnergy=True,
+                    temperature=True,
+                    volume=True,
+                    speed=True,
+                )
+            )
+            sim.reporters.append(CheckpointReporter(chk_file, chk_steps))
+
+            interrupted = False
+            step_failed = False
+            try:
+                sim.step(steps_to_run)
+            except KeyboardInterrupt:
+                interrupted = True
+                print("⚠ Interrupted — checkpoint saved")
+            except Exception as e:
+                step_failed = True
+                print(f"⚠ Step failed: {e}")
+            finally:
+                sim.saveCheckpoint(chk_file)
+
+            new_steps = sim.context.getState().getStepCount()
+            expected_end = steps_done + steps_to_run
+            chunk_complete = (not interrupted) and (not step_failed) and (new_steps >= expected_end)
+
+            completed_files = []
+            if chunk_complete:
+                if os.path.exists(dcd_tmp) and os.path.getsize(dcd_tmp) > 0:
+                    atomic_rename(dcd_tmp, dcd_fin)
+                    completed_files.append(dcd_fin)
+                else:
+                    safe_remove_if_empty(dcd_tmp)
+
+                if os.path.exists(log_tmp) and os.path.getsize(log_tmp) > 0:
+                    atomic_rename(log_tmp, log_fin)
+                    completed_files.append(log_fin)
+                else:
+                    safe_remove_if_empty(log_tmp)
+            else:
+                # Never publish partial chunks under a full-range filename.
+                if os.path.exists(dcd_tmp):
+                    os.remove(dcd_tmp)
+                if os.path.exists(log_tmp):
+                    os.remove(log_tmp)
+
+            steps_done = new_steps
+
+            # Sync to Drive (only essentials + fully completed chunk files)
+            sync_outputs(workdir, sync_dir, extra_files=completed_files)
+
+            print(f"  ✔ Reached step {steps_done}/{total_steps}")
+
+            if interrupted or step_failed:
+                # Stop cleanly so user can restart in next Colab session.
+                break
+
+        if steps_done >= total_steps:
+            print("✔︎ Full production complete")
+    finally:
+        os.chdir(start_dir)
+
+
 def main():
     args = parse_args()
-    pdbid = args.pdbid.lower()
-    workdir = os.path.abspath(args.workdir)
-    os.makedirs(workdir, exist_ok=True)
-    os.chdir(workdir)
-
-    cleaned_pdb = os.path.join(workdir, f"{pdbid}_cleaned.pdb")
-    if not os.path.exists(cleaned_pdb):
-        sys.exit(f"Error: cleaned PDB not found: {cleaned_pdb}")
-
-    cleanup_stale_artifacts(workdir)
-
-    # MD setup
-    dt = 2.0 * unit.femtoseconds
-    dt_ps = dt.value_in_unit(unit.picoseconds)
-    total_steps = int((args.total_ns * unit.nanoseconds) / dt)
-    snapshot_steps = max(1, int((args.traj_interval * unit.picoseconds) / dt))
-    eq_steps = max(1, int((args.equil_time * unit.picoseconds) / dt))
-    chk_steps = max(1, int((args.checkpoint_ps * unit.picoseconds) / dt))
-
-    xml_system = "system.xml"
-    pdb_saved = "solvated.pdb"
-    chk_file = "prod.chk"
-
-    # Setup or resume
-    if os.path.isfile(chk_file) and os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
-        print("▶ Resuming …")
-        sim, steps_done = resume_sim(xml_system, pdb_saved, chk_file, dt)
-    else:
-        print("▶ Fresh setup + equilibration …")
-        sim, steps_done = setup_and_equilibrate(
-            cleaned_pdb, dt, eq_steps, xml_system, pdb_saved, chk_file
-        )
-
-    # Production loop
-    while steps_done < total_steps:
-        steps_to_run = min(chk_steps, total_steps - steps_done)
-        ps_start = int(steps_done * dt_ps)
-        ps_end = int(ps_start + steps_to_run * dt_ps)
-        tag = f"{ps_start}to{ps_end}ps"
-        print(f"▶ Running chunk {tag} …")
-
-        dcd_tmp = f"prod_{tag}.dcd.tmp"
-        log_tmp = f"prod_{tag}.log.tmp"
-        dcd_fin = f"prod_{tag}.dcd"
-        log_fin = f"prod_{tag}.log"
-
-        # attach reporters (write to tmp)
-        sim.reporters = []
-        sim.reporters.append(DCDReporter(dcd_tmp, snapshot_steps))
-        sim.reporters.append(
-            StateDataReporter(
-                log_tmp,
-                snapshot_steps,
-                step=True,
-                time=True,
-                potentialEnergy=True,
-                temperature=True,
-                volume=True,
-                speed=True,
-            )
-        )
-        sim.reporters.append(CheckpointReporter(chk_file, chk_steps))
-
-        interrupted = False
-        step_failed = False
-        try:
-            sim.step(steps_to_run)
-        except KeyboardInterrupt:
-            interrupted = True
-            print("⚠ Interrupted — checkpoint saved")
-        except Exception as e:
-            step_failed = True
-            print(f"⚠ Step failed: {e}")
-        finally:
-            sim.saveCheckpoint(chk_file)
-
-        new_steps = sim.context.getState().getStepCount()
-        expected_end = steps_done + steps_to_run
-        chunk_complete = (not interrupted) and (not step_failed) and (new_steps >= expected_end)
-
-        completed_files = []
-        if chunk_complete:
-            if os.path.exists(dcd_tmp) and os.path.getsize(dcd_tmp) > 0:
-                atomic_rename(dcd_tmp, dcd_fin)
-                completed_files.append(dcd_fin)
-            else:
-                safe_remove_if_empty(dcd_tmp)
-
-            if os.path.exists(log_tmp) and os.path.getsize(log_tmp) > 0:
-                atomic_rename(log_tmp, log_fin)
-                completed_files.append(log_fin)
-            else:
-                safe_remove_if_empty(log_tmp)
-        else:
-            # Never publish partial chunks under a full-range filename.
-            if os.path.exists(dcd_tmp):
-                os.remove(dcd_tmp)
-            if os.path.exists(log_tmp):
-                os.remove(log_tmp)
-
-        steps_done = new_steps
-
-        # Sync to Drive (only essentials + fully completed chunk files)
-        sync_outputs(workdir, args.sync_dir, extra_files=completed_files)
-
-        print(f"  ✔ Reached step {steps_done}/{total_steps}")
-
-        if interrupted or step_failed:
-            # Stop cleanly so user can restart in next Colab session.
-            break
-
-    if steps_done >= total_steps:
-        print("✔︎ Full production complete")
+    run_colab_md(
+        args.workdir,
+        args.pdbid,
+        args.total_ns,
+        args.traj_interval,
+        args.equil_time,
+        args.checkpoint_ps,
+        args.sync_dir,
+    )
 
 
 if __name__ == "__main__":
