@@ -3,6 +3,12 @@ simulations/
 simulations_test/
 test_run/
 test_*/
+structures/
+analysis_outputs/
+*.pdb
+*.fasta
+*.ali
+*.pir
 
 # Binary & Data Files
 *.chk

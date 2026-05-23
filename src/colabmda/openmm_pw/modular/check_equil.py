@@ -14,6 +14,7 @@ def parse_em_log(workdir):
 
 
 def analyze_logs(workdir):
+    workdir = os.path.abspath(workdir)
     os.chdir(workdir)
     nvt_log = "nvt.log"
     npt_log = "npt.log"
