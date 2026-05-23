@@ -25,18 +25,17 @@ from colabmda.openmm_pw.modular.nvt import run_nvt
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
     "clean_by_pdbid": ("colabmda.openmm_pw.engine", "pdbfixer_cleaning.py"),
-    "run_basic": ("colabmda.openmm_pw.engine", "openmm_proteinwater.py"),
     "merge": ("colabmda.openmm_pw.engine", "openmm_trajmerge.py"),
     "analysis": ("colabmda.openmm_pw.engine", "openmm_trajanalysis.py"),
     # Bundled colab-safe workflow scripts (local pdb file cleaning + robust resume)
     "clean_from_file": ("colabmda.openmm_pw.engine", "pdbfixer_clean_fromfile.py"),
     "run_colab": ("colabmda.openmm_pw.engine", "openmm_proteinwater_colab.py"),
     # New Modular Workflow
-    "em": ("colabmda.openmm_pw.modular", "01_em.py"),
-    "nvt": ("colabmda.openmm_pw.modular", "02_nvt.py"),
-    "npt": ("colabmda.openmm_pw.modular", "03_npt.py"),
+    "em": ("colabmda.openmm_pw.modular", "em.py"),
+    "nvt": ("colabmda.openmm_pw.modular", "nvt.py"),
+    "npt": ("colabmda.openmm_pw.modular", "npt.py"),
     "check_equil": ("colabmda.openmm_pw.modular", "check_equil.py"),
-    "md": ("colabmda.openmm_pw.modular", "04_md.py"),
+    "md": ("colabmda.openmm_pw.modular", "md.py"),
 }
 
 
