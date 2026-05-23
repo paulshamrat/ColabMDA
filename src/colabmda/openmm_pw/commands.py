@@ -7,6 +7,21 @@ import sys
 from importlib import resources
 from pathlib import Path
 
+from colabmda.openmm_pw.engine.openmm_proteinwater_colab import run_colab_md
+from colabmda.openmm_pw.engine.openmm_trajanalysis import run_trajectory_analysis
+from colabmda.openmm_pw.engine.openmm_trajmerge import (
+    merge_logs,
+    merge_trajectories,
+    merge_trajectories_mda,
+)
+from colabmda.openmm_pw.engine.pdbfixer_clean_fromfile import run_clean_from_file
+from colabmda.openmm_pw.engine.pdbfixer_cleaning import run_clean_by_pdbid
+from colabmda.openmm_pw.modular.check_equil import analyze_logs
+from colabmda.openmm_pw.modular.em import run_em
+from colabmda.openmm_pw.modular.md import run_md
+from colabmda.openmm_pw.modular.npt import run_npt
+from colabmda.openmm_pw.modular.nvt import run_nvt
+
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
     "clean_by_pdbid": ("colabmda.openmm_pw.engine", "pdbfixer_cleaning.py"),
@@ -276,12 +291,11 @@ def _sync_tree(src_dir: Path, dst_dir: Path):
 
 
 def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: str | None = None):
-    pkg, name = SCRIPTS["clean_by_pdbid"]
     base = Path(root_dir or os.getcwd()).resolve()
     outdir = base / pdbid / "prep"
     outdir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Prep output will be written to: {outdir}")
-    _run(_script_path(pkg, name), [pdbid, "--outdir", str(outdir)])
+    run_clean_by_pdbid(pdbid, outdir=str(outdir))
     if sync_dir:
         _sync_tree(outdir, Path(sync_dir).resolve())
 
@@ -289,13 +303,9 @@ def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: st
 def openmm_prep_from_file(
     pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0, sync_dir: str | None = None
 ):
-    pkg, name = SCRIPTS["clean_from_file"]
     outdir_path = Path(outdir).resolve()
     print(f"[INFO] Prep output will be written to: {outdir_path}")
-    _run(
-        _script_path(pkg, name),
-        ["--in", pdb_file, "--outdir", outdir, "--pdbid", pdbid, "--ph", str(ph)],
-    )
+    run_clean_from_file(pdb_file, outdir, pdbid=pdbid, ph=ph)
     if sync_dir:
         _sync_tree(outdir_path, Path(sync_dir).resolve())
 
@@ -309,23 +319,15 @@ def openmm_run_colab(
     checkpoint_ps: float,
     sync_dir: str | None,
 ):
-    argv = [
-        workdir,
-        "--pdbid",
-        pdbid,
-        "--total-ns",
-        str(total_ns),
-        "--traj-interval",
-        str(traj_interval),
-        "--equil-time",
-        str(equil_time),
-        "--checkpoint-ps",
-        str(checkpoint_ps),
-    ]
-    if sync_dir:
-        argv += ["--sync-dir", sync_dir]
-    pkg, name = SCRIPTS["run_colab"]
-    _run(_script_path(pkg, name), argv)
+    run_colab_md(
+        workdir=workdir,
+        pdbid=pdbid,
+        total_ns=total_ns,
+        traj_interval=traj_interval,
+        equil_time=equil_time,
+        checkpoint_ps=checkpoint_ps,
+        sync_dir=sync_dir,
+    )
 
 
 def openmm_merge(
@@ -341,23 +343,31 @@ def openmm_merge(
     ca_only: bool = False,
     protein_only: bool = False,
 ):
-    argv = [pdbid_dir, "--out-traj", out_traj, "--out-log", out_log, "--stride", str(stride)]
-    if topology:
-        argv += ["--topology", topology]
-    if center:
-        argv += ["--center"]
-    if wrap:
-        argv += ["--wrap"]
-    if mda:
-        argv += ["--mda"]
-    if selection:
-        argv += ["--selection", selection]
-    if ca_only:
-        argv += ["--ca-only"]
-    if protein_only:
-        argv += ["--protein-only"]
-    pkg, name = SCRIPTS["merge"]
-    _run(_script_path(pkg, name), argv)
+    # Automatically trigger MDAnalysis mode if any MDAnalysis specific flags are active
+    mda_active = mda or ca_only or protein_only or (selection is not None)
+
+    if mda_active:
+        merge_trajectories_mda(
+            pdbid=pdbid_dir,
+            topology=topology,
+            out_traj=out_traj,
+            stride=stride,
+            center=center,
+            wrap=wrap,
+            selection=selection,
+            ca_only=ca_only,
+            protein_only=protein_only,
+        )
+    else:
+        merge_trajectories(
+            pdbid=pdbid_dir,
+            topology=topology,
+            out_traj=out_traj,
+            stride=stride,
+            center=center,
+            wrap=wrap,
+        )
+    merge_logs(pdbid_dir, out_log, stride=stride)
 
 
 def openmm_analysis(
@@ -367,17 +377,13 @@ def openmm_analysis(
     interval_ps: float | None,
     outdir: str | None,
 ):
-    argv = [pdbid_dir]
-    if topology:
-        argv += ["--topology", topology]
-    if trajectory:
-        argv += ["--trajectory", trajectory]
-    if interval_ps is not None:
-        argv += ["--interval", str(interval_ps)]
-    if outdir:
-        argv += ["--outdir", outdir]
-    pkg, name = SCRIPTS["analysis"]
-    _run(_script_path(pkg, name), argv)
+    run_trajectory_analysis(
+        pdbid=pdbid_dir,
+        topology=topology,
+        trajectory=trajectory,
+        interval=interval_ps,
+        outdir=outdir,
+    )
 
     # If outdir exists, also copy equilibration plots there for completeness
     if outdir:
@@ -390,26 +396,25 @@ def openmm_analysis(
 
 
 def openmm_em(workdir: str, pdbid: str):
-    pkg, name = SCRIPTS["em"]
-    _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid])
+    success = run_em(workdir, pdbid)
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = None):
-    pkg, name = SCRIPTS["nvt"]
-    argv = [workdir, "--pdbid", pdbid, "--equil-time", str(equil_time)]
-    if seed is not None:
-        argv += ["--seed", str(seed)]
-    _run(_script_path(pkg, name), argv)
+    success = run_nvt(workdir, pdbid, equil_time_ps=equil_time, seed=seed)
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_npt(workdir: str, pdbid: str, equil_time: float):
-    pkg, name = SCRIPTS["npt"]
-    _run(_script_path(pkg, name), [workdir, "--pdbid", pdbid, "--equil-time", str(equil_time)])
+    success = run_npt(workdir, pdbid, equil_time_ps=equil_time)
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_check_equil(workdir: str):
-    pkg, name = SCRIPTS["check_equil"]
-    _run(_script_path(pkg, name), [workdir])
+    analyze_logs(workdir)
 
 
 def openmm_md(
@@ -420,21 +425,16 @@ def openmm_md(
     checkpoint_ps: float,
     sync_dir: str | None = None,
 ):
-    pkg, name = SCRIPTS["md"]
-    argv = [
-        workdir,
-        "--pdbid",
-        pdbid,
-        "--total-ns",
-        str(total_ns),
-        "--traj-interval",
-        str(traj_interval),
-        "--checkpoint-ps",
-        str(checkpoint_ps),
-    ]
-    if sync_dir:
-        argv += ["--sync-dir", sync_dir]
-    _run(_script_path(pkg, name), argv)
+    success = run_md(
+        workdir=workdir,
+        pdbid=pdbid,
+        total_ns=total_ns,
+        traj_interval_ps=traj_interval,
+        checkpoint_ps=checkpoint_ps,
+        sync_dir=sync_dir,
+    )
+    if not success:
+        raise SystemExit(1)
 
 
 def openmm_compare(series_list, outdir):

@@ -62,6 +62,7 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=F
     import mdtraj as md
 
     pdbid = os.path.abspath(pdbid)
+    out_traj = os.path.abspath(out_traj)
     # determine topology path
     topo = topology or os.path.join(pdbid, "solvated.pdb")
     topo = os.path.abspath(topo)
@@ -138,6 +139,7 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=F
 
 def merge_logs(pdbid, out_log, stride=1):
     pdbid = os.path.abspath(pdbid)
+    out_log = os.path.abspath(out_log)
     start_dir = os.getcwd()
     os.chdir(pdbid)
     log_files = sorted(
