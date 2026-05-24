@@ -272,6 +272,84 @@ def print_alignment_summary(aln_path, logfh):
         write(logfh, f"Warning: Could not generate alignment summary: {e}")
 
 
+def align_pdb_to_template_in_place(model_path, template_path, logfh):
+    """Aligns model_path PDB to template_path PDB using Bio.PDB.Superimposer with sequence-based matching."""
+    try:
+        from Bio.PDB import PDBParser, Superimposer, PDBIO
+        from Bio.Align import PairwiseAligner
+
+        parser = PDBParser(QUIET=True)
+        model_struct = parser.get_structure("model", model_path)
+        template_struct = parser.get_structure("template", template_path)
+
+        three_to_one = {
+            "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C",
+            "GLN": "Q", "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I",
+            "LEU": "L", "LYS": "K", "MET": "M", "PHE": "F", "PRO": "P",
+            "SER": "S", "THR": "T", "TRP": "W", "TYR": "Y", "VAL": "V"
+        }
+
+        # Extract CA atoms and sequence
+        model_atoms = []
+        model_seq = []
+        for model in model_struct:
+            for chain in model:
+                for residue in chain:
+                    if residue.id[0] == " " and "CA" in residue:
+                        resname = residue.get_resname().strip().upper()
+                        model_seq.append(three_to_one.get(resname, "X"))
+                        model_atoms.append(residue["CA"])
+
+        template_atoms = []
+        template_seq = []
+        for model in template_struct:
+            for chain in model:
+                for residue in chain:
+                    if residue.id[0] == " " and "CA" in residue:
+                        resname = residue.get_resname().strip().upper()
+                        template_seq.append(three_to_one.get(resname, "X"))
+                        template_atoms.append(residue["CA"])
+
+        aligner = PairwiseAligner()
+        aligner.mode = 'global'
+        aligner.match_score = 2
+        aligner.mismatch_score = -1
+        aligner.open_gap_score = -10
+        aligner.extend_gap_score = -1
+
+        alignments = aligner.align("".join(model_seq), "".join(template_seq))
+        if not alignments:
+            write(logfh, "Warning: Could not align sequences for coordinate alignment.")
+            return
+
+        best_aln = alignments[0]
+        aligned_indices = best_aln.aligned
+
+        matched_model_atoms = []
+        matched_template_atoms = []
+
+        for seg_mod, seg_tmpl in zip(aligned_indices[0], aligned_indices[1]):
+            for m_idx, t_idx in zip(range(seg_mod[0], seg_mod[1]), range(seg_tmpl[0], seg_tmpl[1])):
+                matched_model_atoms.append(model_atoms[m_idx])
+                matched_template_atoms.append(template_atoms[t_idx])
+
+        if not matched_model_atoms:
+            write(logfh, "Warning: No matching residues found for coordinate alignment.")
+            return
+
+        superimposer = Superimposer()
+        superimposer.set_atoms(matched_template_atoms, matched_model_atoms)
+        superimposer.apply(model_struct.get_atoms())
+
+        write(logfh, f"Aligned model to template structure. RMSD = {superimposer.rms:.4f} Angstroms")
+
+        io = PDBIO()
+        io.set_structure(model_struct)
+        io.save(model_path)
+    except Exception as e:
+        write(logfh, f"Warning: Failed to align model to template coordinate frame: {e}")
+
+
 def renumber_pdb(pdb_path, start_res, logfh):
     """
     Physically changes residue numbers in a PDB file to start from 'start_res'.
@@ -900,6 +978,9 @@ def main():
         reinsert_cryst1(model_core, base_with_cryst, cryst1_line)
         base_with_cryst_abs = os.path.abspath(base_with_cryst)
         write(logfh, f"Base model (CRYST1): {base_with_cryst_abs}")
+
+        # Align model back to template coordinate space to ensure ligand/cofactor alignment
+        align_pdb_to_template_in_place(base_with_cryst_abs, f"{pdb_id}_orig.pdb", logfh)
 
         # Fix Numbering
         renumber_pdb(base_with_cryst_abs, start_num, logfh)
