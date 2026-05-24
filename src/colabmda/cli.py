@@ -472,11 +472,17 @@ def main():
                 pdbid_dir = args.pdb_id or args.pdb_dir
             else:
                 pdbid_dir = "."
+
+            # Resolve output paths: bare filenames go inside pdbid_dir, not CWD
+            _pdbid_path = Path(pdbid_dir).resolve()
+            out_traj = args.out_traj if Path(args.out_traj).is_absolute() else str(_pdbid_path / args.out_traj)
+            out_log = args.out_log if Path(args.out_log).is_absolute() else str(_pdbid_path / args.out_log)
+
             openmm_merge(
                 pdbid_dir,
                 args.topology,
-                args.out_traj,
-                args.out_log,
+                out_traj,
+                out_log,
                 stride=args.stride,
                 center=args.center,
                 wrap=args.wrap,
