@@ -12,18 +12,18 @@ from pathlib import Path
 
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
-    "clean_by_pdbid": ("colabmda.openmm_pw.engine", "pdbfixer_cleaning.py"),
-    "merge": ("colabmda.openmm_pw.engine", "openmm_trajmerge.py"),
-    "analysis": ("colabmda.openmm_pw.engine", "openmm_trajanalysis.py"),
+    "clean_by_pdbid": ("colabmda.openmm.engine", "pdbfixer_cleaning.py"),
+    "merge": ("colabmda.openmm.engine", "openmm_trajmerge.py"),
+    "analysis": ("colabmda.openmm.engine", "openmm_trajanalysis.py"),
     # Bundled colab-safe workflow scripts (local pdb file cleaning + robust resume)
-    "clean_from_file": ("colabmda.openmm_pw.engine", "pdbfixer_clean_fromfile.py"),
-    "run_colab": ("colabmda.openmm_pw.engine", "openmm_proteinwater_colab.py"),
+    "clean_from_file": ("colabmda.openmm.engine", "pdbfixer_clean_fromfile.py"),
+    "run_colab": ("colabmda.openmm.engine", "openmm_proteinwater_colab.py"),
     # New Modular Workflow
-    "em": ("colabmda.openmm_pw.modular", "em.py"),
-    "nvt": ("colabmda.openmm_pw.modular", "nvt.py"),
-    "npt": ("colabmda.openmm_pw.modular", "npt.py"),
-    "check_equil": ("colabmda.openmm_pw.modular", "check_equil.py"),
-    "md": ("colabmda.openmm_pw.modular", "md.py"),
+    "em": ("colabmda.openmm.modular", "em.py"),
+    "nvt": ("colabmda.openmm.modular", "nvt.py"),
+    "npt": ("colabmda.openmm.modular", "npt.py"),
+    "check_equil": ("colabmda.openmm.modular", "check_equil.py"),
+    "md": ("colabmda.openmm.modular", "md.py"),
 }
 
 
@@ -278,7 +278,7 @@ def _sync_tree(src_dir: Path, dst_dir: Path):
 
 
 def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: str | None = None):
-    from colabmda.openmm_pw.engine.pdbfixer_cleaning import run_clean_by_pdbid
+    from colabmda.openmm.engine.pdbfixer_cleaning import run_clean_by_pdbid
 
     base = Path(root_dir or os.getcwd()).resolve()
     outdir = base / pdbid / "prep"
@@ -292,7 +292,7 @@ def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: st
 def openmm_prep_from_file(
     pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0, sync_dir: str | None = None
 ):
-    from colabmda.openmm_pw.engine.pdbfixer_clean_fromfile import run_clean_from_file
+    from colabmda.openmm.engine.pdbfixer_clean_fromfile import run_clean_from_file
 
     outdir_path = Path(outdir).resolve()
     print(f"[INFO] Prep output will be written to: {outdir_path}")
@@ -310,7 +310,7 @@ def openmm_run_colab(
     checkpoint_ps: float,
     sync_dir: str | None,
 ):
-    from colabmda.openmm_pw.engine.openmm_proteinwater_colab import run_colab_md
+    from colabmda.openmm.engine.openmm_proteinwater_colab import run_colab_md
 
     run_colab_md(
         workdir=workdir,
@@ -336,7 +336,7 @@ def openmm_merge(
     ca_only: bool = False,
     protein_only: bool = False,
 ):
-    from colabmda.openmm_pw.engine.openmm_trajmerge import (
+    from colabmda.openmm.engine.openmm_trajmerge import (
         merge_logs,
         merge_trajectories,
         merge_trajectories_mda,
@@ -376,7 +376,7 @@ def openmm_analysis(
     interval_ps: float | None,
     outdir: str | None,
 ):
-    from colabmda.openmm_pw.engine.openmm_trajanalysis import run_trajectory_analysis
+    from colabmda.openmm.engine.openmm_trajanalysis import run_trajectory_analysis
 
     run_trajectory_analysis(
         pdbid=pdbid_dir,
@@ -396,16 +396,16 @@ def openmm_analysis(
             print(f"[INFO] Copied equilibration QC plot to {out_path}")
 
 
-def openmm_em(workdir: str, pdbid: str):
-    from colabmda.openmm_pw.modular.em import run_em
+def openmm_em(workdir: str, pdbid: str, ligand: str | None = None, keep_mg: bool = False):
+    from colabmda.openmm.modular.em import run_em
 
-    success = run_em(workdir, pdbid)
+    success = run_em(workdir, pdbid, ligand=ligand, keep_mg=keep_mg)
     if not success:
         raise SystemExit(1)
 
 
 def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = None):
-    from colabmda.openmm_pw.modular.nvt import run_nvt
+    from colabmda.openmm.modular.nvt import run_nvt
 
     success = run_nvt(workdir, pdbid, equil_time_ps=equil_time, seed=seed)
     if not success:
@@ -413,7 +413,7 @@ def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = N
 
 
 def openmm_npt(workdir: str, pdbid: str, equil_time: float):
-    from colabmda.openmm_pw.modular.npt import run_npt
+    from colabmda.openmm.modular.npt import run_npt
 
     success = run_npt(workdir, pdbid, equil_time_ps=equil_time)
     if not success:
@@ -421,7 +421,7 @@ def openmm_npt(workdir: str, pdbid: str, equil_time: float):
 
 
 def openmm_check_equil(workdir: str):
-    from colabmda.openmm_pw.modular.check_equil import analyze_logs
+    from colabmda.openmm.modular.check_equil import analyze_logs
 
     analyze_logs(workdir)
 
@@ -434,7 +434,7 @@ def openmm_md(
     checkpoint_ps: float,
     sync_dir: str | None = None,
 ):
-    from colabmda.openmm_pw.modular.md import run_md
+    from colabmda.openmm.modular.md import run_md
 
     success = run_md(
         workdir=workdir,

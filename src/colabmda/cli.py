@@ -118,6 +118,10 @@ def main():
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
     p_run.add_argument("--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2)")
+    p_run.add_argument("--ligand", default=None, help="Optional: Path to ligand SDF/MOL2 file")
+    p_run.add_argument(
+        "--keep-mg", action="store_true", help="Optional: Keep Mg2+ ion from raw structure"
+    )
     p_run.add_argument(
         "--seed", type=int, default=None, help="Optional: random seed for velocity assignment"
     )
@@ -268,6 +272,10 @@ def main():
     p_em.add_argument("--name", required=True)
     p_em.add_argument("--workdir", default=None)
     p_em.add_argument("--root", default=None)
+    p_em.add_argument("--ligand", default=None, help="Optional: Path to ligand SDF/MOL2 file")
+    p_em.add_argument(
+        "--keep-mg", action="store_true", help="Optional: Keep Mg2+ ion from raw structure"
+    )
 
     p_nvt = sub_openmm.add_parser("nvt", help="Modular: NVT Equilibration")
     p_nvt.add_argument("--name", required=True)
@@ -330,7 +338,7 @@ def main():
     args = p.parse_args()
 
     if args.tool == "openmm":
-        from colabmda.openmm_pw.commands import (
+        from colabmda.openmm.commands import (
             openmm_analysis,
             openmm_check_equil,
             openmm_compare,
@@ -448,8 +456,16 @@ def main():
             if not name:
                 raise SystemExit("ERROR: could not infer pdbid; please specify --name.")
 
+            # Copy ligand file to workdir if provided
+            if args.ligand:
+                ligand_path = Path(args.ligand)
+                local_ligand = Path(workdir_str) / ligand_path.name
+                if ligand_path.exists() and ligand_path.resolve() != local_ligand.resolve():
+                    shutil.copy2(ligand_path, local_ligand)
+                args.ligand = str(local_ligand.resolve())
+
             # MODULAR RUN: EM -> NVT -> NPT -> Check -> MD
-            openmm_em(workdir_str, name)
+            openmm_em(workdir_str, name, ligand=args.ligand, keep_mg=args.keep_mg)
             openmm_nvt(workdir_str, name, args.equil_time, seed=args.seed)
             openmm_npt(workdir_str, name, args.equil_time)
             openmm_check_equil(workdir_str)
@@ -562,7 +578,13 @@ def main():
             workdir = args.workdir or os.getcwd()
             name = args.name
             if args.cmd == "em":
-                openmm_em(workdir, name)
+                if args.ligand:
+                    ligand_path = Path(args.ligand)
+                    local_ligand = Path(workdir) / ligand_path.name
+                    if ligand_path.exists() and ligand_path.resolve() != local_ligand.resolve():
+                        shutil.copy2(ligand_path, local_ligand)
+                    args.ligand = str(local_ligand.resolve())
+                openmm_em(workdir, name, ligand=args.ligand, keep_mg=args.keep_mg)
             elif args.cmd == "nvt":
                 openmm_nvt(workdir, name, args.equil_time, args.seed)
             elif args.cmd == "npt":
