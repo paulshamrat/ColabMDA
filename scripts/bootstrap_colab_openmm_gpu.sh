@@ -18,6 +18,7 @@ set -euo pipefail
 REPO="${COLABMDA_REPO:-paulshamrat/ColabMDA}"
 TAG="${1:-latest}"
 WITH_MODELLER="${WITH_MODELLER:-0}"
+WITH_LIGAND="${WITH_LIGAND:-0}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
@@ -57,6 +58,12 @@ echo "[STEP] Install OpenMM stack in ${OPENMM_ENV_NAME}"
 mamba create -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 cudatoolkit=11.8 openmm openmmtools mdanalysis mdtraj numpy matplotlib biopython
 conda activate "${OPENMM_ENV_NAME}"
 conda install -y -c conda-forge pdbfixer || python -m pip install pdbfixer
+
+if [[ "${WITH_LIGAND}" == "1" ]]; then
+  echo "[STEP] Installing OpenFF and OpenMMForceFields for protein-ligand support..."
+  mamba install -y -c conda-forge openff-toolkit openmmforcefields
+fi
+
 python -m pip install --upgrade pip
 
 if [[ "${WITH_MODELLER}" != "1" && -t 0 ]]; then

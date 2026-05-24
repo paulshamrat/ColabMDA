@@ -5,7 +5,7 @@ import random
 from openmm import XmlSerializer, unit
 from openmm.app import PDBFile, StateDataReporter
 
-from colabmda.openmm_pw.modular.utils import make_sim
+from colabmda.openmm.modular.utils import make_sim
 
 
 def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None):

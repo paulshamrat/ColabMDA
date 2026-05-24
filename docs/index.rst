@@ -8,4 +8,9 @@ ColabMDA Documentation
    :maxdepth: 2
    :caption: Contents:
 
+   installation
+   protein_water_simulation
+   protein_ligand_simulation
+
+
 

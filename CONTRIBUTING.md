@@ -33,13 +33,13 @@ ColabMDA is designed with a **Modular Command-Line Architecture**. This separate
 *   **`src/colabmda/modeller/`**: Contains everything related to protein modeling.
     *   `engine.py`: The core MODELLER logic.
     *   `commands.py`: Bridge between the CLI and the engine.
-*   **`src/colabmda/openmm_pw/`**: Contains everything related to OpenMM simulations.
+*   **`src/colabmda/openmm/`**: Contains everything related to OpenMM simulations.
     *   `engine/`: Contains core simulation scripts.
     *   `modular/`: Contains individual EM, NVT, NPT, and MD steps.
     *   `commands.py`: Bridge between the CLI and the engine.
 
 ### 2. Adding a New Feature
-1.  **Logic First:** Add your core logic in a new file within the appropriate engine directory (e.g., `src/colabmda/openmm_pw/analysis_tools.py`).
+1.  **Logic First:** Add your core logic in a new file within the appropriate engine directory (e.g., `src/colabmda/openmm/analysis_tools.py`).
 2.  **Add Command Handler:** Update the `commands.py` file in that directory to expose your logic as a function.
 3.  **Update CLI:** Add a new subcommand to `cli.py` that calls your command handler.
 4.  **Test Locally:** Run your new command with a `test_` prefix to ensure it doesn't get tracked by Git.
