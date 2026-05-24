@@ -3,8 +3,8 @@
 This guide describes how to model, setup, run, and analyze Molecular Dynamics (MD) simulations for protein-ligand complexes in **ColabMDA**.
 
 > 💡 **Where to Run the Commands:**
-> *   **Staging, Running, and Merging (Sections 1-4.3):** These commands are typically run on **Google Colab** (either natively in the **Colab Terminal** [⋮ → Terminal] or inside notebook cells by prefixing the commands with an exclamation mark `!`).
-> *   **Trajectory Visualization (Section 4.4):** PyMOL trajectory viewing and snapshot generation are run **locally** on your workstation/laptop (which has a graphical display).
+> *   **Staging, Running, and Merging (Sections 1-4.4):** These commands are typically run on **Google Colab** (either natively in the **Colab Terminal** [⋮ → Terminal] or inside notebook cells by prefixing the commands with an exclamation mark `!`).
+> *   **Trajectory Visualization (Section 4.5):** PyMOL trajectory viewing and snapshot generation are run **locally** on your workstation/laptop (which has a graphical display).
 >
 > For details on setting up these environments, see the [Installation & Setup Guide](installation.md).
 
@@ -63,11 +63,35 @@ structures/
 ### 3.2. Why use SDF for the ligand?
 Standard PDB files do not store bond order or formal charge information. Parameterizing small molecules with AM1-BCC requires explicit chemical identities, which are preserved in **SDF (Structure Data File)** formats. Always convert your ligand to SDF (using tools like Open Babel, RDKit, or PyMOL) before running simulations.
 
+### 3.3. Ensuring Native Coordinate Alignment
+To guarantee that the ligand is placed exactly in its native binding pocket:
+1. **Coordinate Preservation:** When extracting the ligand (e.g. GDP) from the raw crystal PDB (`4ldj_orig.pdb`) to save as an SDF file, you must **preserve its exact 3D coordinates** without moving or translation.
+2. **Template-Based Homology Modeling:** When you build the protein structure using Modeller (template-based modeling), Modeller builds the protein model directly aligned to the original template's (`4ldj`) coordinate space.
+3. **No-offset Merging:** Because both the modeled protein structure and the SDF ligand share the identical spatial coordinate frame inherited from `4ldj`, OpenMM's `Modeller` merges them directly in space. The ligand therefore automatically fits into its native binding pocket.
+
 ---
 
 ## 4. Step-by-Step Simulation Workflow
 
-### 4.1. Step 1: Stage the Protein Topology
+### 4.1. Step 1: Build Protein Structures (WT and Mutants)
+**Environment:** `modeller_env`
+
+Build your protein coordinates with **Biological Numbering** and automated QC:
+
+```bash
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda activate modeller_env
+
+# 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir structures/4ldj/wt
+
+# 2. Create Mutant (G12D) structure from Wild-Type template (if simulating mutants)
+colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
+```
+
+### 4.2. Step 2: Stage the Protein Topology
+**Environment:** `openmm_env`
+
 First, stage the modeled protein structure (which contains no ligand or crystal water). Name the simulation folder using the naming convention `<pdbid>_<cofactor>` (e.g. `4ldj_gdp`):
 
 ```bash
@@ -78,7 +102,9 @@ colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.
 ```
 *Note: This creates the simulation directory `simulations/4ldj_gdp/r1/` and copies the protein PDB into it.*
 
-### 4.2. Step 2: Run the Simulation (EM, NVT, NPT, MD)
+### 4.3. Step 3: Run the Simulation (EM, NVT, NPT, MD)
+**Environment:** `openmm_env`
+
 Run the simulation by supplying the path to the ligand SDF file and adding the `--keep-mg` flag (if your system contains active Magnesium cofactors to be preserved from the raw crystal structure):
 
 ```bash
@@ -89,14 +115,18 @@ colabmda openmm run --name 4ldj_gdp --replica r1 --ligand structures/4ldj/gdp.sd
 > 💡 **Magnesium Preservation (`--keep-mg`):**  
 > Default PDBFixer runs strip out all heterogens (including structural metal ions like $Mg^{2+}$). The `--keep-mg` flag bypasses this by extracting the Magnesium atoms from the raw crystal structure PDB (`structures/4ldj/4ldj_orig.pdb` or the raw file inside the simulation workspace) and re-inserting them into the cleaned protein structure prior to parameterization.
 
-### 4.3. Step 3: Merge and Center Trajectories
+### 4.4. Step 4: Merge and Center Trajectories
+**Environment:** `openmm_env`
+
 After the simulation finishes, concatenate the trajectory chunks and center the protein-ligand complex:
 
 ```bash
 colabmda openmm merge --pdb-dir simulations/4ldj_gdp/r1 --center --wrap
 ```
 
-### 4.4. Step 4: Trajectory Visualization in PyMOL
+### 4.5. Step 5: Trajectory Visualization in PyMOL
+**Environment:** Local workstation / conda environment with PyMOL
+
 To visualize the trajectory of your protein-ligand system, run the view command from your local workstation:
 
 ```bash
