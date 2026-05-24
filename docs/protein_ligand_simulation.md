@@ -65,9 +65,9 @@ Standard PDB files do not store bond order or formal charge information. Paramet
 
 ### 3.3. Ensuring Native Coordinate Alignment
 To guarantee that the ligand is placed exactly in its native binding pocket:
-1. **Coordinate Preservation:** When extracting the ligand (e.g. GDP) from the raw crystal PDB (`4ldj_orig.pdb`) to save as an SDF file, you must **preserve its exact 3D coordinates** without moving or translation.
-2. **Template-Based Homology Modeling:** When you build the protein structure using Modeller (template-based modeling), Modeller builds the protein model directly aligned to the original template's (`4ldj`) coordinate space.
-3. **No-offset Merging:** Because both the modeled protein structure and the SDF ligand share the identical spatial coordinate frame inherited from `4ldj`, OpenMM's `Modeller` merges them directly in space. The ligand therefore automatically fits into its native binding pocket.
+1. **Coordinate Preservation:** When extracting the ligand (e.g., GDP) from the raw crystal PDB (`4ldj_orig.pdb`) to save as an SDF file, you must **preserve its exact 3D coordinates** without moving or translation.
+2. **Automated Coordinate Alignment:** During `colabmda modeller build`, the engine automatically aligns the finished homology model (and any mutants) back to the exact coordinate space of the template crystal structure PDB (`4ldj_orig.pdb`).
+3. **Perfect Merging:** Because the modeller engine aligns the protein coordinates back to the original crystal frame, the protein pocket and the SDF ligand share the identical spatial coordinate system. When OpenMM merges them during the setup phase, they align perfectly at the native coordinate binding site.
 
 ---
 
