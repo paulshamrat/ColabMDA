@@ -93,8 +93,9 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=F
     top_obj = md.load_topology(topo)
 
     # Open output file for streaming
+    total_chunks = len(dcd_files)
     with md.formats.DCDTrajectoryFile(out_traj, "w") as f_out:
-        for f in dcd_files:
+        for idx, f in enumerate(dcd_files):
             try:
                 # Load one chunk at a time
                 chunk = md.load(f, top=top_obj)
@@ -124,10 +125,15 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=F
                     merged_count += len(indices)
 
                 global_frame_idx += chunk.n_frames
+                print(
+                    f" -> Processed chunk {idx + 1}/{total_chunks}: {f} ({chunk.n_frames} frames)"
+                )
+                sys.stdout.flush()
                 # Explicitly delete to free RAM
                 del chunk
             except Exception as e:
                 print(f"Warning: skipping {f} due to load error: {e}")
+                sys.stdout.flush()
 
     if merged_count == 0:
         os.chdir(start_dir)
