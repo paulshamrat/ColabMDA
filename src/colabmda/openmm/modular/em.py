@@ -85,17 +85,42 @@ def run_em(workdir, pdbid, ligand=None, keep_mg=False):
                 if line.startswith("ATOM") or line.startswith("HETATM")
             )
             if not has_mg:
+                # Find raw PDB in workdir, or fallback to structures directory
                 raw_pdb = os.path.join(workdir, f"{pdbid}.pdb")
-                if os.path.exists(raw_pdb):
+                candidate_paths = [raw_pdb]
+
+                # Extract base PDB ID (e.g. 4ldj from 4ldj_gdp)
+                base_pdb = pdbid.split("_")[0]
+
+                # Check root/structures/base_pdb/base_pdb_orig.pdb
+                # Since workdir is typically <root>/simulations/<name>/<replica>, parents[2] is <root>
+                from pathlib import Path as pathlib_Path
+                workdir_path = pathlib_Path(workdir)
+                if len(workdir_path.parents) >= 3:
+                    root_dir = workdir_path.parents[2]
+                    candidate_paths.append(str(root_dir / "structures" / base_pdb / f"{base_pdb}_orig.pdb"))
+                    candidate_paths.append(str(root_dir / "structures" / base_pdb / f"{base_pdb}.pdb"))
+                    candidate_paths.append(str(root_dir / "structures" / f"{base_pdb}_orig.pdb"))
+
+                # Also check local CWD-relative structures folder
+                candidate_paths.append(str(pathlib_Path("structures") / base_pdb / f"{base_pdb}_orig.pdb"))
+
+                found_raw = None
+                for path in candidate_paths:
+                    if os.path.exists(path):
+                        found_raw = path
+                        break
+
+                if found_raw:
                     mg_lines = []
-                    with open(raw_pdb) as f_raw:
+                    with open(found_raw) as f_raw:
                         for line in f_raw:
                             if line.startswith("ATOM") or line.startswith("HETATM"):
                                 resname = line[17:20].strip()
                                 if resname == "MG":
                                     mg_lines.append(line)
                     if mg_lines:
-                        print(f"  • Extracted {len(mg_lines)} Magnesium (MG) ions from raw PDB")
+                        print(f"  • Extracted {len(mg_lines)} Magnesium (MG) ions from raw PDB: {found_raw}")
                         # Insert before END or CONECT lines
                         insert_idx = len(filtered_lines)
                         for idx, line in enumerate(filtered_lines):
