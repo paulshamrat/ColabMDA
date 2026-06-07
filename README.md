@@ -519,5 +519,5 @@ If you use this tool, please consider citing the underlying studies:
 ---
 
 <p align="center">
-  <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Repository%20Views&color=blue&style=flat" alt="Repository Views" />
+  <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Visitors&color=blue&style=flat" alt="Visitors" />
 </p>
