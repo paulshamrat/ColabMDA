@@ -433,6 +433,7 @@ def openmm_md(
     traj_interval: float,
     checkpoint_ps: float,
     sync_dir: str | None = None,
+    seed: int | None = None,
 ):
     from colabmda.openmm.modular.md import run_md
 
@@ -443,6 +444,7 @@ def openmm_md(
         traj_interval_ps=traj_interval,
         checkpoint_ps=checkpoint_ps,
         sync_dir=sync_dir,
+        seed=seed,
     )
     if not success:
         raise SystemExit(1)
