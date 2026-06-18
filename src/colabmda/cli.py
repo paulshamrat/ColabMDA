@@ -303,6 +303,7 @@ def main():
     p_md.add_argument("--sync-dir", default=None)
     p_md.add_argument("--workdir", default=None)
     p_md.add_argument("--root", default=None)
+    p_md.add_argument("--seed", type=int, default=None, help="Random seed for velocity assignment")
 
     # ---------------- Modeller ----------------
     p_mod = sub.add_parser("modeller", help="Modeller workflows")
@@ -465,10 +466,21 @@ def main():
                 args.ligand = str(local_ligand.resolve())
 
             # MODULAR RUN: EM -> NVT -> NPT -> Check -> MD
-            openmm_em(workdir_str, name, ligand=args.ligand, keep_mg=args.keep_mg)
-            openmm_nvt(workdir_str, name, args.equil_time, seed=args.seed)
-            openmm_npt(workdir_str, name, args.equil_time)
-            openmm_check_equil(workdir_str)
+            # Skip equilibration for non-r1 replicas (e.g. r2, r3) as they inherit from r1
+            is_non_r1_replica = False
+            if args.replica and args.replica != "r1":
+                is_non_r1_replica = True
+
+            if is_non_r1_replica:
+                print(
+                    f"[INFO] Replica '{args.replica}' detected. Skipping EM/NVT/NPT and inheriting equilibrated structures from r1."
+                )
+            else:
+                openmm_em(workdir_str, name, ligand=args.ligand, keep_mg=args.keep_mg)
+                openmm_nvt(workdir_str, name, args.equil_time, seed=args.seed)
+                openmm_npt(workdir_str, name, args.equil_time)
+                openmm_check_equil(workdir_str)
+
             openmm_md(
                 workdir=workdir_str,
                 pdbid=name,
@@ -476,6 +488,7 @@ def main():
                 traj_interval=args.traj_interval,
                 checkpoint_ps=args.checkpoint_ps,
                 sync_dir=args.sync_dir,
+                seed=args.seed,
             )
 
         elif args.cmd == "merge":
@@ -599,6 +612,7 @@ def main():
                     args.traj_interval,
                     args.checkpoint_ps,
                     args.sync_dir,
+                    seed=args.seed,
                 )
 
     elif args.tool == "modeller":

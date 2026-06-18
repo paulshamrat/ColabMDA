@@ -102,6 +102,13 @@ colabmda openmm md --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --total-ns 10
 ```
 *Parameters:* `--total-ns` (total duration in ns), `--traj-interval` (coordinate saving frequency in ps), `--checkpoint-ps` (duration of each chunk before writing checkpoint to enable safe restarts). All bonds involving hydrogen atoms are constrained using the SHAKE-like algorithm (`HBonds`), allowing a stable 2 fs timestep. Long-range electrostatics are handled via Particle Mesh Ewald (PME) with a $1.0\text{ nm}$ cutoff.
 
+> 💡 **Multi-Replica Acceleration (r2, r3, ...):**
+> To run multiple independent replicas without repeating the CPU-intensive solvation, minimization, and equilibration steps, you can directly spawn them from `r1`'s equilibrated state. Simply run the unified `run` command for the next replica:
+> ```bash
+> colabmda openmm run --name 4ldj_wt --replica r2 --total-ns 10.0
+> ```
+> This automatically skips the EM/NVT/NPT preparation steps, inherits `system.xml`, `solvated.pdb`, and the initial NPT checkpoint from `r1`, and initializes the new simulation with randomized velocities (using a new random seed) to ensure independent trajectories.
+
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
 ### 2.8. Merge and Center
