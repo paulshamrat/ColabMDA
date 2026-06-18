@@ -39,29 +39,75 @@ colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 16
 colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
 ```
 
-### 2.2. Setup and Run MD
+### 2.2. Stage Simulation Workspace
 **Environment:** `openmm_env`
 
+Stage the WT and mutant simulation workspaces to create the directory structure and copy the cleaned starting structures:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
-# 1. Stage simulation directories
+# Stage simulation directories
 colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
 colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12D/target.B99990001_G12D.pdb --name 4ldj_G12D --replica r1
-
-# 2. Start the Production Run (e.g., 10ns production)
-colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
-colabmda openmm run --name 4ldj_G12D --replica r1 --total-ns 10.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
 ```
+
+> 💡 **Tip: Unified One-Command Execution (Alternative)**
+> If you prefer to run the entire simulation sequentially (EM, NVT, NPT, QC, and MD) using a single, resume-safe command instead of executing each step manually, you can run:
+> ```bash
+> colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
+> ```
+
+### 2.3. Energy Minimization (EM)
+**Environment:** `openmm_env`
+
+Stages the water molecules, parameterizes the protein-water system, and minimizes potential energy to resolve steric clashes:
+```bash
+colabmda openmm em --name 4ldj_wt --workdir simulations/4ldj_wt/r1
+```
+*Under the Hood:* Parameterizes the protein with the **AMBER14SB** forcefield and water with the **TIP3P** model. Solvates with a 1.0 nm cubic box and adds $0.15 \text{ M}$ neutralizing NaCl. Outputs `solvated.pdb`, `system.xml`, and the minimized coordinates in `em.chk`.
+
+### 2.4. NVT Equilibration
+**Environment:** `openmm_env`
+
+Relaxes solvent molecules and adjusts temperature to 300 K while keeping protein heavy atoms restrained:
+```bash
+colabmda openmm nvt --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --equil-time 100 --seed 42
+```
+*Parameters:* `--equil-time` (length in ps), `--seed` (random seed for velocity assignment). Temperature is maintained at $300 \text{ K}$ using a Langevin Middle Integrator (collision frequency $1.0 \text{ ps}^{-1}$).
+
+### 2.5. NPT Equilibration
+**Environment:** `openmm_env`
+
+Relaxes the simulation box volume and adjusts system density under pressure:
+```bash
+colabmda openmm npt --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --equil-time 100
+```
+*Parameters:* Pressure is maintained at $1.0 \text{ atm}$ using an OpenMM Monte Carlo Barostat (volume adjustment attempts every 25 steps).
+
+### 2.6. Equilibration Validation & QC Check
+**Environment:** `openmm_env`
+
+Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
+```bash
+colabmda openmm check-equil --name 4ldj_wt --workdir simulations/4ldj_wt/r1
+```
+
+### 2.7. Production Molecular Dynamics (MD)
+**Environment:** `openmm_env`
+
+Runs the production trajectory in chunked, resume-safe segments:
+```bash
+colabmda openmm md --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
+```
+*Parameters:* `--total-ns` (total duration in ns), `--traj-interval` (coordinate saving frequency in ps), `--checkpoint-ps` (duration of each chunk before writing checkpoint to enable safe restarts). All bonds involving hydrogen atoms are constrained using the SHAKE-like algorithm (`HBonds`), allowing a stable 2 fs timestep. Long-range electrostatics are handled via Particle Mesh Ewald (PME) with a $1.0\text{ nm}$ cutoff.
 
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
-> **Note:** The `run` command includes an **Automated Stability Gate**. It automatically analyzes equilibration logs and aborts if the system hasn't stabilized, saving GPU time.
+### 2.8. Merge and Center
+**Environment:** `openmm_env`
 
-### 2.3. Merge and Center
-Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine (`--mda`).
-
+Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine (`--mda`):
 ```bash
 colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
 colabmda openmm merge --pdb-dir simulations/4ldj_G12D/r1 --center --wrap

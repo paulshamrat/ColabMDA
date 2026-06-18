@@ -53,12 +53,12 @@ def _parse_last_step_time(log_path: Path):
         last = s
     if not last:
         return None, None
-    parts = re.split(r"\s+", last)
+    parts = last.split(",") if "," in last else re.split(r"\s+", last)
     if len(parts) < 2:
         return None, None
     try:
-        step = int(float(parts[0]))
-        time_ps = float(parts[1])
+        step = int(float(parts[0].strip()))
+        time_ps = float(parts[1].strip())
         return step, time_ps
     except Exception:
         return None, None
@@ -455,7 +455,13 @@ def openmm_compare(series_list, outdir):
     outpath = Path(outdir)
     outpath.mkdir(parents=True, exist_ok=True)
 
-    plt.style.use("seaborn-v0_8-muted")
+    try:
+        plt.style.use("seaborn-v0_8-muted")
+    except Exception:
+        try:
+            plt.style.use("seaborn-muted")
+        except Exception:
+            plt.style.use("ggplot")
     plt.rcParams.update({"font.size": 12, "axes.grid": True, "grid.alpha": 0.3})
 
     metrics = {

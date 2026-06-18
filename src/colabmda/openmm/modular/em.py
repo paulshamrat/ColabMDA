@@ -38,6 +38,7 @@ def run_em(workdir, pdbid, ligand=None, keep_mg=False):
         ligand_mol = Molecule.from_file(ligand)
 
         # Filter cleaned_pdb to keep only protein residues, water, and optionally MG
+        # Standard residues, protonation states, capping groups, and ions
         protein_residues = {
             "ALA",
             "ARG",
@@ -59,10 +60,23 @@ def run_em(workdir, pdbid, ligand=None, keep_mg=False):
             "TRP",
             "TYR",
             "VAL",
+            # Protonation states
+            "HID",
+            "HIE",
+            "HIP",
+            "CYX",
+            "ASH",
+            "GLH",
+            "LYN",
+            # Capping groups
+            "ACE",
+            "NME",
+            "NH2",
+            # Selenomethionine
+            "MSE",
         }
         allowed_resnames = set(protein_residues)
-        allowed_resnames.add("HOH")
-        allowed_resnames.add("WAT")
+        allowed_resnames.update(["HOH", "WAT", "NA", "CL", "K", "ZN", "CA"])
         if keep_mg:
             allowed_resnames.add("MG")
             print("  • Preserving Magnesium (MG) ions from starting structure")
@@ -95,15 +109,22 @@ def run_em(workdir, pdbid, ligand=None, keep_mg=False):
                 # Check root/structures/base_pdb/base_pdb_orig.pdb
                 # Since workdir is typically <root>/simulations/<name>/<replica>, parents[2] is <root>
                 from pathlib import Path as pathlib_Path
+
                 workdir_path = pathlib_Path(workdir)
                 if len(workdir_path.parents) >= 3:
                     root_dir = workdir_path.parents[2]
-                    candidate_paths.append(str(root_dir / "structures" / base_pdb / f"{base_pdb}_orig.pdb"))
-                    candidate_paths.append(str(root_dir / "structures" / base_pdb / f"{base_pdb}.pdb"))
+                    candidate_paths.append(
+                        str(root_dir / "structures" / base_pdb / f"{base_pdb}_orig.pdb")
+                    )
+                    candidate_paths.append(
+                        str(root_dir / "structures" / base_pdb / f"{base_pdb}.pdb")
+                    )
                     candidate_paths.append(str(root_dir / "structures" / f"{base_pdb}_orig.pdb"))
 
                 # Also check local CWD-relative structures folder
-                candidate_paths.append(str(pathlib_Path("structures") / base_pdb / f"{base_pdb}_orig.pdb"))
+                candidate_paths.append(
+                    str(pathlib_Path("structures") / base_pdb / f"{base_pdb}_orig.pdb")
+                )
 
                 found_raw = None
                 for path in candidate_paths:
@@ -120,7 +141,9 @@ def run_em(workdir, pdbid, ligand=None, keep_mg=False):
                                 if resname == "MG":
                                     mg_lines.append(line)
                     if mg_lines:
-                        print(f"  • Extracted {len(mg_lines)} Magnesium (MG) ions from raw PDB: {found_raw}")
+                        print(
+                            f"  • Extracted {len(mg_lines)} Magnesium (MG) ions from raw PDB: {found_raw}"
+                        )
                         # Insert before END or CONECT lines
                         insert_idx = len(filtered_lines)
                         for idx, line in enumerate(filtered_lines):

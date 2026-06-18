@@ -48,7 +48,7 @@ Instructions for modeling small molecule ligands using dynamic GAFF2/AM1-BCC par
 We recommend organizing your research project directories as follows:
 
 ```text
-/content/drive/MyDrive/openmm/
+/content/drive/MyDrive/ColabMDA/
   structures/
     4ldj/
       wt/          # Wild-type modeled PDBs

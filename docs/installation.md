@@ -1,112 +1,124 @@
 # Installation & Setup Guide
 
-This guide describes how to install and set up **ColabMDA** for both Google Colab (cloud setup) and local environments.
+This guide describes how to install, authenticate, and set up **ColabMDA** using the **Google Colab CLI** workflow ("The Colab CLI Way") as well as local workstation setups.
 
 ---
 
-## 1. Quick Start (Google Colab Installation)
+## 1. The Colab CLI Workflow (Recommended)
 
-> 💡 **Terminal Access:** All bash commands should be run in the **Colab Terminal** (Open via the **⋮** menu -> **Terminal**).
+Using the `colab` command-line interface allows you to provision, configure, and monitor GPU-accelerated simulation runtimes directly from your local workstation terminal, without needing to open a web browser.
 
-### 1.1. Setup Colab Runtime & Drive
-Before starting, ensure your environment is ready:
-1. **Enable GPU:** Go to `Runtime` -> `Change runtime type` and select **T4 GPU** (or any active GPU).
-2. **Verify GPU:** Run `nvidia-smi` in the **Colab Terminal** (⋮ → Terminal) to confirm GPU access.
-3. **Mount Drive:** Click the **Folder icon** 📂 in the left sidebar, then click the **Drive icon** (Mount Drive) to mount Google Drive natively.
+### 1.1. Local Installation & Authentication
 
-### 1.2. Environment & Package Installation (Required)
-Run the following in the **Colab Terminal** (⋮ → Terminal). 
-*Estimated time: ~3–5 minutes.*
+First, install the Google Colab CLI on your local workstation/laptop:
 
 ```bash
-# 1. Install the core scientific environment
-cd /content
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/pwpl/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
-WITH_MODELLER=1 bash bootstrap_colab_openmm_gpu.sh latest
-
-# 2. Install ColabMDA package
-python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.git@pwpl"
+# Install the Colab CLI
+pip install google-colab-cli
 ```
 
-> [!IMPORTANT]
-> **Modeller License Prompt:** During Step 1, the script will **pause** and ask you to `Enter your Modeller License Key`. You must paste your key and press **Enter** to proceed. The installation will not complete without it.
->
-> 🔑 **Get a Free License:** If you don't have one, register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html) (Academic licenses are free and sent instantly via email).
+To authenticate the CLI with your Google account:
+1. Run a command that queries the backend, such as:
+   ```bash
+   colab sessions
+   ```
+2. The CLI will output an authentication URL.
+3. Open the link in your web browser, log in with your Google account, and grant the required permissions.
+4. Copy the authorization code provided and paste it back into your terminal.
+5. The OAuth token is saved locally and will be automatically reused.
 
 ---
 
-### 💡 Tip: How to Resume After a Timeout
-If your Google Colab session expires:
-1. Re-run **Required Steps 1.2** to reinstall the environment.
-2. Run the **exact same `colabmda openmm run` command** you used before.
-3. The tool will automatically detect your `.chk` files and resume from where it left off.
+### 1.2. Storage Strategy: Local VM vs. Google Drive
+
+When designing high-throughput Molecular Dynamics runs, we split file I/O into two zones:
+* **Calculation Directory (`/content/work`):** Google Colab VMs are equipped with fast local NVMe SSDs mounted at `/content/`. Running the simulation step-by-step in `/content/work` prevents network lag, avoids API rate-limiting, and ensures maximum simulation speed.
+* **Persistent Sync Directory (`/content/drive/MyDrive/ColabMDA/`):** Google Drive is mounted as a network share. At the completion of each trajectory chunk, ColabMDA automatically copies the completed `.dcd` and `.log` files, along with the latest state checkpoint (`prod.chk`), to your Google Drive folder. If the Colab instance shuts down or times out, your progress is safely preserved and ready to resume.
 
 ---
 
-## 2. Manual / Detailed Installation (Advanced)
+### 1.3. Provisioning and Bootstrapping a Remote GPU VM
 
-> ⚠️ **Note:** This section is for local workstations, HPC, or advanced manual setups. For standard Google Colab runs, please use the **Quick Start (Section 1)** above.
+Run the following commands on your **local workstation** to set up a remote GPU simulation node:
 
-<details>
-<summary><b>🛠️ A. Manual Terminal Installation (Step-by-Step)</b></summary>
+#### Step 1: Allocate a new GPU VM session
+```bash
+# Create a new session named 'kras-sim' with a T4 GPU
+colab new -s kras-sim --gpu T4
+```
 
-In the Colab Terminal (⋮ → Terminal), run each step one at a time:
+#### Step 2: Mount your Google Drive
+```bash
+# Mounts your Drive at /content/drive/ on the remote VM
+colab drivemount -s kras-sim
+```
+
+> [!WARNING]
+> **Consent Screen Requirement:** When the browser window opens for authorization, you **must check the box** authorizing Google Colab to **"See, edit, create, and delete all your Google Drive files"**. If this box is left unchecked, Google will authorize the credentials but block Colab from accessing the filesystem, causing the command to hang or fail.
+
+#### Step 3: Bootstrap the remote scientific environment
+Execute the ColabMDA bootstrap script on the remote VM to install Miniforge (Conda), CUDA-enabled OpenMM, MDAnalysis, Modeller, and parameterization toolkits.
+Run the bootstrap installer by piping python code to the remote kernel:
 
 ```bash
-# Step 1: Download & install Miniforge (Conda)
-wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
-
-# Step 2: Initialize Conda in this shell
-export PATH="$HOME/miniforge3/bin:$PATH" && source "$HOME/miniforge3/etc/profile.d/conda.sh"
-
-# Step 3: Install Mamba into the base environment
-conda install -y -n base -c conda-forge mamba
-
-# Step 4: Install CUDA-enabled OpenMM and OpenMMTools
-mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools
-
-# Step 5: Install PDBFixer (conda, fallback to pip)
-conda install -y -c conda-forge pdbfixer || pip install pdbfixer
-
-# Step 6: Install MDAnalysis, MDTraj, NumPy, Matplotlib, and Biopython
-mamba install -y -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
-
-# Step 7: Verify installations
-python3 -c "from openmm import Platform; print('OpenMM platforms:', [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]); import MDAnalysis, mdtraj, Bio; print('MDAnalysis:', MDAnalysis.__version__, 'MDTraj:', mdtraj.__version__, 'Biopython:', Bio.__version__)"
+# Run the bootstrap setup remotely
+echo "
+import os
+os.environ['WITH_MODELLER'] = '1'
+os.environ['KEY_MODELLER'] = 'MODEL_LICENSE_KEY_HERE'
+os.system('curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/pwpl/scripts/bootstrap_colab_openmm_gpu.sh | bash')
+" | colab exec -s kras-sim
 ```
-</details>
 
-<details>
-<summary><b>📜 B. Alternative: Script-based Installation</b></summary>
+> 🔑 **Modeller License:** Replace `MODEL_LICENSE_KEY_HERE` with your license key. If you don't have one, register for a free academic license at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
 
+---
+
+### 1.4. Executing Simulation Commands
+
+To run simulation commands inside the active virtual environment on the remote VM, you can open an interactive terminal:
 ```bash
-cd /content
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/pwpl/scripts/install_colabmda_release.sh -o install_colabmda_release.sh
-bash install_colabmda_release.sh latest /content/colabmda
+# Launch a remote tmux terminal session
+colab console -s kras-sim
 ```
-</details>
-
-<details>
-<summary><b>🧬 C. Modeller CPU Environment Setup</b></summary>
-
+Inside the console, activate the OpenMM environment and start your run:
 ```bash
-cd /content/drive/MyDrive/openmm/ColabMDA
-bash envs/install_modeller_env.sh
+conda activate openmm_env
+cd /content/work
+# Run your modular colabmda commands here
 ```
-</details>
 
-<details>
-<summary><b>💻 D. Local Workstation Setup (Laptop/Desktop)</b></summary>
+Or execute commands non-interactively using Python:
+```bash
+echo "import os; os.system('conda run -n openmm_env colabmda openmm --help')" | colab exec -s kras-sim
+```
 
-Beyond the Cloud ☁️: ColabMDA works on any Linux system with an NVIDIA GPU. Use the provided `environment.yml` to create a production-ready environment:
+To shut down and release the VM when finished:
+```bash
+colab stop -s kras-sim
+```
+
+---
+
+## 2. Local Workstation Setup (Laptop/Desktop)
+
+Beyond the Cloud ☁️: ColabMDA works on any local Linux system with an NVIDIA GPU.
+
+### 2.1. Environment Setup
+Use the provided `environment.yml` to create a production-ready conda environment:
 ```bash
 mamba env create -f environment.yml
 conda activate colabmda
 ```
-</details>
 
-<details>
-<summary><b>🏢 E. HPC Usage (SLURM)</b></summary>
+### 2.2. Modeller Environment Setup
+To build homology models locally, install Modeller into a separate environment:
+```bash
+bash envs/install_modeller_env.sh
+```
 
-You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes trajectories in chunks, it is highly efficient for long-running jobs on cluster partitions with time limits.
-</details>
+---
+
+## 3. HPC Usage (SLURM)
+
+You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes trajectories in chunks, it is highly efficient for long-running jobs on cluster partitions with time limits. Refer to the [Protein-in-Water Guide](protein_water_simulation.md) for job scripts.

@@ -34,6 +34,16 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None):
     pdb = PDBFile(pdb_saved)
 
     dt = 2.0 * unit.femtoseconds
+
+    # Remove MonteCarloBarostat for true NVT constant-volume equilibration
+    barostat_indices = [
+        i
+        for i in range(system.getNumForces())
+        if system.getForce(i).__class__.__name__ == "MonteCarloBarostat"
+    ]
+    for idx in reversed(barostat_indices):
+        system.removeForce(idx)
+
     sim = make_sim(pdb.topology, system, dt)
 
     with open(chk_in, "rb") as f:
