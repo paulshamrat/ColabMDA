@@ -5,6 +5,7 @@ test_run/
 test_*/
 structures/
 analysis_outputs/
+scratch/
 *.pdb
 *.fasta
 *.ali
