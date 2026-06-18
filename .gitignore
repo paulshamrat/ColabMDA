@@ -1,8 +1,10 @@
 # Simulation Data
+sim/
 simulations/
 simulations_test/
 test_run/
 test_*/
+str/
 structures/
 analysis_outputs/
 scratch/

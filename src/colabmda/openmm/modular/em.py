@@ -106,22 +106,32 @@ def run_em(workdir, pdbid, ligand=None, keep_mg=False):
                 # Extract base PDB ID (e.g. 4ldj from 4ldj_gdp)
                 base_pdb = pdbid.split("_")[0]
 
-                # Check root/structures/base_pdb/base_pdb_orig.pdb
-                # Since workdir is typically <root>/simulations/<name>/<replica>, parents[2] is <root>
+                # Check root/str/base_pdb/base_pdb_orig.pdb or root/structures/...
+                # Since workdir is typically <root>/sim/<name>/<replica> or <root>/simulations/... parents[2] is <root>
                 from pathlib import Path as pathlib_Path
 
                 workdir_path = pathlib_Path(workdir)
                 if len(workdir_path.parents) >= 3:
                     root_dir = workdir_path.parents[2]
                     candidate_paths.append(
+                        str(root_dir / "str" / base_pdb / f"{base_pdb}_orig.pdb")
+                    )
+                    candidate_paths.append(
                         str(root_dir / "structures" / base_pdb / f"{base_pdb}_orig.pdb")
+                    )
+                    candidate_paths.append(
+                        str(root_dir / "str" / base_pdb / f"{base_pdb}.pdb")
                     )
                     candidate_paths.append(
                         str(root_dir / "structures" / base_pdb / f"{base_pdb}.pdb")
                     )
+                    candidate_paths.append(str(root_dir / "str" / f"{base_pdb}_orig.pdb"))
                     candidate_paths.append(str(root_dir / "structures" / f"{base_pdb}_orig.pdb"))
 
-                # Also check local CWD-relative structures folder
+                # Also check local CWD-relative str and structures folders
+                candidate_paths.append(
+                    str(pathlib_Path("str") / base_pdb / f"{base_pdb}_orig.pdb")
+                )
                 candidate_paths.append(
                     str(pathlib_Path("structures") / base_pdb / f"{base_pdb}_orig.pdb")
                 )

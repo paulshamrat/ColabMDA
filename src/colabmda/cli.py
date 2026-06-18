@@ -398,9 +398,11 @@ def main():
 
                 # Search strategy: prioritize CWD over default root
                 search_paths = [
+                    cwd / "sim" / name if name else None,
                     cwd / "simulations" / name if name else None,
                     cwd / name if name else None,
                     cwd if (name and name in str(cwd)) else None,  # Check if we are already inside
+                    root / "sim" / name if name else None,
                     root / "simulations" / name if name else None,
                     root / name if name else None,
                 ]
@@ -532,10 +534,16 @@ def main():
         elif args.cmd == "analysis":
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
-                sim_dir = str(Path(root) / "simulations" / args.pdb_id)
+                sim_path = Path(root) / "sim" / args.pdb_id
+                if not sim_path.exists():
+                    sim_path = Path(root) / "simulations" / args.pdb_id
+                sim_dir = str(sim_path)
                 out_base = Path(root) / "analysis" / "single" / args.pdb_id
             elif args.pdb_id:
-                sim_dir = str(Path("simulations") / args.pdb_id)
+                sim_path = Path("sim") / args.pdb_id
+                if not sim_path.exists():
+                    sim_path = Path("simulations") / args.pdb_id
+                sim_dir = str(sim_path)
                 out_base = Path("analysis") / "single" / args.pdb_id
             elif args.pdb_dir:
                 sim_dir = args.pdb_dir
@@ -579,7 +587,9 @@ def main():
         elif args.cmd == "stage":
             root = args.root or _resolve_root(False, None)
             _ensure_dir(root)
-            outdir = Path(root) / "simulations" / args.name
+            # Default to "sim", but fallback to "simulations" if that directory already exists
+            sim_dir_name = "simulations" if os.path.exists(os.path.join(root, "simulations")) else "sim"
+            outdir = Path(root) / sim_dir_name / args.name
             if args.replica:
                 outdir = outdir / args.replica
             _ensure_dir(str(outdir))
