@@ -23,6 +23,7 @@ MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/ColabMDA}"
+OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 OPENMM_ENV_NAME="${OPENMM_ENV_NAME:-openmm_env}"
 INSTALL_REF="${INSTALL_REF:-}"
@@ -55,7 +56,11 @@ echo "[STEP] Ensure mamba in base"
 conda install -y -n base -c conda-forge mamba
 
 echo "[STEP] Install OpenMM stack in ${OPENMM_ENV_NAME}"
-mamba create -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 cudatoolkit=11.8 openmm openmmtools mdanalysis mdtraj numpy matplotlib biopython
+if conda env list | awk '{print $1}' | grep -qx "${OPENMM_ENV_NAME}"; then
+  mamba install -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 "cuda-version=${OPENMM_CUDA_VERSION}" "openmm>=8.5" mdanalysis mdtraj numpy matplotlib biopython
+else
+  mamba create -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 "cuda-version=${OPENMM_CUDA_VERSION}" "openmm>=8.5" mdanalysis mdtraj numpy matplotlib biopython
+fi
 conda activate "${OPENMM_ENV_NAME}"
 conda install -y -c conda-forge pdbfixer || python -m pip install pdbfixer
 
@@ -180,9 +185,12 @@ fi
 
 echo "[STEP] Validate OpenMM + analysis libs + ColabMDA"
 python - <<'PY'
+from openmm.app import ForceField
 from openmm import Platform
 platforms = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
 print("OpenMM platforms:", platforms)
+ForceField("amber19-all.xml", "amber19/opc.xml")
+print("Amber19/OPC ForceField XML: OK")
 import MDAnalysis, mdtraj, Bio
 print("MDAnalysis:", MDAnalysis.__version__)
 print("MDTraj:", mdtraj.__version__)

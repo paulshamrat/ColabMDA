@@ -1,6 +1,6 @@
 # PyMOL Visualization Guide & Snapshot Composition
 
-This guide details how to set up the local shared PyMOL visualization environment and run the automated publication-ready snapshot grid generation commands in `ColabMDA` to produce manuscript figures.
+This guide details how to set up the local shared PyMOL visualization environment and run the automated publication-ready snapshot grid generation commands in `ColabMDA`.
 
 ---
 
@@ -21,12 +21,12 @@ conda run -n pymol_env pip install -e .
 
 ---
 
-## 2. Automated Figure 4 Generation (3x8 Snapshot Grid)
+## 2. Automated Snapshot Grid Generation
 
-The manuscript Figure 4 displays a 3x8 snapshot grid tracking the Switch II loop dynamics of Wild Type (WT), G12C, and G12D KRAS variants. This is fully automated in `ColabMDA` via the `snapshots` command.
+The `snapshots` command renders a configurable grid of trajectory frames so you can compare structural changes across systems, variants, or replicas using the same camera, alignment, and styling rules.
 
 ### Running the Command
-To generate the figure, create a custom JSON configuration file mapping your local trajectory files and run:
+To generate a snapshot grid, create a custom JSON configuration file mapping your local trajectory files and run:
 
 ```bash
 colabmda openmm snapshots -c scratch/snapshots_config.json -o scratch/master_3x8_snapshots.png --temp-dir scratch/master_grid_3x8
@@ -77,10 +77,10 @@ The JSON file maps system names, topologies, trajectories, and key frame states/
 
 ## 3. High-Quality Rendering Style & Key Commands
 
-To reproduce the publication-quality visuals from Figure 4, the command runs headless PyMOL (`pymol -qc`) and executes the following visualization script logic:
+To reproduce consistent publication-quality visuals, the command runs headless PyMOL (`pymol -qc`) and executes the following visualization script logic:
 
 ### 3.1. Structure Alignment & Fitting
-```pymol
+```text
 # 1. Fit the trajectory frame-by-frame to the first frame using Cα atoms of the stable core
 # This locks the core G-domain in place to make loop fluctuations easy to track.
 intra_fit prot and name CA and (resi 1-24 or resi 41-54 or resi 81-166), 1
@@ -90,7 +90,7 @@ align prot and stable_core, ref_align and stable_core, mobile_state=1, target_st
 ```
 
 ### 3.2. Color Coding and Transparency
-```pymol
+```text
 # 1. Base cartoon setup (semi-transparent gray for non-mutant and non-loop regions)
 color gray90, prot
 set cartoon_transparency, 0.6, prot and not (resid 57-75 or resid 12)
@@ -106,7 +106,7 @@ set stick_radius, 0.25
 ```
 
 ### 3.3. Ray Tracing and Shadow Styles
-```pymol
+```text
 set ray_shadows, 1
 set ray_trace_mode, 1     # Adds a clean silhouette outline around cartoons/sticks
 set ray_trace_gain, 0.5   # Softens the outlines
@@ -117,7 +117,7 @@ set ray_opaque_background, 1
 
 ### 3.4. Canonical Camera Angle
 A consistent camera matrix is applied via `set_view` before saving the image to ensure all snapshots are in the exact same spatial frame:
-```pymol
+```text
 set_view (-0.597478449, -0.617595792, -0.511463583, -0.502994895, 0.785388291, -0.360776752, 0.624511778, 0.041705273, -0.779902637, 0.000050262, -0.000109358, -182.850265503, 31.930021286, 32.076828003, 34.52369679, 141.553222656, 224.141143799, -20.000000000)
 ```
 

@@ -396,34 +396,73 @@ def openmm_analysis(
             print(f"[INFO] Copied equilibration QC plot to {out_path}")
 
 
-def openmm_em(workdir: str, pdbid: str, ligand: str | None = None, keep_mg: bool = False):
+def openmm_em(
+    workdir: str,
+    pdbid: str,
+    ligand: str | None = None,
+    keep_mg: bool = False,
+    amber_prmtop: str | None = None,
+    amber_inpcrd: str | None = None,
+    padding_nm: float | str = "auto",
+    protein_ff: str = "ff19SB",
+    water_model: str = "opc",
+    small_molecule_ff: str = "gaff-2.11",
+):
     from colabmda.openmm.modular.em import run_em
 
-    success = run_em(workdir, pdbid, ligand=ligand, keep_mg=keep_mg)
+    success = run_em(
+        workdir,
+        pdbid,
+        ligand=ligand,
+        keep_mg=keep_mg,
+        amber_prmtop=amber_prmtop,
+        amber_inpcrd=amber_inpcrd,
+        padding_nm=padding_nm,
+        protein_ff=protein_ff,
+        water_model=water_model,
+        small_molecule_ff=small_molecule_ff,
+    )
     if not success:
         raise SystemExit(1)
 
 
-def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = None):
+def openmm_nvt(
+    workdir: str,
+    pdbid: str,
+    equil_time: float,
+    seed: int | None = None,
+    protocol: str = "varmdyn",
+):
     from colabmda.openmm.modular.nvt import run_nvt
 
-    success = run_nvt(workdir, pdbid, equil_time_ps=equil_time, seed=seed)
+    success = run_nvt(workdir, pdbid, equil_time_ps=equil_time, seed=seed, protocol=protocol)
     if not success:
         raise SystemExit(1)
 
 
-def openmm_npt(workdir: str, pdbid: str, equil_time: float):
+def openmm_npt(
+    workdir: str,
+    pdbid: str,
+    equil_time: float,
+    seed: int | None = None,
+    protocol: str = "varmdyn",
+):
     from colabmda.openmm.modular.npt import run_npt
 
-    success = run_npt(workdir, pdbid, equil_time_ps=equil_time)
+    success = run_npt(workdir, pdbid, equil_time_ps=equil_time, seed=seed, protocol=protocol)
     if not success:
         raise SystemExit(1)
 
 
-def openmm_check_equil(workdir: str):
+def openmm_check_equil(workdir: str, strict: bool = True):
     from colabmda.openmm.modular.check_equil import analyze_logs
 
-    analyze_logs(workdir)
+    passed = analyze_logs(workdir)
+    if strict and not passed:
+        raise SystemExit(
+            "Equilibration QC failed; inspect equilibration_qc.json/PNG before production"
+        )
+    return passed
 
 
 def openmm_md(
@@ -632,7 +671,7 @@ zoom kras and polymer, buffer=4
 
 def openmm_snapshots(
     config_path: str | None = None,
-    output: str = "manuscript/figures/master_3x8_snapshots.png",
+    output: str = "data/analysis/snapshots/master_3x8_snapshots.png",
     temp_dir: str = "scratch/master_grid_3x8",
     font_path: str | None = None,
 ):

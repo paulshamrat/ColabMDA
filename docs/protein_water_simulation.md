@@ -6,15 +6,17 @@ This guide describes how to run Molecular Dynamics (MD) simulations for protein 
 > *   **Staging, Running, Merging, and Analysis (Sections 1-4):** These commands are typically run on **Google Colab** (either natively in the **Colab Terminal** [⋮ → Terminal] or inside notebook cells by prefixing the commands with an exclamation mark `!`).
 > *   **Trajectory Visualization (Section 5):** PyMOL trajectory viewing and snapshot generation are run **locally** on your workstation/laptop (which has a graphical display).
 >
-> For details on setting up these environments, see the [Installation & Setup Guide](installation.md).
+> For details on setup, see the [Installation Guide](installation.md). For the scientific
+> definitions of EM/NVT/NPT/production timing, checkpoint continuation, and independent
+> replicas, see [Simulation Protocol, Timing, and Replica Semantics](simulation_protocol.md).
 
 ---
 
 ## 1. Simulation Workflow Overview
 
 The standard simulation workflow consists of:
-1. **Model:** Build structures (Wild-Type & Mutants) in `structures/` using Modeller.
-2. **Stage:** Initialize the simulation directory structure under `simulations/`.
+1. **Model:** Build structures (Wild-Type & Mutants) in `data/str/` using Modeller.
+2. **Stage:** Initialize the simulation directory structure under `data/sim/`.
 3. **Run:** Execute the resume-safe production MD (EM, NVT, NPT, MD stages).
 4. **Merge:** Concatenate raw trajectory chunks, align/wrap boundaries, and center the protein.
 5. **Analyze:** Compute and plot RMSD, Radius of Gyration ($R_g$), and RMSF.
@@ -33,10 +35,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir structures/4ldj/wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
 
 # 2. Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
+colabmda modeller mutate --pdb-in data/str/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_G12D
 ```
 
 ### 2.2. Stage Simulation Workspace
@@ -48,14 +50,14 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Stage simulation directories
-colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
-colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12D/target.B99990001_G12D.pdb --name 4ldj_G12D --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/mutants/4ldj_G12D/target.B99990001_G12D.pdb --name 4ldj_G12D --replica r1
 ```
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
 > If you prefer to run the entire simulation sequentially (EM, NVT, NPT, QC, and MD) using a single, resume-safe command instead of executing each step manually, you can run:
 > ```bash
-> colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
+> colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 > ```
 
 ### 2.3. Energy Minimization (EM)
@@ -63,34 +65,34 @@ colabmda openmm stage --pdb-file structures/4ldj/mutants/4ldj_G12D/target.B99990
 
 Stages the water molecules, parameterizes the protein-water system, and minimizes potential energy to resolve steric clashes:
 ```bash
-colabmda openmm em --name 4ldj_wt --workdir simulations/4ldj_wt/r1
+colabmda openmm em --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 ```
-*Under the Hood:* Parameterizes the protein with the **AMBER14SB** forcefield and water with the **TIP3P** model. Solvates with a 1.0 nm cubic box and adds $0.15 \text{ M}$ neutralizing NaCl. Outputs `solvated.pdb`, `system.xml`, and the minimized coordinates in `em.chk`.
+*Under the Hood:* Parameterizes the protein with **AMBER ff19SB** and **OPC** water, neutralizes the system, and uses PME with a 1.0 nm cutoff and 0.8-1.0 nm switching. `--padding-nm auto` normally selects 1.0 nm for KRAS; use `1.4` for conservative 14 A padding. Outputs include `solvated.pdb`, `system.xml`, `parameterization.json`, and portable `em.state.xml`.
 
 ### 2.4. NVT Equilibration
 **Environment:** `openmm_env`
 
 Relaxes solvent molecules and adjusts temperature to 300 K while keeping protein heavy atoms restrained:
 ```bash
-colabmda openmm nvt --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --equil-time 100 --seed 42
+colabmda openmm nvt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --seed 42
 ```
-*Parameters:* `--equil-time` (length in ps), `--seed` (random seed for velocity assignment). Temperature is maintained at $300 \text{ K}$ using a Langevin Middle Integrator (collision frequency $1.0 \text{ ps}^{-1}$).
+*Under the Hood:* Runs the default staged NVT profile: restrained minimization, gradual 50-300 K heating, post-heating minimization, and a 10/5/2/1 restraint-release ladder at 300 K. See the [stage table](simulation_protocol.md#default-staged-equilibration-profile).
 
 ### 2.5. NPT Equilibration
 **Environment:** `openmm_env`
 
 Relaxes the simulation box volume and adjusts system density under pressure:
 ```bash
-colabmda openmm npt --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --equil-time 100
+colabmda openmm npt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --seed 43
 ```
-*Parameters:* Pressure is maintained at $1.0 \text{ atm}$ using an OpenMM Monte Carlo Barostat (volume adjustment attempts every 25 steps).
+*Under the Hood:* Runs stages 19-24 at 300 K and **1 bar**: four restrained 100 ps NPT stages, 100 ps unrestrained NPT, then 1 ns unrestrained NPT.
 
 ### 2.6. Equilibration Validation & QC Check
 **Environment:** `openmm_env`
 
 Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
 ```bash
-colabmda openmm check-equil --name 4ldj_wt --workdir simulations/4ldj_wt/r1
+colabmda openmm check-equil --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 ```
 
 ### 2.7. Production Molecular Dynamics (MD)
@@ -98,16 +100,18 @@ colabmda openmm check-equil --name 4ldj_wt --workdir simulations/4ldj_wt/r1
 
 Runs the production trajectory in chunked, resume-safe segments:
 ```bash
-colabmda openmm md --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
+colabmda openmm md --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 ```
 *Parameters:* `--total-ns` (total duration in ns), `--traj-interval` (coordinate saving frequency in ps), `--checkpoint-ps` (duration of each chunk before writing checkpoint to enable safe restarts). All bonds involving hydrogen atoms are constrained using the SHAKE-like algorithm (`HBonds`), allowing a stable 2 fs timestep. Long-range electrostatics are handled via Particle Mesh Ewald (PME) with a $1.0\text{ nm}$ cutoff.
+
+> 💡 **Force field options:** Examples use the default `--protein-ff ff19SB --water-model opc`. For compatibility tests, you can choose alternatives such as `--protein-ff ff14SB --water-model tip3p`, but keep Amber19/OPC for the standard KRAS examples unless you intentionally want a different model.
 
 > 💡 **Multi-Replica Acceleration (r2, r3, ...):**
 > To run multiple independent replicas without repeating the CPU-intensive solvation, minimization, and equilibration steps, you can directly spawn them from `r1`'s equilibrated state. Simply run the unified `run` command for the next replica:
 > ```bash
 > colabmda openmm run --name 4ldj_wt --replica r2 --total-ns 10.0
 > ```
-> This automatically skips the EM/NVT/NPT preparation steps, inherits `system.xml`, `solvated.pdb`, and the initial NPT checkpoint from `r1`, and initializes the new simulation with randomized velocities (using a new random seed) to ensure independent trajectories.
+> This skips EM/NVT/NPT, inherits `system.xml`, `solvated.pdb`, and portable `npt.state.xml`, then creates a fresh Context with independent velocities, Langevin stream, and barostat stream. It does not branch from r1's binary checkpoint.
 
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
@@ -116,8 +120,8 @@ colabmda openmm md --name 4ldj_wt --workdir simulations/4ldj_wt/r1 --total-ns 10
 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine (`--mda`):
 ```bash
-colabmda openmm merge --pdb-dir simulations/4ldj_wt/r1 --center --wrap
-colabmda openmm merge --pdb-dir simulations/4ldj_G12D/r1 --center --wrap
+colabmda openmm merge --pdb-dir data/sim/4ldj_wt/r1 --center --wrap
+colabmda openmm merge --pdb-dir data/sim/4ldj_G12D/r1 --center --wrap
 ```
 
 #### Output Files:
@@ -132,13 +136,13 @@ After a standard merge, the following files are created in the simulation replic
 ### 3.1. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
-colabmda openmm status --pdb-dir simulations/4ldj_wt/r1
+colabmda openmm status --pdb-dir data/sim/4ldj_wt/r1
 ```
 
 This will print a comprehensive status report including topology stats, chunks, and exact frame counts:
 ```text
 [STATUS]
-  Workdir          : /path/to/simulations/4ldj_wt/r1
+  Workdir          : /path/to/data/sim/4ldj_wt/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
@@ -183,7 +187,7 @@ colabmda openmm analysis --pdb-id 4ldj_G12D
 
 ### 4.2. WT vs Mutant Comparison
 ```bash
-colabmda openmm compare --series "WT=analysis/single/4ldj_wt/r1,analysis/single/4ldj_wt/r2" --series "G12D=analysis/single/4ldj_G12D/r1,analysis/single/4ldj_G12D/r2" --outdir analysis/compare/wt_vs_g12d_avg
+colabmda openmm compare --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2" --series "G12D=data/analysis/4ldj_G12D/r1,data/analysis/4ldj_G12D/r2" --outdir data/analysis/compare/wt_vs_g12d_avg
 ```
 
 ---
@@ -202,7 +206,7 @@ python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.gi
 ### 5.2. Running the Visualization in PyMOL
 Simply run the view command from your simulation replica folder:
 ```bash
-colabmda openmm view --pdb-dir simulations/4ldj_wt/r1
+colabmda openmm view --pdb-dir data/sim/4ldj_wt/r1
 ```
 
 ### 5.3. Generating Comparative Snapshot Grids
