@@ -1,4 +1,6 @@
 import argparse
+import json
+import math
 import os
 
 import matplotlib.pyplot as plt
@@ -21,11 +23,6 @@ def analyze_logs(workdir):
         nvt_log = "nvt.log"
         npt_log = "npt.log"
 
-        qc_file = "equilibration_qc.png"
-        if os.path.exists(qc_file):
-            print(f"✔ Stability check already complete ({qc_file} found). Skipping...")
-            return True
-
         print("▶ Running Comprehensive Stability Check & Plotting …")
 
         # Process NVT
@@ -39,7 +36,10 @@ def analyze_logs(workdir):
         avg_dens = df_npt["Density (g/mL)"].tail(last_20_pct).mean()
 
         subset = df_npt.tail(last_20_pct)
-        slope, _, _, _, _ = linregress(range(len(subset)), subset["Density (g/mL)"])
+        if len(subset) >= 2:
+            slope, _, _, _, _ = linregress(subset["Time (ps)"], subset["Density (g/mL)"])
+        else:
+            slope = math.nan
 
         # Plotting
         fig, axes = plt.subplots(3, 2, figsize=(12, 15))
@@ -90,14 +90,37 @@ def analyze_logs(workdir):
         print(f"  • NVT Temp: {avg_temp:.1f}K | NPT Density: {avg_dens:.4f} | Slope: {slope:.2e}")
         print("  • Saved comprehensive equilibration_qc.png")
 
-        # Stability Gate logic (Keep it helpful but not strictly blocking for small tests)
-        passed = True
-        if abs(avg_temp - 300) > 20:
+        passed = all(math.isfinite(value) for value in (avg_temp, avg_dens, slope))
+        reasons = []
+        if not passed:
+            reasons.append("non-finite or insufficient thermodynamic data")
+        if abs(avg_temp - 300) > 10:
             print("⚠ WARNING: Temperature unstable.")
             passed = False
-        if abs(slope) > 1e-3:
+            reasons.append("mean final temperature differs from 300 K by more than 10 K")
+        if not 0.90 <= avg_dens <= 1.10:
+            print("⚠ WARNING: Density outside the expected explicit-water range.")
+            passed = False
+            reasons.append("mean final density is outside 0.90-1.10 g/mL")
+        if abs(slope) > 1e-4:
             print("⚠ WARNING: Density not converged.")
             passed = False
+            reasons.append("absolute final density slope exceeds 1e-4 g/mL/ps")
+
+        with open("equilibration_qc.json", "w") as handle:
+            json.dump(
+                {
+                    "passed": passed,
+                    "temperature_mean_k": float(avg_temp),
+                    "temperature_std_k": float(std_temp),
+                    "density_mean_g_ml": float(avg_dens),
+                    "density_slope_g_ml_ps": float(slope),
+                    "reasons": reasons,
+                },
+                handle,
+                indent=2,
+            )
+            handle.write("\n")
 
         return passed
     finally:
@@ -109,6 +132,4 @@ if __name__ == "__main__":
     p.add_argument("workdir")
     args = p.parse_args()
     if not analyze_logs(args.workdir):
-        # We still exit 0 for now to allow the test run to proceed,
-        # but we print clear warnings.
-        pass
+        raise SystemExit(1)

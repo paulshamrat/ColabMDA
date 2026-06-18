@@ -1,13 +1,24 @@
 import argparse
 import glob
 import os
-import random
 import shutil
 
 from openmm import XmlSerializer, unit
 from openmm.app import CheckpointReporter, DCDReporter, PDBFile, StateDataReporter
 
-from colabmda.openmm.modular.utils import atomic_rename, make_sim, sync_outputs
+from colabmda.openmm.modular.utils import (
+    atomic_rename,
+    fresh_seed,
+    load_stage_state,
+    make_sim,
+    offset_seed,
+    sync_outputs,
+)
+
+
+def _format_ps(value):
+    """Format a chunk boundary without collapsing distinct fractional times."""
+    return f"{value:.6f}".rstrip("0").rstrip(".")
 
 
 def run_md(
@@ -24,7 +35,7 @@ def run_md(
 
     xml_system = "system.xml"
     pdb_saved = "solvated.pdb"
-    chk_in = "npt.chk"
+    state_in = "npt.state.xml"
     chk_file = "prod.chk"
 
     # If system files are missing, try copying from sibling r1 replica directory
@@ -47,15 +58,15 @@ def run_md(
                     except Exception:
                         pass
 
-    # If initial NPT checkpoint is missing, copy from sibling r1 replica
-    if not os.path.exists(chk_in):
+    # Replicas branch from portable physical state, never from another Context checkpoint.
+    if not os.path.exists(state_in):
         parent_dir = os.path.dirname(workdir)
         r1_dir = os.path.join(parent_dir, "r1")
-        if os.path.exists(r1_dir) and os.path.exists(os.path.join(r1_dir, chk_in)):
+        if os.path.exists(r1_dir) and os.path.exists(os.path.join(r1_dir, state_in)):
             print(
-                f"[INFO] Sibling r1 NPT checkpoint found. Copying {chk_in} to initialize this replica..."
+                f"[INFO] Sibling r1 equilibrated state found. Copying {state_in} to initialize this replica..."
             )
-            shutil.copy2(os.path.join(r1_dir, chk_in), os.path.join(workdir, chk_in))
+            shutil.copy2(os.path.join(r1_dir, state_in), os.path.join(workdir, state_in))
 
     if not all(os.path.exists(f) for f in [xml_system, pdb_saved]):
         print("Error: system.xml or solvated.pdb not found.")
@@ -71,7 +82,8 @@ def run_md(
     with open(xml_system) as f:
         system = XmlSerializer.deserializeSystem(f.read())
     pdb = PDBFile(pdb_saved)
-    sim = make_sim(pdb.topology, system, dt)
+    seed = fresh_seed(seed)
+    sim = make_sim(pdb.topology, system, dt, seed=seed, barostat_seed=offset_seed(seed))
 
     # Resume from prod.chk if exists, else start fresh from npt.chk
     if os.path.exists(chk_file):
@@ -80,36 +92,28 @@ def run_md(
             sim.loadCheckpoint(f)
         steps_done = sim.context.getState().getStepCount()
     else:
-        print("▶ Starting Production from npt.chk …")
-        if not os.path.exists(chk_in):
-            print("Error: npt.chk not found. Run NPT first.")
+        print("▶ Starting independent Production from npt.state.xml …")
+        if not os.path.exists(state_in):
+            print("Error: npt.state.xml not found. Run NPT with the current version first.")
             return False
-        with open(chk_in, "rb") as f:
-            sim.loadCheckpoint(f)
+        load_stage_state(sim, state_in, load_velocities=False)
 
         # Reset step count and time so production starts at 0.0
         sim.context.setStepCount(0)
         sim.context.setTime(0.0)
         steps_done = 0
 
-        # Assign random velocities to ensure independent trajectory if this is not r1
-        current_replica = os.path.basename(workdir)
-        if seed is not None or current_replica != "r1":
-            if seed is None:
-                seed = random.randint(1, 1000000)
-            print(
-                f"[INFO] Replica/seed override active. Assigning new random velocities with seed={seed} (temp=300 K)"
-            )
-            sim.context.setVelocitiesToTemperature(300 * unit.kelvin, seed)
+        print(f"[INFO] Assigning independent 300 K velocities and stochastic streams (seed={seed})")
+        sim.context.setVelocitiesToTemperature(300 * unit.kelvin, seed)
 
     print(f"  • Progress: {steps_done * dt_ps:.1f} / {total_ns * 1000:.1f} ps")
 
     # Production loop
     while steps_done < total_steps:
         steps_to_run = min(chk_steps, total_steps - steps_done)
-        ps_start = int(steps_done * dt_ps)
-        ps_end = int(ps_start + steps_to_run * dt_ps)
-        tag = f"{ps_start}to{ps_end}ps"
+        ps_start = steps_done * dt_ps
+        ps_end = (steps_done + steps_to_run) * dt_ps
+        tag = f"{_format_ps(ps_start)}to{_format_ps(ps_end)}ps"
 
         print(f"▶ Running chunk {tag} …")
 

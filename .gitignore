@@ -1,4 +1,5 @@
-# Simulation Data
+# Local and synchronized research data
+data/
 sim/
 simulations/
 simulations_test/
@@ -8,6 +9,9 @@ str/
 structures/
 analysis_outputs/
 scratch/
+.agents/
+.codex/
+ColabMDA-upload.zip
 *.pdb
 *.fasta
 *.ali

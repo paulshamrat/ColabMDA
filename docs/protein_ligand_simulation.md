@@ -6,15 +6,17 @@ This guide describes how to model, setup, run, and analyze Molecular Dynamics (M
 > *   **Staging, Running, Merging, and Analysis (Sections 1-4):** These commands are run on **Google Colab** (either natively in the **Colab Terminal** [⋮ → Terminal] or inside a remote shell using the Colab CLI `colab console -s kras-sim`).
 > *   **Trajectory Visualization (Section 5):** PyMOL trajectory viewing and snapshot generation are run **locally** on your workstation/laptop (which has a graphical display).
 >
-> For details on setting up these environments, see the [Installation & Setup Guide](installation.md).
+> For details on setup, see the [Installation Guide](installation.md). For the scientific
+> definitions of EM/NVT/NPT/production timing, checkpoint continuation, and independent
+> replicas, see [Simulation Protocol, Timing, and Replica Semantics](simulation_protocol.md).
 
 ---
 
 ## 1. Simulation Workflow Overview
 
 The standard simulation workflow consists of:
-1. **Model:** Build structures (Wild-Type & Mutants) in `structures/` using Modeller.
-2. **Stage:** Initialize the simulation directory structure under `simulations/`.
+1. **Model:** Build structures (Wild-Type & Mutants) in `data/str/` using Modeller.
+2. **Stage:** Initialize the simulation directory structure under `data/sim/`.
 3. **Run:** Execute the resume-safe production MD (EM, NVT, NPT, MD stages) with GAFF2 ligand parameterization and $Mg^{2+}$ cofactor preservation.
 4. **Merge:** Concatenate raw trajectory chunks, apply periodic boundary condition (PBC) wrap/alignment, and center the complex.
 5. **Analyze:** Compute and plot RMSD, Radius of Gyration ($R_g$), and RMSF for the complex.
@@ -33,10 +35,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir structures/4ldj/wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
 
 # 2. Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in structures/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut structures/4ldj/mutants/4ldj_G12D
+colabmda modeller mutate --pdb-in data/str/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_G12D
 ```
 
 ### 2.2. Stage Simulation Workspace
@@ -48,14 +50,14 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Stage simulation directory
-colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_gdp --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_gdp --replica r1
 ```
-*Note: This creates the simulation directory `simulations/4ldj_gdp/r1/` and copies the protein PDB into it.*
+*Note: This creates the simulation directory `data/sim/4ldj_gdp/r1/` and copies the protein PDB into it.*
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
 > If you prefer to run the entire simulation sequentially (EM, NVT, NPT, QC, and MD) using a single, resume-safe command instead of executing each step manually, you can run:
 > ```bash
-> colabmda openmm run --name 4ldj_gdp --replica r1 --ligand structures/4ldj/gdp.sdf --keep-mg --total-ns 10.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
+> colabmda openmm run --name 4ldj_gdp --replica r1 --ligand data/str/4ldj/gdp.sdf --keep-mg --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 > ```
 
 ### 2.3. Energy Minimization (EM)
@@ -63,34 +65,34 @@ colabmda openmm stage --pdb-file structures/4ldj/wt/target.B99990001_with_cryst.
 
 Stages the ligand and cofactor, parameterizes them, solvates, and minimizes potential energy to resolve steric clashes:
 ```bash
-colabmda openmm em --name 4ldj_gdp --workdir simulations/4ldj_gdp/r1 --ligand structures/4ldj/gdp.sdf --keep-mg
+colabmda openmm em --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --ligand data/str/4ldj/gdp.sdf --keep-mg
 ```
-*Under the Hood:* Parameterizes the protein with **AMBER14SB**, the ligand with **GAFF2** (using **AM1-BCC** charges via the OpenFF Toolkit), and water with the **TIP3P** model. Solvates with a 1.0 nm cubic box and adds $0.15 \text{ M}$ NaCl. Outputs `solvated.pdb`, `system.xml`, and the minimized state `em.chk`.
+*Under the Hood:* Uses **AMBER ff19SB**, **OPC**, and **GAFF 2.11** for the native OpenMM XML path. OpenFF assigns AM1-BCC only when the ligand has no supplied partial charges; supplied charges are preserved and recorded. Generic GAFF is not equivalent to specialized ATP-Mg parameters—use `--amber-prmtop` and `--amber-inpcrd` when you already have a curated Hu 2024-style AMBER topology. The system is neutralized and all choices are written to `parameterization.json`.
 
 ### 2.4. NVT Equilibration
 **Environment:** `openmm_env`
 
 Relaxes solvent molecules and adjusts temperature to 300 K while keeping the protein-ligand complex restrained:
 ```bash
-colabmda openmm nvt --name 4ldj_gdp --workdir simulations/4ldj_gdp/r1 --equil-time 100 --seed 42
+colabmda openmm nvt --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --seed 42
 ```
-*Parameters:* `--equil-time` (length in ps), `--seed` (random seed for velocity assignment). Temperature is maintained at $300 \text{ K}$ using a Langevin Middle Integrator (collision frequency $1.0 \text{ ps}^{-1}$).
+*Under the Hood:* Runs the restrained minimization, 50-300 K heating, and NVT restraint-release stages described in the [complete stage table](simulation_protocol.md#default-staged-equilibration-profile).
 
 ### 2.5. NPT Equilibration
 **Environment:** `openmm_env`
 
 Relaxes the simulation box volume and adjusts system density under pressure:
 ```bash
-colabmda openmm npt --name 4ldj_gdp --workdir simulations/4ldj_gdp/r1 --equil-time 100
+colabmda openmm npt --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --seed 43
 ```
-*Parameters:* Pressure is maintained at $1.0 \text{ atm}$ using an OpenMM Monte Carlo Barostat (volume adjustment attempts every 25 steps).
+*Under the Hood:* Runs stages 19-24 at 300 K and **1 bar**, progressively releases solute-heavy-atom restraints, and ends with 1 ns unrestrained NPT.
 
 ### 2.6. Equilibration Validation & QC Check
 **Environment:** `openmm_env`
 
 Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
 ```bash
-colabmda openmm check-equil --name 4ldj_gdp --workdir simulations/4ldj_gdp/r1
+colabmda openmm check-equil --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1
 ```
 
 ### 2.7. Production Molecular Dynamics (MD)
@@ -98,23 +100,25 @@ colabmda openmm check-equil --name 4ldj_gdp --workdir simulations/4ldj_gdp/r1
 
 Runs the production trajectory in chunked, resume-safe segments:
 ```bash
-colabmda openmm md --name 4ldj_gdp --workdir simulations/4ldj_gdp/r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
+colabmda openmm md --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 ```
 *Parameters:* `--total-ns` (total duration in ns), `--traj-interval` (coordinate saving frequency in ps), `--checkpoint-ps` (duration of each chunk before writing checkpoint to enable safe restarts). All bonds involving hydrogen atoms are constrained using the SHAKE-like algorithm (`HBonds`), allowing a stable 2 fs timestep. Long-range electrostatics are handled via Particle Mesh Ewald (PME) with a $1.0\text{ nm}$ cutoff.
+
+> 💡 **Force field options:** Examples use `--protein-ff ff19SB --water-model opc --small-molecule-ff gaff-2.11`. If your installed `openmmforcefields` package provides a newer GAFF release, you can test it with `--small-molecule-ff gaff-2.2.20`. For curated ATP-Mg chemistry, prefer `--amber-prmtop` and `--amber-inpcrd`.
 
 > 💡 **Multi-Replica Acceleration (r2, r3, ...):**
 > To run multiple independent replicas without repeating the CPU-intensive solvation, minimization, and equilibration steps, you can directly spawn them from `r1`'s equilibrated state. Simply run the unified `run` command for the next replica:
 > ```bash
 > colabmda openmm run --name 4ldj_gdp --replica r2 --total-ns 10.0
 > ```
-> This automatically skips the EM/NVT/NPT preparation steps, inherits `system.xml`, `solvated.pdb`, and the initial NPT checkpoint from `r1`, and initializes the new simulation with randomized velocities (using a new random seed) to ensure independent trajectories.
+> This inherits portable `npt.state.xml`, not r1's binary checkpoint, and creates independent velocity, thermostat, and barostat random streams.
 
 ### 2.8. Merge and Center
 **Environment:** `openmm_env`
 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein-ligand complex:
 ```bash
-colabmda openmm merge --pdb-dir simulations/4ldj_gdp/r1 --center --wrap
+colabmda openmm merge --pdb-dir data/sim/4ldj_gdp/r1 --center --wrap
 ```
 
 #### Output Files:
@@ -129,10 +133,10 @@ After a standard merge, the following files are created in the simulation replic
 ### 3.1. Directory Layout & Modeling Strategy
 
 #### Recommended Structure Folder Layout
-For protein-ligand complexes, we recommend organizing your files under the standard `structures/` folder:
+For protein-ligand complexes, we recommend organizing your files under the standard `data/str/` folder:
 
 ```text
-structures/
+data/str/
   4ldj/
     wt/
       target.B99990001_with_cryst.pdb   # Modeled WT protein structure (no ligand/MG)
@@ -152,7 +156,7 @@ To guarantee that the ligand is placed exactly in its native binding pocket:
 ### 3.2. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
-colabmda openmm status --pdb-dir simulations/4ldj_gdp/r1
+colabmda openmm status --pdb-dir data/sim/4ldj_gdp/r1
 ```
 
 ### 3.3. ⏱️ Understanding Simulation Time vs. Frame Counts
@@ -182,7 +186,7 @@ colabmda openmm analysis --pdb-id 4ldj_gdp
 
 ### 4.2. WT vs Mutant Comparison
 ```bash
-colabmda openmm compare --series "WT=analysis/single/4ldj_gdp/r1" --outdir analysis/compare/wt_vs_mutant_avg
+colabmda openmm compare --series "WT=data/analysis/4ldj_gdp/r1" --outdir data/analysis/compare/wt_vs_mutant_avg
 ```
 
 ---
@@ -201,7 +205,7 @@ python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.gi
 ### 5.2. Running the Visualization in PyMOL
 Simply run the view command from your simulation replica folder:
 ```bash
-colabmda openmm view --pdb-dir simulations/4ldj_gdp/r1
+colabmda openmm view --pdb-dir data/sim/4ldj_gdp/r1
 ```
 
 Inside PyMOL, the ligand and magnesium ions are automatically rendered with distinct representations (sticks and spheres, respectively) for easy binding-pocket inspection:
@@ -245,7 +249,7 @@ pymol.finish_launching(['pymol', '-qc'])
 cmd.reinitialize()
 cmd.bg_color('white')
 
-# Set standard manuscript camera matrix (preserves identical scale and framing)
+# Set a standard camera matrix (preserves identical scale and framing)
 camera_view = [
     -0.597478449,   -0.617595792,   -0.511463583,
     -0.502994895,    0.785388291,   -0.360776752,
@@ -263,16 +267,16 @@ def render_panel(name, is_crystal=False, is_model=False, is_superimposed=False, 
     cmd.bg_color('white')
     
     # Load reference structure (for alignment only)
-    cmd.load("structures/g12c_protein.pdb", "ref_g12c")
+    cmd.load("data/str/g12c_protein.pdb", "ref_g12c")
     
     # Unified Load & Align:
-    cmd.load("structures/4ldj/wt/4ldj_orig.pdb", "crystal")
+    cmd.load("data/str/4ldj/wt/4ldj_orig.pdb", "crystal")
     cmd.align(f"crystal and {stable_core_sel}", f"ref_g12c and {stable_core_sel}")
     
-    cmd.load("structures/4ldj/wt/target.B99990001_with_cryst.pdb", "modeled_wt")
+    cmd.load("data/str/4ldj/wt/target.B99990001_with_cryst.pdb", "modeled_wt")
     cmd.matrix_copy("crystal", "modeled_wt")
     
-    cmd.load("structures/4ldj/gdp.sdf", "transferred_gdp")
+    cmd.load("data/str/4ldj/gdp.sdf", "transferred_gdp")
     cmd.matrix_copy("crystal", "transferred_gdp")
     
     cmd.create("mg_cofactor", "crystal and resn MG")
@@ -470,8 +474,8 @@ from Bio.PDB import PDBParser
 import numpy as np
 
 parser = PDBParser(QUIET=True)
-c_struct = parser.get_structure('c', 'structures/4ldj/wt/4ldj_orig.pdb')[0]['A']
-m_struct = parser.get_structure('m', 'structures/4ldj/wt/target.B99990001_with_cryst.pdb')[0]['A']
+c_struct = parser.get_structure('c', 'data/str/4ldj/wt/4ldj_orig.pdb')[0]['A']
+m_struct = parser.get_structure('m', 'data/str/4ldj/wt/target.B99990001_with_cryst.pdb')[0]['A']
 
 # Extract C-alpha coordinates for matching residues (1 to 169)
 c_coords = np.array([r['CA'].get_coord() for r in c_struct if r.id[0] == ' ' and r.id[1] >= 1 and r.id[1] <= 169])

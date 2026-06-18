@@ -4,8 +4,7 @@ channels:
   - salilab  # For modeller
 dependencies:
   - python=3.10
-  - openmm
-  - openmmtools
+  - openmm>=8.5
   - pdbfixer
   - mdanalysis
   - mdtraj

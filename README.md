@@ -38,8 +38,12 @@ Detailed walkthroughs for Google Colab environment setup, license keys, local wo
 ### 💧 [Protein-in-Water Simulation Guide](docs/protein_water_simulation.md)
 Step-by-step instructions for staging protein systems in water, running resume-safe production MD, trajectory merging, stability gating, and PyMOL visualization.
 
-### 🧬 [Protein-Ligand Simulation Guide](docs/protein_ligand_simulation.md)
-Instructions for modeling small molecule ligands using dynamic GAFF2/AM1-BCC parameterization and retaining structural Magnesium ($Mg^{2+}$) cofactors.
+### 🖥️ [Local Documentation Preview](docs/installation.md#4-building-and-viewing-documentation-locally)
+To build and view the complete documentation manual locally on your workstation:
+```bash
+conda run -n colabmda_test sphinx-build -b html docs/ docs/_build/html
+xdg-open docs/_build/html/index.html
+```
 
 ---
 
@@ -49,22 +53,16 @@ We recommend organizing your research project directories as follows:
 
 ```text
 /content/drive/MyDrive/ColabMDA/
-  structures/
-    4ldj/
-      wt/          # Wild-type modeled PDBs
-      mutants/     # G12D/G12C modeled PDBs
-  simulations/
-    4ldj_wt/
-      r1/          # Replica 1 (em.chk, npt.chk, prod.dcd)
-      r2/          # Replica 2
-    4ldj_G12D/
-      r1/
-      r2/
-  analysis/
-    single/
-      4ldj_wt/     # [r1, r2, aggregate] reports
-      4ldj_G12D/
-    compare/       # Final WT vs Mutant overlays
+  data/                    # Entire directory is ignored by Git
+    str/                   # Input structures and homology models
+      4ldj/
+    sim/                   # Trajectories, checkpoints, and logs
+      4ldj_wt/
+        r1/
+        r2/
+    analysis/              # Analysis metrics, plots, and comparisons
+      4ldj_wt/
+      compare/
 ```
 
 ---

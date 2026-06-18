@@ -14,6 +14,9 @@ import glob
 import os
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")  # Use non-interactive backend; safe in both script and Colab kernel contexts
 import matplotlib.pyplot as plt
 import MDAnalysis as mda
 import mdtraj as md

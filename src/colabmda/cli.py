@@ -6,6 +6,21 @@ from pathlib import Path
 
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
 ENV_ROOT = "COLABMDA_ROOT"
+ROOT_HELP = (
+    f"Override project root; normally run from your Drive project folder ({DEFAULT_DRIVE_ROOT})"
+)
+
+
+def _normalize_equil_protocol(protocol: str) -> str:
+    """Map user-facing equilibration labels to internal implementation names."""
+    if protocol in {"default", "full", "staged"}:
+        return "varmdyn"
+    if protocol in {"varmdyn", "quick"}:
+        return protocol
+    raise SystemExit(
+        "ERROR: --equil-protocol must be 'default' for the full staged protocol "
+        "or 'quick' for a short smoke-test equilibration."
+    )
 
 
 def _resolve_root(use_drive: bool, root: str | None) -> str:
@@ -21,7 +36,7 @@ def _resolve_root(use_drive: bool, root: str | None) -> str:
     cwd = os.getcwd()
     # 3. If on Colab but in the temporary /content folder, fallback to Drive
     if cwd == "/content" and os.path.exists("/content/drive/MyDrive"):
-        return "/content/drive/MyDrive/ColabMDA"
+        return DEFAULT_DRIVE_ROOT
 
     # 4. Otherwise, use the Current Working Directory (standard for HPC/Laptop)
     return cwd
@@ -72,6 +87,17 @@ def _default_project_root() -> str:
     return _resolve_root(use_drive=True, root=None) or DEFAULT_DRIVE_ROOT
 
 
+def _simulation_workdir(root: str, name: str) -> Path:
+    """Resolve a named simulation under the current and legacy layouts."""
+    root_path = Path(root).resolve()
+    candidates = [
+        root_path / "data" / "sim" / name,
+        root_path / "sim" / name,
+        root_path / "simulations" / name,
+    ]
+    return next((path for path in candidates if path.is_dir()), candidates[0])
+
+
 def main():
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
@@ -101,7 +127,7 @@ def main():
     p_prep.add_argument(
         "--root",
         default=None,
-        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+        help=ROOT_HELP,
     )
 
     # run (colab-safe runner)
@@ -113,15 +139,55 @@ def main():
         "--name", default=None, help="Prefix name (default: --pdb-id or inferred from workdir)"
     )
     p_run.add_argument("--total-ns", type=float, default=100.0)
-    p_run.add_argument("--traj-interval", type=float, default=100.0, help="ps between saved frames")
-    p_run.add_argument("--equil-time", type=float, default=100.0, help="ps for NVT and ps for NPT")
+    p_run.add_argument(
+        "--traj-interval",
+        type=float,
+        default=10.0,
+        help="ps between saved frames (default: 10.0 ps)",
+    )
+    p_run.add_argument(
+        "--equil-time",
+        type=float,
+        default=100.0,
+        help="NVT and NPT duration in ps for --equil-protocol quick",
+    )
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
     p_run.add_argument("--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2)")
     p_run.add_argument("--ligand", default=None, help="Optional: Path to ligand SDF/MOL2 file")
     p_run.add_argument(
+        "--small-molecule-ff",
+        default="gaff-2.11",
+        help="Small-molecule force field for ligand setup (default: gaff-2.11; e.g. gaff-2.2.20 if installed)",
+    )
+    p_run.add_argument(
         "--keep-mg", action="store_true", help="Optional: Keep Mg2+ ion from raw structure"
     )
+    p_run.add_argument(
+        "--padding-nm",
+        default="auto",
+        help="Solvent padding in nm, or auto; 1.4 is conservative and 1.0 is compact",
+    )
+    p_run.add_argument(
+        "--protein-ff",
+        choices=["ff19SB", "ff14SB"],
+        default="ff19SB",
+        help="Protein force field for native OpenMM setup (default: ff19SB)",
+    )
+    p_run.add_argument(
+        "--water-model",
+        choices=["opc", "tip3p", "tip3pfb", "tip4pew"],
+        default="opc",
+        help="Water/ion model for native OpenMM setup (default: opc)",
+    )
+    p_run.add_argument(
+        "--equil-protocol",
+        default="default",
+        metavar="{default,quick}",
+        help="Full staged equilibration or short smoke-test equilibration",
+    )
+    p_run.add_argument("--amber-prmtop", default=None, help="Pre-parameterized AMBER topology")
+    p_run.add_argument("--amber-inpcrd", default=None, help="Matching AMBER coordinates")
     p_run.add_argument(
         "--seed", type=int, default=None, help="Optional: random seed for velocity assignment"
     )
@@ -131,7 +197,7 @@ def main():
     p_run.add_argument(
         "--root",
         default=None,
-        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+        help=ROOT_HELP,
     )
 
     # merge
@@ -169,7 +235,7 @@ def main():
     p_merge.add_argument(
         "--root",
         default=None,
-        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+        help=ROOT_HELP,
     )
 
     # analysis
@@ -189,7 +255,7 @@ def main():
     p_ana.add_argument(
         "--root",
         default=None,
-        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+        help=ROOT_HELP,
     )
 
     # status
@@ -203,7 +269,7 @@ def main():
     p_stat.add_argument(
         "--root",
         default=None,
-        help=f"Override base directory (default: ${ENV_ROOT} if set, else {DEFAULT_DRIVE_ROOT} when --drive)",
+        help=ROOT_HELP,
     )
 
     # compare
@@ -212,7 +278,7 @@ def main():
         "--series",
         action="append",
         required=True,
-        help="LABEL=DIR1,DIR2 (e.g. WT=analysis/single/wt/r1,analysis/single/wt/r2)",
+        help="LABEL=DIR1,DIR2 (e.g. WT=data/analysis/wt/r1,data/analysis/wt/r2)",
     )
     p_comp.add_argument("--outdir", required=True, help="Output directory for plots")
 
@@ -243,7 +309,7 @@ def main():
     p_snap.add_argument(
         "-o",
         "--output",
-        default="manuscript/figures/master_3x8_snapshots.png",
+        default="data/analysis/snapshots/master_3x8_snapshots.png",
         help="Path to output image grid file",
     )
     p_snap.add_argument(
@@ -256,16 +322,14 @@ def main():
         "stage", help="Stage a WT/mutant structure into simulations/<name>"
     )
     p_stage.add_argument(
-        "--pdb-file", required=True, help="Input structure PDB file (typically from structures/)"
+        "--pdb-file", required=True, help="Input structure PDB file (typically from data/str/)"
     )
     p_stage.add_argument("--name", required=True, help="Simulation name (e.g. 4ldj_wt, 4ldj_G12C)")
     p_stage.add_argument(
         "--replica", default=None, help="Optional: create nested replica subfolder (e.g. r1, r2)"
     )
     p_stage.add_argument("--ph", type=float, default=7.0, help="Hydrogen pH (default: 7.0)")
-    p_stage.add_argument(
-        "--root", default=None, help=f"Project root (default: ${ENV_ROOT} or {DEFAULT_DRIVE_ROOT})"
-    )
+    p_stage.add_argument("--root", default=None, help=ROOT_HELP)
 
     # em/nvt/npt/check-equil/md (individual modular steps)
     p_em = sub_openmm.add_parser("em", help="Modular: Minimization")
@@ -274,19 +338,34 @@ def main():
     p_em.add_argument("--root", default=None)
     p_em.add_argument("--ligand", default=None, help="Optional: Path to ligand SDF/MOL2 file")
     p_em.add_argument(
+        "--small-molecule-ff",
+        default="gaff-2.11",
+        help="Small-molecule force field for ligand setup",
+    )
+    p_em.add_argument(
         "--keep-mg", action="store_true", help="Optional: Keep Mg2+ ion from raw structure"
     )
+    p_em.add_argument("--padding-nm", default="auto")
+    p_em.add_argument("--protein-ff", choices=["ff19SB", "ff14SB"], default="ff19SB")
+    p_em.add_argument(
+        "--water-model", choices=["opc", "tip3p", "tip3pfb", "tip4pew"], default="opc"
+    )
+    p_em.add_argument("--amber-prmtop", default=None)
+    p_em.add_argument("--amber-inpcrd", default=None)
 
     p_nvt = sub_openmm.add_parser("nvt", help="Modular: NVT Equilibration")
     p_nvt.add_argument("--name", required=True)
     p_nvt.add_argument("--equil-time", type=float, default=100.0)
     p_nvt.add_argument("--seed", type=int, default=None)
+    p_nvt.add_argument("--equil-protocol", default="default", metavar="{default,quick}")
     p_nvt.add_argument("--workdir", default=None)
     p_nvt.add_argument("--root", default=None)
 
     p_npt = sub_openmm.add_parser("npt", help="Modular: NPT Equilibration")
     p_npt.add_argument("--name", required=True)
     p_npt.add_argument("--equil-time", type=float, default=100.0)
+    p_npt.add_argument("--seed", type=int, default=None)
+    p_npt.add_argument("--equil-protocol", default="default", metavar="{default,quick}")
     p_npt.add_argument("--workdir", default=None)
     p_npt.add_argument("--root", default=None)
 
@@ -294,11 +373,14 @@ def main():
     p_chk.add_argument("--name", required=True)
     p_chk.add_argument("--workdir", default=None)
     p_chk.add_argument("--root", default=None)
+    p_chk.add_argument(
+        "--warn-only", action="store_true", help="Report failed QC without a nonzero exit"
+    )
 
     p_md = sub_openmm.add_parser("md", help="Modular: Production MD")
     p_md.add_argument("--name", required=True)
     p_md.add_argument("--total-ns", type=float, default=100.0)
-    p_md.add_argument("--traj-interval", type=float, default=100.0)
+    p_md.add_argument("--traj-interval", type=float, default=10.0)
     p_md.add_argument("--checkpoint-ps", type=float, default=1000.0)
     p_md.add_argument("--sync-dir", default=None)
     p_md.add_argument("--workdir", default=None)
@@ -396,12 +478,14 @@ def main():
                 print(f"[DEBUG] cwd:  {cwd}")
                 print(f"[DEBUG] name: {name}")
 
-                # Search strategy: prioritize CWD over default root
+                # Search strategy: prioritize data/sim > sim > simulations
                 search_paths = [
+                    cwd / "data" / "sim" / name if name else None,
                     cwd / "sim" / name if name else None,
                     cwd / "simulations" / name if name else None,
                     cwd / name if name else None,
                     cwd if (name and name in str(cwd)) else None,  # Check if we are already inside
+                    root / "data" / "sim" / name if name else None,
                     root / "sim" / name if name else None,
                     root / "simulations" / name if name else None,
                     root / name if name else None,
@@ -478,10 +562,26 @@ def main():
                     f"[INFO] Replica '{args.replica}' detected. Skipping EM/NVT/NPT and inheriting equilibrated structures from r1."
                 )
             else:
-                openmm_em(workdir_str, name, ligand=args.ligand, keep_mg=args.keep_mg)
-                openmm_nvt(workdir_str, name, args.equil_time, seed=args.seed)
-                openmm_npt(workdir_str, name, args.equil_time)
-                openmm_check_equil(workdir_str)
+                equil_protocol = _normalize_equil_protocol(args.equil_protocol)
+                openmm_em(
+                    workdir_str,
+                    name,
+                    ligand=args.ligand,
+                    keep_mg=args.keep_mg,
+                    amber_prmtop=args.amber_prmtop,
+                    amber_inpcrd=args.amber_inpcrd,
+                    padding_nm=args.padding_nm,
+                    protein_ff=args.protein_ff,
+                    water_model=args.water_model,
+                    small_molecule_ff=args.small_molecule_ff,
+                )
+                openmm_nvt(
+                    workdir_str, name, args.equil_time, seed=args.seed, protocol=equil_protocol
+                )
+                openmm_npt(
+                    workdir_str, name, args.equil_time, seed=args.seed, protocol=equil_protocol
+                )
+                openmm_check_equil(workdir_str, strict=equil_protocol == "varmdyn")
 
             openmm_md(
                 workdir=workdir_str,
@@ -534,27 +634,29 @@ def main():
         elif args.cmd == "analysis":
             root = _resolve_root(args.drive, args.root)
             if args.pdb_id and root:
-                sim_path = Path(root) / "sim" / args.pdb_id
+                sim_path = Path(root) / "data" / "sim" / args.pdb_id
+                if not sim_path.exists():
+                    sim_path = Path(root) / "sim" / args.pdb_id
                 if not sim_path.exists():
                     sim_path = Path(root) / "simulations" / args.pdb_id
                 sim_dir = str(sim_path)
-                out_base = Path(root) / "analysis" / "single" / args.pdb_id
+                out_base = Path(root) / "data" / "analysis" / args.pdb_id
             elif args.pdb_id:
-                sim_path = Path("sim") / args.pdb_id
+                sim_path = Path("data") / "sim" / args.pdb_id
+                if not sim_path.exists():
+                    sim_path = Path("sim") / args.pdb_id
                 if not sim_path.exists():
                     sim_path = Path("simulations") / args.pdb_id
                 sim_dir = str(sim_path)
-                out_base = Path("analysis") / "single" / args.pdb_id
+                out_base = Path("data") / "analysis" / args.pdb_id
             elif args.pdb_dir:
                 sim_dir = args.pdb_dir
                 out_base = (
-                    Path(args.outdir)
-                    if args.outdir
-                    else Path("analysis/single") / Path(sim_dir).name
+                    Path(args.outdir) if args.outdir else Path("data/analysis") / Path(sim_dir).name
                 )
             else:
                 sim_dir = "."
-                out_base = Path(args.outdir) if args.outdir else Path("analysis/single/current")
+                out_base = Path(args.outdir) if args.outdir else Path("data/analysis/current")
 
             openmm_analysis(sim_dir, args.topology, args.trajectory, args.interval, str(out_base))
 
@@ -587,8 +689,13 @@ def main():
         elif args.cmd == "stage":
             root = args.root or _resolve_root(False, None)
             _ensure_dir(root)
-            # Default to "sim", but fallback to "simulations" if that directory already exists
-            sim_dir_name = "simulations" if os.path.exists(os.path.join(root, "simulations")) else "sim"
+            # Priority: data/sim > sim > simulations (legacy)
+            if os.path.exists(os.path.join(root, "data", "sim")):
+                sim_dir_name = os.path.join("data", "sim")
+            elif os.path.exists(os.path.join(root, "simulations")):
+                sim_dir_name = "simulations"
+            else:
+                sim_dir_name = os.path.join("data", "sim")
             outdir = Path(root) / sim_dir_name / args.name
             if args.replica:
                 outdir = outdir / args.replica
@@ -597,9 +704,13 @@ def main():
             print(f"[INFO] Staged simulation folder: {outdir}")
 
         elif args.cmd in ["em", "nvt", "npt", "check-equil", "md"]:
-            root = _resolve_root(False, args.root)
-            workdir = args.workdir or os.getcwd()
             name = args.name
+            if args.workdir:
+                workdir = str(Path(args.workdir).resolve())
+            elif args.root:
+                workdir = str(_simulation_workdir(args.root, name))
+            else:
+                workdir = os.getcwd()
             if args.cmd == "em":
                 if args.ligand:
                     ligand_path = Path(args.ligand)
@@ -607,13 +718,36 @@ def main():
                     if ligand_path.exists() and ligand_path.resolve() != local_ligand.resolve():
                         shutil.copy2(ligand_path, local_ligand)
                     args.ligand = str(local_ligand.resolve())
-                openmm_em(workdir, name, ligand=args.ligand, keep_mg=args.keep_mg)
+                openmm_em(
+                    workdir,
+                    name,
+                    ligand=args.ligand,
+                    keep_mg=args.keep_mg,
+                    amber_prmtop=args.amber_prmtop,
+                    amber_inpcrd=args.amber_inpcrd,
+                    padding_nm=args.padding_nm,
+                    protein_ff=args.protein_ff,
+                    water_model=args.water_model,
+                    small_molecule_ff=args.small_molecule_ff,
+                )
             elif args.cmd == "nvt":
-                openmm_nvt(workdir, name, args.equil_time, args.seed)
+                openmm_nvt(
+                    workdir,
+                    name,
+                    args.equil_time,
+                    args.seed,
+                    _normalize_equil_protocol(args.equil_protocol),
+                )
             elif args.cmd == "npt":
-                openmm_npt(workdir, name, args.equil_time)
+                openmm_npt(
+                    workdir,
+                    name,
+                    args.equil_time,
+                    seed=args.seed,
+                    protocol=_normalize_equil_protocol(args.equil_protocol),
+                )
             elif args.cmd == "check-equil":
-                openmm_check_equil(workdir)
+                openmm_check_equil(workdir, strict=not args.warn_only)
             elif args.cmd == "md":
                 openmm_md(
                     workdir,
