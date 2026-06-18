@@ -22,7 +22,7 @@ WITH_LIGAND="${WITH_LIGAND:-0}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
-DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/openmm}"
+DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/ColabMDA}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 OPENMM_ENV_NAME="${OPENMM_ENV_NAME:-openmm_env}"
 INSTALL_REF="${INSTALL_REF:-}"
@@ -150,10 +150,15 @@ except Exception:
 PY
 )"
 
-if [[ -n "${WHEEL_URL}" ]]; then
+local_wheel=$(find "${INSTALL_DIR}" -maxdepth 1 -name "*.whl" | head -n 1)
+if [[ -n "${local_wheel}" ]]; then
+  echo "[INFO] Installing local wheel: ${local_wheel}"
+  python -m pip install --upgrade "${local_wheel}"
+elif [[ -n "${WHEEL_URL}" ]]; then
   echo "[INFO] Downloading release wheel: ${WHEEL_URL}"
-  if curl -fsSL "${WHEEL_URL}" -o colabmda.whl; then
-    python -m pip install --upgrade ./colabmda.whl
+  WHEEL_NAME=$(basename "${WHEEL_URL}")
+  if curl -fsSL "${WHEEL_URL}" -o "${INSTALL_DIR}/${WHEEL_NAME}"; then
+    python -m pip install --upgrade "${INSTALL_DIR}/${WHEEL_NAME}"
   else
     echo "[WARN] Release wheel download failed."
   fi
@@ -190,8 +195,9 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
   echo "[STEP] Ensure ColabMDA is available in ${MODELLER_ENV_NAME}"
   conda activate "${MODELLER_ENV_NAME}"
   python -m pip install --upgrade pip
-  if [[ -f "${INSTALL_DIR}/colabmda.whl" ]]; then
-    python -m pip install --upgrade "${INSTALL_DIR}/colabmda.whl"
+  local_wheel=$(find "${INSTALL_DIR}" -maxdepth 1 -name "*.whl" | head -n 1)
+  if [[ -n "${local_wheel}" ]]; then
+    python -m pip install --upgrade "${local_wheel}"
   else
     python -m pip install --upgrade "git+https://github.com/${REPO}.git@${INSTALL_REF}"
   fi

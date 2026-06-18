@@ -13,7 +13,7 @@ Key improvements vs the original:
 Usage example:
   python3 openmm_proteinwater_colab.py /content/work/4ldj_wt \
       --pdbid 4ldj --total-ns 100 --traj-interval 100 --equil-time 100 --checkpoint-ps 1000 \
-      --sync-dir /content/drive/MyDrive/openmm_runs/4ldj_wt
+      --sync-dir /content/drive/MyDrive/ColabMDA/simulations/4ldj_wt
 """
 
 import argparse

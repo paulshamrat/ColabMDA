@@ -275,18 +275,34 @@ def print_alignment_summary(aln_path, logfh):
 def align_pdb_to_template_in_place(model_path, template_path, logfh):
     """Aligns model_path PDB to template_path PDB using Bio.PDB.Superimposer with sequence-based matching."""
     try:
-        from Bio.PDB import PDBParser, Superimposer, PDBIO
         from Bio.Align import PairwiseAligner
+        from Bio.PDB import PDBIO, PDBParser, Superimposer
 
         parser = PDBParser(QUIET=True)
         model_struct = parser.get_structure("model", model_path)
         template_struct = parser.get_structure("template", template_path)
 
         three_to_one = {
-            "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C",
-            "GLN": "Q", "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I",
-            "LEU": "L", "LYS": "K", "MET": "M", "PHE": "F", "PRO": "P",
-            "SER": "S", "THR": "T", "TRP": "W", "TYR": "Y", "VAL": "V"
+            "ALA": "A",
+            "ARG": "R",
+            "ASN": "N",
+            "ASP": "D",
+            "CYS": "C",
+            "GLN": "Q",
+            "GLU": "E",
+            "GLY": "G",
+            "HIS": "H",
+            "ILE": "I",
+            "LEU": "L",
+            "LYS": "K",
+            "MET": "M",
+            "PHE": "F",
+            "PRO": "P",
+            "SER": "S",
+            "THR": "T",
+            "TRP": "W",
+            "TYR": "Y",
+            "VAL": "V",
         }
 
         # Extract CA atoms and sequence
@@ -311,7 +327,7 @@ def align_pdb_to_template_in_place(model_path, template_path, logfh):
                         template_atoms.append(residue["CA"])
 
         aligner = PairwiseAligner()
-        aligner.mode = 'global'
+        aligner.mode = "global"
         aligner.match_score = 2
         aligner.mismatch_score = -1
         aligner.open_gap_score = -10
@@ -341,7 +357,9 @@ def align_pdb_to_template_in_place(model_path, template_path, logfh):
         superimposer.set_atoms(matched_template_atoms, matched_model_atoms)
         superimposer.apply(model_struct.get_atoms())
 
-        write(logfh, f"Aligned model to template structure. RMSD = {superimposer.rms:.4f} Angstroms")
+        write(
+            logfh, f"Aligned model to template structure. RMSD = {superimposer.rms:.4f} Angstroms"
+        )
 
         io = PDBIO()
         io.set_structure(model_struct)
