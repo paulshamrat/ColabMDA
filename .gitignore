@@ -26,6 +26,9 @@ __pycache__/
 *$py.class
 .ipynb_checkpoints
 *.egg-info/
+build/
+dist/
+.ruff_cache/
 
 # Documentation
 _build/
