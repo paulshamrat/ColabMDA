@@ -27,6 +27,13 @@ To authenticate the CLI with your Google account:
 4. Copy the authorization code provided and paste it back into your terminal.
 5. The OAuth token is saved locally and will be automatically reused.
 
+#### 🔄 Switching Google Accounts (Starting Fresh)
+If you need to switch to a different Google account, you must clear your locally cached OAuth token and session records:
+```bash
+rm -f ~/.config/colab-cli/token.json ~/.config/colab-cli/sessions.json
+```
+On your next command, the Colab CLI will trigger a fresh login flow and prompt you to authorize using your new account credentials.
+
 ---
 
 ### 1.2. Storage Strategy: Local VM vs. Google Drive
