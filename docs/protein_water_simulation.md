@@ -35,10 +35,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/proteins/4ldj_wt
 
 # 2. Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in data/str/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_G12D
+colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/proteins/4ldj_g12d
 ```
 
 ### 2.2. Stage Simulation Workspace
@@ -50,8 +50,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Stage simulation directories
-colabmda openmm stage --pdb-file data/str/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_wt --replica r1
-colabmda openmm stage --pdb-file data/str/4ldj/mutants/4ldj_G12D/target.B99990001_G12D.pdb --name 4ldj_G12D --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_wt --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_g12d/4ldj_g12d.pdb --name 4ldj_g12d --replica r1
 ```
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
@@ -121,7 +121,7 @@ colabmda openmm md --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --total-ns 10.0 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine (`--mda`):
 ```bash
 colabmda openmm merge --pdb-dir data/sim/4ldj_wt/r1 --center --wrap
-colabmda openmm merge --pdb-dir data/sim/4ldj_G12D/r1 --center --wrap
+colabmda openmm merge --pdb-dir data/sim/4ldj_g12d/r1 --center --wrap
 ```
 
 #### Output Files:
@@ -182,12 +182,12 @@ When merging trajectories, the reference topology file used and the resulting ou
 ### 4.1. Single System Analysis
 ```bash
 colabmda openmm analysis --pdb-id 4ldj_wt
-colabmda openmm analysis --pdb-id 4ldj_G12D
+colabmda openmm analysis --pdb-id 4ldj_g12d
 ```
 
 ### 4.2. WT vs Mutant Comparison
 ```bash
-colabmda openmm compare --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2" --series "G12D=data/analysis/4ldj_G12D/r1,data/analysis/4ldj_G12D/r2" --outdir data/analysis/compare/wt_vs_g12d_avg
+colabmda openmm compare --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2" --series "G12D=data/analysis/4ldj_g12d/r1,data/analysis/4ldj_g12d/r2" --outdir data/analysis/compare/wt_vs_g12d_avg
 ```
 
 ---

@@ -75,6 +75,11 @@ def main() -> int:
         help="Install OpenFF/openmmforcefields ligand parameterization tools.",
     )
     parser.add_argument(
+        "--with-docking",
+        action="store_true",
+        help="Install RDKit, Meeko, and AutoDock Vina for docking/virtual screening.",
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         default=7200,
@@ -145,6 +150,7 @@ def main() -> int:
         *bootstrap_lines,
         f"export WITH_MODELLER={_bool_env(args.with_modeller)}",
         f"export WITH_LIGAND={_bool_env(args.with_ligand)}",
+        f"export WITH_DOCKING={_bool_env(args.with_docking)}",
         f"export INSTALL_REF={shlex.quote(args.branch)}",
         "bash ./bootstrap_colab_openmm_gpu.sh 2>&1 | tee /content/bootstrap_colabmda.log",
     ]
@@ -160,6 +166,11 @@ def main() -> int:
                 "python -m pip install -e /content/ColabMDA",
                 'if [[ "${WITH_MODELLER}" == "1" ]]; then',
                 "  conda activate modeller_env",
+                "  python -m pip install -e /content/ColabMDA",
+                "  conda activate openmm_env",
+                "fi",
+                'if [[ "${WITH_DOCKING}" == "1" ]]; then',
+                "  conda activate docking_env",
                 "  python -m pip install -e /content/ColabMDA",
                 "  conda activate openmm_env",
                 "fi",

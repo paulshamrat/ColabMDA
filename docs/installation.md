@@ -95,6 +95,8 @@ bash ./bootstrap_colab_openmm_gpu.sh 2>&1 | tee /content/bootstrap_colabmda.log
 > 🛠️ **Developer Tip:** If you are testing custom or unmerged changes from a specific git branch, you can replace `pwpl` in the `curl` URL above with your custom branch name (e.g. `main` or a feature branch name).
 >
 > 🧬 **Force-field note:** The standard examples use Amber19/ff19SB with OPC water, so the bootstrap installs a modern OpenMM build with Amber19 XML support. Colab T4 runtimes currently report CUDA 13.0; if your runtime requires a different CUDA package set, override it with `COLABMDA_CUDA_VERSION=12.9` or another compatible value before running the bootstrap.
+>
+> 🎯 **Docking option:** If you also want virtual-screening tools, add `export WITH_DOCKING=1` before running the bootstrap. This installs RDKit, Meeko, and AutoDock Vina into a separate `docking_env`.
 
 If you want to install and test your **current local checkout** instead of a pushed GitHub branch, run this from your local workstation:
 
@@ -107,6 +109,12 @@ For the full MODELLER install from your current local checkout:
 ```bash
 export KEY_MODELLER='YOUR_MODELLER_LICENSE_KEY'
 python scripts/colab_exec_bootstrap.py --session kras-sim --from-local --with-modeller --timeout 7200
+```
+
+For local checkout testing with docking tools:
+
+```bash
+python scripts/colab_exec_bootstrap.py --session kras-sim --from-local --with-docking --with-ligand --timeout 7200
 ```
 
 This uploads a lightweight source zip to `/content/ColabMDA-upload.zip`, installs the local checkout editable at `/content/ColabMDA`, streams the transcript locally, and saves the VM log at `/content/bootstrap_colabmda.log`.
