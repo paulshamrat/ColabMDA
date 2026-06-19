@@ -19,6 +19,7 @@ REPO="${COLABMDA_REPO:-paulshamrat/ColabMDA}"
 TAG="${1:-latest}"
 WITH_MODELLER="${WITH_MODELLER:-0}"
 WITH_LIGAND="${WITH_LIGAND:-0}"
+WITH_DOCKING="${WITH_DOCKING:-0}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
@@ -26,6 +27,7 @@ DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/ColabMDA}"
 OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 OPENMM_ENV_NAME="${OPENMM_ENV_NAME:-openmm_env}"
+DOCKING_ENV_NAME="${DOCKING_ENV_NAME:-docking_env}"
 INSTALL_REF="${INSTALL_REF:-}"
 if [[ -z "${INSTALL_REF}" ]]; then
   if [[ "${TAG}" == "latest" ]]; then
@@ -67,6 +69,18 @@ conda install -y -c conda-forge pdbfixer || python -m pip install pdbfixer
 if [[ "${WITH_LIGAND}" == "1" ]]; then
   echo "[STEP] Installing OpenFF and OpenMMForceFields for protein-ligand support..."
   mamba install -y -c conda-forge openff-toolkit openmmforcefields
+fi
+
+if [[ "${WITH_DOCKING}" == "1" ]]; then
+  echo "[STEP] Installing docking / virtual-screening tools in ${DOCKING_ENV_NAME}..."
+  if conda env list | awk '{print $1}' | grep -qx "${DOCKING_ENV_NAME}"; then
+    mamba install -y -n "${DOCKING_ENV_NAME}" -c conda-forge python=3.10 rdkit meeko vina prody "setuptools<81" matplotlib pandas biopython
+  else
+    mamba create -y -n "${DOCKING_ENV_NAME}" -c conda-forge python=3.10 rdkit meeko vina prody "setuptools<81" matplotlib pandas biopython
+  fi
+  conda activate "${DOCKING_ENV_NAME}"
+  python -m pip install --upgrade pip
+  conda activate "${OPENMM_ENV_NAME}"
 fi
 
 python -m pip install --upgrade pip
@@ -197,11 +211,42 @@ print("MDTraj:", mdtraj.__version__)
 print("Biopython:", Bio.__version__)
 PY
 
+if [[ "${WITH_DOCKING}" == "1" ]]; then
+  echo "[STEP] Validate docking tools"
+  conda activate "${DOCKING_ENV_NAME}"
+  python - <<'PY'
+import shutil
+for exe in ["vina", "mk_prepare_ligand.py", "mk_prepare_receptor.py", "mk_export.py"]:
+    path = shutil.which(exe)
+    if not path:
+        raise SystemExit(f"Missing docking executable: {exe}")
+    print(f"{exe}: {path}")
+import rdkit
+print("RDKit:", rdkit.__version__)
+PY
+  colabmda --help >/dev/null || true
+  conda activate "${OPENMM_ENV_NAME}"
+fi
+
 colabmda --help >/dev/null
 
 if [[ "${WITH_MODELLER}" == "1" ]]; then
   echo "[STEP] Ensure ColabMDA is available in ${MODELLER_ENV_NAME}"
   conda activate "${MODELLER_ENV_NAME}"
+  python -m pip install --upgrade pip
+  local_wheel=$(find "${INSTALL_DIR}" -maxdepth 1 -name "*.whl" | head -n 1)
+  if [[ -n "${local_wheel}" ]]; then
+    python -m pip install --upgrade "${local_wheel}"
+  else
+    python -m pip install --upgrade "git+https://github.com/${REPO}.git@${INSTALL_REF}"
+  fi
+  colabmda --help >/dev/null
+  conda activate "${OPENMM_ENV_NAME}"
+fi
+
+if [[ "${WITH_DOCKING}" == "1" ]]; then
+  echo "[STEP] Ensure ColabMDA is available in ${DOCKING_ENV_NAME}"
+  conda activate "${DOCKING_ENV_NAME}"
   python -m pip install --upgrade pip
   local_wheel=$(find "${INSTALL_DIR}" -maxdepth 1 -name "*.whl" | head -n 1)
   if [[ -n "${local_wheel}" ]]; then
@@ -221,5 +266,8 @@ echo "[OK] Local workdir: ${WORK_DIR}"
 echo "[OK] Drive run dir: ${DRIVE_RUNS_DIR}"
 if [[ "${WITH_MODELLER}" == "1" ]]; then
   echo "[OK] MODELLER env: ${MODELLER_ENV_NAME}"
+fi
+if [[ "${WITH_DOCKING}" == "1" ]]; then
+  echo "[OK] Docking env: ${DOCKING_ENV_NAME}"
 fi
 echo "[NEXT] Run: conda activate ${OPENMM_ENV_NAME} && cd ${WORK_DIR}"

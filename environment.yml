@@ -14,6 +14,9 @@ dependencies:
   - pandas
   - scipy
   - modeller
+  - rdkit
+  - meeko
+  - vina
   - pip
   - pip:
     - -e .

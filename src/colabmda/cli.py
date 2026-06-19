@@ -387,6 +387,68 @@ def main():
     p_md.add_argument("--root", default=None)
     p_md.add_argument("--seed", type=int, default=None, help="Random seed for velocity assignment")
 
+    # ---------------- Docking / virtual screening ----------------
+    p_dock = sub.add_parser("dock", help="Docking and virtual-screening workflow")
+    sub_dock = p_dock.add_subparsers(dest="cmd", required=True)
+
+    p_dlib = sub_dock.add_parser("library", help="Build a small 3D ligand library")
+    p_dlib.add_argument("--outdir", default="data/docking/demo_library")
+    p_dlib.add_argument("--preset", default="demo", help="Built-in demo library preset")
+    p_dlib.add_argument(
+        "--smiles-csv", default=None, help="CSV/SMILES file from ZINC/ChEMBL/PubChem"
+    )
+    p_dlib.add_argument("--max-mols", type=int, default=None)
+    p_dlib.add_argument("--seed", type=int, default=2026)
+
+    p_drec = sub_dock.add_parser("prep-receptor", help="Prepare receptor PDBQT and docking box")
+    p_drec.add_argument("--receptor", required=True, help="Input receptor PDB")
+    p_drec.add_argument("--outdir", default="data/docking/receptor")
+    p_drec.add_argument("--name", default="receptor")
+    p_drec.add_argument("--center", nargs=3, type=float, required=True, metavar=("X", "Y", "Z"))
+    p_drec.add_argument("--size", nargs=3, type=float, required=True, metavar=("X", "Y", "Z"))
+
+    p_dbox = sub_dock.add_parser("box-from-pdb", help="Create a Vina box from a PDB selection")
+    p_dbox.add_argument("--pdb", required=True, help="Input PDB containing pocket/cofactor atoms")
+    p_dbox.add_argument("--out", default="data/docking/vina_box.txt")
+    p_dbox.add_argument("--resname", default=None, help="Residue name to center box on, e.g. GDP")
+    p_dbox.add_argument("--chain", default=None, help="Optional chain ID filter")
+    p_dbox.add_argument("--padding", type=float, default=8.0, help="Å padding around selection")
+    p_dbox.add_argument("--min-size", type=float, default=18.0, help="Minimum Å size per dimension")
+
+    p_dlig = sub_dock.add_parser("prep-ligands", help="Prepare ligand PDBQT files from SDF")
+    p_dlig.add_argument("--library-sdf", required=True)
+    p_dlig.add_argument("--outdir", default="data/docking/ligands")
+
+    p_drun = sub_dock.add_parser("run", help="Run AutoDock Vina over prepared ligands")
+    p_drun.add_argument("--receptor-pdbqt", required=True)
+    p_drun.add_argument("--ligands-dir", required=True)
+    p_drun.add_argument("--config", required=True, help="Vina box config text file")
+    p_drun.add_argument("--outdir", default="data/docking/results")
+    p_drun.add_argument("--exhaustiveness", type=int, default=8)
+    p_drun.add_argument("--num-modes", type=int, default=9)
+    p_drun.add_argument("--cpu", type=int, default=0)
+    p_drun.add_argument("--scoring", choices=["vina", "vinardo", "ad4"], default="vina")
+
+    p_dreport = sub_dock.add_parser("report", help="Plot and summarize docking scores")
+    p_dreport.add_argument(
+        "--results", required=True, help="Docking results folder or ranked_hits.csv"
+    )
+    p_dreport.add_argument(
+        "--outdir", default=None, help="Report directory (default: <results>/report)"
+    )
+    p_dreport.add_argument("--top-n", type=int, default=20)
+
+    p_dmerge = sub_dock.add_parser("merge-results", help="Merge ranked hits from many shards")
+    p_dmerge.add_argument("--campaign-dir", required=True, help="data/docking/<campaign> folder")
+    p_dmerge.add_argument("--outdir", default=None, help="Default: <campaign-dir>/merged")
+
+    p_dexp = sub_dock.add_parser("export-top", help="Export top docked poses to SDF for MD")
+    p_dexp.add_argument(
+        "--results", required=True, help="Docking results folder or ranked_hits.csv"
+    )
+    p_dexp.add_argument("--outdir", default="data/str/docked")
+    p_dexp.add_argument("--top-n", type=int, default=3)
+
     # ---------------- Modeller ----------------
     p_mod = sub.add_parser("modeller", help="Modeller workflows")
     sub_mod = p_mod.add_subparsers(dest="cmd", required=True)
@@ -758,6 +820,63 @@ def main():
                     args.sync_dir,
                     seed=args.seed,
                 )
+
+    elif args.tool == "dock":
+        from colabmda.dock.commands import (
+            dock_box_from_pdb,
+            dock_export_top,
+            dock_library,
+            dock_merge_results,
+            dock_prep_ligands,
+            dock_prep_receptor,
+            dock_report,
+            dock_run,
+        )
+
+        if args.cmd == "library":
+            dock_library(
+                outdir=args.outdir,
+                preset=args.preset,
+                smiles_csv=args.smiles_csv,
+                max_mols=args.max_mols,
+                seed=args.seed,
+            )
+        elif args.cmd == "prep-receptor":
+            dock_prep_receptor(
+                receptor=args.receptor,
+                outdir=args.outdir,
+                name=args.name,
+                center=args.center,
+                size=args.size,
+            )
+        elif args.cmd == "box-from-pdb":
+            dock_box_from_pdb(
+                pdb=args.pdb,
+                out=args.out,
+                resname=args.resname,
+                chain=args.chain,
+                padding=args.padding,
+                min_size=args.min_size,
+            )
+        elif args.cmd == "prep-ligands":
+            dock_prep_ligands(args.library_sdf, args.outdir)
+        elif args.cmd == "run":
+            dock_run(
+                receptor_pdbqt=args.receptor_pdbqt,
+                ligands_dir=args.ligands_dir,
+                config=args.config,
+                outdir=args.outdir,
+                exhaustiveness=args.exhaustiveness,
+                num_modes=args.num_modes,
+                cpu=args.cpu,
+                scoring=args.scoring,
+            )
+        elif args.cmd == "report":
+            dock_report(results=args.results, outdir=args.outdir, top_n=args.top_n)
+        elif args.cmd == "merge-results":
+            dock_merge_results(campaign_dir=args.campaign_dir, outdir=args.outdir)
+        elif args.cmd == "export-top":
+            dock_export_top(results=args.results, outdir=args.outdir, top_n=args.top_n)
 
     elif args.tool == "modeller":
         from colabmda.modeller.commands import (

@@ -35,10 +35,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/proteins/4ldj_wt
 
 # 2. Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in data/str/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_G12D
+colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/proteins/4ldj_g12d
 ```
 
 ### 2.2. Stage Simulation Workspace
@@ -50,7 +50,7 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Stage simulation directory
-colabmda openmm stage --pdb-file data/str/4ldj/wt/target.B99990001_with_cryst.pdb --name 4ldj_gdp --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_gdp --replica r1
 ```
 *Note: This creates the simulation directory `data/sim/4ldj_gdp/r1/` and copies the protein PDB into it.*
 
@@ -139,7 +139,7 @@ For protein-ligand complexes, we recommend organizing your files under the stand
 data/str/
   4ldj/
     wt/
-      target.B99990001_with_cryst.pdb   # Modeled WT protein structure (no ligand/MG)
+      4ldj_wt.pdb   # Modeled WT protein structure (no ligand/MG)
     4ldj_orig.pdb                       # Raw crystal structure (used to extract MG cofactors)
     gdp.sdf                             # Ligand file in SDF format (with correct bond orders)
 ```
@@ -270,10 +270,10 @@ def render_panel(name, is_crystal=False, is_model=False, is_superimposed=False, 
     cmd.load("data/str/g12c_protein.pdb", "ref_g12c")
     
     # Unified Load & Align:
-    cmd.load("data/str/4ldj/wt/4ldj_orig.pdb", "crystal")
+    cmd.load("data/str/4ldj/proteins/4ldj_wt/4ldj_orig.pdb", "crystal")
     cmd.align(f"crystal and {stable_core_sel}", f"ref_g12c and {stable_core_sel}")
     
-    cmd.load("data/str/4ldj/wt/target.B99990001_with_cryst.pdb", "modeled_wt")
+    cmd.load("data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb", "modeled_wt")
     cmd.matrix_copy("crystal", "modeled_wt")
     
     cmd.load("data/str/4ldj/gdp.sdf", "transferred_gdp")
@@ -474,8 +474,8 @@ from Bio.PDB import PDBParser
 import numpy as np
 
 parser = PDBParser(QUIET=True)
-c_struct = parser.get_structure('c', 'data/str/4ldj/wt/4ldj_orig.pdb')[0]['A']
-m_struct = parser.get_structure('m', 'data/str/4ldj/wt/target.B99990001_with_cryst.pdb')[0]['A']
+c_struct = parser.get_structure('c', 'data/str/4ldj/proteins/4ldj_wt/4ldj_orig.pdb')[0]['A']
+m_struct = parser.get_structure('m', 'data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb')[0]['A']
 
 # Extract C-alpha coordinates for matching residues (1 to 169)
 c_coords = np.array([r['CA'].get_coord() for r in c_struct if r.id[0] == ' ' and r.id[1] >= 1 and r.id[1] <= 169])

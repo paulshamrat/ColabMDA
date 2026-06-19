@@ -23,6 +23,11 @@ analysis = [
   "matplotlib",
   "pandas",
 ]
+docking = [
+  "rdkit",
+  "meeko",
+  "vina",
+]
 
 [project.scripts]
 colabmda = "colabmda.cli:main"
