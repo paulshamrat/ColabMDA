@@ -518,14 +518,14 @@ If you use this tool, please consider citing the underlying studies:
 
 ---
 
-## Visitor Map & Analytics
-
-<p align="center">
-  <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Repository%20Views&color=blue&style=flat-square" alt="Repository Views" />
-</p>
-
-<p align="center">
-  <a href="https://info.flagcounter.com/ColabMDA">
-    <img src="https://s11.flagcounter.com/count2/ColabMDA/bg_0D1117/txt_FFFFFF/border_0D1117/columns_3/maxflags_9/viewers_3/labels_0/pageviews_1/flags_0/percent_0/" alt="Visitor Map & Flag Stats" />
-  </a>
-</p>
+<details>
+  <summary>🌐 <b>Visitor Analytics & Global Map</b></summary>
+  <br>
+  <p align="center">
+    <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Views&color=blue&style=flat-square" alt="Views" />
+    &nbsp;&nbsp;
+    <a href="https://info.flagcounter.com/ColabMDA">
+      <img src="https://s11.flagcounter.com/mini/ColabMDA/bg_0D1117/txt_FFFFFF/border_0D1117/flags_0/" alt="Visitor Map" />
+    </a>
+  </p>
+</details>
