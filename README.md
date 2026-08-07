@@ -518,14 +518,6 @@ If you use this tool, please consider citing the underlying studies:
 
 ---
 
-<details>
-  <summary>🌐 <b>Visitor Analytics & Global Map</b></summary>
-  <br>
-  <p align="center">
-    <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Views&color=blue&style=flat-square" alt="Views" />
-    &nbsp;&nbsp;
-    <a href="https://info.flagcounter.com/ColabMDA">
-      <img src="https://s11.flagcounter.com/mini/ColabMDA/bg_0D1117/txt_FFFFFF/border_0D1117/flags_0/" alt="Visitor Map" />
-    </a>
-  </p>
-</details>
+<p align="center">
+  <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Visitors&color=blue&style=flat-square" alt="Visitors" />
+</p>
