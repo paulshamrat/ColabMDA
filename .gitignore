@@ -29,3 +29,14 @@ __pycache__/
 
 # Documentation
 _build/
+notes.md
+
+# IDE
+.idea/
+
+# Build artifacts
+dist/
+
+# Local
+  Data
+data/
