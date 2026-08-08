@@ -520,6 +520,32 @@ def main():
                     args.pdb_file, outdir, pdbid=name, ph=args.ph, sync_dir=args.sync_dir
                 )
 
+        elif args.cmd == "stage":
+            name = args.name or Path(args.pdb_file).stem
+            root_path = Path(_resolve_root(args.drive, args.root) or "data/sim").resolve()
+            sim_dir = root_path / name
+            sim_dir.mkdir(parents=True, exist_ok=True)
+
+            target_clean = sim_dir / f"{name}_cleaned.pdb"
+            in_pdb = Path(args.pdb_file).resolve()
+
+            if in_pdb.exists():
+                shutil.copy2(in_pdb, target_clean)
+                summary_json = in_pdb.parent / "protonation_summary.json"
+                if summary_json.exists():
+                    shutil.copy2(summary_json, sim_dir / "protonation_summary.json")
+            else:
+                openmm_prep_from_file(str(in_pdb), str(sim_dir), pdbid=name, ph=args.ph)
+
+            if args.replica:
+                rep_dir = sim_dir / args.replica
+                rep_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(target_clean, rep_dir / f"{name}_cleaned.pdb")
+                if (sim_dir / "protonation_summary.json").exists():
+                    shutil.copy2(sim_dir / "protonation_summary.json", rep_dir / "protonation_summary.json")
+
+            print(f"[INFO] Staged simulation folder: {sim_dir}")
+
         elif args.cmd == "run":
             if args.pdb_id:
                 root = _resolve_root(args.drive, args.root)
@@ -609,6 +635,32 @@ def main():
 
             if not name:
                 raise SystemExit("ERROR: could not infer pdbid; please specify --name.")
+
+            # Auto-discover cleaned starting structure if missing from workdir
+            workdir_path = Path(workdir_str)
+            clean_target = workdir_path / f"{name}_cleaned.pdb"
+            if not clean_target.exists():
+                candidates = [
+                    workdir_path / "r1" / f"{name}_cleaned.pdb",
+                    workdir_path / "equil" / f"{name}_cleaned.pdb",
+                    workdir_path / "prep" / f"{name}_cleaned.pdb",
+                    workdir_path.parent / f"{name}_cleaned.pdb",
+                ]
+                glob_cands = list(workdir_path.glob("*/*_cleaned.pdb")) + list(workdir_path.glob("*_cleaned.pdb"))
+                str_cands = list(Path.cwd().glob(f"data/str/**/{name}*/*_cleaned.pdb"))
+                for c in glob_cands + str_cands:
+                    candidates.append(c)
+
+                for c in candidates:
+                    if c.exists() and c.is_file():
+                        print(f"[INFO] Auto-discovered cleaned starting structure: {c}")
+                        shutil.copy2(c, clean_target)
+                        r1_dir = workdir_path / "r1"
+                        if r1_dir.exists() and r1_dir.is_dir():
+                            r1_clean = r1_dir / f"{name}_cleaned.pdb"
+                            if not r1_clean.exists():
+                                shutil.copy2(c, r1_clean)
+                        break
 
             # Copy ligand file to workdir if provided
             if args.ligand:
