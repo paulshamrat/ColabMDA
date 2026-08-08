@@ -1093,9 +1093,9 @@ def main():
                         write(logfh, f"{m} → FAIL: {e}")
 
         # Standardize build output PDB name to match outdir folder stem (e.g. 4ldj_wt.pdb)
-        outdir_abs = os.path.abspath(outdir)
-        folder_stem = os.path.basename(outdir_abs)
-        std_pdb_path = os.path.join(outdir_abs, f"{folder_stem}.pdb")
+        current_outdir = os.getcwd()
+        folder_stem = os.path.basename(current_outdir)
+        std_pdb_path = os.path.join(current_outdir, f"{folder_stem}.pdb")
         shutil.copy2(base_with_cryst_abs, std_pdb_path)
         write(logfh, f"Standardized build PDB: {std_pdb_path}")
 
