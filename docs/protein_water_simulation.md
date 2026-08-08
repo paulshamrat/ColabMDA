@@ -106,12 +106,22 @@ colabmda openmm md --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --total-ns 10.0 
 
 > 💡 **Force field options:** Examples use the default `--protein-ff ff19SB --water-model opc`. For compatibility tests, you can choose alternatives such as `--protein-ff ff14SB --water-model tip3p`, but keep Amber19/OPC for the standard KRAS examples unless you intentionally want a different model.
 
-> 💡 **Multi-Replica Acceleration (r2, r3, ...):**
-> To run multiple independent replicas without repeating the CPU-intensive solvation, minimization, and equilibration steps, you can directly spawn them from `r1`'s equilibrated state. Simply run the unified `run` command for the next replica:
-> ```bash
-> colabmda openmm run --name 4ldj_wt --replica r2 --total-ns 10.0
-> ```
-> This skips EM/NVT/NPT, inherits `system.xml`, `solvated.pdb`, and portable `npt.state.xml`, then creates a fresh Context with independent velocities, Langevin stream, and barostat stream. It does not branch from r1's binary checkpoint.
+> 💡 **Multi-Replica Acceleration & Shared Equilibration (`r1`, `r2`, `r3`, ...):**
+> To run multiple independent replicas without repeating CPU/GPU-intensive solvation, minimization, and equilibration steps, `ColabMDA` supports **Shared-Equilibration Branching**:
+>
+> 1. **Option A: Run Equilibration Once (`--equil-only`):**
+>    ```bash
+>    colabmda openmm run --name 4ldj_wt --equil-only
+>    ```
+>    This runs EM, NVT, and NPT to produce `system.xml`, `solvated.pdb`, and `npt.state.xml`, then stops.
+>
+> 2. **Option B: Branch Production Replicas Instantly:**
+>    ```bash
+>    colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 100.0
+>    colabmda openmm run --name 4ldj_wt --replica r2 --total-ns 100.0
+>    colabmda openmm run --name 4ldj_wt --replica r3 --total-ns 100.0
+>    ```
+>    Replicas auto-discover the shared equilibration state in `r1/`, `equil/`, or the parent folder (`../`), copy `system.xml` and `npt.state.xml`, assign a **unique per-replica random seed** (`derive_replica_seed`), and immediately launch production MD without wasting time re-minimizing or re-heating!
 
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
