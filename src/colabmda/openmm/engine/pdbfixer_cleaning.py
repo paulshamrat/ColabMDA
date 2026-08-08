@@ -65,7 +65,7 @@ def preprocess(input_pdb, output_pdb, target_pH=7.4):
         os.remove(temp_fixed_pdb)
 
 
-def run_clean_by_pdbid(pdb_id: str, outdir: str | None = None):
+def run_clean_by_pdbid(pdb_id: str, outdir: str | None = None, ph: float = 7.4):
     pdb_id = pdb_id.lower()
     target_dir = os.path.abspath(outdir or pdb_id)
     os.makedirs(target_dir, exist_ok=True)
@@ -82,8 +82,8 @@ def run_clean_by_pdbid(pdb_id: str, outdir: str | None = None):
         else:
             print(f"[Download] Raw PDB already exists: {raw_pdb}")
 
-        # 2–5) Preprocess
-        preprocess(raw_pdb, cleaned_pdb)
+        # 2–5) Preprocess with target pH
+        preprocess(raw_pdb, cleaned_pdb, target_pH=ph)
 
         print("✅ All done!")
         print(f"→ Check directory {target_dir} for {raw_pdb} and {cleaned_pdb}")
@@ -95,9 +95,10 @@ def main():
     parser = argparse.ArgumentParser(description="Download & preprocess a PDB by ID")
     parser.add_argument("pdb_id", help="4-character PDB identifier (e.g., 4ldj)")
     parser.add_argument("--outdir", default=None, help="Output directory (default: ./<pdbid>)")
+    parser.add_argument("--ph", type=float, default=7.4, help="Target pH for titration (default: 7.4)")
     args = parser.parse_args()
 
-    run_clean_by_pdbid(args.pdb_id, args.outdir)
+    run_clean_by_pdbid(args.pdb_id, args.outdir, ph=args.ph)
 
 
 if __name__ == "__main__":

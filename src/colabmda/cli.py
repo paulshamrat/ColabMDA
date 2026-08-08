@@ -509,7 +509,7 @@ def main():
                 root = _resolve_root(args.drive, args.root)
                 if root:
                     _ensure_dir(root)
-                openmm_prep_from_pdbid(args.pdb_id, root_dir=root, sync_dir=args.sync_dir)
+                openmm_prep_from_pdbid(args.pdb_id, root_dir=root, ph=args.ph, sync_dir=args.sync_dir)
             else:
                 name = args.name or Path(args.pdb_file).stem
                 root = _resolve_root(args.drive, args.root)

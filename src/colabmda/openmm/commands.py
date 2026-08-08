@@ -277,14 +277,16 @@ def _sync_tree(src_dir: Path, dst_dir: Path):
     print(f"[INFO] Synced {copied} files: {src_dir} -> {dst_dir}")
 
 
-def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: str | None = None):
+def openmm_prep_from_pdbid(
+    pdbid: str, root_dir: str | None = None, ph: float = 7.4, sync_dir: str | None = None
+):
     from colabmda.openmm.engine.pdbfixer_cleaning import run_clean_by_pdbid
 
     base = Path(root_dir or os.getcwd()).resolve()
     outdir = base / pdbid / "prep"
     outdir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Prep output will be written to: {outdir}")
-    run_clean_by_pdbid(pdbid, outdir=str(outdir))
+    run_clean_by_pdbid(pdbid, outdir=str(outdir), ph=ph)
     if sync_dir:
         _sync_tree(outdir, Path(sync_dir).resolve())
 
