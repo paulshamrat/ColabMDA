@@ -6,6 +6,8 @@ dependencies:
   - python=3.10
   - openmm>=8.5
   - pdbfixer
+  - pdb2pqr
+  - propka
   - mdanalysis
   - mdtraj
   - numpy

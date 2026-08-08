@@ -32,7 +32,7 @@ def download_pdb(pdb_id, out_path):
     print(f"[Download] Saved raw PDB → {out_path}")
 
 
-def preprocess(input_pdb, output_pdb, target_pH=7.0):
+def preprocess(input_pdb, output_pdb, target_pH=7.4):
     print(f"[Preprocess] Loading {input_pdb}")
     fixer = PDBFixer(filename=input_pdb)
     print("[Preprocess] Stripping heterogens (keeping waters)…")
@@ -41,11 +41,28 @@ def preprocess(input_pdb, output_pdb, target_pH=7.0):
     fixer.findMissingResidues()
     fixer.findMissingAtoms()
     fixer.addMissingAtoms()
-    print(f"[Preprocess] Adding hydrogens at pH {target_pH}…")
-    fixer.addMissingHydrogens(pH=target_pH)
-    print(f"[Preprocess] Writing cleaned PDB → {output_pdb}")
-    with open(output_pdb, "w") as out:
+
+    outdir = os.path.dirname(os.path.abspath(output_pdb))
+    summary_json = os.path.join(outdir, "protonation_summary.json")
+
+    # Intermediate fixed PDB without hydrogens
+    temp_fixed_pdb = output_pdb + ".tmp_noH.pdb"
+    with open(temp_fixed_pdb, "w") as out:
         PDBFile.writeFile(fixer.topology, fixer.positions, out)
+
+    from colabmda.openmm.engine.pdbfixer_clean_fromfile import _apply_propka_titration
+
+    success = _apply_propka_titration(input_pdb, temp_fixed_pdb, output_pdb, target_pH, summary_json)
+
+    if not success:
+        print(f"[Preprocess] Adding hydrogens using PDBFixer heuristics at pH {target_pH}…")
+        fixer.addMissingHydrogens(pH=target_pH)
+        print(f"[Preprocess] Writing cleaned PDB → {output_pdb}")
+        with open(output_pdb, "w") as out:
+            PDBFile.writeFile(fixer.topology, fixer.positions, out)
+
+    if os.path.exists(temp_fixed_pdb):
+        os.remove(temp_fixed_pdb)
 
 
 def run_clean_by_pdbid(pdb_id: str, outdir: str | None = None):

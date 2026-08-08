@@ -59,12 +59,12 @@ conda install -y -n base -c conda-forge mamba
 
 echo "[STEP] Install OpenMM stack in ${OPENMM_ENV_NAME}"
 if conda env list | awk '{print $1}' | grep -qx "${OPENMM_ENV_NAME}"; then
-  mamba install -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 "cuda-version=${OPENMM_CUDA_VERSION}" "openmm>=8.5" mdanalysis mdtraj numpy matplotlib biopython
+  mamba install -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 "cuda-version=${OPENMM_CUDA_VERSION}" "openmm>=8.5" pdb2pqr propka mdanalysis mdtraj numpy matplotlib biopython
 else
-  mamba create -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 "cuda-version=${OPENMM_CUDA_VERSION}" "openmm>=8.5" mdanalysis mdtraj numpy matplotlib biopython
+  mamba create -y -n "${OPENMM_ENV_NAME}" -c conda-forge python=3.10 "cuda-version=${OPENMM_CUDA_VERSION}" "openmm>=8.5" pdb2pqr propka mdanalysis mdtraj numpy matplotlib biopython
 fi
 conda activate "${OPENMM_ENV_NAME}"
-conda install -y -c conda-forge pdbfixer || python -m pip install pdbfixer
+conda install -y -c conda-forge pdbfixer pdb2pqr propka || python -m pip install pdbfixer pdb2pqr propka
 
 if [[ "${WITH_LIGAND}" == "1" ]]; then
   echo "[STEP] Installing OpenFF and OpenMMForceFields for protein-ligand support..."
