@@ -6,12 +6,23 @@ OpenMM implementations of standard minimization, NVT, NPT, thermostat, barostat,
 and restraint methods. It is not a claim that two different MD engines generate
 bitwise-identical trajectories.
 
-## Force field and system construction
+## Force field, protonation, and system construction
 
 The native OpenMM XML path uses AMBER **ff19SB** for protein and **OPC** water. Generic
 small molecules use **GAFF 2.11**. If the input ligand has no partial charges, OpenFF
 assigns AM1-BCC charges; existing nonzero input charges are preserved. This generic
 route is not chemically equivalent to specialized ligand parameter sets.
+
+### Protonation and pKa Titration (PDB2PQR & PROPKA)
+
+ColabMDA uses **PDB2PQR** with **PROPKA** titration during structure preparation (`colabmda openmm prep --ph 7.4`).
+Rather than relying on generic hydrogen placement, PROPKA evaluates local 3D electrostatic microenvironments, desolvation effects, and hydrogen-bonding networks to calculate pKa values and assign explicit AMBER titration forms:
+
+* **Histidines:** Assigned as `HID` (Nδ1-protonated), `HIE` (Nε2-protonated), or `HIP` (doubly protonated, +1 charge).
+* **Glutamates & Aspartates:** Assigned as `GLH` / `ASH` (neutral protonated) when buried or titrating above target pH, vs `GLU` / `ASP` (-1 charge).
+* **Lysines & Cysteines:** Assigned as `LYN` (neutral lysine) and `CYX` (disulfide-bonded cysteines).
+
+An audit log (`protonation_summary.json`) is recorded in the preparation folder for full reproducibility. Downstream OpenMM simulation stages (`em`, `nvt`, `npt`, `md`) natively map these explicit AMBER titration forms directly to their corresponding force field parameters.
 
 ColabMDA examples and recommended calculations use `--protein-ff ff19SB
 --water-model opc`. Advanced users can choose other installed OpenMM XML combinations:

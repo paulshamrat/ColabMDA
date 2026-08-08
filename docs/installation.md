@@ -79,7 +79,7 @@ colab console -s kras-sim
 ```
 
 #### Step 4: Bootstrap the remote scientific environment
-Inside the remote console, run the bootstrap installer to install Miniforge (Conda), CUDA-enabled OpenMM, MDAnalysis, Modeller, and the parameterization toolkits:
+Inside the remote console, run the bootstrap installer to install Miniforge (Conda), CUDA-enabled OpenMM, PDB2PQR, PROPKA, MDAnalysis, Modeller, and parameterization toolkits:
 
 ```bash
 cd /content
