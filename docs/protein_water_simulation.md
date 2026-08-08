@@ -41,6 +41,23 @@ colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 16
 colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/proteins/4ldj_g12d
 ```
 
+### 2.1b. Structure Preparation & pKa Titration (PDB2PQR / PROPKA)
+**Environment:** `openmm_env`
+
+Prepare your starting PDB structure with 3D electrostatic microenvironment pKa titration using **PDB2PQR** and **PROPKA** at physiological pH (default: 7.4):
+
+```bash
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda activate openmm_env
+
+# Prepare RCSB structure with PROPKA titration at pH 7.4
+colabmda openmm prep --pdb-id 4ldj --ph 7.4
+
+# Or prepare local structure file with PROPKA titration
+colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_wt --ph 7.4
+```
+*Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is saved in the output prep folder.
+
 ### 2.2. Stage Simulation Workspace
 **Environment:** `openmm_env`
 
