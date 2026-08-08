@@ -23,6 +23,14 @@ def _apply_propka_titration(raw_pdb: str, temp_fixed_pdb: str, out_pdb: str, ph:
     """Run PDB2PQR with PROPKA at specified pH to assign explicit AMBER titration states (HID/HIE/HIP/ASH/GLH/LYN/CYX)."""
     pdb2pqr_bin = shutil.which("pdb2pqr")
     if not pdb2pqr_bin:
+        for cand in ["/root/miniforge3/envs/openmm_env/bin/pdb2pqr", os.path.expanduser("~/miniforge3/envs/openmm_env/bin/pdb2pqr")]:
+            if os.path.exists(cand):
+                pdb2pqr_bin = cand
+                break
+
+    if not pdb2pqr_bin:
+        print(f"[Protonation] Notice: 'pdb2pqr' is not found in the active environment.")
+        print(f"[Protonation] To enable 3D PROPKA pKa titration, run: mamba install -y -c conda-forge pdb2pqr propka")
         return False
 
     temp_pqr = out_pdb + ".tmp.pqr"
