@@ -522,7 +522,10 @@ def main():
 
         elif args.cmd == "stage":
             name = args.name or Path(args.pdb_file).stem
-            root_path = Path(_resolve_root(args.drive, args.root) or "data/sim").resolve()
+            root_path = Path(
+                _resolve_root(getattr(args, "drive", None), getattr(args, "root", None))
+                or "data/sim"
+            ).resolve()
             sim_dir = root_path / name
             sim_dir.mkdir(parents=True, exist_ok=True)
 
