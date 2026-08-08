@@ -32,6 +32,7 @@ import argparse
 import csv
 import os
 import re
+import shutil
 import sys
 import urllib.request
 from contextlib import redirect_stderr, redirect_stdout
