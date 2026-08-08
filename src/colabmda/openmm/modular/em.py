@@ -66,6 +66,18 @@ def _load_forcefield(*templates):
         return ForceField(*templates)
     except ValueError as exc:
         if "Could not locate file" in str(exc):
+            fallback = []
+            for t in templates:
+                if t == "amber19-all.xml":
+                    fallback.append("amber14-all.xml")
+                elif t.startswith("amber19/"):
+                    fallback.append(t.replace("amber19/", "amber14/"))
+                else:
+                    fallback.append(t)
+            try:
+                return ForceField(*fallback)
+            except Exception:
+                pass
             raise ValueError(
                 f"OpenMM could not load force-field XML files {templates}. "
                 "Install a newer OpenMM for Amber19 support, or choose an older installed "
@@ -423,6 +435,7 @@ def run_em(
         modeller = Modeller(fixer.topology, fixer.positions)
         resolved_padding_nm = _resolve_padding(modeller.positions, padding_nm)
         ff = _load_forcefield(ff_choice["protein_xml"], ff_choice["water_xml"])
+        modeller.addExtraParticles(ff)
 
         print(
             f"  • Solvating in {ff_choice['water_label']} with {resolved_padding_nm:.2f} nm padding and neutralizing ions…"
