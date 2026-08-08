@@ -40,6 +40,18 @@ def offset_seed(seed, offset=1):
     return ((fresh_seed(seed) - 1 + int(offset)) % (2**31 - 1)) + 1
 
 
+def derive_replica_seed(seed=None, replica_name=None):
+    """Derive a unique random seed for a replica (e.g. r1 -> offset 1, r2 -> offset 2)."""
+    base = fresh_seed(seed)
+    if not replica_name:
+        return base
+    import re
+
+    m = re.search(r"(\d+)", str(replica_name))
+    offset = int(m.group(1)) if m else sum(ord(c) for c in str(replica_name))
+    return offset_seed(base, offset=offset)
+
+
 def configure_system(system, barostat_seed=None):
     """Apply the VarMDyn-compatible nonbonded and stochastic settings."""
     for force in system.getForces():

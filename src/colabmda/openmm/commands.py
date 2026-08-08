@@ -309,6 +309,7 @@ def openmm_run_colab(
     equil_time: float,
     checkpoint_ps: float,
     sync_dir: str | None,
+    equil_only: bool = False,
 ):
     from colabmda.openmm.engine.openmm_proteinwater_colab import run_colab_md
 
@@ -320,6 +321,7 @@ def openmm_run_colab(
         equil_time=equil_time,
         checkpoint_ps=checkpoint_ps,
         sync_dir=sync_dir,
+        equil_only=equil_only,
     )
 
 

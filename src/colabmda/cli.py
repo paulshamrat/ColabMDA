@@ -192,6 +192,11 @@ def main():
         "--seed", type=int, default=None, help="Optional: random seed for velocity assignment"
     )
     p_run.add_argument(
+        "--equil-only",
+        action="store_true",
+        help="Run Energy Minimization, NVT, and NPT equilibration, then exit before production MD",
+    )
+    p_run.add_argument(
         "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
     )
     p_run.add_argument(
@@ -614,14 +619,17 @@ def main():
                 args.ligand = str(local_ligand.resolve())
 
             # MODULAR RUN: EM -> NVT -> NPT -> Check -> MD
-            # Skip equilibration for non-r1 replicas (e.g. r2, r3) as they inherit from r1
+            from colabmda.openmm.modular.utils import derive_replica_seed
+            replica_seed = derive_replica_seed(args.seed, args.replica)
+
+            # Skip equilibration for non-r1 replicas (e.g. r2, r3) as they inherit from r1/parent
             is_non_r1_replica = False
             if args.replica and args.replica != "r1":
                 is_non_r1_replica = True
 
             if is_non_r1_replica:
                 print(
-                    f"[INFO] Replica '{args.replica}' detected. Skipping EM/NVT/NPT and inheriting equilibrated structures from r1."
+                    f"[INFO] Replica '{args.replica}' detected (seed={replica_seed}). Skipping EM/NVT/NPT and inheriting equilibrated structure."
                 )
             else:
                 equil_protocol = _normalize_equil_protocol(args.equil_protocol)
@@ -638,12 +646,16 @@ def main():
                     small_molecule_ff=args.small_molecule_ff,
                 )
                 openmm_nvt(
-                    workdir_str, name, args.equil_time, seed=args.seed, protocol=equil_protocol
+                    workdir_str, name, args.equil_time, seed=replica_seed, protocol=equil_protocol
                 )
                 openmm_npt(
-                    workdir_str, name, args.equil_time, seed=args.seed, protocol=equil_protocol
+                    workdir_str, name, args.equil_time, seed=replica_seed, protocol=equil_protocol
                 )
                 openmm_check_equil(workdir_str, strict=equil_protocol == "varmdyn")
+
+            if getattr(args, "equil_only", False):
+                print("✔ Shared equilibration complete. Stopping before production MD as requested by --equil-only.")
+                return
 
             openmm_md(
                 workdir=workdir_str,
@@ -652,7 +664,7 @@ def main():
                 traj_interval=args.traj_interval,
                 checkpoint_ps=args.checkpoint_ps,
                 sync_dir=args.sync_dir,
-                seed=args.seed,
+                seed=replica_seed,
             )
 
         elif args.cmd == "merge":

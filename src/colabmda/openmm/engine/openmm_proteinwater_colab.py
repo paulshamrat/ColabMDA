@@ -138,8 +138,50 @@ def setup_and_equilibrate(cleaned_pdb, dt, eq_steps, xml_sys, pdb_saved, chk_fil
         f.write(XmlSerializer.serializeSystem(sim.context.getSystem()))
     with open(pdb_saved, "w") as f:
         PDBFile.writeFile(sim.topology, sim.context.getState(getPositions=True).getPositions(), f)
+    state = sim.context.getState(getPositions=True, getVelocities=True, enforcePeriodicBox=True)
+    with open("npt.state.xml", "w") as f:
+        f.write(XmlSerializer.serialize(state))
+
     sim.saveCheckpoint(chk_file)
     return sim, 0
+
+
+def _try_copy_shared_equilibration(workdir: str, xml_system: str, pdb_saved: str, state_file: str = "npt.state.xml") -> bool:
+    if os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
+        return True
+
+    parent_dir = os.path.dirname(workdir)
+    candidates = [
+        parent_dir,
+        os.path.join(parent_dir, "r1"),
+        os.path.join(parent_dir, "equil"),
+    ]
+
+    for cand in candidates:
+        if cand != workdir and os.path.exists(cand):
+            sys_xml = os.path.join(cand, xml_system)
+            solv_pdb = os.path.join(cand, pdb_saved)
+            if os.path.exists(sys_xml) and os.path.exists(solv_pdb):
+                print(f"[INFO] Sibling/parent equilibrated state found at {cand}. Copying topology and system files...")
+                shutil.copy2(sys_xml, xml_system)
+                shutil.copy2(solv_pdb, pdb_saved)
+                for st in [state_file, "em.state.xml", "nvt.log", "npt.log"]:
+                    st_path = os.path.join(cand, st)
+                    if os.path.exists(st_path) and not os.path.exists(st):
+                        try:
+                            shutil.copy2(st_path, st)
+                        except Exception:
+                            pass
+                for ext in ["*_cleaned.pdb", "*.pdb"]:
+                    for fpath in glob.glob(os.path.join(cand, ext)):
+                        fname = os.path.basename(fpath)
+                        if not os.path.exists(fname):
+                            try:
+                                shutil.copy2(fpath, fname)
+                            except Exception:
+                                pass
+                return True
+    return False
 
 
 def resume_sim(xml_sys, pdb_saved, chk_file, dt):
@@ -159,7 +201,7 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
         return
     os.makedirs(sync_dir, exist_ok=True)
     # Copy only essential + new chunk files
-    essentials = ["system.xml", "solvated.pdb", "prod.chk", "nvt.log", "npt.log", "prod_full.log"]
+    essentials = ["system.xml", "solvated.pdb", "prod.chk", "nvt.log", "npt.log", "prod_full.log", "npt.state.xml"]
     if extra_files:
         essentials += extra_files
     for fn in essentials:
@@ -176,6 +218,7 @@ def run_colab_md(
     equil_time=100.0,
     checkpoint_ps=1000.0,
     sync_dir=None,
+    equil_only=False,
 ):
     pdbid = pdbid.lower()
     workdir = os.path.abspath(workdir)
@@ -185,9 +228,21 @@ def run_colab_md(
     try:
         os.chdir(workdir)
 
+        xml_system = "system.xml"
+        pdb_saved = "solvated.pdb"
+        chk_file = "prod.chk"
+
+        # Look for shared parent/sibling r1 equilibration before throwing missing file error
+        _try_copy_shared_equilibration(workdir, xml_system, pdb_saved)
+
         cleaned_pdb = os.path.join(workdir, f"{pdbid}_cleaned.pdb")
         if not os.path.exists(cleaned_pdb):
-            raise FileNotFoundError(f"Error: cleaned PDB not found: {cleaned_pdb}")
+            # Fallback search for any cleaned PDB in workdir
+            cand_cleaned = glob.glob("*_cleaned.pdb")
+            if cand_cleaned:
+                cleaned_pdb = os.path.abspath(cand_cleaned[0])
+            else:
+                raise FileNotFoundError(f"Error: cleaned PDB not found: {cleaned_pdb}")
 
         cleanup_stale_artifacts(workdir)
 
@@ -199,19 +254,33 @@ def run_colab_md(
         eq_steps = max(1, int((equil_time * unit.picoseconds) / dt))
         chk_steps = max(1, int((checkpoint_ps * unit.picoseconds) / dt))
 
-        xml_system = "system.xml"
-        pdb_saved = "solvated.pdb"
-        chk_file = "prod.chk"
-
         # Setup or resume
         if os.path.isfile(chk_file) and os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
             print("▶ Resuming …")
             sim, steps_done = resume_sim(xml_system, pdb_saved, chk_file, dt)
+        elif os.path.isfile("npt.state.xml") and os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
+            print("▶ Branching independent Production from shared npt.state.xml …")
+            with open(xml_system) as f:
+                system = XmlSerializer.deserializeSystem(f.read())
+            pdb = PDBFile(pdb_saved)
+            sim = make_sim(pdb.topology, system, dt)
+            with open("npt.state.xml") as handle:
+                from openmm import XmlSerializer as XmlSer
+                state = XmlSer.deserialize(handle.read())
+            sim.context.setPeriodicBoxVectors(*state.getPeriodicBoxVectors())
+            sim.context.setPositions(state.getPositions())
+            sim.context.setVelocitiesToTemperature(300 * unit.kelvin)
+            sim.saveCheckpoint(chk_file)
+            steps_done = 0
         else:
             print("▶ Fresh setup + equilibration …")
             sim, steps_done = setup_and_equilibrate(
                 cleaned_pdb, dt, eq_steps, xml_system, pdb_saved, chk_file
             )
+
+        if equil_only:
+            print("✔ Shared equilibration complete. Stopping as requested by --equil-only.")
+            return
 
         # Production loop
         while steps_done < total_steps:
