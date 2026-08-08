@@ -25,50 +25,42 @@ The standard simulation workflow consists of:
 
 ## 2. Step-by-Step Execution
 
-### 2.1. Build Structures (WT and Mutants)
-**Environment:** `modeller_env`
+### 2.1. Build & Prepare Structures (Modeller + PDB2PQR / PROPKA Titration)
+**Environments:** `modeller_env` (for structure building) & `openmm_env` (for pKa titration)
 
-Build your protein coordinates with **Biological Numbering** and automated QC:
-
+#### 1. Build Coordinates (Biological Numbering)
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
-# 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
+# Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
 colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/proteins/4ldj_wt
 
-# 2. Create Mutant (G12D) structure from Wild-Type template
+# Create Mutant (G12D) structure from Wild-Type template
 colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/proteins/4ldj_g12d
 ```
 
-### 2.1b. Structure Preparation & pKa Titration (PDB2PQR / PROPKA)
-**Environment:** `openmm_env`
-
-Prepare your starting PDB structure with 3D electrostatic microenvironment pKa titration using **PDB2PQR** and **PROPKA** at physiological pH (default: 7.4):
-
+#### 2. Protonate & Titrate Structures at pH 7.4 (PDB2PQR / PROPKA)
 ```bash
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
-# Prepare RCSB structure with PROPKA titration at pH 7.4
-colabmda openmm prep --pdb-id 4ldj --ph 7.4
-
-# Or prepare local structure file with PROPKA titration
+# Perform 3D pKa titration at pH 7.4 for WT and Mutant structures
 colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_wt --ph 7.4
+colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_g12d/4ldj_g12d.pdb --name 4ldj_g12d --ph 7.4
 ```
-*Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is saved in the output prep folder.
+*Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is generated alongside each cleaned starting PDB.
 
 ### 2.2. Stage Simulation Workspace
 **Environment:** `openmm_env`
 
-Stage the WT and mutant simulation workspaces to create the directory structure and copy the cleaned starting structures:
+Stage the WT and mutant simulation workspaces using the PROPKA-protonated starting structures:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
-# Stage simulation directories
-colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_wt --replica r1
-colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_g12d/4ldj_g12d.pdb --name 4ldj_g12d --replica r1
+# Stage simulation directories using the cleaned, titratable starting structures
+colabmda openmm stage --pdb-file 4ldj_wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
+colabmda openmm stage --pdb-file 4ldj_g12d/prep/4ldj_g12d_cleaned.pdb --name 4ldj_g12d --replica r1
 ```
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
