@@ -44,23 +44,23 @@ colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --c
 ```bash
 conda activate openmm_env
 
-# Perform 3D pKa titration at pH 7.4 for WT and Mutant structures
-colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_wt --ph 7.4
-colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_g12d/4ldj_g12d.pdb --name 4ldj_g12d --ph 7.4
+# Perform 3D pKa titration at pH 7.4 for WT and Mutant structures in data/str/
+colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --outdir data/str/4ldj/proteins/4ldj_wt/prep --name 4ldj_wt --ph 7.4
+colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_g12d/4ldj_g12d.pdb --outdir data/str/4ldj/proteins/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
 ```
-*Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is generated alongside each cleaned starting PDB.
+*Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is generated alongside each cleaned starting PDB in `data/str/`.
 
 ### 2.2. Stage Simulation Workspace
 **Environment:** `openmm_env`
 
-Stage the WT and mutant simulation workspaces using the PROPKA-protonated starting structures:
+Stage the WT and mutant simulation workspaces in `data/sim/` using the PROPKA-protonated starting structures from `data/str/`:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
-# Stage simulation directories using the cleaned, titratable starting structures
-colabmda openmm stage --pdb-file 4ldj_wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
-colabmda openmm stage --pdb-file 4ldj_g12d/prep/4ldj_g12d_cleaned.pdb --name 4ldj_g12d --replica r1
+# Stage simulation directories under data/sim/ using the cleaned, titratable starting structures
+colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_g12d/prep/4ldj_g12d_cleaned.pdb --name 4ldj_g12d --replica r1
 ```
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
