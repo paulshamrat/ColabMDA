@@ -83,7 +83,7 @@ colabmda openmm em --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 
 Relaxes solvent molecules and adjusts temperature to 300 K while keeping protein heavy atoms restrained:
 ```bash
-colabmda openmm nvt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --seed 42
+colabmda openmm nvt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 ```
 *Under the Hood:* Runs the default staged NVT profile: restrained minimization, gradual 50-300 K heating, post-heating minimization, and a 10/5/2/1 restraint-release ladder at 300 K. See the [stage table](simulation_protocol.md#default-staged-equilibration-profile).
 
@@ -92,9 +92,11 @@ colabmda openmm nvt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --seed 42
 
 Relaxes the simulation box volume and adjusts system density under pressure:
 ```bash
-colabmda openmm npt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --seed 43
+colabmda openmm npt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 ```
 *Under the Hood:* Runs stages 19-24 at 300 K and **1 bar**: four restrained 100 ps NPT stages, 100 ps unrestrained NPT, then 1 ns unrestrained NPT.
+
+> 💡 **Random Seed Note:** The `--seed` option is completely optional. If omitted, ColabMDA automatically generates a secure, cryptographically random seed (`fresh_seed`). For multi-replica runs (`r1`, `r2`, `r3`), ColabMDA automatically derives a unique random seed per replica (`derive_replica_seed`). Specify `--seed <integer>` only when you wish to force exact numerical reproducibility for a specific run.
 
 ### 2.6. Equilibration Validation & QC Check
 **Environment:** `openmm_env`
