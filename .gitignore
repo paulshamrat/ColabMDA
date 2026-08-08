@@ -37,5 +37,9 @@ build/
 dist/
 .ruff_cache/
 
+# IDE and Local Scratch
+.idea/
+notes.md
+
 # Documentation
 _build/
