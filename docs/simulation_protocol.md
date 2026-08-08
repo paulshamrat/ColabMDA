@@ -104,6 +104,14 @@ The OpenMM Monte Carlo barostat attempts an isotropic volume move every 25 steps
 thermostat is `LangevinMiddleIntegrator`. These are OpenMM's standard implementations,
 documented in the [OpenMM simulation guide](https://docs.openmm.org/latest/userguide/application/02_running_sims.html).
 
+## Shared equilibration and multi-replica branching
+
+To minimize redundant compute, ColabMDA supports shared-equilibration branching for multi-replica simulations:
+
+* **Single Equilibration Endpoint:** Running `colabmda openmm run --equil-only` executes Energy Minimization, NVT heating, and NPT density equilibration once, outputting `system.xml`, `solvated.pdb`, and `npt.state.xml`.
+* **Automatic Replica Auto-Discovery:** Subsequent replicas (`r1`, `r2`, `r3`, ...) auto-discover `npt.state.xml` from `equil/`, `r1/`, or the parent simulation directory (`../`).
+* **Stochastic Velocity Resampling:** Replicas do not load Context checkpoints from sibling runs. Instead, each replica initializes a fresh Context from `npt.state.xml` and assigns velocities at target temperature (300 K) using a **unique per-replica random seed** derived via `derive_replica_seed(seed, replica_name)`.
+
 ## GPU selection and precision
 
 ColabMDA selects OpenMM platforms in `CUDA -> OpenCL -> CPU` order and prints the
