@@ -889,6 +889,13 @@ def main():
                     write(logfh, f"{m} → {status}; out={out_pdb}, E_unopt={E_unopt}, E_opt={E_opt}")
                     if out_pdb:
                         created.append(out_pdb)
+                        if outdir_mut:
+                            outdir_mut_abs = os.path.abspath(outdir_mut)
+                            mut_stem = os.path.basename(outdir_mut_abs)
+                            std_mut_path = os.path.join(outdir_mut_abs, f"{mut_stem}.pdb")
+                            if os.path.abspath(out_pdb) != std_mut_path:
+                                shutil.copy2(out_pdb, std_mut_path)
+                                write(logfh, f"Standardized mutant PDB: {std_mut_path}")
                 except Exception as e:
                     w.writerow([pdb_in, m, args.chain, args.seed, "", "", "", "", f"FAIL: {e}"])
                     write(logfh, f"{m} → FAIL: {e}")
@@ -1084,9 +1091,17 @@ def main():
                         )
                         write(logfh, f"{m} → FAIL: {e}")
 
+        # Standardize build output PDB name to match outdir folder stem (e.g. 4ldj_wt.pdb)
+        outdir_abs = os.path.abspath(outdir)
+        folder_stem = os.path.basename(outdir_abs)
+        std_pdb_path = os.path.join(outdir_abs, f"{folder_stem}.pdb")
+        shutil.copy2(base_with_cryst_abs, std_pdb_path)
+        write(logfh, f"Standardized build PDB: {std_pdb_path}")
+
         # Final summary
         print(f"\n✅ Build complete. Log: {log_path}")
         print("• Base model with CRYST1:", base_with_cryst_abs)
+        print("• Standardized model    :", std_pdb_path)
         if trunc_for_mut:
             print("• Truncated model      :", trunc_for_mut)
         if created:
