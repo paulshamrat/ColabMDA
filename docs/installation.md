@@ -98,6 +98,20 @@ bash ./bootstrap_colab_openmm_gpu.sh 2>&1 | tee /content/bootstrap_colabmda.log
 >
 > 🎯 **Docking option:** If you also want virtual-screening tools, add `export WITH_DOCKING=1` before running the bootstrap. This installs RDKit, Meeko, and AutoDock Vina into a separate `docking_env`.
 
+#### Step 4b: Installing or Updating Latest ColabMDA Code from a Git Branch
+If you want to manually update or install the latest **ColabMDA** Python package directly from a GitHub branch (such as `pwpl`) inside an active Colab session, run:
+
+```bash
+cd /content
+rm -rf colabmda
+git clone -b pwpl https://github.com/paulshamrat/ColabMDA.git colabmda
+cd colabmda
+python -m pip install -e . --no-deps
+```
+
+---
+
+#### Installing from Current Local Workstation Checkout (Alternative)
 If you want to install and test your **current local checkout** instead of a pushed GitHub branch, run this from your local workstation:
 
 ```bash
