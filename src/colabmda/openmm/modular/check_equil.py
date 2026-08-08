@@ -3,6 +3,9 @@ import json
 import math
 import os
 
+import matplotlib
+
+matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.stats import linregress
