@@ -40,6 +40,8 @@ dist/
 # IDE and Local Scratch
 .idea/
 notes.md
+# Machine-specific full Conda export; use a compact portable environment file if needed.
+envs/colab_mda_env.yml
 
 # Documentation
 _build/
