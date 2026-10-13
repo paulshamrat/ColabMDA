@@ -44,7 +44,6 @@ Before starting, ensure your environment is ready:
 ```python
 from google.colab import drive
 drive.mount('/content/drive')
-!nvidia-smi
 ```
 
 ### 1.2. Environment & Package Installation (Required)
@@ -458,7 +457,7 @@ The command automatically generates a `visualize.pml` script in the folder.
 <details>
 <summary><b>Click to view the generated PyMOL script configuration (<code>visualize.pml</code>)</b></summary>
 
-```pymol
+```text
 # 1. Clear out memory
 reinitialize
 bg_color white

@@ -174,10 +174,10 @@ conda activate openmm_env
 colabmda openmm stage --pdb-file data/str/kras_wt/kras_wt.pdb --name kras_wt --replica r1
 
 # Run energy minimization
-colabmda openmm em --name kras_wt --workdir data/sim/kras_wt/r1
+colabmda openmm em --name kras_wt
 
 # Run production MD (trajectories go to Drive automatically)
-colabmda openmm md --name kras_wt --workdir data/sim/kras_wt/r1
+colabmda openmm md --name kras_wt --replica r1
 ```
 
 > [!IMPORTANT]

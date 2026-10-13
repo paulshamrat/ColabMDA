@@ -12,5 +12,4 @@ ColabMDA Documentation
    simulation_protocol
    protein_water_simulation
    protein_ligand_simulation
-   virtual_screening
    pymol_visualization

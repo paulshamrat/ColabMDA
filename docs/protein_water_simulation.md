@@ -34,10 +34,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/proteins/4ldj_wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
 
 # Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/proteins/4ldj_g12d
+colabmda modeller mutate --pdb-in data/str/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_g12d
 ```
 
 #### 2. Protonate & Titrate Structures at pH 7.4 (PDB2PQR / PROPKA)
@@ -45,8 +45,8 @@ colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --c
 conda activate openmm_env
 
 # Perform 3D pKa titration at pH 7.4 for WT and Mutant structures in data/str/
-colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --outdir data/str/4ldj/proteins/4ldj_wt/prep --name 4ldj_wt --ph 7.4
-colabmda openmm prep --pdb-file data/str/4ldj/proteins/4ldj_g12d/4ldj_g12d.pdb --outdir data/str/4ldj/proteins/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
+colabmda openmm prep --pdb-file data/str/4ldj/wt/4ldj_wt.pdb --outdir data/str/4ldj/wt/prep --name 4ldj_wt --ph 7.4
+colabmda openmm prep --pdb-file data/str/4ldj/mutants/4ldj_g12d/4ldj_g12d.pdb --outdir data/str/4ldj/mutants/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
 ```
 *Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is generated alongside each cleaned starting PDB in `data/str/`.
 
@@ -59,8 +59,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Stage simulation directories under data/sim/ using the cleaned, titratable starting structures
-colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
-colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_g12d/prep/4ldj_g12d_cleaned.pdb --name 4ldj_g12d --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/mutants/4ldj_g12d/prep/4ldj_g12d_cleaned.pdb --name 4ldj_g12d --replica r1
 ```
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
@@ -72,9 +72,9 @@ colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_g12d/prep/4ldj_g12d
 ### 2.3. Energy Minimization (EM)
 **Environment:** `openmm_env`
 
-Stages the water molecules, parameterizes the protein-water system, and minimizes potential energy to resolve steric clashes:
+Stages the water molecules, parameterizes the protein-water system, and minimizes potential energy in the shared `equil/` hub:
 ```bash
-colabmda openmm em --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
+colabmda openmm em --name 4ldj_wt
 ```
 *Under the Hood:* Parameterizes the protein with **AMBER ff19SB** and **OPC** water, neutralizes the system, and uses PME with a 1.0 nm cutoff and 0.8-1.0 nm switching. `--padding-nm auto` normally selects 1.0 nm for KRAS; use `1.4` for conservative 14 A padding. Outputs include `solvated.pdb`, `system.xml`, `parameterization.json`, and portable `em.state.xml`.
 
@@ -83,7 +83,7 @@ colabmda openmm em --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 
 Relaxes solvent molecules and adjusts temperature to 300 K while keeping protein heavy atoms restrained:
 ```bash
-colabmda openmm nvt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
+colabmda openmm nvt --name 4ldj_wt
 ```
 *Under the Hood:* Runs the default staged NVT profile: restrained minimization, gradual 50-300 K heating, post-heating minimization, and a 10/5/2/1 restraint-release ladder at 300 K. See the [stage table](simulation_protocol.md#default-staged-equilibration-profile).
 
@@ -92,7 +92,7 @@ colabmda openmm nvt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 
 Relaxes the simulation box volume and adjusts system density under pressure:
 ```bash
-colabmda openmm npt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
+colabmda openmm npt --name 4ldj_wt
 ```
 *Under the Hood:* Runs stages 19-24 at 300 K and **1 bar**: four restrained 100 ps NPT stages, 100 ps unrestrained NPT, then 1 ns unrestrained NPT.
 
@@ -103,15 +103,15 @@ colabmda openmm npt --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
 
 Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
 ```bash
-colabmda openmm qc --name 4ldj_wt --workdir data/sim/4ldj_wt/r1
+colabmda openmm qc --name 4ldj_wt
 ```
 
 ### 2.7. Production Molecular Dynamics (MD)
 **Environment:** `openmm_env`
 
-Runs the production trajectory in chunked, resume-safe segments:
+Runs the production trajectory in chunked, resume-safe segments (auto-inheriting from `equil/` into `r1/`):
 ```bash
-colabmda openmm md --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
+colabmda openmm md --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 ```
 *Parameters:* `--total-ns` (total duration in ns), `--traj-interval` (coordinate saving frequency in ps), `--checkpoint-ps` (duration of each chunk before writing checkpoint to enable safe restarts). All bonds involving hydrogen atoms are constrained using the SHAKE-like algorithm (`HBonds`), allowing a stable 2 fs timestep. Long-range electrostatics are handled via Particle Mesh Ewald (PME) with a $1.0\text{ nm}$ cutoff.
 
@@ -141,8 +141,8 @@ colabmda openmm md --name 4ldj_wt --workdir data/sim/4ldj_wt/r1 --total-ns 10.0 
 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine (`--mda`):
 ```bash
-colabmda openmm merge --pdb-dir data/sim/4ldj_wt/r1 --center --wrap
-colabmda openmm merge --pdb-dir data/sim/4ldj_g12d/r1 --center --wrap
+colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap
+colabmda openmm merge --name 4ldj_g12d --replica r1 --center --wrap
 ```
 
 #### Output Files:
@@ -157,7 +157,7 @@ After a standard merge, the following files are created in the simulation replic
 ### 3.1. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
-colabmda openmm status --pdb-dir data/sim/4ldj_wt/r1
+colabmda openmm status --name 4ldj_wt --replica r1
 ```
 
 This will print a comprehensive status report including topology stats, chunks, and exact frame counts:
@@ -202,8 +202,8 @@ When merging trajectories, the reference topology file used and the resulting ou
 
 ### 4.1. Single System Analysis
 ```bash
-colabmda openmm analysis --pdb-id 4ldj_wt
-colabmda openmm analysis --pdb-id 4ldj_g12d
+colabmda openmm analysis --name 4ldj_wt --replica r1
+colabmda openmm analysis --name 4ldj_g12d --replica r1
 ```
 
 ### 4.2. WT vs Mutant Comparison
