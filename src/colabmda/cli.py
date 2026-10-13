@@ -390,6 +390,7 @@ def main():
     p_md.add_argument("--sync-dir", default=None)
     p_md.add_argument("--workdir", default=None)
     p_md.add_argument("--root", default=None)
+    p_md.add_argument("--replica", default="r1", help="Production replica subfolder (default: r1)")
     p_md.add_argument("--seed", type=int, default=None, help="Random seed for velocity assignment")
 
     # ---------------- Modeller ----------------
@@ -462,10 +463,21 @@ def main():
         elif args.cmd == "stage":
             name = args.name or Path(args.pdb_file).stem
             root_path = Path(
-                _resolve_root(getattr(args, "drive", None), getattr(args, "root", None))
-                or "data/sim"
+                _resolve_root(getattr(args, "drive", False), getattr(args, "root", None))
             ).resolve()
-            sim_dir = root_path / name
+            _ensure_dir(str(root_path))
+
+            # Priority: data/sim > sim > simulations (legacy)
+            if (root_path / "data" / "sim").exists():
+                sim_base = root_path / "data" / "sim"
+            elif (root_path / "sim").exists():
+                sim_base = root_path / "sim"
+            elif (root_path / "simulations").exists():
+                sim_base = root_path / "simulations"
+            else:
+                sim_base = root_path / "data" / "sim"
+
+            sim_dir = sim_base / name
             sim_dir.mkdir(parents=True, exist_ok=True)
 
             target_clean = sim_dir / f"{name}_cleaned.pdb"
@@ -482,7 +494,8 @@ def main():
             if args.replica:
                 rep_dir = sim_dir / args.replica
                 rep_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(target_clean, rep_dir / f"{name}_cleaned.pdb")
+                if target_clean.exists():
+                    shutil.copy2(target_clean, rep_dir / f"{name}_cleaned.pdb")
                 if (sim_dir / "protonation_summary.json").exists():
                     shutil.copy2(sim_dir / "protonation_summary.json", rep_dir / "protonation_summary.json")
 
@@ -754,31 +767,22 @@ def main():
                 pdbid_dir = "."
             openmm_status(pdbid_dir)
 
-        elif args.cmd == "stage":
-            root = args.root or _resolve_root(False, None)
-            _ensure_dir(root)
-            # Priority: data/sim > sim > simulations (legacy)
-            if os.path.exists(os.path.join(root, "data", "sim")):
-                sim_dir_name = os.path.join("data", "sim")
-            elif os.path.exists(os.path.join(root, "simulations")):
-                sim_dir_name = "simulations"
-            else:
-                sim_dir_name = os.path.join("data", "sim")
-            outdir = Path(root) / sim_dir_name / args.name
-            if args.replica:
-                outdir = outdir / args.replica
-            _ensure_dir(str(outdir))
-            openmm_prep_from_file(args.pdb_file, str(outdir), pdbid=args.name, ph=args.ph)
-            print(f"[INFO] Staged simulation folder: {outdir}")
-
         elif args.cmd in ["em", "nvt", "npt", "qc", "check-equil", "md"]:
             name = args.name
             if args.workdir:
                 workdir = str(Path(args.workdir).resolve())
-            elif args.root:
-                workdir = str(_simulation_workdir(args.root, name))
             else:
-                workdir = os.getcwd()
+                root_val = args.root or _resolve_root(getattr(args, "drive", False), None)
+                sim_base = _simulation_workdir(root_val, name)
+                if args.cmd in ["em", "nvt", "npt", "qc", "check-equil"]:
+                    workdir_path = sim_base / "equil"
+                elif args.cmd == "md":
+                    rep = getattr(args, "replica", "r1") or "r1"
+                    workdir_path = sim_base / rep
+                else:
+                    workdir_path = sim_base
+                workdir_path.mkdir(parents=True, exist_ok=True)
+                workdir = str(workdir_path.resolve())
             if args.cmd == "em":
                 if args.ligand:
                     ligand_path = Path(args.ligand)
