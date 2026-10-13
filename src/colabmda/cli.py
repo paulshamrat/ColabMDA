@@ -98,6 +98,16 @@ def _simulation_workdir(root: str, name: str) -> Path:
     return next((path for path in candidates if path.is_dir()), candidates[0])
 
 
+def _analysis_outdir(root: str, name: str) -> Path:
+    """Resolve a named analysis directory under the current and legacy layouts."""
+    root_path = Path(root).resolve()
+    candidates = [
+        root_path / "data" / "analysis" / name,
+        root_path / "analysis" / name,
+    ]
+    return next((path for path in candidates if path.is_dir()), candidates[0])
+
+
 def main():
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
@@ -210,6 +220,8 @@ def main():
     g = p_merge.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
+    g.add_argument("--name", help="Simulation system name (e.g. 4ldj_wt)")
+    p_merge.add_argument("--replica", default="r1", help="Replica subfolder (default: r1)")
     p_merge.add_argument(
         "--topology", default=None, help="Topology PDB (default: <dir>/solvated.pdb)"
     )
@@ -248,6 +260,8 @@ def main():
     g = p_ana.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
+    g.add_argument("--name", help="Simulation system name (e.g. 4ldj_wt)")
+    p_ana.add_argument("--replica", default=None, help="Replica subfolder (default: all replicas if present, or r1)")
     p_ana.add_argument("--topology", default=None)
     p_ana.add_argument("--trajectory", default=None)
     p_ana.add_argument(
@@ -268,6 +282,8 @@ def main():
     g = p_stat.add_mutually_exclusive_group(required=False)
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
+    g.add_argument("--name", help="Simulation system name (e.g. 4ldj_wt)")
+    p_stat.add_argument("--replica", default="r1", help="Replica subfolder (default: r1)")
     p_stat.add_argument(
         "--drive", action="store_true", help="(compat) Use Drive root (default behavior)"
     )
@@ -676,12 +692,21 @@ def main():
 
         elif args.cmd == "merge":
             root = _resolve_root(args.drive, args.root)
-            if args.pdb_id and root:
+            name = getattr(args, "name", None)
+            replica = getattr(args, "replica", "r1") or "r1"
+            if name:
+                sim_base = _simulation_workdir(root or ".", name)
+                pdbid_dir = str((sim_base / replica).resolve())
+            elif args.pdb_id and root:
                 pdbid_dir = str(Path(root) / args.pdb_id / "run")
             elif args.pdb_id:
                 pdbid_dir = str(Path(args.pdb_id) / "run")
             elif args.pdb_dir:
-                pdbid_dir = args.pdb_id or args.pdb_dir
+                pdb_path = Path(args.pdb_dir)
+                if not pdb_path.is_absolute() and root and (Path(root) / pdb_path).exists():
+                    pdbid_dir = str((Path(root) / pdb_path).resolve())
+                else:
+                    pdbid_dir = args.pdb_dir
             else:
                 pdbid_dir = "."
 
@@ -714,7 +739,18 @@ def main():
 
         elif args.cmd == "analysis":
             root = _resolve_root(args.drive, args.root)
-            if args.pdb_id and root:
+            name = getattr(args, "name", None)
+            replica = getattr(args, "replica", None)
+            if name:
+                sim_base = _simulation_workdir(root or ".", name)
+                sim_dir = str((sim_base / replica).resolve()) if replica else str(sim_base.resolve())
+                if args.outdir:
+                    out_base = Path(args.outdir)
+                elif root:
+                    out_base = _analysis_outdir(root, name)
+                else:
+                    out_base = Path("data/analysis") / name
+            elif args.pdb_id and root:
                 sim_path = Path(root) / "data" / "sim" / args.pdb_id
                 if not sim_path.exists():
                     sim_path = Path(root) / "sim" / args.pdb_id
@@ -731,10 +767,18 @@ def main():
                 sim_dir = str(sim_path)
                 out_base = Path("data") / "analysis" / args.pdb_id
             elif args.pdb_dir:
-                sim_dir = args.pdb_dir
-                out_base = (
-                    Path(args.outdir) if args.outdir else Path("data/analysis") / Path(sim_dir).name
-                )
+                pdb_path = Path(args.pdb_dir)
+                if not pdb_path.is_absolute() and root and (Path(root) / pdb_path).exists():
+                    sim_dir = str((Path(root) / pdb_path).resolve())
+                else:
+                    sim_dir = args.pdb_dir
+                parent_name = Path(sim_dir).parent.name if Path(sim_dir).name.startswith("r") else Path(sim_dir).name
+                if args.outdir:
+                    out_base = Path(args.outdir)
+                elif root:
+                    out_base = _analysis_outdir(root, parent_name)
+                else:
+                    out_base = Path("data/analysis") / parent_name
             else:
                 sim_dir = "."
                 out_base = Path(args.outdir) if args.outdir else Path("data/analysis/current")
@@ -757,12 +801,21 @@ def main():
 
         elif args.cmd == "status":
             root = _resolve_root(args.drive, args.root)
-            if args.pdb_id and root:
+            name = getattr(args, "name", None)
+            replica = getattr(args, "replica", "r1") or "r1"
+            if name:
+                sim_base = _simulation_workdir(root or ".", name)
+                pdbid_dir = str((sim_base / replica).resolve())
+            elif args.pdb_id and root:
                 pdbid_dir = str(Path(root) / args.pdb_id / "run")
             elif args.pdb_id:
                 pdbid_dir = str(Path(args.pdb_id) / "run")
             elif args.pdb_dir:
-                pdbid_dir = args.pdb_id or args.pdb_dir
+                pdb_path = Path(args.pdb_dir)
+                if not pdb_path.is_absolute() and root and (Path(root) / pdb_path).exists():
+                    pdbid_dir = str((Path(root) / pdb_path).resolve())
+                else:
+                    pdbid_dir = args.pdb_dir
             else:
                 pdbid_dir = "."
             openmm_status(pdbid_dir)

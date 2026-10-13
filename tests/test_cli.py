@@ -54,3 +54,16 @@ def test_qc_alias():
     )
     assert res_alias.returncode == 0
     assert "--warn-only" in res_alias.stdout
+
+
+def test_merge_analysis_status_name_options():
+    for cmd in ["merge", "analysis", "status"]:
+        res = subprocess.run(
+            [sys.executable, "-m", "colabmda.cli", "openmm", cmd, "--help"],
+            capture_output=True,
+            text=True,
+        )
+        assert res.returncode == 0
+        assert "--name" in res.stdout
+        assert "--replica" in res.stdout
+
