@@ -169,16 +169,22 @@ ColabMDA organizes projects into clean, standardized data tiers that strictly se
   data/
     str/                   # Input structures and homology models
       4ldj/
-        wt/                # Wild-type modeled PDBs & prep files
-        mutants/           # Point mutant PDBs (e.g. 4ldj_g12d)
+        wt/prep/           # Wild-type modeled PDBs & prep files
+        mutants/
+          4ldj_g12d/prep/  # Point mutant PDBs & prep files
     sim/                   # Trajectories, checkpoints, and logs
       4ldj_wt/
         equil/             # Shared equilibration checkpoints (em.chk, npt.chk, qc.png)
         r1/                # Production replica 1 (md.chk, chunk DCDs)
         r2/                # Production replica 2 (independent random velocity seed)
+      4ldj_g12d/
+        equil/             # Mutant shared equilibration checkpoints
+        r1/                # Mutant production replica
     analysis/              # Trajectory metrics, plots, and comparisons
       4ldj_wt/             # Single-system reports (RMSD, Rg, RMSF)
-      compare/             # WT vs Mutant overlay plots and tables
+      4ldj_g12d/           # Mutant single-system reports
+      compare/
+        wt_vs_g12d/        # WT vs Mutant overlay plots (RMSD, Rg, RMSF)
 ```
 
 > 💡 **Why Shared `equil/`?**
@@ -252,11 +258,14 @@ ColabMDA provides both fine-grained single-keyword commands and an automated all
 | Stage | Command | Description |
 | :--- | :--- | :--- |
 | **Stage** | `colabmda openmm stage --pdb-file <file> --name <system> --replica r1` | Initialize folder structure in `data/sim/`. |
-| **EM** | `colabmda openmm em --name <system> --protein-ff ff19SB --water-model opc` | Energy minimization & box solvation. |
+| **EM** | `colabmda openmm em --name <system> --protein-ff ff19SB --water-model opc` | Energy minimization & box solvation in `equil/`. |
 | **NVT** | `colabmda openmm nvt --name <system> --equil-time 100` | NVT thermalization to 300 K. |
 | **NPT** | `colabmda openmm npt --name <system> --equil-time 100` | NPT density equilibration with Monte Carlo barostat. |
 | **QC** | `colabmda openmm qc --name <system>` | Stability verification & publication QC plots (`qc.png`). |
 | **MD** | `colabmda openmm md --name <system> --replica r1 --total-ns 100 --traj-interval 10` | Resume-safe chunked production MD. |
+| **Merge** | `colabmda openmm merge --name <system> --replica r1 --center --wrap` | Concatenate chunks into centered, PBC-wrapped trajectory. |
+| **Status** | `colabmda openmm status --name <system> --replica r1` | Verify chunks, topology, frame counts, and resume readiness. |
+| **Analysis** | `colabmda openmm analysis --name <system> --replica r1` | Single-system trajectory metrics (RMSD, $R_g$, RMSF). |
 
 #### Step-by-Step Modular Execution:
 
@@ -278,6 +287,15 @@ colabmda openmm qc --name 4ldj_wt
 
 # 6. Production MD (e.g. 100 ns, saving every 10 ps)
 colabmda openmm md --name 4ldj_wt --replica r1 --total-ns 100.0 --traj-interval 10
+
+# 7. Merge Trajectory Chunks (Center + Wrap)
+colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap
+
+# 8. Check Status & Frame Counts
+colabmda openmm status --name 4ldj_wt --replica r1
+
+# 9. Biophysical Trajectory Analysis (RMSD, Rg, RMSF)
+colabmda openmm analysis --name 4ldj_wt --replica r1
 ```
 
 #### All-in-One Alternative (`run`):
@@ -298,10 +316,12 @@ Combine trajectory chunks into a single DCD, apply periodic boundary condition (
 
 ```bash
 # Standard Merge (Center + Wrap, All Atoms)
-colabmda openmm merge --pdb-dir data/sim/4ldj_wt/r1 --center --wrap
+colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap
 
 # For Mutant (G12D):
-colabmda openmm merge --pdb-dir data/sim/4ldj_g12d/r1 --center --wrap
+colabmda openmm merge --name 4ldj_g12d --replica r1 --center --wrap
+
+# (Alternative using explicit path: colabmda openmm merge --pdb-dir data/sim/4ldj_wt/r1 --center --wrap)
 ```
 
 #### Output Files:
@@ -315,7 +335,7 @@ colabmda openmm merge --pdb-dir data/sim/4ldj_g12d/r1 --center --wrap
 
 > 💡 **Protein-Only Trajectory (Optional):**
 > To save >85% storage, add the `--protein-only` flag to extract only protein atoms, discarding solvent water and ions:
-> `colabmda openmm merge --pdb-dir data/sim/4ldj_wt/r1 --center --wrap --protein-only`
+> `colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap --protein-only`
 >
 > **Outputs with `--protein-only`:**
 > * `prod_full.dcd`: Thinned trajectory containing protein atoms only.
@@ -329,7 +349,7 @@ colabmda openmm merge --pdb-dir data/sim/4ldj_g12d/r1 --center --wrap
 #### 4.5.1. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
-colabmda openmm status --pdb-dir data/sim/4ldj_wt/r1
+colabmda openmm status --name 4ldj_wt --replica r1
 ```
 This prints a comprehensive status report including topology stats, chunks, and exact frame counts:
 ```text
@@ -377,10 +397,12 @@ When merging trajectories, the reference topology file used and the resulting ou
 ### 5.1. Single System Analysis (RMSD, Rg, RMSF)
 ```bash
 # For Wild-Type:
-colabmda openmm analysis --pdb-dir data/sim/4ldj_wt/r1 --outdir data/analysis/4ldj_wt
+colabmda openmm analysis --name 4ldj_wt --replica r1
 
 # For Mutant (G12D):
-colabmda openmm analysis --pdb-dir data/sim/4ldj_g12d/r1 --outdir data/analysis/4ldj_g12d
+colabmda openmm analysis --name 4ldj_g12d --replica r1
+
+# (Alternative using explicit paths: colabmda openmm analysis --pdb-dir data/sim/4ldj_wt/r1 --outdir data/analysis/4ldj_wt)
 ```
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually with `--interval 10`.
@@ -388,9 +410,9 @@ colabmda openmm analysis --pdb-dir data/sim/4ldj_g12d/r1 --outdir data/analysis/
 ### 5.2. WT vs Mutant Comparison
 ```bash
 colabmda openmm compare \
-  --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2" \
-  --series "G12D=data/analysis/4ldj_g12d/r1,data/analysis/4ldj_g12d/r2" \
-  --outdir data/analysis/compare/wt_vs_g12d_avg
+  --series "WT=data/analysis/4ldj_wt" \
+  --series "G12D=data/analysis/4ldj_g12d" \
+  --outdir data/analysis/compare/wt_vs_g12d
 ```
 
 ---
