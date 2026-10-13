@@ -19,7 +19,7 @@ The practical pipeline is:
 3. Run and analyze MD for the protein/cofactor states
 4. Use the selected receptor state and pocket/region for docking
 5. Merge and inspect docking rankings
-6. Promote only selected docked poses into data/str/<pdb>/docked/
+6. Promote only selected docked poses into data/structure/<pdb>/docked/
 7. Run new protein-ligand MD systems for those selected poses
 ```
 
@@ -53,18 +53,19 @@ This installs **RDKit** for molecule handling, **Meeko** for PDBQT preparation a
 
 ## 2. Folder Layout
 
-Run commands from your Drive workspace, usually:
+Run commands from your research project workspace, e.g.:
 
 ```bash
-cd /content/drive/MyDrive/ColabMDA
+cd /content/drive/MyDrive/research/projects/kras   # or local research/projects/kras
+mkdir -p data/{structure,simulation,analysis,docking}
 ```
 
 Recommended layout:
 
 ```text
 data/
-  str/                 <- reusable structure inputs
-  sim/                 <- MD simulations, named by biological system
+  structure/           <- reusable structure inputs
+  simulation/          <- MD simulations (eq/, r1/, r2/, r3/)
   analysis/            <- MD analysis and comparison plots
   docking/             <- docking campaign workspaces, usually split into shards
 ```
@@ -76,7 +77,7 @@ building through docking and MD:
 
 ```text
 data/
-  str/
+  structure/
     4ldj/
       raw/
         4ldj_orig.pdb
@@ -108,17 +109,32 @@ data/
         4ldj_g12d_gdp/
           lig001_pose.sdf
 
-  sim/
+  simulation/
     4ldj_wt/
+      eq/
       r1/
+      r2/
+      r3/
     4ldj_g12d/
+      eq/
       r1/
+      r2/
+      r3/
     4ldj_gdp/
+      eq/
       r1/
+      r2/
+      r3/
     4ldj_g12d_gdp/
+      eq/
       r1/
+      r2/
+      r3/
     4ldj_gdp_lig001/
+      eq/
       r1/
+      r2/
+      r3/
 
   docking/
     4ldj_gdp/
@@ -136,8 +152,12 @@ data/
   analysis/
     4ldj_gdp/
       r1/
+      r2/
+      r3/
     4ldj_gdp_lig001/
       r1/
+      r2/
+      r3/
     compare/
 ```
 
@@ -145,7 +165,7 @@ The difference between `docking/` and `docked/` is intentional:
 
 - `data/docking/` is the full screening campaign: source libraries, shard folders,
   Vina logs, rankings, and reports.
-- `data/str/4ldj/docked/` contains only the selected docked SDF poses promoted to
+- `data/structure/4ldj/docked/` contains only the selected docked SDF poses promoted to
   structure inputs for the next MD round.
 
 The GDP/Mg cofactor is a native coordinate transfer, not a docking result: extract it
@@ -193,7 +213,7 @@ For million-scale screens, split the source library into shard folders such as `
 Use a cleaned receptor PDB from your structure or MD workflow. The box center and size are in Ångström. Choose them from the pocket you identified during analysis, for example by inspecting a cofactor/ligand centroid in PyMOL.
 
 ```bash
-colabmda dock prep-receptor --receptor data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_wt --center 10.0 20.0 30.0 --size 22.0 22.0 22.0 --outdir data/docking/4ldj_wt/receptor
+colabmda dock prep-receptor --receptor data/structure/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_wt --center 10.0 20.0 30.0 --size 22.0 22.0 22.0 --outdir data/docking/4ldj_wt/receptor
 ```
 
 This writes:
@@ -271,14 +291,14 @@ data/docking/4ldj_wt/merged/report/top_hits.csv
 Export the top-ranked poses back to SDF:
 
 ```bash
-colabmda dock export-top --results data/docking/4ldj_wt/merged --outdir data/str/4ldj/docked/4ldj_wt --top-n 3
+colabmda dock export-top --results data/docking/4ldj_wt/merged --outdir data/structure/4ldj/docked/4ldj_wt --top-n 3
 ```
 
 Then inspect the pose visually. If the chemistry and placement look sensible, run MD:
 
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh" && conda activate openmm_env
-colabmda openmm run --name 4ldj_wt_top1 --replica r1 --ligand data/str/4ldj/docked/4ldj_wt/01_benzene_pose.sdf --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
+colabmda openmm run --name 4ldj_wt_top1 --replica r1 --ligand data/structure/4ldj/docked/4ldj_wt/01_benzene_pose.sdf --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 ```
 
 For publication-level protein-ligand simulations, keep the exact ligand source, protonation/tautomer assumptions, docking box, docking version, and MD force-field choices with the results.

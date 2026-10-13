@@ -66,4 +66,52 @@ def test_merge_analysis_status_name_options():
         assert res.returncode == 0
         assert "--name" in res.stdout
         assert "--replica" in res.stdout
+        assert "--project" in res.stdout
+
+
+def test_simulation_workdir_resolution(tmp_path):
+    from colabmda.cli import _simulation_workdir
+
+    # 1. Default should point to data/simulation
+    res = _simulation_workdir(str(tmp_path), "test_sys")
+    assert str(res) == str(tmp_path / "data" / "simulation" / "test_sys")
+
+    # 2. If data/sim exists (legacy), it should discover it
+    legacy_dir = tmp_path / "data" / "sim" / "legacy_sys"
+    legacy_dir.mkdir(parents=True)
+    res_legacy = _simulation_workdir(str(tmp_path), "legacy_sys")
+    assert str(res_legacy) == str(legacy_dir)
+
+
+def test_stage_creates_eq_and_replica(tmp_path):
+    # Setup dummy structure in data/structure
+    str_dir = tmp_path / "data" / "structure" / "4ldj" / "wt" / "prep"
+    str_dir.mkdir(parents=True)
+    dummy_pdb = str_dir / "4ldj_wt_cleaned.pdb"
+    dummy_pdb.write_text("ATOM      1  N   MET A   1       0.000   0.000   0.000  1.00  0.00\nEND\n")
+
+    res = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "colabmda.cli",
+            "openmm",
+            "stage",
+            "--pdb-file",
+            str(dummy_pdb),
+            "--name",
+            "4ldj_wt",
+            "--replica",
+            "r1",
+            "--project",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0
+    # eq hub should always be created and populated
+    assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "eq" / "4ldj_wt_cleaned.pdb").exists()
+    # r1 replica should be created and populated
+    assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "r1" / "4ldj_wt_cleaned.pdb").exists()
 

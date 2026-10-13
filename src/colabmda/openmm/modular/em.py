@@ -307,41 +307,41 @@ def run_em(
                 workdir_path = pathlib_Path(workdir)
                 root_dir = None
                 for ancestor in (workdir_path, *workdir_path.parents):
-                    if ancestor.name not in {"sim", "simulations"}:
+                    if ancestor.name not in {"simulation", "simulations", "sim"}:
                         continue
-                    if ancestor.name == "sim" and ancestor.parent.name == "data":
+                    if ancestor.name in {"simulation", "sim"} and ancestor.parent.name == "data":
                         root_dir = ancestor.parent.parent
                     else:
                         root_dir = ancestor.parent
                     break
 
                 if root_dir is not None:
-                    # Priority: data/str > str > structures (legacy)
-                    candidate_paths.append(
-                        str(root_dir / "data" / "str" / base_pdb / f"{base_pdb}_orig.pdb")
-                    )
-                    candidate_paths.append(
-                        str(root_dir / "data" / "str" / base_pdb / f"{base_pdb}.pdb")
-                    )
-                    candidate_paths.append(
-                        str(root_dir / "str" / base_pdb / f"{base_pdb}_orig.pdb")
-                    )
-                    candidate_paths.append(
-                        str(root_dir / "structures" / base_pdb / f"{base_pdb}_orig.pdb")
-                    )
-                    candidate_paths.append(str(root_dir / "str" / base_pdb / f"{base_pdb}.pdb"))
-                    candidate_paths.append(
-                        str(root_dir / "structures" / base_pdb / f"{base_pdb}.pdb")
-                    )
-                    candidate_paths.append(str(root_dir / "data" / "str" / f"{base_pdb}_orig.pdb"))
-                    candidate_paths.append(str(root_dir / "str" / f"{base_pdb}_orig.pdb"))
-                    candidate_paths.append(str(root_dir / "structures" / f"{base_pdb}_orig.pdb"))
+                    # Priority: data/structure > data/structures > data/str > structure > structures > str
+                    for str_folder in [
+                        "data/structure",
+                        "data/structures",
+                        "data/str",
+                        "structure",
+                        "structures",
+                        "str",
+                    ]:
+                        candidate_paths.append(
+                            str(root_dir / str_folder / base_pdb / f"{base_pdb}_orig.pdb")
+                        )
+                        candidate_paths.append(
+                            str(root_dir / str_folder / base_pdb / f"{base_pdb}.pdb")
+                        )
+                        candidate_paths.append(
+                            str(root_dir / str_folder / f"{base_pdb}_orig.pdb")
+                        )
+                        candidate_paths.append(
+                            str(root_dir / str_folder / f"{base_pdb}.pdb")
+                        )
 
-                # Also check local CWD-relative str and structures folders
-                candidate_paths.append(str(pathlib_Path("str") / base_pdb / f"{base_pdb}_orig.pdb"))
-                candidate_paths.append(
-                    str(pathlib_Path("structures") / base_pdb / f"{base_pdb}_orig.pdb")
-                )
+                # Also check local CWD-relative structure and structures folders
+                for str_folder in ["data/structure", "data/str", "structure", "structures", "str"]:
+                    candidate_paths.append(str(pathlib_Path(str_folder) / base_pdb / f"{base_pdb}_orig.pdb"))
+                    candidate_paths.append(str(pathlib_Path(str_folder) / f"{base_pdb}_orig.pdb"))
 
                 found_raw = None
                 for path in candidate_paths:

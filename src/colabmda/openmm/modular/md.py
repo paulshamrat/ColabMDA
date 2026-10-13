@@ -38,20 +38,19 @@ def run_md(
     state_in = "npt.state.xml"
     chk_file = "prod.chk"
 
-    # If system files are missing, try copying from equil or sibling r1 replica directory
+    # If system files are missing, try copying from eq, equil or sibling r1 replica directory
     if not all(os.path.exists(f) for f in [xml_system, pdb_saved]):
         parent_dir = os.path.dirname(workdir)
+        eq_dir = os.path.join(parent_dir, "eq")
         equil_dir = os.path.join(parent_dir, "equil")
         r1_dir = os.path.join(parent_dir, "r1")
         source_dir = None
-        if os.path.exists(equil_dir) and all(
-            os.path.exists(os.path.join(equil_dir, f)) for f in [xml_system, pdb_saved]
-        ):
-            source_dir = equil_dir
-        elif os.path.exists(r1_dir) and all(
-            os.path.exists(os.path.join(r1_dir, f)) for f in [xml_system, pdb_saved]
-        ):
-            source_dir = r1_dir
+        for cand in [eq_dir, equil_dir, r1_dir]:
+            if os.path.exists(cand) and all(
+                os.path.exists(os.path.join(cand, f)) for f in [xml_system, pdb_saved]
+            ):
+                source_dir = cand
+                break
 
         if source_dir:
             print(
@@ -70,13 +69,14 @@ def run_md(
     # Replicas branch from portable physical state, never from another Context checkpoint.
     if not os.path.exists(state_in):
         parent_dir = os.path.dirname(workdir)
+        eq_dir = os.path.join(parent_dir, "eq")
         equil_dir = os.path.join(parent_dir, "equil")
         r1_dir = os.path.join(parent_dir, "r1")
         state_source = None
-        if os.path.exists(equil_dir) and os.path.exists(os.path.join(equil_dir, state_in)):
-            state_source = equil_dir
-        elif os.path.exists(r1_dir) and os.path.exists(os.path.join(r1_dir, state_in)):
-            state_source = r1_dir
+        for cand in [eq_dir, equil_dir, r1_dir]:
+            if os.path.exists(cand) and os.path.exists(os.path.join(cand, state_in)):
+                state_source = cand
+                break
 
         if state_source:
             print(

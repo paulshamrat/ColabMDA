@@ -160,47 +160,73 @@ You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes
 
 ## 3. Recommended Directory Strategy
 
-ColabMDA organizes projects into clean, standardized data tiers that strictly separate inputs, simulations, and analysis:
+ColabMDA organizes projects into clean, standardized data tiers that strictly separate inputs, simulations, and analysis under your project workspace:
 
 ```text
-/content/drive/MyDrive/ColabMDA/
-  data/
-    str/                   # Input structures and homology models
-      4ldj/
-        wt/prep/           # Wild-type modeled PDBs & prep files
-        mutants/
-          4ldj_g12d/prep/  # Point mutant PDBs & prep files
-    sim/                   # Trajectories, checkpoints, and logs
-      4ldj_wt/
-        equil/             # Shared equilibration checkpoints (em.chk, npt.chk, qc.png)
-        r1/                # Production replica 1 (md.chk, chunk DCDs)
-        r2/                # Production replica 2 (independent random velocity seed)
-      4ldj_g12d/
-        equil/             # Mutant shared equilibration checkpoints
-        r1/                # Mutant production replica
-    analysis/              # Trajectory metrics, plots, and comparisons
-      4ldj_wt/             # Single-system reports (RMSD, Rg, RMSF)
-      4ldj_g12d/           # Mutant single-system reports
-      compare/
-        wt_vs_g12d/        # WT vs Mutant overlay plots (RMSD, Rg, RMSF)
+research/projects/kras/                   # Your project root (e.g. kras, 4ldj, psmb8)
+└── data/
+    ├── structure/                        # Input structures and homology models
+    │   └── 4ldj/
+    │       ├── wt/
+    │       │   ├── 4ldj_wt.pdb
+    │       │   └── prep/                 # Titrated & repaired starting structures
+    │       │       ├── 4ldj_wt_cleaned.pdb
+    │       │       └── protonation_summary.json
+    │       └── mutants/
+    │           └── 4ldj_g12d/
+    │               ├── 4ldj_g12d.pdb
+    │               └── prep/
+    │                   ├── 4ldj_g12d_cleaned.pdb
+    │                   └── protonation_summary.json
+    │
+    ├── simulation/                       # Trajectories, checkpoints, and logs
+    │   ├── 4ldj_wt/
+    │   │   ├── eq/                       # Shared equilibration hub (run once per system)
+    │   │   │   ├── solvated.pdb
+    │   │   │   ├── system.xml
+    │   │   │   ├── em.chk / em.state.xml
+    │   │   │   ├── nvt.chk / nvt.state.xml
+    │   │   │   ├── npt.chk / npt.state.xml
+    │   │   │   └── qc.png / qc_metrics.json
+    │   │   ├── r1/                       # Production replica 1 (chunks + full trajectory)
+    │   │   ├── r2/                       # Production replica 2 (independent seed from eq/)
+    │   │   └── r3/                       # Production replica 3 (triplicate simulation)
+    │   │
+    │   └── 4ldj_g12d/                    # Mutant simulation system
+    │       ├── eq/
+    │       ├── r1/
+    │       ├── r2/
+    │       └── r3/
+    │
+    └── analysis/                         # Trajectory metrics, CSVs, and plots
+        ├── 4ldj_wt/
+        │   ├── r1/                       # Single-replica reports (RMSD, Rg, RMSF)
+        │   ├── r2/
+        │   └── r3/
+        ├── 4ldj_g12d/
+        │   ├── r1/
+        │   ├── r2/
+        │   └── r3/
+        └── compare/
+            └── wt_vs_g12d/               # Triplicate Mean ± SD overlay plots
 ```
 
-> 💡 **Why Shared `equil/`?**
-> Equilibration (EM, NVT, NPT) only needs to be run once per system. Replicas (`r1`, `r2`) fork from `equil/npt.chk` with distinct random velocity seeds, saving substantial GPU time on Google Colab.
+> 💡 **Why Shared `eq/`?**
+> Equilibration (EM, NVT, NPT) only needs to be run once per system. Replicas (`r1`, `r2`, `r3`) fork directly from `eq/npt.state.xml` with distinct random velocity seeds, saving substantial GPU time on Google Colab while maintaining statistical independence.
 
 ---
 
 ## 4. Simulation Workflow
 
 ### Pipeline at a Glance:
-1. **Model:** Build structures (WT & Mutants) in `data/str/` using Modeller.
+1. **Model:** Build structures (WT & Mutants) in `data/structure/` using Modeller.
 2. **Titrate & Prep:** Clean coordinates and run 3D PROPKA pKa titration at physiological pH 7.4.
-3. **Stage:** Initialize simulation folders under `data/sim/`.
-4. **Equilibrate:** Run EM, NVT, and NPT with Amber14/ff19SB force fields.
+3. **Stage:** Initialize simulation folders under `data/simulation/`.
+4. **Equilibrate:** Run EM, NVT, and NPT in shared `eq/` hub with Amber14/ff19SB force fields.
 5. **QC Gate:** Verify equilibration density, temperature, and stability (`qc.png`).
-6. **Production MD:** Execute resume-safe chunked production MD.
+6. **Production MD:** Execute resume-safe chunked production MD across triplicates (`r1`, `r2`, `r3`).
 7. **Merge:** Combine trajectory chunks into centered, wrapped trajectories.
-8. **Analyze:** Generate RMSD, $R_g$, and RMSF plots.
+8. **Analyze:** Generate RMSD, $R_g$, and RMSF plots and aggregate statistics.
 
 ---
 
@@ -217,10 +243,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/structure/4ldj/wt
 
 # 2. Create Point Mutant (e.g. G12D) preserving biological numbering
-colabmda modeller mutate --pdb-in data/str/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_g12d
+colabmda modeller mutate --pdb-in data/structure/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/structure/4ldj/mutants/4ldj_g12d
 ```
 
 ---
@@ -235,8 +261,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Run 3D pKa titration at physiological pH 7.4
-colabmda openmm prep --pdb-file data/str/4ldj/wt/4ldj_wt.pdb --outdir data/str/4ldj/wt/prep --name 4ldj_wt --ph 7.4
-colabmda openmm prep --pdb-file data/str/4ldj/mutants/4ldj_g12d/4ldj_g12d.pdb --outdir data/str/4ldj/mutants/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
+colabmda openmm prep --pdb-file data/structure/4ldj/wt/4ldj_wt.pdb --outdir data/structure/4ldj/wt/prep --name 4ldj_wt --ph 7.4
+colabmda openmm prep --pdb-file data/structure/4ldj/mutants/4ldj_g12d/4ldj_g12d.pdb --outdir data/structure/4ldj/mutants/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
 ```
 
 *Key features:*
@@ -255,8 +281,8 @@ ColabMDA provides both fine-grained single-keyword commands and an automated all
 
 | Stage | Command | Description |
 | :--- | :--- | :--- |
-| **Stage** | `colabmda openmm stage --pdb-file <file> --name <system> --replica r1` | Initialize folder structure in `data/sim/`. |
-| **EM** | `colabmda openmm em --name <system> --protein-ff ff19SB --water-model opc` | Energy minimization & box solvation in `equil/`. |
+| **Stage** | `colabmda openmm stage --pdb-file <file> --name <system> --replica r1` | Initialize folder structure in `data/simulation/` and `eq/`. |
+| **EM** | `colabmda openmm em --name <system> --protein-ff ff19SB --water-model opc` | Energy minimization & box solvation in `eq/`. |
 | **NVT** | `colabmda openmm nvt --name <system> --equil-time 100` | NVT thermalization to 300 K. |
 | **NPT** | `colabmda openmm npt --name <system> --equil-time 100` | NPT density equilibration with Monte Carlo barostat. |
 | **QC** | `colabmda openmm qc --name <system>` | Stability verification & publication QC plots (`qc.png`). |
@@ -268,10 +294,10 @@ ColabMDA provides both fine-grained single-keyword commands and an automated all
 #### Step-by-Step Modular Execution:
 
 ```bash
-# 1. Initialize simulation folder
-colabmda openmm stage --pdb-file data/str/4ldj/wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
+# 1. Initialize simulation folder and eq hub
+colabmda openmm stage --pdb-file data/structure/4ldj/wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
 
-# 2. Energy Minimization (ff19SB / OPC 4-point water or Amber14)
+# 2. Energy Minimization in shared eq/ hub (ff19SB / OPC 4-point water)
 colabmda openmm em --name 4ldj_wt --protein-ff ff19SB --water-model opc
 
 # 3. NVT Thermalization (100 ps heating to 300 K)
@@ -283,17 +309,23 @@ colabmda openmm npt --name 4ldj_wt --equil-time 100
 # 5. Equilibration Quality Control Gating
 colabmda openmm qc --name 4ldj_wt
 
-# 6. Production MD (e.g. 100 ns, saving every 10 ps)
+# 6. Production MD across Triplicates (r1, r2, r3 fork automatically from eq/)
 colabmda openmm md --name 4ldj_wt --replica r1 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name 4ldj_wt --replica r2 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name 4ldj_wt --replica r3 --total-ns 100.0 --traj-interval 10
 
-# 7. Merge Trajectory Chunks (Center + Wrap)
+# 7. Merge Trajectory Chunks for all replicas (Center + Wrap)
 colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap
+colabmda openmm merge --name 4ldj_wt --replica r2 --center --wrap
+colabmda openmm merge --name 4ldj_wt --replica r3 --center --wrap
 
 # 8. Check Status & Frame Counts
 colabmda openmm status --name 4ldj_wt --replica r1
 
 # 9. Biophysical Trajectory Analysis (RMSD, Rg, RMSF)
 colabmda openmm analysis --name 4ldj_wt --replica r1
+colabmda openmm analysis --name 4ldj_wt --replica r2
+colabmda openmm analysis --name 4ldj_wt --replica r3
 ```
 
 #### All-in-One Alternative (`run`):
@@ -315,11 +347,13 @@ Combine trajectory chunks into a single DCD, apply periodic boundary condition (
 ```bash
 # Standard Merge (Center + Wrap, All Atoms)
 colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap
+colabmda openmm merge --name 4ldj_wt --replica r2 --center --wrap
+colabmda openmm merge --name 4ldj_wt --replica r3 --center --wrap
 
 # For Mutant (G12D):
 colabmda openmm merge --name 4ldj_g12d --replica r1 --center --wrap
-
-# (Alternative using explicit path: colabmda openmm merge --pdb-dir data/sim/4ldj_wt/r1 --center --wrap)
+colabmda openmm merge --name 4ldj_g12d --replica r2 --center --wrap
+colabmda openmm merge --name 4ldj_g12d --replica r3 --center --wrap
 ```
 
 #### Output Files:
@@ -352,7 +386,7 @@ colabmda openmm status --name 4ldj_wt --replica r1
 This prints a comprehensive status report including topology stats, chunks, and exact frame counts:
 ```text
 [STATUS]
-  Workdir          : data/sim/4ldj_wt/r1
+  Workdir          : data/simulation/4ldj_wt/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
@@ -364,7 +398,7 @@ This prints a comprehensive status report including topology stats, chunks, and 
 
 Alternatively, query the frame count directly with MDAnalysis:
 ```bash
-python3 -c "import MDAnalysis as mda; u = mda.Universe('data/sim/4ldj_wt/r1/prod_full.pdb', 'data/sim/4ldj_wt/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
+python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/4ldj_wt/r1/prod_full.pdb', 'data/simulation/4ldj_wt/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
 ```
 
 #### 4.5.2. ⏱️ Understanding Simulation Time vs. Frame Counts
@@ -394,22 +428,24 @@ When merging trajectories, the reference topology file used and the resulting ou
 
 ### 5.1. Single System Analysis (RMSD, Rg, RMSF)
 ```bash
-# For Wild-Type:
+# For Wild-Type Triplicates:
 colabmda openmm analysis --name 4ldj_wt --replica r1
+colabmda openmm analysis --name 4ldj_wt --replica r2
+colabmda openmm analysis --name 4ldj_wt --replica r3
 
-# For Mutant (G12D):
+# For Mutant Triplicates (G12D):
 colabmda openmm analysis --name 4ldj_g12d --replica r1
-
-# (Alternative using explicit paths: colabmda openmm analysis --pdb-dir data/sim/4ldj_wt/r1 --outdir data/analysis/4ldj_wt)
+colabmda openmm analysis --name 4ldj_g12d --replica r2
+colabmda openmm analysis --name 4ldj_g12d --replica r3
 ```
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually with `--interval 10`.
 
-### 5.2. WT vs Mutant Comparison
+### 5.2. WT vs Mutant Comparison (Triplicate Statistics)
 ```bash
 colabmda openmm compare \
-  --series "WT=data/analysis/4ldj_wt" \
-  --series "G12D=data/analysis/4ldj_g12d" \
+  --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2,data/analysis/4ldj_wt/r3" \
+  --series "G12D=data/analysis/4ldj_g12d/r1,data/analysis/4ldj_g12d/r2,data/analysis/4ldj_g12d/r3" \
   --outdir data/analysis/compare/wt_vs_g12d
 ```
 
@@ -446,10 +482,10 @@ Run the view command from your simulation folder (it looks for `prod_full.pdb` a
 
 ```bash
 # For Wild-Type:
-colabmda openmm view --pdb-dir data/sim/4ldj_wt/r1
+colabmda openmm view --pdb-dir data/simulation/4ldj_wt/r1
 
 # For Mutant (G12D, highlighting residue 12):
-colabmda openmm view --pdb-dir data/sim/4ldj_g12d/r1 --resi 12
+colabmda openmm view --pdb-dir data/simulation/4ldj_g12d/r1 --resi 12
 ```
 
 The command automatically generates a `visualize.pml` script in the folder.
@@ -514,7 +550,7 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
 
 ```json
 {
-  "align_ref_pdb": "data/str/4ldj/wt/target.B99990001_with_cryst.pdb",
+  "align_ref_pdb": "data/structure/4ldj/wt/target.B99990001_with_cryst.pdb",
   "stable_core_sel": "resi 1-10 or resi 40-55 or resi 80-169",
   "camera_view": [
     0.0, 1.0, 0.0,
@@ -524,8 +560,8 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
   ],
   "systems": {
     "WT": {
-      "pdb": "data/sim/4ldj_wt/r1/prod_full.pdb",
-      "dcd": "data/sim/4ldj_wt/r1/prod_full.dcd",
+      "pdb": "data/simulation/4ldj_wt/r1/prod_full.pdb",
+      "dcd": "data/simulation/4ldj_wt/r1/prod_full.dcd",
       "states": [1, 200],
       "times": ["0.00 ns", "2.00 ns"],
       "mut_residue": 12

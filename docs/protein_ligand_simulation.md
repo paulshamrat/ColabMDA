@@ -15,11 +15,11 @@ This guide describes how to model, setup, run, and analyze Molecular Dynamics (M
 ## 1. Simulation Workflow Overview
 
 The standard simulation workflow consists of:
-1. **Model:** Build structures (Wild-Type & Mutants) in `data/str/` using Modeller.
-2. **Stage:** Initialize the simulation directory structure under `data/sim/`.
+1. **Model:** Build structures (Wild-Type & Mutants) in `data/structure/` using Modeller.
+2. **Stage:** Initialize the simulation directory structure under `data/simulation/` with shared `eq/` hub and replicate folders (`r1`, `r2`, `r3`).
 3. **Run:** Execute the resume-safe production MD (EM, NVT, NPT, MD stages) with GAFF2 ligand parameterization and $Mg^{2+}$ cofactor preservation.
 4. **Merge:** Concatenate raw trajectory chunks, apply periodic boundary condition (PBC) wrap/alignment, and center the complex.
-5. **Analyze:** Compute and plot RMSD, Radius of Gyration ($R_g$), and RMSF for the complex.
+5. **Analyze:** Compute and plot RMSD, Radius of Gyration ($R_g$), and RMSF for the complex across replicas.
 
 ---
 
@@ -35,37 +35,37 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/structure/4ldj/wt
 
 # 2. Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in data/str/4ldj/wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_g12d
+colabmda modeller mutate --pdb-in data/structure/4ldj/wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/structure/4ldj/mutants/4ldj_g12d
 ```
 
 ### 2.2. Stage Simulation Workspace
 **Environment:** `openmm_env`
 
-Stage the WT simulation workspace to create the directory structure and copy the cleaned starting structure:
+Stage the WT simulation workspace to create the directory structure (`data/simulation/<name>/eq`, `r1`, `r2`, `r3`) and copy the cleaned starting structure:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Stage simulation directory
-colabmda openmm stage --pdb-file data/str/4ldj/wt/4ldj_wt.pdb --name 4ldj_gdp --replica r1
+colabmda openmm stage --pdb-file data/structure/4ldj/wt/4ldj_wt.pdb --name 4ldj_gdp --replica r1
 ```
-*Note: This creates the simulation directory `data/sim/4ldj_gdp/r1/` and copies the protein PDB into it.*
+*Note: This creates the simulation directories `data/simulation/4ldj_gdp/eq/` and replica folders `r1/`, `r2/`, `r3/`, copying the protein PDB into `eq/` and `r1/`.*
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
 > If you prefer to run the entire simulation sequentially (EM, NVT, NPT, QC, and MD) using a single, resume-safe command instead of executing each step manually, you can run:
 > ```bash
-> colabmda openmm run --name 4ldj_gdp --replica r1 --ligand data/str/4ldj/gdp.sdf --keep-mg --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
+> colabmda openmm run --name 4ldj_gdp --replica r1 --ligand data/structure/4ldj/gdp.sdf --keep-mg --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 > ```
 
 ### 2.3. Energy Minimization (EM)
 **Environment:** `openmm_env`
 
-Stages the ligand and cofactor, parameterizes them, solvates, and minimizes potential energy to resolve steric clashes:
+Stages the ligand and cofactor, parameterizes them, solvates, and minimizes potential energy in the shared `eq/` hub to resolve steric clashes:
 ```bash
-colabmda openmm em --name 4ldj_gdp --ligand data/str/4ldj/gdp.sdf --keep-mg
+colabmda openmm em --name 4ldj_gdp --ligand data/structure/4ldj/gdp.sdf --keep-mg
 ```
 *Under the Hood:* Uses **AMBER ff19SB**, **OPC**, and **GAFF 2.11** for the native OpenMM XML path. OpenFF assigns AM1-BCC only when the ligand has no supplied partial charges; supplied charges are preserved and recorded. Generic GAFF is not equivalent to specialized ATP-Mg parameters—use `--amber-prmtop` and `--amber-inpcrd` when you already have a curated Hu 2024-style AMBER topology. The system is neutralized and all choices are written to `parameterization.json`.
 
@@ -133,10 +133,10 @@ After a standard merge, the following files are created in the simulation replic
 ### 3.1. Directory Layout & Modeling Strategy
 
 #### Recommended Structure Folder Layout
-For protein-ligand complexes, we recommend organizing your files under the standard `data/str/` folder:
+For protein-ligand complexes, we recommend organizing your files under the standard `data/structure/` folder:
 
 ```text
-data/str/
+data/structure/
   4ldj/
     wt/
       4ldj_wt.pdb   # Modeled WT protein structure (no ligand/MG)
@@ -205,7 +205,7 @@ python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.gi
 ### 5.2. Running the Visualization in PyMOL
 Simply run the view command from your simulation replica folder:
 ```bash
-colabmda openmm view --pdb-dir data/sim/4ldj_gdp/r1
+colabmda openmm view --pdb-dir data/simulation/4ldj_gdp/r1
 ```
 
 Inside PyMOL, the ligand and magnesium ions are automatically rendered with distinct representations (sticks and spheres, respectively) for easy binding-pocket inspection:
@@ -267,16 +267,16 @@ def render_panel(name, is_crystal=False, is_model=False, is_superimposed=False, 
     cmd.bg_color('white')
     
     # Load reference structure (for alignment only)
-    cmd.load("data/str/g12c_protein.pdb", "ref_g12c")
+    cmd.load("data/structure/g12c_protein.pdb", "ref_g12c")
     
     # Unified Load & Align:
-    cmd.load("data/str/4ldj/proteins/4ldj_wt/4ldj_orig.pdb", "crystal")
+    cmd.load("data/structure/4ldj/proteins/4ldj_wt/4ldj_orig.pdb", "crystal")
     cmd.align(f"crystal and {stable_core_sel}", f"ref_g12c and {stable_core_sel}")
     
-    cmd.load("data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb", "modeled_wt")
+    cmd.load("data/structure/4ldj/proteins/4ldj_wt/4ldj_wt.pdb", "modeled_wt")
     cmd.matrix_copy("crystal", "modeled_wt")
     
-    cmd.load("data/str/4ldj/gdp.sdf", "transferred_gdp")
+    cmd.load("data/structure/4ldj/gdp.sdf", "transferred_gdp")
     cmd.matrix_copy("crystal", "transferred_gdp")
     
     cmd.create("mg_cofactor", "crystal and resn MG")
@@ -474,8 +474,8 @@ from Bio.PDB import PDBParser
 import numpy as np
 
 parser = PDBParser(QUIET=True)
-c_struct = parser.get_structure('c', 'data/str/4ldj/proteins/4ldj_wt/4ldj_orig.pdb')[0]['A']
-m_struct = parser.get_structure('m', 'data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb')[0]['A']
+c_struct = parser.get_structure('c', 'data/structure/4ldj/proteins/4ldj_wt/4ldj_orig.pdb')[0]['A']
+m_struct = parser.get_structure('m', 'data/structure/4ldj/proteins/4ldj_wt/4ldj_wt.pdb')[0]['A']
 
 # Extract C-alpha coordinates for matching residues (1 to 169)
 c_coords = np.array([r['CA'].get_coord() for r in c_struct if r.id[0] == ' ' and r.id[1] >= 1 and r.id[1] <= 169])
