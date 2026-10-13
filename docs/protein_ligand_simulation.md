@@ -92,7 +92,7 @@ colabmda openmm npt --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --seed 43
 
 Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
 ```bash
-colabmda openmm check-equil --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1
+colabmda openmm qc --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1
 ```
 
 ### 2.7. Production Molecular Dynamics (MD)

@@ -29,8 +29,8 @@ def _apply_propka_titration(raw_pdb: str, temp_fixed_pdb: str, out_pdb: str, ph:
                 break
 
     if not pdb2pqr_bin:
-        print(f"[Protonation] Notice: 'pdb2pqr' is not found in the active environment.")
-        print(f"[Protonation] To enable 3D PROPKA pKa titration, run: mamba install -y -c conda-forge pdb2pqr propka")
+        print("[Protonation] Notice: 'pdb2pqr' is not found in the active environment.")
+        print("[Protonation] To enable 3D PROPKA pKa titration, run: mamba install -y -c conda-forge pdb2pqr propka")
         return False
 
     temp_pqr = out_pdb + ".tmp.pqr"
@@ -49,11 +49,11 @@ def _apply_propka_titration(raw_pdb: str, temp_fixed_pdb: str, out_pdb: str, ph:
     ]
     try:
         print(f"[Protonation] Running PDB2PQR with PROPKA titration at pH {ph}...")
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if res.returncode == 0 and os.path.exists(temp_prot_pdb) and os.path.getsize(temp_prot_pdb) > 0:
             # Audit assigned titratable residue forms
             assigned_forms = {}
-            with open(temp_prot_pdb, "r") as fin, open(out_pdb, "w") as fout:
+            with open(temp_prot_pdb) as fin, open(out_pdb, "w") as fout:
                 for line in fin:
                     fout.write(line)
                     if line.startswith(("ATOM", "HETATM")):

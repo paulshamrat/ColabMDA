@@ -18,7 +18,7 @@ def parse_em_log(workdir):
     return "Minimized" if os.path.exists(os.path.join(workdir, "em.chk")) else "Failed"
 
 
-def analyze_logs(workdir):
+def analyze_logs(workdir, strict=False):
     workdir = os.path.abspath(workdir)
     old_cwd = os.getcwd()
     try:
@@ -30,19 +30,20 @@ def analyze_logs(workdir):
 
         # Process NVT
         df_nvt = pd.read_csv(nvt_log)
-        last_20_pct = max(1, int(len(df_nvt) * 0.2))
-        avg_temp = df_nvt["Temperature (K)"].tail(last_20_pct).mean()
-        std_temp = df_nvt["Temperature (K)"].tail(last_20_pct).std()
+        last_20_pct_nvt = max(2 if len(df_nvt) >= 2 else 1, int(len(df_nvt) * 0.2))
+        avg_temp = df_nvt["Temperature (K)"].tail(last_20_pct_nvt).mean()
+        std_temp = df_nvt["Temperature (K)"].tail(last_20_pct_nvt).std()
 
         # Process NPT
         df_npt = pd.read_csv(npt_log)
-        avg_dens = df_npt["Density (g/mL)"].tail(last_20_pct).mean()
+        last_20_pct_npt = max(2 if len(df_npt) >= 2 else 1, int(len(df_npt) * 0.2))
+        avg_dens = df_npt["Density (g/mL)"].tail(last_20_pct_npt).mean()
 
-        subset = df_npt.tail(last_20_pct)
+        subset = df_npt.tail(last_20_pct_npt)
         if len(subset) >= 2:
             slope, _, _, _, _ = linregress(subset["Time (ps)"], subset["Density (g/mL)"])
         else:
-            slope = math.nan
+            slope = 0.0 if len(subset) == 1 else math.nan
 
         # Plotting
         fig, axes = plt.subplots(3, 2, figsize=(12, 15))
