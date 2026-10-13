@@ -35,10 +35,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/proteins/4ldj_wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
 
 # 2. Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/proteins/4ldj_g12d
+colabmda modeller mutate --pdb-in data/str/4ldj/wt/4ldj_wt.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_g12d
 ```
 
 ### 2.2. Stage Simulation Workspace
@@ -50,7 +50,7 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Stage simulation directory
-colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --name 4ldj_gdp --replica r1
+colabmda openmm stage --pdb-file data/str/4ldj/wt/4ldj_wt.pdb --name 4ldj_gdp --replica r1
 ```
 *Note: This creates the simulation directory `data/sim/4ldj_gdp/r1/` and copies the protein PDB into it.*
 
@@ -65,7 +65,7 @@ colabmda openmm stage --pdb-file data/str/4ldj/proteins/4ldj_wt/4ldj_wt.pdb --na
 
 Stages the ligand and cofactor, parameterizes them, solvates, and minimizes potential energy to resolve steric clashes:
 ```bash
-colabmda openmm em --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --ligand data/str/4ldj/gdp.sdf --keep-mg
+colabmda openmm em --name 4ldj_gdp --ligand data/str/4ldj/gdp.sdf --keep-mg
 ```
 *Under the Hood:* Uses **AMBER ff19SB**, **OPC**, and **GAFF 2.11** for the native OpenMM XML path. OpenFF assigns AM1-BCC only when the ligand has no supplied partial charges; supplied charges are preserved and recorded. Generic GAFF is not equivalent to specialized ATP-Mg parameters—use `--amber-prmtop` and `--amber-inpcrd` when you already have a curated Hu 2024-style AMBER topology. The system is neutralized and all choices are written to `parameterization.json`.
 
@@ -74,7 +74,7 @@ colabmda openmm em --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --ligand data/
 
 Relaxes solvent molecules and adjusts temperature to 300 K while keeping the protein-ligand complex restrained:
 ```bash
-colabmda openmm nvt --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --seed 42
+colabmda openmm nvt --name 4ldj_gdp --seed 42
 ```
 *Under the Hood:* Runs the restrained minimization, 50-300 K heating, and NVT restraint-release stages described in the [complete stage table](simulation_protocol.md#default-staged-equilibration-profile).
 
@@ -83,7 +83,7 @@ colabmda openmm nvt --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --seed 42
 
 Relaxes the simulation box volume and adjusts system density under pressure:
 ```bash
-colabmda openmm npt --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --seed 43
+colabmda openmm npt --name 4ldj_gdp --seed 43
 ```
 *Under the Hood:* Runs stages 19-24 at 300 K and **1 bar**, progressively releases solute-heavy-atom restraints, and ends with 1 ns unrestrained NPT.
 
@@ -92,7 +92,7 @@ colabmda openmm npt --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --seed 43
 
 Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
 ```bash
-colabmda openmm qc --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1
+colabmda openmm qc --name 4ldj_gdp
 ```
 
 ### 2.7. Production Molecular Dynamics (MD)
@@ -100,7 +100,7 @@ colabmda openmm qc --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1
 
 Runs the production trajectory in chunked, resume-safe segments:
 ```bash
-colabmda openmm md --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
+colabmda openmm md --name 4ldj_gdp --replica r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 ```
 *Parameters:* `--total-ns` (total duration in ns), `--traj-interval` (coordinate saving frequency in ps), `--checkpoint-ps` (duration of each chunk before writing checkpoint to enable safe restarts). All bonds involving hydrogen atoms are constrained using the SHAKE-like algorithm (`HBonds`), allowing a stable 2 fs timestep. Long-range electrostatics are handled via Particle Mesh Ewald (PME) with a $1.0\text{ nm}$ cutoff.
 
@@ -118,7 +118,7 @@ colabmda openmm md --name 4ldj_gdp --workdir data/sim/4ldj_gdp/r1 --total-ns 10.
 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein-ligand complex:
 ```bash
-colabmda openmm merge --pdb-dir data/sim/4ldj_gdp/r1 --center --wrap
+colabmda openmm merge --name 4ldj_gdp --replica r1 --center --wrap
 ```
 
 #### Output Files:
@@ -156,7 +156,7 @@ To guarantee that the ligand is placed exactly in its native binding pocket:
 ### 3.2. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
-colabmda openmm status --pdb-dir data/sim/4ldj_gdp/r1
+colabmda openmm status --name 4ldj_gdp --replica r1
 ```
 
 ### 3.3. ⏱️ Understanding Simulation Time vs. Frame Counts
@@ -181,7 +181,7 @@ When merging trajectories, the reference topology file used and the resulting ou
 
 ### 4.1. Single System Analysis
 ```bash
-colabmda openmm analysis --pdb-id 4ldj_gdp
+colabmda openmm analysis --name 4ldj_gdp --replica r1
 ```
 
 ### 4.2. WT vs Mutant Comparison
