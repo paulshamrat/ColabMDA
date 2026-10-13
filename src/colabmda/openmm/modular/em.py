@@ -151,8 +151,13 @@ def run_em(
 
     cleaned_pdb = os.path.join(workdir, f"{pdbid}_cleaned.pdb")
     if not os.path.exists(cleaned_pdb):
-        print(f"Error: cleaned PDB not found: {cleaned_pdb}")
-        return False
+        parent_candidate = os.path.join(os.path.dirname(workdir), f"{pdbid}_cleaned.pdb")
+        if os.path.exists(parent_candidate):
+            import shutil
+            shutil.copy2(parent_candidate, cleaned_pdb)
+        else:
+            print(f"Error: cleaned PDB not found: {cleaned_pdb}")
+            return False
 
     xml_system = os.path.join(workdir, "system.xml")
     pdb_saved = os.path.join(workdir, "solvated.pdb")

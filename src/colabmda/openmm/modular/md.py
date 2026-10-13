@@ -38,21 +38,30 @@ def run_md(
     state_in = "npt.state.xml"
     chk_file = "prod.chk"
 
-    # If system files are missing, try copying from sibling r1 replica directory
+    # If system files are missing, try copying from equil or sibling r1 replica directory
     if not all(os.path.exists(f) for f in [xml_system, pdb_saved]):
         parent_dir = os.path.dirname(workdir)
+        equil_dir = os.path.join(parent_dir, "equil")
         r1_dir = os.path.join(parent_dir, "r1")
-        if os.path.exists(r1_dir) and all(
+        source_dir = None
+        if os.path.exists(equil_dir) and all(
+            os.path.exists(os.path.join(equil_dir, f)) for f in [xml_system, pdb_saved]
+        ):
+            source_dir = equil_dir
+        elif os.path.exists(r1_dir) and all(
             os.path.exists(os.path.join(r1_dir, f)) for f in [xml_system, pdb_saved]
         ):
+            source_dir = r1_dir
+
+        if source_dir:
             print(
-                f"[INFO] Sibling r1 replica found at {r1_dir}. Copying simulation topology/system files..."
+                f"[INFO] Equilibrated topology/system files found at {source_dir}. Initializing this replica..."
             )
-            shutil.copy2(os.path.join(r1_dir, xml_system), os.path.join(workdir, xml_system))
-            shutil.copy2(os.path.join(r1_dir, pdb_saved), os.path.join(workdir, pdb_saved))
-            # Also copy ligand and other structures if present in r1
+            shutil.copy2(os.path.join(source_dir, xml_system), os.path.join(workdir, xml_system))
+            shutil.copy2(os.path.join(source_dir, pdb_saved), os.path.join(workdir, pdb_saved))
+            # Also copy ligand and other structures if present in source
             for ext in ["*.sdf", "*_cleaned.pdb", "*.pdb"]:
-                for fpath in glob.glob(os.path.join(r1_dir, ext)):
+                for fpath in glob.glob(os.path.join(source_dir, ext)):
                     try:
                         shutil.copy2(fpath, os.path.join(workdir, os.path.basename(fpath)))
                     except Exception:
@@ -61,12 +70,19 @@ def run_md(
     # Replicas branch from portable physical state, never from another Context checkpoint.
     if not os.path.exists(state_in):
         parent_dir = os.path.dirname(workdir)
+        equil_dir = os.path.join(parent_dir, "equil")
         r1_dir = os.path.join(parent_dir, "r1")
-        if os.path.exists(r1_dir) and os.path.exists(os.path.join(r1_dir, state_in)):
+        state_source = None
+        if os.path.exists(equil_dir) and os.path.exists(os.path.join(equil_dir, state_in)):
+            state_source = equil_dir
+        elif os.path.exists(r1_dir) and os.path.exists(os.path.join(r1_dir, state_in)):
+            state_source = r1_dir
+
+        if state_source:
             print(
-                f"[INFO] Sibling r1 equilibrated state found. Copying {state_in} to initialize this replica..."
+                f"[INFO] Equilibrated state found at {state_source}. Copying {state_in} to initialize this replica..."
             )
-            shutil.copy2(os.path.join(r1_dir, state_in), os.path.join(workdir, state_in))
+            shutil.copy2(os.path.join(state_source, state_in), os.path.join(workdir, state_in))
 
     if not all(os.path.exists(f) for f in [xml_system, pdb_saved]):
         print("Error: system.xml or solvated.pdb not found.")
