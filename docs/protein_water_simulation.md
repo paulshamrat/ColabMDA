@@ -15,11 +15,11 @@ This guide describes how to run Molecular Dynamics (MD) simulations for protein 
 ## 1. Simulation Workflow Overview
 
 The standard simulation workflow consists of:
-1. **Model:** Build structures (Wild-Type & Mutants) in `data/str/` using Modeller.
-2. **Stage:** Initialize the simulation directory structure under `data/sim/`.
+1. **Model:** Build structures (Wild-Type & Mutants) in `data/structure/` using Modeller.
+2. **Stage:** Initialize the simulation directory structure under `data/simulation/` with shared `eq/` hub and triplicate replicas (`r1`, `r2`, `r3`).
 3. **Run:** Execute the resume-safe production MD (EM, NVT, NPT, MD stages).
 4. **Merge:** Concatenate raw trajectory chunks, align/wrap boundaries, and center the protein.
-5. **Analyze:** Compute and plot RMSD, Radius of Gyration ($R_g$), and RMSF.
+5. **Analyze:** Compute and plot RMSD, Radius of Gyration ($R_g$), and RMSF across triplicates.
 
 ---
 
@@ -34,33 +34,33 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # Build Wild-Type KRAS (Starting at Residue 1 matching UniProt indexing)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/str/4ldj/wt
+colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/structure/4ldj/wt
 
 # Create Mutant (G12D) structure from Wild-Type template
-colabmda modeller mutate --pdb-in data/str/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/str/4ldj/mutants/4ldj_g12d
+colabmda modeller mutate --pdb-in data/structure/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/structure/4ldj/mutants/4ldj_g12d
 ```
 
 #### 2. Protonate & Titrate Structures at pH 7.4 (PDB2PQR / PROPKA)
 ```bash
 conda activate openmm_env
 
-# Perform 3D pKa titration at pH 7.4 for WT and Mutant structures in data/str/
-colabmda openmm prep --pdb-file data/str/4ldj/wt/4ldj_wt.pdb --outdir data/str/4ldj/wt/prep --name 4ldj_wt --ph 7.4
-colabmda openmm prep --pdb-file data/str/4ldj/mutants/4ldj_g12d/4ldj_g12d.pdb --outdir data/str/4ldj/mutants/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
+# Perform 3D pKa titration at pH 7.4 for WT and Mutant structures in data/structure/
+colabmda openmm prep --pdb-file data/structure/4ldj/wt/4ldj_wt.pdb --outdir data/structure/4ldj/wt/prep --name 4ldj_wt --ph 7.4
+colabmda openmm prep --pdb-file data/structure/4ldj/mutants/4ldj_g12d/4ldj_g12d.pdb --outdir data/structure/4ldj/mutants/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
 ```
-*Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is generated alongside each cleaned starting PDB in `data/str/`.
+*Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is generated alongside each cleaned starting PDB in `data/structure/`.
 
 ### 2.2. Stage Simulation Workspace
 **Environment:** `openmm_env`
 
-Stage the WT and mutant simulation workspaces in `data/sim/` using the PROPKA-protonated starting structures from `data/str/`:
+Stage the WT and mutant simulation workspaces in `data/simulation/` using the PROPKA-protonated starting structures from `data/structure/`:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
-# Stage simulation directories under data/sim/ using the cleaned, titratable starting structures
-colabmda openmm stage --pdb-file data/str/4ldj/wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
-colabmda openmm stage --pdb-file data/str/4ldj/mutants/4ldj_g12d/prep/4ldj_g12d_cleaned.pdb --name 4ldj_g12d --replica r1
+# Stage simulation directories under data/simulation/ (auto-initializes eq/, r1/, r2/, r3/)
+colabmda openmm stage --pdb-file data/structure/4ldj/wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
+colabmda openmm stage --pdb-file data/structure/4ldj/mutants/4ldj_g12d/prep/4ldj_g12d_cleaned.pdb --name 4ldj_g12d --replica r1
 ```
 
 > 💡 **Tip: Unified One-Command Execution (Alternative)**
@@ -72,7 +72,7 @@ colabmda openmm stage --pdb-file data/str/4ldj/mutants/4ldj_g12d/prep/4ldj_g12d_
 ### 2.3. Energy Minimization (EM)
 **Environment:** `openmm_env`
 
-Stages the water molecules, parameterizes the protein-water system, and minimizes potential energy in the shared `equil/` hub:
+Stages the water molecules, parameterizes the protein-water system, and minimizes potential energy in the shared `eq/` hub:
 ```bash
 colabmda openmm em --name 4ldj_wt
 ```
@@ -109,7 +109,7 @@ colabmda openmm qc --name 4ldj_wt
 ### 2.7. Production Molecular Dynamics (MD)
 **Environment:** `openmm_env`
 
-Runs the production trajectory in chunked, resume-safe segments (auto-inheriting from `equil/` into `r1/`):
+Runs the production trajectory in chunked, resume-safe segments (auto-inheriting from `eq/` into `r1/`):
 ```bash
 colabmda openmm md --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 ```
@@ -132,7 +132,7 @@ colabmda openmm md --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 1
 >    colabmda openmm run --name 4ldj_wt --replica r2 --total-ns 100.0
 >    colabmda openmm run --name 4ldj_wt --replica r3 --total-ns 100.0
 >    ```
->    Replicas auto-discover the shared equilibration state in `r1/`, `equil/`, or the parent folder (`../`), copy `system.xml` and `npt.state.xml`, assign a **unique per-replica random seed** (`derive_replica_seed`), and immediately launch production MD without wasting time re-minimizing or re-heating!
+>    Replicas auto-discover the shared equilibration state in `eq/`, `equil/`, `r1/`, or the parent folder (`../`), copy `system.xml` and `npt.state.xml`, assign a **unique per-replica random seed** (`derive_replica_seed`), and immediately launch production MD without wasting time re-minimizing or re-heating!
 
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
@@ -163,7 +163,7 @@ colabmda openmm status --name 4ldj_wt --replica r1
 This will print a comprehensive status report including topology stats, chunks, and exact frame counts:
 ```text
 [STATUS]
-  Workdir          : /path/to/data/sim/4ldj_wt/r1
+  Workdir          : /path/to/data/simulation/4ldj_wt/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
@@ -208,7 +208,7 @@ colabmda openmm analysis --name 4ldj_g12d --replica r1
 
 ### 4.2. WT vs Mutant Comparison
 ```bash
-colabmda openmm compare --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2" --series "G12D=data/analysis/4ldj_g12d/r1,data/analysis/4ldj_g12d/r2" --outdir data/analysis/compare/wt_vs_g12d_avg
+colabmda openmm compare --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2,data/analysis/4ldj_wt/r3" --series "G12D=data/analysis/4ldj_g12d/r1,data/analysis/4ldj_g12d/r2,data/analysis/4ldj_g12d/r3" --outdir data/analysis/compare/wt_vs_g12d_avg
 ```
 
 ---
@@ -227,7 +227,7 @@ python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.gi
 ### 5.2. Running the Visualization in PyMOL
 Simply run the view command from your simulation replica folder:
 ```bash
-colabmda openmm view --pdb-dir data/sim/4ldj_wt/r1
+colabmda openmm view --pdb-dir data/simulation/4ldj_wt/r1
 ```
 
 ### 5.3. Generating Comparative Snapshot Grids

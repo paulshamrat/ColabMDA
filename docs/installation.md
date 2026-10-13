@@ -41,11 +41,11 @@ On your next command, the Colab CLI will trigger a fresh login flow and prompt y
 All simulation data is read from and written directly to your **mounted Google Drive**. This is critical — anything written to `/content/` (the local VM disk) is **lost permanently** when your Colab session ends or times out.
 
 ```text
-/content/drive/MyDrive/ColabMDA/         <- your persistent workspace
+/content/drive/MyDrive/research/projects/kras/   <- your persistent project workspace (CWD)
   data/
-    str/        <- structure templates (cleaned PDBs)
-    sim/        <- simulation output folders (trajectories, checkpoints)
-    analysis/   <- per-system analysis plots and metrics
+    structure/     <- structure templates and protonated PDBs
+    simulation/    <- simulation workspaces (eq/, r1/, r2/, r3/)
+    analysis/      <- per-system and comparison analysis plots/metrics
 ```
 
 This directory layout is **gitignored** in the repository so that large trajectory files (`.dcd`, `.chk`) are never accidentally committed to Git.
@@ -152,14 +152,14 @@ bash ./bootstrap_colab_openmm_gpu.sh 2>&1 | tee -a /content/bootstrap_colabmda.l
 
 Once the bootstrap script completes, your scientific environments are ready. **All simulation commands should target your persistent Google Drive path** so that data is never lost when the session ends.
 
-Inside the remote console, go to your Drive project folder. For this branch, the default examples use `/content/drive/MyDrive/ColabMDA`. You can choose another folder if your lab or project uses a different layout; just `cd` into that folder before running ColabMDA commands.
+Inside the remote console, go to your Drive project folder. For this workflow, the standard project layout uses `/content/drive/MyDrive/research/projects/<project>` (e.g. `kras`). You can choose another folder if your lab or project uses a different layout; just `cd` into that folder before running ColabMDA commands.
 
 ```bash
-cd /content/drive/MyDrive/ColabMDA
-mkdir -p data/{str,sim,analysis}
+cd /content/drive/MyDrive/research/projects/kras
+mkdir -p data/{structure,simulation,analysis}
 ```
 
-From this point onward, use relative paths such as `data/str/...` and `data/sim/...`, matching the main ColabMDA command style.
+From this point onward, use relative paths such as `data/structure/...` and `data/simulation/...`, matching the main ColabMDA command style.
 
 ---
 
@@ -170,18 +170,18 @@ Inside the remote console:
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
-# Stage a new simulation directly on your Drive
-colabmda openmm stage --pdb-file data/str/kras_wt/kras_wt.pdb --name kras_wt --replica r1
+# Stage a new simulation directly on your Drive (creates eq/, r1/, r2/, r3/)
+colabmda openmm stage --pdb-file data/structure/kras_wt/kras_wt.pdb --name kras_wt --replica r1
 
-# Run energy minimization
+# Run energy minimization in shared eq/ hub
 colabmda openmm em --name kras_wt
 
-# Run production MD (trajectories go to Drive automatically)
+# Run production MD (forks from eq/ with unique per-replica seed; trajectories go to Drive automatically)
 colabmda openmm md --name kras_wt --replica r1
 ```
 
 > [!IMPORTANT]
-> Run these commands from your mounted Drive workspace, for example `/content/drive/MyDrive/ColabMDA`. Do not run simulations from `/content/ColabMDA`; that folder is only for the temporary editable code install and will disappear when the Colab VM ends.
+> Run these commands from your mounted Drive workspace, for example `/content/drive/MyDrive/research/projects/kras`. Do not run simulations from `/content/ColabMDA`; that folder is only for the temporary editable code install and will disappear when the Colab VM ends.
 
 To shut down and release the VM when your simulation is finished:
 ```bash
@@ -198,7 +198,7 @@ After your simulations complete, sync data from Google Drive back to your local 
 #### Option A: Selective Sync (Recommended — Analysis & Plots Only)
 ```bash
 # Pull only lightweight analysis results, plots, and reports
-rclone copy gdrive:ColabMDA/data/ ~/works/ColabMDA/data/ \
+rclone copy gdrive:research/projects/kras/data/ ~/research/projects/kras/data/ \
   --include "**/analysis/**" \
   --include "**/*.png" \
   --progress
@@ -207,7 +207,7 @@ rclone copy gdrive:ColabMDA/data/ ~/works/ColabMDA/data/ \
 
 #### Option B: Full Sync (Trajectories Included)
 ```bash
-rclone copy gdrive:ColabMDA/data/ ~/works/ColabMDA/data/ --progress
+rclone copy gdrive:research/projects/kras/data/ ~/research/projects/kras/data/ --progress
 ```
 
 > [!WARNING]

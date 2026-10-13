@@ -154,8 +154,9 @@ def _try_copy_shared_equilibration(workdir: str, xml_system: str, pdb_saved: str
     parent_dir = os.path.dirname(workdir)
     candidates = [
         parent_dir,
-        os.path.join(parent_dir, "r1"),
+        os.path.join(parent_dir, "eq"),
         os.path.join(parent_dir, "equil"),
+        os.path.join(parent_dir, "r1"),
     ]
 
     for cand in candidates:

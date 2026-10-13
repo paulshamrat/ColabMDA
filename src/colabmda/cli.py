@@ -4,11 +4,10 @@ import os
 import shutil
 from pathlib import Path
 
-DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/research/projects"
 ENV_ROOT = "COLABMDA_ROOT"
-ROOT_HELP = (
-    f"Override project root; normally run from your Drive project folder ({DEFAULT_DRIVE_ROOT})"
-)
+ENV_PROJECT = "COLABMDA_PROJECT_DIR"
+ROOT_HELP = "Override project root (defaults to current working directory)"
 
 
 def _normalize_equil_protocol(protocol: str) -> str:
@@ -29,16 +28,21 @@ def _resolve_root(use_drive: bool, root: str | None) -> str:
         return str(Path(root).resolve())
 
     # 2. Use environment variable if provided
-    env_root = os.environ.get(ENV_ROOT)
-    if env_root:
-        return str(Path(env_root).resolve())
+    for env_var in [ENV_PROJECT, ENV_ROOT]:
+        val = os.environ.get(env_var)
+        if val:
+            return str(Path(val).resolve())
 
     cwd = os.getcwd()
-    # 3. If on Colab but in the temporary /content folder, fallback to Drive
+    # 3. If on Colab but in the temporary /content folder, check Drive
     if cwd == "/content" and os.path.exists("/content/drive/MyDrive"):
-        return DEFAULT_DRIVE_ROOT
+        if os.path.exists("/content/drive/MyDrive/research/projects"):
+            return "/content/drive/MyDrive/research/projects"
+        if os.path.exists("/content/drive/MyDrive/ColabMDA"):
+            return "/content/drive/MyDrive/ColabMDA"
+        return "/content/drive/MyDrive"
 
-    # 4. Otherwise, use the Current Working Directory (standard for HPC/Laptop)
+    # 4. Otherwise, use the Current Working Directory (standard for HPC/Laptop/Colab projects)
     return cwd
 
 
@@ -91,7 +95,9 @@ def _simulation_workdir(root: str, name: str) -> Path:
     """Resolve a named simulation under the current and legacy layouts."""
     root_path = Path(root).resolve()
     candidates = [
+        root_path / "data" / "simulation" / name,
         root_path / "data" / "sim" / name,
+        root_path / "simulation" / name,
         root_path / "sim" / name,
         root_path / "simulations" / name,
     ]
@@ -136,6 +142,8 @@ def main():
     )
     p_prep.add_argument(
         "--root",
+        "--project",
+        dest="root",
         default=None,
         help=ROOT_HELP,
     )
@@ -163,7 +171,7 @@ def main():
     )
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
-    p_run.add_argument("--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2)")
+    p_run.add_argument("--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2, r3)")
     p_run.add_argument("--ligand", default=None, help="Optional: Path to ligand SDF/MOL2 file")
     p_run.add_argument(
         "--small-molecule-ff",
@@ -211,6 +219,8 @@ def main():
     )
     p_run.add_argument(
         "--root",
+        "--project",
+        dest="root",
         default=None,
         help=ROOT_HELP,
     )
@@ -251,6 +261,8 @@ def main():
     )
     p_merge.add_argument(
         "--root",
+        "--project",
+        dest="root",
         default=None,
         help=ROOT_HELP,
     )
@@ -273,6 +285,8 @@ def main():
     )
     p_ana.add_argument(
         "--root",
+        "--project",
+        dest="root",
         default=None,
         help=ROOT_HELP,
     )
@@ -289,6 +303,8 @@ def main():
     )
     p_stat.add_argument(
         "--root",
+        "--project",
+        dest="root",
         default=None,
         help=ROOT_HELP,
     )
@@ -343,20 +359,20 @@ def main():
         "stage", help="Stage a WT/mutant structure into simulations/<name>"
     )
     p_stage.add_argument(
-        "--pdb-file", required=True, help="Input structure PDB file (typically from data/str/)"
+        "--pdb-file", required=True, help="Input structure PDB file (typically from data/structure/)"
     )
     p_stage.add_argument("--name", required=True, help="Simulation name (e.g. 4ldj_wt, 4ldj_G12C)")
     p_stage.add_argument(
-        "--replica", default=None, help="Optional: create nested replica subfolder (e.g. r1, r2)"
+        "--replica", default=None, help="Optional: create nested replica subfolder (e.g. r1, r2, r3)"
     )
     p_stage.add_argument("--ph", type=float, default=7.4, help="Hydrogen pH (default: 7.4)")
-    p_stage.add_argument("--root", default=None, help=ROOT_HELP)
+    p_stage.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
 
     # em/nvt/npt/check-equil/md (individual modular steps)
     p_em = sub_openmm.add_parser("em", help="Modular: Minimization")
     p_em.add_argument("--name", required=True)
     p_em.add_argument("--workdir", default=None)
-    p_em.add_argument("--root", default=None)
+    p_em.add_argument("--root", "--project", dest="root", default=None)
     p_em.add_argument("--ligand", default=None, help="Optional: Path to ligand SDF/MOL2 file")
     p_em.add_argument(
         "--small-molecule-ff",
@@ -380,7 +396,7 @@ def main():
     p_nvt.add_argument("--seed", type=int, default=None)
     p_nvt.add_argument("--equil-protocol", default="default", metavar="{default,quick}")
     p_nvt.add_argument("--workdir", default=None)
-    p_nvt.add_argument("--root", default=None)
+    p_nvt.add_argument("--root", "--project", dest="root", default=None)
 
     p_npt = sub_openmm.add_parser("npt", help="Modular: NPT Equilibration")
     p_npt.add_argument("--name", required=True)
@@ -388,12 +404,12 @@ def main():
     p_npt.add_argument("--seed", type=int, default=None)
     p_npt.add_argument("--equil-protocol", default="default", metavar="{default,quick}")
     p_npt.add_argument("--workdir", default=None)
-    p_npt.add_argument("--root", default=None)
+    p_npt.add_argument("--root", "--project", dest="root", default=None)
 
     p_qc = sub_openmm.add_parser("qc", aliases=["check-equil"], help="Modular: Stability Check & QC Plots")
     p_qc.add_argument("--name", required=True)
     p_qc.add_argument("--workdir", default=None)
-    p_qc.add_argument("--root", default=None)
+    p_qc.add_argument("--root", "--project", dest="root", default=None)
     p_qc.add_argument(
         "--warn-only", action="store_true", help="Report failed QC without a nonzero exit"
     )
@@ -405,7 +421,7 @@ def main():
     p_md.add_argument("--checkpoint-ps", type=float, default=1000.0)
     p_md.add_argument("--sync-dir", default=None)
     p_md.add_argument("--workdir", default=None)
-    p_md.add_argument("--root", default=None)
+    p_md.add_argument("--root", "--project", dest="root", default=None)
     p_md.add_argument("--replica", default="r1", help="Production replica subfolder (default: r1)")
     p_md.add_argument("--seed", type=int, default=None, help="Random seed for velocity assignment")
 
@@ -483,15 +499,19 @@ def main():
             ).resolve()
             _ensure_dir(str(root_path))
 
-            # Priority: data/sim > sim > simulations (legacy)
-            if (root_path / "data" / "sim").exists():
+            # Priority: data/simulation > data/sim > simulation > sim > simulations (legacy)
+            if (root_path / "data" / "simulation").exists():
+                sim_base = root_path / "data" / "simulation"
+            elif (root_path / "data" / "sim").exists():
                 sim_base = root_path / "data" / "sim"
+            elif (root_path / "simulation").exists():
+                sim_base = root_path / "simulation"
             elif (root_path / "sim").exists():
                 sim_base = root_path / "sim"
             elif (root_path / "simulations").exists():
                 sim_base = root_path / "simulations"
             else:
-                sim_base = root_path / "data" / "sim"
+                sim_base = root_path / "data" / "simulation"
 
             sim_dir = sim_base / name
             sim_dir.mkdir(parents=True, exist_ok=True)
@@ -506,6 +526,14 @@ def main():
                     shutil.copy2(summary_json, sim_dir / "protonation_summary.json")
             else:
                 openmm_prep_from_file(str(in_pdb), str(sim_dir), pdbid=name, ph=args.ph)
+
+            # Always stage the shared equilibration hub 'eq'
+            eq_dir = sim_dir / "eq"
+            eq_dir.mkdir(parents=True, exist_ok=True)
+            if target_clean.exists():
+                shutil.copy2(target_clean, eq_dir / f"{name}_cleaned.pdb")
+            if (sim_dir / "protonation_summary.json").exists():
+                shutil.copy2(sim_dir / "protonation_summary.json", eq_dir / "protonation_summary.json")
 
             if args.replica:
                 rep_dir = sim_dir / args.replica
@@ -542,14 +570,18 @@ def main():
                 print(f"[DEBUG] cwd:  {cwd}")
                 print(f"[DEBUG] name: {name}")
 
-                # Search strategy: prioritize data/sim > sim > simulations
+                # Search strategy: prioritize data/simulation > data/sim > simulation > sim > simulations
                 search_paths = [
+                    cwd / "data" / "simulation" / name if name else None,
                     cwd / "data" / "sim" / name if name else None,
+                    cwd / "simulation" / name if name else None,
                     cwd / "sim" / name if name else None,
                     cwd / "simulations" / name if name else None,
                     cwd / name if name else None,
                     cwd if (name and name in str(cwd)) else None,  # Check if we are already inside
+                    root / "data" / "simulation" / name if name else None,
                     root / "data" / "sim" / name if name else None,
+                    root / "simulation" / name if name else None,
                     root / "sim" / name if name else None,
                     root / "simulations" / name if name else None,
                     root / name if name else None,
@@ -613,12 +645,21 @@ def main():
             if not clean_target.exists():
                 candidates = [
                     workdir_path / "r1" / f"{name}_cleaned.pdb",
+                    workdir_path / "eq" / f"{name}_cleaned.pdb",
                     workdir_path / "equil" / f"{name}_cleaned.pdb",
                     workdir_path / "prep" / f"{name}_cleaned.pdb",
                     workdir_path.parent / f"{name}_cleaned.pdb",
+                    workdir_path.parent / "eq" / f"{name}_cleaned.pdb",
+                    workdir_path.parent / "equil" / f"{name}_cleaned.pdb",
                 ]
                 glob_cands = list(workdir_path.glob("*/*_cleaned.pdb")) + list(workdir_path.glob("*_cleaned.pdb"))
-                str_cands = list(Path.cwd().glob(f"data/str/**/{name}*/*_cleaned.pdb"))
+                str_cands = (
+                    list(Path.cwd().glob(f"data/structure/**/{name}*/*_cleaned.pdb"))
+                    + list(Path.cwd().glob(f"data/structures/**/{name}*/*_cleaned.pdb"))
+                    + list(Path.cwd().glob(f"data/str/**/{name}*/*_cleaned.pdb"))
+                    + list(Path.cwd().glob(f"structure/**/{name}*/*_cleaned.pdb"))
+                    + list(Path.cwd().glob(f"str/**/{name}*/*_cleaned.pdb"))
+                )
                 for c in glob_cands + str_cands:
                     candidates.append(c)
 
@@ -626,6 +667,11 @@ def main():
                     if c.exists() and c.is_file():
                         print(f"[INFO] Auto-discovered cleaned starting structure: {c}")
                         shutil.copy2(c, clean_target)
+                        eq_dir = workdir_path / "eq"
+                        if eq_dir.exists() and eq_dir.is_dir():
+                            eq_clean = eq_dir / f"{name}_cleaned.pdb"
+                            if not eq_clean.exists():
+                                shutil.copy2(c, eq_clean)
                         r1_dir = workdir_path / "r1"
                         if r1_dir.exists() and r1_dir.is_dir():
                             r1_clean = r1_dir / f"{name}_cleaned.pdb"
@@ -748,8 +794,12 @@ def main():
                     out_base = Path(args.outdir)
                 elif root:
                     out_base = _analysis_outdir(root, name)
+                    if replica:
+                        out_base = out_base / replica
                 else:
                     out_base = Path("data/analysis") / name
+                    if replica:
+                        out_base = out_base / replica
             elif args.pdb_id and root:
                 sim_path = Path(root) / "data" / "sim" / args.pdb_id
                 if not sim_path.exists():
@@ -828,7 +878,12 @@ def main():
                 root_val = args.root or _resolve_root(getattr(args, "drive", False), None)
                 sim_base = _simulation_workdir(root_val, name)
                 if args.cmd in ["em", "nvt", "npt", "qc", "check-equil"]:
-                    workdir_path = sim_base / "equil"
+                    if (sim_base / "eq").exists():
+                        workdir_path = sim_base / "eq"
+                    elif (sim_base / "equil").exists():
+                        workdir_path = sim_base / "equil"
+                    else:
+                        workdir_path = sim_base / "eq"
                 elif args.cmd == "md":
                     rep = getattr(args, "replica", "r1") or "r1"
                     workdir_path = sim_base / rep
@@ -836,6 +891,18 @@ def main():
                     workdir_path = sim_base
                 workdir_path.mkdir(parents=True, exist_ok=True)
                 workdir = str(workdir_path.resolve())
+
+                # If cleaned PDB exists in sim_base, eq, or equil, ensure it's available in workdir
+                workdir_clean = workdir_path / f"{name}_cleaned.pdb"
+                if not workdir_clean.exists():
+                    for src in [
+                        sim_base / f"{name}_cleaned.pdb",
+                        sim_base / "eq" / f"{name}_cleaned.pdb",
+                        sim_base / "equil" / f"{name}_cleaned.pdb",
+                    ]:
+                        if src.exists():
+                            shutil.copy2(src, workdir_clean)
+                            break
             if args.cmd == "em":
                 if args.ligand:
                     ligand_path = Path(args.ligand)
