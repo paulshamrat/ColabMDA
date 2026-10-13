@@ -17,7 +17,7 @@
 | **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
 | **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
 | **Dependencies** | `OpenMM`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA`, `OpenFF (Optional)` |
-| **Platform** | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/paulshamrat/ColabMDA/blob/main/notebooks/05-colabmd-simulation-2024.ipynb) `Linux` `HPC (SLURM)` |
+| **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
 | **Structure** | [Source Layout](#-project-structure) |
 
 ### 📂 Project Structure
@@ -26,7 +26,6 @@ ColabMDA is organized into clear, functional modules:
 *   `src/colabmda/openmm/`: OpenMM simulation engines (Modular prep/EM/NVT/NPT/QC/MD/analysis).
 *   `envs/`: Automated installation scripts for scientific environments.
 *   `scripts/`: Quick-start bootstrap scripts for Google Colab.
-*   `notebooks/`: Ready-to-use Colab notebooks for simulation and analysis.
 *   `tests/`: Unit and regression test suite (`pytest`).
 *   `docs/`: Sphinx and ReadTheDocs scientific documentation source.
 
@@ -535,14 +534,6 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
   }
 }
 ```
-
----
-
-## 7. Decoupled Modules & Virtual Screening
-
-To keep the core ColabMDA simulation engine lightweight and dependency-free:
-*   **Virtual Screening (AutoDock Vina):** Protein-ligand docking routines have been decoupled onto the dedicated [`docking`](https://github.com/paulshamrat/ColabMDA/tree/docking) branch (`git checkout docking`).
-*   **Dedicated Guides:** Complete Sphinx/ReadTheDocs documentation is available under `docs/` or online at [colabmda.readthedocs.io](https://colabmda.readthedocs.io/).
 
 ---
 
