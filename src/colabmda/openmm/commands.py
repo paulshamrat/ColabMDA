@@ -22,7 +22,8 @@ SCRIPTS = {
     "em": ("colabmda.openmm.modular", "em.py"),
     "nvt": ("colabmda.openmm.modular", "nvt.py"),
     "npt": ("colabmda.openmm.modular", "npt.py"),
-    "check_equil": ("colabmda.openmm.modular", "check_equil.py"),
+    "qc": ("colabmda.openmm.modular", "qc.py"),
+    "check_equil": ("colabmda.openmm.modular", "qc.py"),
     "md": ("colabmda.openmm.modular", "md.py"),
 }
 
@@ -458,8 +459,8 @@ def openmm_npt(
         raise SystemExit(1)
 
 
-def openmm_check_equil(workdir: str, strict: bool = True):
-    from colabmda.openmm.modular.check_equil import analyze_logs
+def openmm_qc(workdir: str, strict: bool = True):
+    from colabmda.openmm.modular.qc import analyze_logs
 
     passed = analyze_logs(workdir)
     if strict and not passed:
@@ -467,6 +468,10 @@ def openmm_check_equil(workdir: str, strict: bool = True):
             "Equilibration QC failed; inspect equilibration_qc.json/PNG before production"
         )
     return passed
+
+
+openmm_check_equil = openmm_qc
+
 
 
 def openmm_md(

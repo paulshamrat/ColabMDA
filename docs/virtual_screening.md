@@ -1,5 +1,8 @@
 # Docking and Virtual Screening Guide
 
+> [!NOTE]
+> The AutoDock Vina and virtual screening module is maintained on the dedicated **[`docking`](https://github.com/paulshamrat/ColabMDA/tree/docking)** branch.
+
 This guide shows the lightweight docking layer used after MD analysis identifies a candidate pocket. The typical loop is:
 
 ```text
