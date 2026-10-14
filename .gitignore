@@ -73,3 +73,10 @@ Thumbs.db
 *.inpcrd
 *.rst7
 leap.log
+
+# Structural coordinates & ligand data (prevents repo bloat; data belongs in project workspace)
+*.pdb
+*.cif
+*.mol2
+*.sdf
+

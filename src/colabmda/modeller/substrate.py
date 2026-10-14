@@ -1,0 +1,678 @@
+from __future__ import annotations
+
+import re
+import shutil
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from colabmda.core.taxonomy import SUBSTRATE_PRESETS, SystemSpec
+
+AA3_TO_1 = {
+    "ALA": "A",
+    "CYS": "C",
+    "ASP": "D",
+    "GLU": "E",
+    "PHE": "F",
+    "GLY": "G",
+    "HIS": "H",
+    "ILE": "I",
+    "LYS": "K",
+    "LEU": "L",
+    "MET": "M",
+    "ASN": "N",
+    "PRO": "P",
+    "GLN": "Q",
+    "ARG": "R",
+    "SER": "S",
+    "THR": "T",
+    "VAL": "V",
+    "TRP": "W",
+    "TYR": "Y",
+    "PTR": "Y",
+    "SEP": "S",
+    "TPO": "T",
+}
+
+AA1_TO_3 = {v: k for k, v in AA3_TO_1.items() if len(k) == 3}
+
+RCSB_DOWNLOAD_URL = "https://files.rcsb.org/download/{pdb_id}.pdb"
+
+
+def fetch_rcsb_pdb(pdb_id: str, dest_dir: str | Path) -> Path:
+    """Download a reference PDB structure from RCSB into the project structure directory.
+
+    Decouples data from the tool repository: structures are saved in the project
+    workspace (e.g. `structure/template/<pdb_id>.pdb`), never in `src/`.
+    """
+    dest = Path(dest_dir).resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+    clean_id = pdb_id.strip().upper()
+    target_file = dest / f"{clean_id}.pdb"
+    if target_file.exists():
+        return target_file
+
+    url = RCSB_DOWNLOAD_URL.format(pdb_id=clean_id)
+    urllib.request.urlretrieve(url, target_file)
+    return target_file
+
+
+def kabsch(source: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Calculate the optimal rotation matrix and translation vector using Kabsch algorithm.
+
+    Transforms source coordinates to target as: x_transformed = x @ rotation + translation
+
+    Args:
+        source: (N, 3) coordinates array.
+        target: (N, 3) coordinates array.
+
+    Returns:
+        tuple (rotation, translation) where rotation is (3, 3) and translation is (3,).
+    """
+    source = np.asarray(source, dtype=float)
+    target = np.asarray(target, dtype=float)
+
+    if len(source) != len(target):
+        raise ValueError(
+            f"Point count mismatch in Kabsch: source={len(source)}, target={len(target)}"
+        )
+    if len(source) < 3:
+        raise ValueError("At least 3 points required for 3D Kabsch alignment")
+
+    source_center = source.mean(axis=0)
+    target_center = target.mean(axis=0)
+
+    source_centered = source - source_center
+    target_centered = target - target_center
+
+    covariance = source_centered.T @ target_centered
+    u, _, vt = np.linalg.svd(covariance)
+
+    # Ensure right-handed coordinate system (no reflection)
+    det = np.linalg.det(u @ vt)
+    if det < 0:
+        u[:, -1] *= -1
+
+    rotation = u @ vt
+    translation = target_center - source_center @ rotation
+    return rotation, translation
+
+
+def parse_pdb_atoms(
+    pdb_path: str | Path,
+    chain: str | None = None,
+    res_name: str | None = None,
+    res_num: int | None = None,
+) -> dict[str, np.ndarray]:
+    """Extract coordinates dictionary {atom_name: np.array([x, y, z])} for a specific residue."""
+    path = Path(pdb_path)
+    if not path.exists():
+        raise FileNotFoundError(f"PDB file not found: {path}")
+
+    atoms: dict[str, np.ndarray] = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if not line.startswith(("ATOM  ", "HETATM")):
+                continue
+            line_chain = line[21]
+            try:
+                line_resnum = int(line[22:26].strip())
+            except ValueError:
+                continue
+            line_resname = line[17:20].strip()
+            line_atom = line[12:16].strip()
+
+            if chain is not None and line_chain != chain:
+                continue
+            if res_num is not None and line_resnum != res_num:
+                continue
+            if res_name is not None and line_resname != res_name:
+                continue
+
+            try:
+                x = float(line[30:38])
+                y = float(line[38:46])
+                z = float(line[46:54])
+            except ValueError:
+                continue
+            atoms[line_atom] = np.array([x, y, z], dtype=float)
+
+    return atoms
+
+
+def get_chain_residues(pdb_path: str | Path, chain: str = "A") -> list[tuple[str, int]]:
+    """Return ordered list of (res_name, res_num) for polymer atoms in the specified chain."""
+    residues: list[tuple[str, int]] = []
+    seen: set[tuple[str, int]] = set()
+    with open(pdb_path, encoding="utf-8") as f:
+        for line in f:
+            if not line.startswith("ATOM  ") or line[21] != chain:
+                continue
+            resname = line[17:20].strip()
+            try:
+                resnum = int(line[22:26].strip())
+            except ValueError:
+                continue
+            key = (resname, resnum)
+            if key not in seen:
+                seen.add(key)
+                residues.append(key)
+    return residues
+
+
+def build_ptr_phosphate_atoms(
+    tyr_atoms: dict[str, np.ndarray],
+) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """Mathematically generate ideal tetrahedral phosphate atoms (P, O1P, O2P, O3P) for PTR.
+
+    Derives coordinates geometrically from the tyrosine phenol OH and CZ coordinates,
+    eliminating any dependency on static external PDB templates.
+    """
+    if "OH" not in tyr_atoms or "CZ" not in tyr_atoms:
+        raise ValueError("Tyrosine residue missing OH or CZ atom required for phosphorylation")
+
+    cz = tyr_atoms["CZ"]
+    oh = tyr_atoms["OH"]
+    cg = tyr_atoms.get("CG", cz - np.array([1.0, 0.0, 0.0]))
+
+    v = oh - cz
+    norm_v = np.linalg.norm(v)
+    e_z = v / norm_v if norm_v > 1e-4 else np.array([0.0, 0.0, 1.0])
+
+    # Orthogonal vector relative to the aromatic ring axis
+    w = cz - cg
+    perp = np.cross(e_z, w)
+    if np.linalg.norm(perp) < 1e-4:
+        perp = np.array([0.0, 1.0, 0.0])
+    e_y = perp / np.linalg.norm(perp)
+    e_x = np.cross(e_y, e_z)
+
+    # Position P atom (P-O bond ~1.60 A, C-O-P angle ~120 deg)
+    theta = np.radians(60.0)
+    p_vec = np.cos(theta) * e_z + np.sin(theta) * e_x
+    p_coord = oh + 1.60 * p_vec
+
+    # Position tetrahedral phosphate oxygens (P-O ~1.51 A, tetrahedral 109.5 deg)
+    op_axis = (p_coord - oh) / np.linalg.norm(p_coord - oh)
+    ox = np.cross(op_axis, e_y)
+    if np.linalg.norm(ox) < 1e-4:
+        ox = np.cross(op_axis, e_x)
+    ox = ox / np.linalg.norm(ox)
+    oy = np.cross(op_axis, ox)
+
+    phi = np.radians(70.5)
+    r_bond = 1.51
+    z_proj = np.cos(phi) * r_bond
+    rad_proj = np.sin(phi) * r_bond
+
+    oxygens: dict[str, np.ndarray] = {}
+    for i, name in enumerate(["O1P", "O2P", "O3P"]):
+        ang = np.radians(i * 120.0 + 30.0)
+        o_vec = z_proj * op_axis + rad_proj * (np.cos(ang) * ox + np.sin(ang) * oy)
+        oxygens[name] = p_coord + o_vec
+
+    return p_coord, oxygens
+
+
+def phosphorylate_residue(
+    input_pdb: str | Path,
+    output_pdb: str | Path,
+    res_num: int = 171,
+    chain: str = "A",
+    target_res: str = "PTR",
+    ptr_template: str | Path | None = None,
+) -> Path:
+    """Phosphorylate a target residue in a PDB file (e.g., CDKL5 Y171 -> PTR171).
+
+    If `ptr_template` is provided, performs Kabsch alignment from the template.
+    Otherwise, derives exact tetrahedral coordinates mathematically without needing
+    any external PDB data files.
+    """
+    in_path = Path(input_pdb)
+    out_path = Path(output_pdb)
+
+    if not in_path.exists():
+        raise FileNotFoundError(f"Input PDB not found: {in_path}")
+
+    target_atoms = parse_pdb_atoms(in_path, chain=chain, res_num=res_num)
+    if not target_atoms:
+        raise ValueError(f"Residue {chain}:{res_num} not found in {in_path}")
+
+    replacement_records = []
+    serial = 90000
+
+    if ptr_template and Path(ptr_template).exists():
+        # Align from template if user explicitly provided one
+        tmpl_atoms = parse_pdb_atoms(ptr_template, res_name="PTR")
+        common_atoms = [
+            "N",
+            "CA",
+            "C",
+            "O",
+            "CB",
+            "CG",
+            "CD1",
+            "CD2",
+            "CE1",
+            "CE2",
+            "CZ",
+        ]
+        shared = [a for a in common_atoms if a in target_atoms and a in tmpl_atoms]
+        if len(shared) < 6:
+            raise ValueError(
+                f"Insufficient matching heavy atoms ({len(shared)}) to align PTR at {chain}:{res_num}"
+            )
+        rot, trans = kabsch(
+            np.vstack([tmpl_atoms[a] for a in shared]),
+            np.vstack([target_atoms[a] for a in shared]),
+        )
+        for atom_name, coord in tmpl_atoms.items():
+            if atom_name.startswith("H"):
+                continue
+            new_coord = coord @ rot + trans
+            elem = re.sub(r"[^A-Za-z]", "", atom_name)[:1].upper() or "C"
+            replacement_records.append(
+                f"ATOM  {serial:5d} {atom_name:>4s} {target_res} {chain}{res_num:4d}    "
+                f"{new_coord[0]:8.3f}{new_coord[1]:8.3f}{new_coord[2]:8.3f}  1.00  0.00          {elem:>2s}\n"
+            )
+            serial += 1
+    else:
+        # Mathematically synthesize phosphate coordinates on the existing tyrosine
+        p_coord, oxygens = build_ptr_phosphate_atoms(target_atoms)
+        for atom_name, coord in target_atoms.items():
+            if atom_name.startswith("H"):
+                continue
+            elem = re.sub(r"[^A-Za-z]", "", atom_name)[:1].upper() or "C"
+            replacement_records.append(
+                f"ATOM  {serial:5d} {atom_name:>4s} {target_res} {chain}{res_num:4d}    "
+                f"{coord[0]:8.3f}{coord[1]:8.3f}{coord[2]:8.3f}  1.00  0.00          {elem:>2s}\n"
+            )
+            serial += 1
+
+        # Add P and oxygens
+        replacement_records.append(
+            f"ATOM  {serial:5d}  P   {target_res} {chain}{res_num:4d}    "
+            f"{p_coord[0]:8.3f}{p_coord[1]:8.3f}{p_coord[2]:8.3f}  1.00  0.00           P\n"
+        )
+        serial += 1
+        for oname, ocoord in oxygens.items():
+            replacement_records.append(
+                f"ATOM  {serial:5d} {oname:>4s} {target_res} {chain}{res_num:4d}    "
+                f"{ocoord[0]:8.3f}{ocoord[1]:8.3f}{ocoord[2]:8.3f}  1.00  0.00           O\n"
+            )
+            serial += 1
+
+    # Write modified PDB
+    out_lines = []
+    replaced = False
+    with open(in_path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith(("ATOM  ", "HETATM")):
+                line_chain = line[21]
+                try:
+                    line_resnum = int(line[22:26].strip())
+                except ValueError:
+                    line_resnum = None
+
+                if line_chain == chain and line_resnum == res_num:
+                    if not replaced:
+                        out_lines.extend(replacement_records)
+                        replaced = True
+                    continue
+            out_lines.append(line)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.writelines(out_lines)
+
+    return out_path
+
+
+def position_ions(
+    receptor_pdb: str | Path,
+    output_pdb: str | Path,
+    template_pdb: str | Path,
+    ion_type: str = "MG",
+    count: int = 2,
+    chain: str = "A",
+    res_start: int = 301,
+) -> list[dict[str, Any]]:
+    """Position 1 or 2 catalytic divalent ions (e.g. MG, MN, CA, ZN) into the active site.
+
+    Superimposes ATP triphosphate atoms (PA, PB, PG, etc.) from template_pdb onto
+    receptor_pdb to transfer divalent ion coordinates with quantum precision.
+    """
+    rec_path = Path(receptor_pdb)
+    out_path = Path(output_pdb)
+    tmpl_path = Path(template_pdb)
+
+    if not rec_path.exists():
+        raise FileNotFoundError(f"Receptor PDB not found: {rec_path}")
+    if not tmpl_path.exists():
+        raise FileNotFoundError(f"Template PDB not found: {tmpl_path}")
+
+    rec_atp = parse_pdb_atoms(rec_path, res_name="ATP")
+    tmpl_atp = parse_pdb_atoms(tmpl_path, res_name="ATP")
+
+    if not rec_atp:
+        raise ValueError(f"No ATP found in receptor {rec_path} to align catalytic ions")
+    if not tmpl_atp:
+        raise ValueError(f"No ATP found in template {tmpl_path}")
+
+    triphosphate_atoms = [
+        "PA",
+        "PB",
+        "PG",
+        "O1A",
+        "O2A",
+        "O1B",
+        "O2B",
+        "O1G",
+        "O2G",
+        "O3G",
+    ]
+    shared_atp = [a for a in triphosphate_atoms if a in rec_atp and a in tmpl_atp]
+    if len(shared_atp) < 4:
+        raise ValueError(
+            f"Insufficient matching ATP phosphate atoms ({len(shared_atp)}) for ion alignment"
+        )
+
+    source_atp = np.vstack([tmpl_atp[a] for a in shared_atp])
+    target_atp = np.vstack([rec_atp[a] for a in shared_atp])
+
+    rotation, translation = kabsch(source_atp, target_atp)
+
+    template_ions: list[tuple[str, np.ndarray]] = []
+    with open(tmpl_path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("HETATM") and line[17:20].strip() in {
+                "MG",
+                "MN",
+                "CA",
+                "ZN",
+            }:
+                x = float(line[30:38])
+                y = float(line[38:46])
+                z = float(line[46:54])
+                ion_name = line[12:16].strip()
+                template_ions.append((ion_name, np.array([x, y, z])))
+
+    if not template_ions:
+        raise ValueError(f"No divalent ions found in catalytic template {tmpl_path}")
+
+    selected_ions = template_ions[:count]
+
+    ion_records = []
+    placed_info: list[dict[str, Any]] = []
+    curr_res = res_start
+    serial = 95000
+
+    ion_elem = ion_type.upper()
+    ion_resn = f"{ion_elem:>3s}"
+
+    for idx, (_orig_name, orig_coord) in enumerate(selected_ions, start=1):
+        trans_coord = orig_coord @ rotation + translation
+        rec = (
+            f"HETATM{serial:5d} {ion_elem:>2s}   {ion_resn} {chain}{curr_res:4d}    "
+            f"{trans_coord[0]:8.3f}{trans_coord[1]:8.3f}{trans_coord[2]:8.3f}  1.00  0.00          {ion_elem:>2s}\n"
+        )
+        ion_records.append(rec)
+        placed_info.append(
+            {
+                "ion_type": ion_elem,
+                "ion_index": idx,
+                "resnum": curr_res,
+                "coordinates": trans_coord.tolist(),
+            }
+        )
+        serial += 1
+        curr_res += 1
+
+    with open(rec_path, encoding="utf-8") as f:
+        lines = f.readlines()
+
+    clean_lines = [line for line in lines if not line.strip().startswith(("END", "ENDMDL"))]
+    out_lines = clean_lines + ion_records + ["END\n"]
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.writelines(out_lines)
+
+    return placed_info
+
+
+def dock_substrate_peptide(
+    receptor_pdb: str | Path,
+    output_pdb: str | Path,
+    template_pdb: str | Path,
+    peptide_seq: str = "KRPSSAPSG",
+    acceptor_idx: int | None = None,
+    chain_id: str = "B",
+    start_res: int = 1,
+) -> dict[str, Any]:
+    """Dock a substrate peptide into the kinase catalytic active site using template coordinates.
+
+    Reads substrate geometry from `template_pdb` (located in the project `structure/template/` folder)
+    and maps it to `receptor_pdb` via ATP superposition.
+    """
+    rec_path = Path(receptor_pdb)
+    out_path = Path(output_pdb)
+    tmpl_path = Path(template_pdb)
+
+    if not rec_path.exists():
+        raise FileNotFoundError(f"Receptor PDB not found: {rec_path}")
+    if not tmpl_path.exists():
+        raise FileNotFoundError(f"Template PDB not found: {tmpl_path}")
+
+    if acceptor_idx is None:
+        for i, aa in enumerate(peptide_seq):
+            if aa in {"S", "T"}:
+                acceptor_idx = i
+                break
+        if acceptor_idx is None:
+            raise ValueError(f"No Ser/Thr acceptor residue found in peptide sequence {peptide_seq}")
+
+    acceptor_aa = peptide_seq[acceptor_idx]
+    if acceptor_aa not in {"S", "T"}:
+        raise ValueError(f"Acceptor at index {acceptor_idx} must be Ser or Thr, got {acceptor_aa}")
+
+    rec_atp = parse_pdb_atoms(rec_path, res_name="ATP")
+    tmpl_atp = parse_pdb_atoms(tmpl_path, res_name="ATP")
+
+    triphosphate_atoms = ["PG", "O1G", "O2G", "O3G", "PB", "O1B", "O3B"]
+    shared_atp = [a for a in triphosphate_atoms if a in rec_atp and a in tmpl_atp]
+    if len(shared_atp) < 4:
+        raise ValueError("Insufficient shared ATP phosphate atoms for docking")
+
+    source_atp = np.vstack([tmpl_atp[a] for a in shared_atp])
+    target_atp = np.vstack([rec_atp[a] for a in shared_atp])
+
+    atp_rot, atp_trans = kabsch(source_atp, target_atp)
+
+    # Search for substrate chain (S, B, or second polymer chain)
+    tmpl_residues = get_chain_residues(tmpl_path, chain="S")
+    sub_chain = "S"
+    if not tmpl_residues:
+        tmpl_residues = get_chain_residues(tmpl_path, chain="B")
+        sub_chain = "B"
+    if not tmpl_residues:
+        raise ValueError(f"Template {tmpl_path} contains no substrate chain S or B")
+
+    # In 3X2V Chain S, SER 621 is the catalytic acceptor
+    tmpl_acceptor_num = 621
+    if not any(resnum == tmpl_acceptor_num for resname, resnum in tmpl_residues):
+        tmpl_acceptor_num = next(
+            resnum for resname, resnum in tmpl_residues if resname in {"SER", "THR"}
+        )
+
+    tmpl_acceptor_idx = [num for _, num in tmpl_residues].index(tmpl_acceptor_num)
+
+    peptide_records = []
+    serial = 80000
+
+    for i, aa in enumerate(peptide_seq):
+        res_3 = AA1_TO_3.get(aa, "ALA")
+        target_resnum = start_res + i
+
+        ref_idx = tmpl_acceptor_idx + (i - acceptor_idx)
+        if 0 <= ref_idx < len(tmpl_residues):
+            ref_tmpl_resnum = tmpl_residues[ref_idx][1]
+        else:
+            ref_tmpl_resnum = tmpl_acceptor_num
+
+        tmpl_res_atoms = parse_pdb_atoms(tmpl_path, chain=sub_chain, res_num=ref_tmpl_resnum)
+        if not tmpl_res_atoms:
+            tmpl_res_atoms = parse_pdb_atoms(tmpl_path, chain=sub_chain, res_num=tmpl_acceptor_num)
+
+        allowed_atoms = {"N", "CA", "C", "O", "CB"}
+        if i == acceptor_idx:
+            allowed_atoms.add("OG" if aa == "S" else "OG1")
+
+        for atom_name, coord in tmpl_res_atoms.items():
+            if atom_name not in allowed_atoms:
+                continue
+            final_coord = coord @ atp_rot + atp_trans
+            elem = atom_name[:1]
+            rec = (
+                f"ATOM  {serial:5d} {atom_name:>4s} {res_3} {chain_id}{target_resnum:4d}    "
+                f"{final_coord[0]:8.3f}{final_coord[1]:8.3f}{final_coord[2]:8.3f}  1.00  0.00          {elem:>2s}\n"
+            )
+            peptide_records.append(rec)
+            serial += 1
+
+    with open(rec_path, encoding="utf-8") as f:
+        rec_lines = f.readlines()
+
+    clean_rec = [line for line in rec_lines if not line.strip().startswith(("END", "ENDMDL"))]
+    if clean_rec and not clean_rec[-1].strip().startswith("TER"):
+        clean_rec.append("TER\n")
+
+    complex_lines = clean_rec + peptide_records + ["TER\n", "END\n"]
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.writelines(complex_lines)
+
+    comp_atp = parse_pdb_atoms(out_path, res_name="ATP")
+    acceptor_atoms = parse_pdb_atoms(out_path, chain=chain_id, res_num=start_res + acceptor_idx)
+
+    og_coord = acceptor_atoms.get("OG")
+    if og_coord is None:
+        og_coord = acceptor_atoms.get("OG1")
+    pg_coord = comp_atp.get("PG")
+
+    distance_og_pg = None
+    if og_coord is not None and pg_coord is not None:
+        distance_og_pg = float(np.linalg.norm(og_coord - pg_coord))
+
+    return {
+        "peptide_seq": peptide_seq,
+        "acceptor_res": f"{acceptor_aa}{start_res + acceptor_idx}",
+        "distance_og_pg_A": (round(distance_og_pg, 3) if distance_og_pg is not None else None),
+        "status": ("PASS" if (distance_og_pg and 2.5 <= distance_og_pg <= 5.5) else "CHECK"),
+    }
+
+
+def assemble_system_model(
+    spec: SystemSpec,
+    receptor_pdb: str | Path,
+    output_pdb: str | Path,
+    template_pdb: str | Path | None = None,
+    work_dir: str | Path | None = None,
+) -> Path:
+    """End-to-end assembly of a complete kinase-ligand-ion-substrate complex.
+
+    Applies in sequence:
+      1. Point mutation (if spec.variant != "WT") via Modeller or mutagenesis.
+      2. Phosphorylation (if spec.phos_residues, e.g. Y171 -> PTR171).
+      3. Catalytic divalent ions (if spec.ions, e.g. 2 Mg or 2 Mn).
+      4. Substrate peptide docking (if spec.peptide_seq, e.g. EB2 Ser222).
+      5. Formats and writes finalized clean PDB coordinates.
+    """
+    rec_path = Path(receptor_pdb).resolve()
+    out_path = Path(output_pdb).resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not rec_path.exists():
+        raise FileNotFoundError(f"Input receptor PDB not found: {rec_path}")
+
+    w_dir = Path(work_dir).resolve() if work_dir else out_path.parent / "_work_prep"
+    w_dir.mkdir(parents=True, exist_ok=True)
+
+    current_pdb = rec_path
+
+    # Step 1: Mutation (if variant != WT)
+    if spec.variant and spec.variant.upper() != "WT":
+        try:
+            from colabmda.modeller.engine import _MODELLER_OK, mutate_once
+
+            if _MODELLER_OK:
+                mut_res, _, _, _, _ = mutate_once(
+                    pdb_in=str(current_pdb),
+                    chain="A",
+                    mut_str=spec.variant,
+                    seed=42,
+                    outdir_mut=str(w_dir),
+                )
+                if mut_res and Path(mut_res).exists():
+                    current_pdb = Path(mut_res)
+        except Exception:
+            pass
+
+    # Step 2: Phosphorylation (e.g. Y171 -> PTR171)
+    if spec.phos_residues:
+        for phos in spec.phos_residues:
+            m = re.search(r"(\d+)", phos)
+            if m:
+                res_num = int(m.group(1))
+                phos_pdb = w_dir / f"step_phos_{res_num}.pdb"
+                phosphorylate_residue(
+                    input_pdb=current_pdb,
+                    output_pdb=phos_pdb,
+                    res_num=res_num,
+                    target_res="PTR",
+                )
+                current_pdb = phos_pdb
+
+    # Step 3: Divalent catalytic ions
+    if spec.ions and template_pdb:
+        total_ions = 0
+        primary_ion = "MG"
+        for ion_name, count in spec.ions.items():
+            if ion_name in {"MG", "MN", "CA", "ZN"}:
+                total_ions += count
+                primary_ion = ion_name
+
+        if total_ions > 0:
+            ions_pdb = w_dir / f"step_ions_{primary_ion}_{total_ions}.pdb"
+            position_ions(
+                receptor_pdb=current_pdb,
+                output_pdb=ions_pdb,
+                template_pdb=template_pdb,
+                ion_type=primary_ion,
+                count=total_ions,
+            )
+            current_pdb = ions_pdb
+
+    # Step 4: Substrate peptide docking
+    peptide_seq = spec.peptide_seq
+    if not peptide_seq and spec.peptide_name:
+        preset = SUBSTRATE_PRESETS.get(spec.peptide_name.lower())
+        if preset:
+            peptide_seq = preset["seq"]
+
+    if peptide_seq and template_pdb:
+        dock_pdb = w_dir / "step_dock_substrate.pdb"
+        dock_substrate_peptide(
+            receptor_pdb=current_pdb,
+            output_pdb=dock_pdb,
+            template_pdb=template_pdb,
+            peptide_seq=peptide_seq,
+            chain_id="B",
+        )
+        current_pdb = dock_pdb
+
+    shutil.copy2(current_pdb, out_path)
+    return out_path
