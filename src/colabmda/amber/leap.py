@@ -15,6 +15,29 @@ def get_param_path(filename: str) -> Path:
     return Path(str(resources.files("colabmda.amber.params").joinpath(filename)))
 
 
+def _estimate_ion_pairs(pdb_path: Path, padding_angstroms: float, salt_conc_molar: float) -> int:
+    """Estimate the number of monovalent ion pairs to reach target molarity."""
+    coords = []
+    if not pdb_path.exists():
+        return 0
+    with open(pdb_path) as f:
+        for line in f:
+            if line.startswith(("ATOM  ", "HETATM")):
+                try:
+                    coords.append([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+                except ValueError:
+                    continue
+    if not coords:
+        return 0
+    import numpy as np
+
+    pts = np.array(coords)
+    span = pts.max(axis=0) - pts.min(axis=0) + 2.0 * padding_angstroms
+    volume_a3 = float(np.prod(span)) * 0.80
+    num_pairs = int(round(salt_conc_molar * 0.0006022 * volume_a3))
+    return max(0, num_pairs)
+
+
 def generate_tleap_script(
     spec: SystemSpec,
     input_pdb: Path,
@@ -112,20 +135,22 @@ def generate_tleap_script(
     lines.extend(
         [
             "# Neutralize system charge",
-            f"addIons2 mol {cation} 0",
-            f"addIons2 mol {anion} 0",
+            f"addIonsRand mol {cation} 0",
+            f"addIonsRand mol {anion} 0",
             "",
         ]
     )
 
     if salt_conc_molar > 0:
-        lines.extend(
-            [
-                f"# Add physiological ionic strength ({salt_conc_molar} M {salt_type})",
-                f"addIonsRand mol {cation} 1",  # Placeholder; addIons2 handles net zero
-                "",
-            ]
-        )
+        num_pairs = _estimate_ion_pairs(abs_pdb, padding_angstroms, salt_conc_molar)
+        if num_pairs > 0:
+            lines.extend(
+                [
+                    f"# Add physiological ionic strength ({salt_conc_molar} M {salt_type})",
+                    f"addIonsRand mol {cation} {num_pairs} {anion} {num_pairs} 6.0",
+                    "",
+                ]
+            )
 
     # 9. Save Amber parameters
     abs_top = Path(output_prmtop).resolve()
