@@ -357,7 +357,7 @@ def _dispatch_sim(args) -> int:
 
 
 def _dispatch_merge(args) -> int:
-    from colabmda.amber.cpptraj import generate_cpptraj_strip_script
+    from colabmda.amber.cpptraj import generate_cpptraj_strip_script, run_cpptraj
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
 
@@ -366,24 +366,47 @@ def _dispatch_merge(args) -> int:
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
 
     replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
-    name = f"{spec.state_tag}_{spec.variant}"
 
     for rep in replicas:
         rep_dir = paths.replica_dir(spec, rep)
         prmtop = paths.prepared_prmtop(spec)
-        dcd_candidates = list(rep_dir.glob("*.dcd"))
+        dcd_candidates = sorted(rep_dir.glob("prod_*.dcd"))
+        if not dcd_candidates:
+            dcd_candidates = sorted(rep_dir.glob("*.dcd"))
         if not dcd_candidates:
             print(f"[INFO] No DCD trajectories found in {rep_dir}")
             continue
 
-        script_path = rep_dir / "strip.cpptraj.in"
-        generate_cpptraj_strip_script(
-            prmtop=prmtop,
+        out_traj = rep_dir / "prod_keep_ligand.dcd"
+        out_top = rep_dir / "stripped.prmtop"
+        script_content = generate_cpptraj_strip_script(
+            topology=prmtop,
             trajectories=dcd_candidates,
-            out_prefix=name,
-            script_path=script_path,
+            output_traj=out_traj,
+            output_top=out_top,
+            mode="keep_ligand",
         )
+        script_path = rep_dir / "strip.cpptraj.in"
+        script_path.write_text(script_content, encoding="utf-8")
         print(f"[OK] Generated cpptraj stripping script: {script_path}")
+
+        ca_out_traj = rep_dir / "prod_ca.dcd"
+        ca_script = generate_cpptraj_strip_script(
+            topology=prmtop,
+            trajectories=dcd_candidates,
+            output_traj=ca_out_traj,
+            mode="ca_backbone",
+        )
+        (rep_dir / "strip_ca.cpptraj.in").write_text(ca_script, encoding="utf-8")
+
+        try:
+            rc, out = run_cpptraj(script_content, rep_dir)
+            if rc == 0:
+                print(f"[OK] Successfully executed cpptraj stripping for {rep}: {out_traj}")
+            else:
+                print(f"[WARN] cpptraj returned code {rc}")
+        except Exception as e:
+            print(f"[INFO] cpptraj execution deferred ({e}); script saved to {script_path}")
 
     return 0
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -63,6 +65,16 @@ def run_cpptraj(
     workdir.mkdir(parents=True, exist_ok=True)
 
     exe = cpptraj_binary or shutil.which("cpptraj")
+    if not exe:
+        py_cpptraj = Path(sys.executable).parent / "cpptraj"
+        if py_cpptraj.exists():
+            exe = str(py_cpptraj)
+    if not exe:
+        for env_key in ["AMBERHOME", "AMBER_HOME"]:
+            val = os.environ.get(env_key)
+            if val and (Path(val) / "bin" / "cpptraj").exists():
+                exe = str(Path(val) / "bin" / "cpptraj")
+                break
     if not exe:
         raise RuntimeError("cpptraj executable not found in PATH or environment.")
 
