@@ -1,59 +1,75 @@
-# Local and synchronized research data
-data/
-sim/
-simulations/
-simulations_test/
-test_run/
-test_*/
-str/
-structures/
-analysis_outputs/
-scratch/
-.agents/
-.codex/
-ColabMDA-upload.zip
-*.pdb
-*.fasta
-*.ali
-*.pir
-
-# Binary & Data Files
-*.chk
-*.xml
-*.log
-*.dcd
-
-# Output Plots & Reports
-*.png
-*.pdf
-
-# Python
+# ==============================================================================
+# Python Bytecode, Packaging & Virtual Environments
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
-.ipynb_checkpoints
 *.egg-info/
+.eggs/
+*.egg
 build/
 dist/
-.ruff_cache/
+wheels/
+.ipynb_checkpoints
+.venv/
+venv/
+env/
 
-# IDE and Local Scratch
-.idea/
+# ==============================================================================
+# Linters, Code Quality & Testing
+# ==============================================================================
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ==============================================================================
+# Research Data, Scratchpads & Developer Notes
+# ==============================================================================
+data/
+scratch/
 notes.md
 PLAN*.md
-# Machine-specific full Conda export; use a compact portable environment file if needed.
+*.zip
+*.tar.gz
+
+# ==============================================================================
+# Machine Exports & Agent Workspace Metadata
+# ==============================================================================
 envs/colab_mda_env.yml
+.agents/
+.codex/
 
-# Documentation
+# ==============================================================================
+# Sphinx Documentation Builds
+# ==============================================================================
+docs/_build/
 _build/
-notes.md
 
-# IDE
+# ==============================================================================
+# IDEs & Operating System Files
+# ==============================================================================
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
-# Build artifacts
-dist/
+# ==============================================================================
+# Molecular Dynamics, Trajectories & Amber Safeguards
+# ==============================================================================
+# Trajectories & checkpoints (prevent giant files from bricking GitHub)
+*.dcd
+*.nc
+*.netcdf
+*.chk
+*.state.xml
 
-# Local
-  Data
-data/
+# Amber topologies, coordinates & automatic logs
+*.prmtop
+*.inpcrd
+*.rst7
+leap.log
