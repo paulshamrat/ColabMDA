@@ -19,6 +19,7 @@ dependencies:
   - rdkit
   - meeko
   - vina
+  - ambertools
   - pip
   - pip:
     - -e .

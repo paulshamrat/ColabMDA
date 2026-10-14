@@ -16,16 +16,19 @@
 | **Issues** | [![GitHub issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) |
 | **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
 | **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
-| **Dependencies** | `OpenMM`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA`, `OpenFF (Optional)` |
+| **Dependencies** | `OpenMM`, `AmberTools (tleap, cpptraj)`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA`, `OpenFF (Optional)` |
 | **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
 | **Structure** | [Source Layout](#-project-structure) |
 
 ### 📂 Project Structure
 ColabMDA is organized into clear, functional modules:
-*   `src/colabmda/modeller/`: Homology modeling engine (Biological UniProt numbering supported).
+*   `src/colabmda/cli.py`: Central unified CLI (`colabmda` and shortcut `cmda`).
+*   `src/colabmda/core/`: System taxonomy (`SystemSpec`), project layout (`ProjectPaths`), and divalent ion parameters.
+*   `src/colabmda/amber/`: AmberTools parameterization (`tleap`, Hu 2024 quantum nucleotide parameters, `cpptraj` autoimaging & solvent stripping).
+*   `src/colabmda/modeller/`: Homology modeling engine (UniProt biological numbering, mutagenesis, geometric substrate docking).
 *   `src/colabmda/openmm/`: OpenMM simulation engines (Modular prep/EM/NVT/NPT/QC/MD/analysis).
-*   `envs/`: Automated installation scripts for scientific environments.
-*   `scripts/`: Quick-start bootstrap scripts for Google Colab.
+*   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
+*   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
 *   `tests/`: Unit and regression test suite (`pytest`).
 *   `docs/`: Sphinx and ReadTheDocs scientific documentation source.
 
@@ -51,186 +54,150 @@ Run the following in the **Colab Terminal** (⋮ → Terminal).
 *Estimated time: ~3–5 minutes.*
 
 ```bash
-# 1. Install the core scientific environment
+# 1. Download and run the unified bootstrap script (provisions OpenMM, AmberTools, MDAnalysis, and ColabMDA)
 cd /content
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/bootstrap_colab_openmm_gpu.sh -o bootstrap_colab_openmm_gpu.sh
-WITH_MODELLER=1 bash bootstrap_colab_openmm_gpu.sh latest
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh -o setup.sh
+bash setup.sh latest
 
-# 2. Install ColabMDA package
-python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.git@main"
+# Optional: To include MODELLER for homology modeling & mutagenesis:
+# WITH_MODELLER=1 bash setup.sh latest
 ```
 
 > [!IMPORTANT]
-> **Modeller License Prompt:** During Step 1, the script will **pause** and ask you to `Enter your Modeller License Key`. You must paste your key and press **Enter** to proceed. The installation will not complete without it.
->
-> 🔑 **Get a Free License:** If you don't have one, register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html) (Academic licenses are free and sent instantly via email).
+> **Modeller License (Optional):** If you enable `WITH_MODELLER=1`, the script will prompt for your Modeller License Key.
+> 🔑 **Get a Free License:** Register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html) (Academic licenses are free and sent instantly via email).
 
 ---
 
 ### 💡 Tip: How to Resume After a Timeout
 If your Google Colab session expires:
-1. Re-run **Required Steps 1.2** to reinstall the environment.
-2. Run the **exact same `colabmda openmm md` (or `run`) command** you used before.
-3. The tool will automatically detect your `.chk` files and resume from where it left off.
+1. Re-run **Required Step 1.2** (`bash setup.sh latest`) to restore the environment.
+2. Run your simulation command (`cmda sim ...` or `colabmda openmm run ...`).
+3. The engine automatically discovers existing `.chk` files and state XMLs and resumes seamless execution.
 
 ---
 
-## 2. Manual / Detailed Installation (Advanced)
-
-> ⚠️ **Note:** This section is for local workstations, HPC, or advanced manual setups. For standard Google Colab runs, please use the **Quick Start (Section 1)** above.
+## 2. Workstation & HPC Installation
 
 <details>
-<summary><b>🛠️ A. Manual Terminal Installation (Step-by-Step)</b></summary>
+<summary><b>💻 A. Local Workstation Setup (Conda / Mamba)</b></summary>
 
-In the Colab Terminal (⋮ → Terminal), run each step one at a time:
-
+ColabMDA runs natively on Linux workstations with NVIDIA GPUs. Use the provided `environment.yml` to provision the production environment:
 ```bash
-# Step 1: Download & install Miniforge (Conda)
-wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && \
-  bash /tmp/miniforge.sh -b -p "$HOME/miniforge3"
-
-# Step 2: Initialize Conda in this shell
-export PATH="$HOME/miniforge3/bin:$PATH" && source "$HOME/miniforge3/etc/profile.d/conda.sh"
-
-# Step 3: Install Mamba into the base environment
-conda install -y -n base -c conda-forge mamba
-
-# Step 4: Install CUDA-enabled OpenMM and OpenMMTools
-mamba install -y -c conda-forge cudatoolkit=11.8 openmm openmmtools
-
-# Step 5: Install PDBFixer and PDB2PQR (for PROPKA pKa titration)
-mamba install -y -c conda-forge pdbfixer pdb2pqr
-
-# Step 6: Install MDAnalysis, MDTraj, NumPy, Matplotlib, and Biopython
-mamba install -y -c conda-forge mdanalysis mdtraj numpy matplotlib biopython
-
-# Step 7: Verify installations
-python3 - << 'EOF'
-from openmm import Platform; print("OpenMM platforms:", [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())])
-import MDAnalysis, mdtraj, Bio; print("MDAnalysis:", MDAnalysis.__version__, "MDTraj:", mdtraj.__version__, "Biopython:", Bio.__version__)
-EOF
-```
-</details>
-
-<details>
-<summary><b>📜 B. Alternative: Script-based Installation</b></summary>
-
-```bash
-cd /content
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/install_colabmda_release.sh -o install_colabmda_release.sh
-bash install_colabmda_release.sh latest /content/colabmda
-```
-</details>
-
-<details>
-<summary><b>🧬 C. Modeller CPU Environment Setup</b></summary>
-
-```bash
-cd /content/drive/MyDrive/openmm/ColabMDA
-bash envs/install_modeller_env.sh
-```
-</details>
-
-<details>
-<summary><b>💻 D. Local Workstation Setup (Laptop/Desktop)</b></summary>
-
-Beyond the Cloud ☁️: ColabMDA works on any Linux system with an NVIDIA GPU. Use the provided `environment.yml` to create a production-ready environment:
-```bash
+git clone https://github.com/paulshamrat/ColabMDA.git
+cd ColabMDA
 mamba env create -f environment.yml
 conda activate colabmda
 ```
 </details>
 
 <details>
-<summary><b>🧪 E. Running the Test Suite</b></summary>
+<summary><b>🧪 B. Running the Test Suite</b></summary>
 
-To verify code integrity, force field mechanics, and CLI parsing on your system:
+To verify force fields, peptide docking, Amber leap parameterization, and CLI execution:
 ```bash
 pytest tests/ -v
 ```
 </details>
 
 <details>
-<summary><b>🏢 F. HPC Usage (SLURM)</b></summary>
+<summary><b>🏢 C. HPC Usage (SLURM)</b></summary>
 
-You can easily incorporate ColabMDA into SLURM batch scripts. Since it processes trajectories in chunks, it is highly efficient for long-running jobs on cluster partitions with time limits.
+ColabMDA generates decoupled SLURM batch scripts automatically under `<project>/scripts/submit.slurm`. Since trajectories are chunked with automatic checkpointing, jobs run reliably within cluster walltime limits.
 </details>
 
 ---
 
-## 3. Recommended Directory Strategy
+## 3. Recommended Directory Strategy & Architectural Principles
 
-ColabMDA organizes projects into clean, standardized data tiers that strictly separate inputs, simulations, and analysis under your project workspace:
+ColabMDA enforces strict architectural separation to ensure reproducibility across local workstations, cloud GPUs, and HPC clusters:
+
+1. **Zero Data in `src/`:** Structural inputs (`*.pdb`), topologies (`*.prmtop`), and trajectories belong strictly in the user's project workspace. Non-standard residues like phosphotyrosine (`pY171` -> `PTR171`) are constructed mathematically with zero hardcoded PDBs in source code.
+2. **Decoupled Execution Scripts:** Execution shell scripts and SLURM batch scripts reside exclusively in `<project>/scripts/`, never inside simulation data folders.
+3. **Single Bootstrap Script:** Standalone environment provisioning is handled by a single script: `scripts/setup.sh`.
 
 ```text
-research/projects/kras/                   # Your project root (e.g. kras, 4ldj, psmb8)
-└── data/
-    ├── structure/                        # Input structures and homology models
-    │   └── 4ldj/
-    │       ├── wt/
-    │       │   ├── 4ldj_wt.pdb
-    │       │   └── prep/                 # Titrated & repaired starting structures
-    │       │       ├── 4ldj_wt_cleaned.pdb
-    │       │       └── protonation_summary.json
-    │       └── mutants/
-    │           └── 4ldj_g12d/
-    │               ├── 4ldj_g12d.pdb
-    │               └── prep/
-    │                   ├── 4ldj_g12d_cleaned.pdb
-    │                   └── protonation_summary.json
-    │
-    ├── simulation/                       # Trajectories, checkpoints, and logs
-    │   ├── 4ldj_wt/
-    │   │   ├── eq/                       # Shared equilibration hub (run once per system)
-    │   │   │   ├── solvated.pdb
-    │   │   │   ├── system.xml
-    │   │   │   ├── em.chk / em.state.xml
-    │   │   │   ├── nvt.chk / nvt.state.xml
-    │   │   │   ├── npt.chk / npt.state.xml
-    │   │   │   └── qc.png / qc_metrics.json
-    │   │   ├── r1/                       # Production replica 1 (chunks + full trajectory)
-    │   │   ├── r2/                       # Production replica 2 (independent seed from eq/)
-    │   │   └── r3/                       # Production replica 3 (triplicate simulation)
-    │   │
-    │   └── 4ldj_g12d/                    # Mutant simulation system
-    │       ├── eq/
-    │       ├── r1/
-    │       ├── r2/
-    │       └── r3/
-    │
-    └── analysis/                         # Trajectory metrics, CSVs, and plots
-        ├── 4ldj_wt/
-        │   ├── r1/                       # Single-replica reports (RMSD, Rg, RMSF)
-        │   ├── r2/
-        │   └── r3/
-        ├── 4ldj_g12d/
-        │   ├── r1/
-        │   ├── r2/
-        │   └── r3/
-        └── compare/
-            └── wt_vs_g12d/               # Triplicate Mean ± SD overlay plots
+research/projects/<project_name>/         # Your project root (e.g. cdkl5, kras, 4ldj)
+├── structure/                            # Input structures (Zero raw PDBs in src/)
+│   ├── protein/                          # Target receptor structures (e.g. cdkl5_wt.pdb, cdkl5_r59w.pdb)
+│   └── template/                         # Structural templates (e.g. 3X2V.pdb)
+├── simulation/                           # Staged & executed simulation data
+│   └── <state>/<variant>/                # E.g. atp_2mg_eb2/WT/
+│       ├── eq/                           # Shared equilibration hub (system.prmtop, em, nvt, npt, qc)
+│       ├── r1/                           # Production replica 1 (chunks + trajectory)
+│       ├── r2/                           # Production replica 2 (independent seed from eq/)
+│       └── r3/                           # Production replica 3
+├── scripts/                              # Decoupled execution scripts
+│   ├── run.sh                            # Standalone runner for local/remote execution
+│   └── submit.slurm                      # HPC SLURM batch submission script
+└── analysis/                             # Trajectory metrics, CSVs, and publication plots
+    └── <state>/<variant>/                # E.g. atp_2mg_eb2/WT/ (rmsd.csv, rmsf.csv, rg.csv)
 ```
 
 > 💡 **Why Shared `eq/`?**
-> Equilibration (EM, NVT, NPT) only needs to be run once per system. Replicas (`r1`, `r2`, `r3`) fork directly from `eq/npt.state.xml` with distinct random velocity seeds, saving substantial GPU time on Google Colab while maintaining statistical independence.
+> Equilibration (EM, NVT, NPT, QC) only needs to be run once per system. Replicas (`r1`, `r2`, `r3`) fork directly from `eq/npt.state.xml` with distinct random velocity seeds, saving substantial GPU time while maintaining statistical independence.
 
 ---
 
-## 4. Simulation Workflow
+## 4. Unified Kinase-Substrate Simulation Engine (`cmda`)
 
-### Pipeline at a Glance:
-1. **Model:** Build structures (WT & Mutants) in `data/structure/` using Modeller.
-2. **Titrate & Prep:** Clean coordinates and run 3D PROPKA pKa titration at physiological pH 7.4.
-3. **Stage:** Initialize simulation folders under `data/simulation/`.
-4. **Equilibrate:** Run EM, NVT, and NPT in shared `eq/` hub with Amber14/ff19SB force fields.
-5. **QC Gate:** Verify equilibration density, temperature, and stability (`qc.png`).
-6. **Production MD:** Execute resume-safe chunked production MD across triplicates (`r1`, `r2`, `r3`).
-7. **Merge:** Combine trajectory chunks into centered, wrapped trajectories.
-8. **Analyze:** Generate RMSD, $R_g$, and RMSF plots and aggregate statistics.
+ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `colabmda`) that unifies structure preparation, parameterization, OpenMM simulation dispatch, trajectory post-processing, and multi-replica analysis.
+
+### 4.1. Core Capabilities: Kinase-Substrate Dynamics
+* **Phosphotyrosine Modeling (`pY171`):** Mathematically converts target tyrosine residues to Amber `PTR` with sp3-hybridized oxygens and $-2.0e$ net charge, dynamically routing Amber `phosaa19SB` (or `phosaa14SB`) force fields.
+* **Quantum Nucleotide Parameters:** Integrates Hu et al. 2024 quantum-calculated parameters for ATP, ADP, and GDP.
+* **Dual Divalent Metal Ions:** Supports catalytic dual $Mg^{2+}$ or $Mn^{2+}$ coordination using Amber 12-6-4 / standard LJ parameters.
+* **Substrate Peptide Docking:** Docks substrate peptides (e.g. EB2 `KRPSSAPSG` at Ser222) via continuous geometric backbone vector propagation ($d_{\text{C-N}} = 1.33\text{ Å}$), eliminating atom overlap and NaN minimization errors.
+* **Ultra-Fast Solvation & Neutralization:** Uses Amber `tleap` with randomized ion placement (`addIonsRand`), solvating systems in under 2 seconds.
+* **Dual-Stream Trajectory Stripping:** Automates `cpptraj` PBC autoimaging and strips bulk water, producing lightweight dry (`keep_ligand`) and hydration-shell trajectories (>90% storage savings).
 
 ---
 
-### 4.1. Homology Modeling & Point Mutations (Modeller)
+### 4.2. Single-Keyword Command Reference (`cmda`)
+
+| Command | Syntax | Description |
+| :--- | :--- | :--- |
+| **`stage`** | `cmda stage --state <tag> --variant <var>` | Generates decoupled project trees and runner scripts (`run.sh`, `submit.slurm`). |
+| **`prep`** | `cmda prep --state <tag> --variant <var>` | Assembles coordinates and parameterizes Amber topology (`system.prmtop`, `system.inpcrd`). |
+| **`sim`** | `cmda sim --state <tag> --variant <var> --stage <stages>` | Dispatches OpenMM simulations (`em`, `nvt`, `npt`, `qc`, `md`). |
+| **`merge`** | `cmda merge --state <tag> --variant <var>` | Wraps PBC and strips bulk solvent via `cpptraj` (`stripped.system.prmtop`). |
+| **`analyze`** | `cmda analyze --state <tag> --variant <var>` | Computes RMSD, $R_g$, RMSF, PCA, and contact maps. |
+| **`compare`** | `cmda compare --state <tag> --variants <v1,v2>` | Renders multi-replica or cross-variant comparative overlay plots. |
+| **`colab`** | `cmda colab <status\|new\|run\|stop>` | Controls remote Google Colab GPU sessions directly from the terminal. |
+
+#### Complete End-to-End Walkthrough:
+```bash
+# 1. Stage the decoupled directory structure and scripts
+cmda stage --state atp_2mg_eb2 --variant WT --root research/projects/cdkl5
+
+# 2. Build coordinates and Amber topology (pY171 + ATP + 2 Mg2+ + EB2 peptide)
+cmda prep --state atp_2mg_eb2 --variant WT --root research/projects/cdkl5
+
+# 3. Run equilibration and QC gate in shared eq/ hub
+cmda sim --state atp_2mg_eb2 --variant WT --stage em,nvt,npt,qc --protocol varmdyn --root research/projects/cdkl5
+
+# 4. Run resume-safe production MD across triplicates (r1, r2, r3)
+cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r1 --total-ns 100.0 --root research/projects/cdkl5
+cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r2 --total-ns 100.0 --root research/projects/cdkl5
+cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r3 --total-ns 100.0 --root research/projects/cdkl5
+
+# 5. Autoimage PBC and strip bulk solvent with cpptraj
+cmda merge --state atp_2mg_eb2 --variant WT --replicas r1,r2,r3 --root research/projects/cdkl5
+
+# 6. Extract trajectory metrics and plots
+cmda analyze --state atp_2mg_eb2 --variant WT --root research/projects/cdkl5
+
+# 7. Compare Wild-Type vs Mutant (e.g. R59W)
+cmda compare --state atp_2mg_eb2 --variants WT,R59W --root research/projects/cdkl5
+```
+
+---
+
+## 5. Granular & Legacy Workflows (`colabmda openmm` / `modeller`)
+
+For users requiring fine-grained control over individual modeling steps or legacy PDB workflows:
+
+### 5.1. Homology Modeling & Point Mutations (Modeller)
 **Environment:** `modeller_env`
 
 The Modeller workflow includes **Biological Residue Numbering** and **Automated Quality Control**:
@@ -251,7 +218,7 @@ colabmda modeller mutate --pdb-in data/structure/4ldj/wt/target.B99990001_with_c
 
 ---
 
-### 4.2. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
+### 5.2. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
 **Environment:** `openmm_env`
 
 Accurate protonation states are critical for biophysical simulation fidelity. ColabMDA natively integrates **PDBFixer**, **PDB2PQR**, and **PROPKA 3** to calculate local 3D electrostatic microenvironments and assign explicit AMBER titratable residue forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`):
@@ -273,7 +240,7 @@ colabmda openmm prep --pdb-file data/structure/4ldj/mutants/4ldj_g12d/4ldj_g12d.
 
 ---
 
-### 4.3. Simulation Execution: Modular Stages vs. All-in-One
+### 5.3. Simulation Execution: Modular Stages vs. All-in-One
 
 ColabMDA provides both fine-grained single-keyword commands and an automated all-in-one runner:
 
@@ -340,7 +307,7 @@ colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 100.0 --traj-interval
 
 ---
 
-### 4.4. Merge and Center Trajectories
+### 5.4. Merge and Center Trajectories
 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine:
 
@@ -376,9 +343,9 @@ colabmda openmm merge --name 4ldj_g12d --replica r3 --center --wrap
 
 ---
 
-### 4.5. Post-Merge Guidelines & Verification (FAQ)
+### 5.5. Post-Merge Guidelines & Verification (FAQ)
 
-#### 4.5.1. 🔍 Verifying Trajectory Frames
+#### 5.5.1. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
 colabmda openmm status --name 4ldj_wt --replica r1
@@ -401,7 +368,7 @@ Alternatively, query the frame count directly with MDAnalysis:
 python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/4ldj_wt/r1/prod_full.pdb', 'data/simulation/4ldj_wt/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
 ```
 
-#### 4.5.2. ⏱️ Understanding Simulation Time vs. Frame Counts
+#### 5.5.2. ⏱️ Understanding Simulation Time vs. Frame Counts
 Use this formula to calculate expected frames:
 $$\text{Expected Frames} = \frac{\text{Total Time (ps)}}{\text{Trajectory Saving Interval (ps)}}$$
 *Example:* A $100.0\text{ ns}$ ($100,000\text{ ps}$) simulation with a $10.0\text{ ps}$ saving interval:
@@ -410,7 +377,7 @@ $$\text{Expected Frames} = \frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{
 *Striding on Merged Trajectories:*
 $$\text{Merged Frames} = \frac{\text{Total Frames}}{\text{Stride}} = \frac{10,000}{10} = 1,000\text{ frames}$$
 
-#### 4.5.3. 🧬 Reference Topology Guidelines
+#### 5.5.3. 🧬 Reference Topology Guidelines
 When merging trajectories, the reference topology file used and the resulting output files depend on your merge options:
 
 | Merge Mode | Command Flags | Reference Topology | Generated Topology File | Subsequent Command Usage |
@@ -424,9 +391,9 @@ When merging trajectories, the reference topology file used and the resulting ou
 
 ---
 
-## 5. Analysis & Comparison
+### 5.6. Analysis & Comparison
 
-### 5.1. Single System Analysis (RMSD, Rg, RMSF)
+#### 5.6.1. Single System Analysis (RMSD, Rg, RMSF)
 ```bash
 # For Wild-Type Triplicates:
 colabmda openmm analysis --name 4ldj_wt --replica r1
@@ -441,7 +408,7 @@ colabmda openmm analysis --name 4ldj_g12d --replica r3
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually with `--interval 10`.
 
-### 5.2. WT vs Mutant Comparison (Triplicate Statistics)
+#### 5.6.2. WT vs Mutant Comparison (Triplicate Statistics)
 ```bash
 colabmda openmm compare \
   --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2,data/analysis/4ldj_wt/r3" \
@@ -583,6 +550,13 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
 ---
 
 ## Changelog
+
+### v0.3.0 (Kinase-Substrate MD & Unified Architecture)
+*   **Unified `cmda` CLI:** Single-keyword entrypoints (`stage`, `prep`, `sim`, `merge`, `analyze`, `compare`, `colab`) accessible via both `cmda` and `colabmda`.
+*   **Kinase-Substrate Dynamics Engine:** Automated CDKL5 phosphotyrosine (`pY171` -> Amber `PTR` with `phosaa19SB`), quantum-parameterized nucleotides (Hu 2024 ATP/ADP/GDP), catalytic dual divalent ions ($Mg^{2+}$, $Mn^{2+}$), and continuous geometric substrate peptide docking (EB2 `KRPSSAPSG` at Ser222).
+*   **High-Performance AmberTools Integration:** Automated Amber `tleap` parameterization with randomized ion neutralization (`addIonsRand`, solvating in <2s) and automated `cpptraj` PBC autoimaging and dual-stream solvent stripping (>90% storage savings).
+*   **Strict Decoupled Architecture:** Guaranteed zero data files in `src/`, decoupled execution scripts in `<project>/scripts/` (`run.sh`, `submit.slurm`), and a single bootstrap script (`scripts/setup.sh`).
+*   **Comprehensive Test Suite:** 40+ unit and regression tests passing across all modeling, parameterization, and simulation modules.
 
 ### v0.2.0 (Modular Refactor & Resilience)
 *   **Single-Keyword Nomenclature:** Unified modular commands (`prep`, `stage`, `em`, `nvt`, `npt`, `qc`, `md`) and standardized `equil/` directory layout.
