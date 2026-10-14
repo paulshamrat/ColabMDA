@@ -1,10 +1,17 @@
-# Simulation Data
+# Local and synchronized research data
+data/
+sim/
 simulations/
 simulations_test/
 test_run/
 test_*/
+str/
 structures/
 analysis_outputs/
+scratch/
+.agents/
+.codex/
+ColabMDA-upload.zip
 *.pdb
 *.fasta
 *.ali
@@ -26,6 +33,15 @@ __pycache__/
 *$py.class
 .ipynb_checkpoints
 *.egg-info/
+build/
+dist/
+.ruff_cache/
+
+# IDE and Local Scratch
+.idea/
+notes.md
+# Machine-specific full Conda export; use a compact portable environment file if needed.
+envs/colab_mda_env.yml
 
 # Documentation
 _build/

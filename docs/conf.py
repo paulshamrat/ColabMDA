@@ -18,7 +18,7 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "virtual_screening.md"]
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "sphinx_rtd_theme"
@@ -28,3 +28,4 @@ html_static_path = ["_static"]
 myst_enable_extensions = [
     "colon_fence",
 ]
+myst_heading_anchors = 3

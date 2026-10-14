@@ -1,22 +1,88 @@
 import argparse
+import glob
 import os
+import shutil
 
 from openmm import XmlSerializer, unit
 from openmm.app import CheckpointReporter, DCDReporter, PDBFile, StateDataReporter
 
-from colabmda.openmm_pw.modular.utils import atomic_rename, make_sim, sync_outputs
+from colabmda.openmm.modular.utils import (
+    atomic_rename,
+    fresh_seed,
+    load_stage_state,
+    make_sim,
+    offset_seed,
+    sync_outputs,
+)
+
+
+def _format_ps(value):
+    """Format a chunk boundary without collapsing distinct fractional times."""
+    return f"{value:.6f}".rstrip("0").rstrip(".")
 
 
 def run_md(
-    workdir, pdbid, total_ns=1.0, traj_interval_ps=10.0, checkpoint_ps=1000.0, sync_dir=None
+    workdir,
+    pdbid,
+    total_ns=1.0,
+    traj_interval_ps=10.0,
+    checkpoint_ps=1000.0,
+    sync_dir=None,
+    seed=None,
 ):
     workdir = os.path.abspath(workdir)
     os.chdir(workdir)
 
     xml_system = "system.xml"
     pdb_saved = "solvated.pdb"
-    chk_in = "npt.chk"
+    state_in = "npt.state.xml"
     chk_file = "prod.chk"
+
+    # If system files are missing, try copying from eq, equil or sibling r1 replica directory
+    if not all(os.path.exists(f) for f in [xml_system, pdb_saved]):
+        parent_dir = os.path.dirname(workdir)
+        eq_dir = os.path.join(parent_dir, "eq")
+        equil_dir = os.path.join(parent_dir, "equil")
+        r1_dir = os.path.join(parent_dir, "r1")
+        source_dir = None
+        for cand in [eq_dir, equil_dir, r1_dir]:
+            if os.path.exists(cand) and all(
+                os.path.exists(os.path.join(cand, f)) for f in [xml_system, pdb_saved]
+            ):
+                source_dir = cand
+                break
+
+        if source_dir:
+            print(
+                f"[INFO] Equilibrated topology/system files found at {source_dir}. Initializing this replica..."
+            )
+            shutil.copy2(os.path.join(source_dir, xml_system), os.path.join(workdir, xml_system))
+            shutil.copy2(os.path.join(source_dir, pdb_saved), os.path.join(workdir, pdb_saved))
+            # Also copy ligand and other structures if present in source
+            for ext in ["*.sdf", "*_cleaned.pdb", "*.pdb"]:
+                for fpath in glob.glob(os.path.join(source_dir, ext)):
+                    try:
+                        shutil.copy2(fpath, os.path.join(workdir, os.path.basename(fpath)))
+                    except Exception:
+                        pass
+
+    # Replicas branch from portable physical state, never from another Context checkpoint.
+    if not os.path.exists(state_in):
+        parent_dir = os.path.dirname(workdir)
+        eq_dir = os.path.join(parent_dir, "eq")
+        equil_dir = os.path.join(parent_dir, "equil")
+        r1_dir = os.path.join(parent_dir, "r1")
+        state_source = None
+        for cand in [eq_dir, equil_dir, r1_dir]:
+            if os.path.exists(cand) and os.path.exists(os.path.join(cand, state_in)):
+                state_source = cand
+                break
+
+        if state_source:
+            print(
+                f"[INFO] Equilibrated state found at {state_source}. Copying {state_in} to initialize this replica..."
+            )
+            shutil.copy2(os.path.join(state_source, state_in), os.path.join(workdir, state_in))
 
     if not all(os.path.exists(f) for f in [xml_system, pdb_saved]):
         print("Error: system.xml or solvated.pdb not found.")
@@ -32,7 +98,8 @@ def run_md(
     with open(xml_system) as f:
         system = XmlSerializer.deserializeSystem(f.read())
     pdb = PDBFile(pdb_saved)
-    sim = make_sim(pdb.topology, system, dt)
+    seed = fresh_seed(seed)
+    sim = make_sim(pdb.topology, system, dt, seed=seed, barostat_seed=offset_seed(seed))
 
     # Resume from prod.chk if exists, else start fresh from npt.chk
     if os.path.exists(chk_file):
@@ -41,26 +108,28 @@ def run_md(
             sim.loadCheckpoint(f)
         steps_done = sim.context.getState().getStepCount()
     else:
-        print("▶ Starting Production from npt.chk …")
-        if not os.path.exists(chk_in):
-            print("Error: npt.chk not found. Run NPT first.")
+        print("▶ Starting independent Production from npt.state.xml …")
+        if not os.path.exists(state_in):
+            print("Error: npt.state.xml not found. Run NPT with the current version first.")
             return False
-        with open(chk_in, "rb") as f:
-            sim.loadCheckpoint(f)
+        load_stage_state(sim, state_in, load_velocities=False)
 
         # Reset step count and time so production starts at 0.0
         sim.context.setStepCount(0)
         sim.context.setTime(0.0)
         steps_done = 0
 
+        print(f"[INFO] Assigning independent 300 K velocities and stochastic streams (seed={seed})")
+        sim.context.setVelocitiesToTemperature(300 * unit.kelvin, seed)
+
     print(f"  • Progress: {steps_done * dt_ps:.1f} / {total_ns * 1000:.1f} ps")
 
     # Production loop
     while steps_done < total_steps:
         steps_to_run = min(chk_steps, total_steps - steps_done)
-        ps_start = int(steps_done * dt_ps)
-        ps_end = int(ps_start + steps_to_run * dt_ps)
-        tag = f"{ps_start}to{ps_end}ps"
+        ps_start = steps_done * dt_ps
+        ps_end = (steps_done + steps_to_run) * dt_ps
+        tag = f"{_format_ps(ps_start)}to{_format_ps(ps_end)}ps"
 
         print(f"▶ Running chunk {tag} …")
 
@@ -121,6 +190,7 @@ if __name__ == "__main__":
     p.add_argument("--traj-interval", type=float, default=10.0)
     p.add_argument("--checkpoint-ps", type=float, default=1000.0)
     p.add_argument("--sync-dir", default=None)
+    p.add_argument("--seed", type=int, default=None)
     args = p.parse_args()
     run_md(
         args.workdir,
@@ -129,4 +199,5 @@ if __name__ == "__main__":
         args.traj_interval,
         args.checkpoint_ps,
         args.sync_dir,
+        seed=args.seed,
     )

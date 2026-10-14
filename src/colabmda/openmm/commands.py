@@ -12,18 +12,19 @@ from pathlib import Path
 
 SCRIPTS = {
     # Bundled workflow scripts (pdb-id download)
-    "clean_by_pdbid": ("colabmda.openmm_pw.engine", "pdbfixer_cleaning.py"),
-    "merge": ("colabmda.openmm_pw.engine", "openmm_trajmerge.py"),
-    "analysis": ("colabmda.openmm_pw.engine", "openmm_trajanalysis.py"),
+    "clean_by_pdbid": ("colabmda.openmm.engine", "pdbfixer_cleaning.py"),
+    "merge": ("colabmda.openmm.engine", "openmm_trajmerge.py"),
+    "analysis": ("colabmda.openmm.engine", "openmm_trajanalysis.py"),
     # Bundled colab-safe workflow scripts (local pdb file cleaning + robust resume)
-    "clean_from_file": ("colabmda.openmm_pw.engine", "pdbfixer_clean_fromfile.py"),
-    "run_colab": ("colabmda.openmm_pw.engine", "openmm_proteinwater_colab.py"),
+    "clean_from_file": ("colabmda.openmm.engine", "pdbfixer_clean_fromfile.py"),
+    "run_colab": ("colabmda.openmm.engine", "openmm_proteinwater_colab.py"),
     # New Modular Workflow
-    "em": ("colabmda.openmm_pw.modular", "em.py"),
-    "nvt": ("colabmda.openmm_pw.modular", "nvt.py"),
-    "npt": ("colabmda.openmm_pw.modular", "npt.py"),
-    "check_equil": ("colabmda.openmm_pw.modular", "check_equil.py"),
-    "md": ("colabmda.openmm_pw.modular", "md.py"),
+    "em": ("colabmda.openmm.modular", "em.py"),
+    "nvt": ("colabmda.openmm.modular", "nvt.py"),
+    "npt": ("colabmda.openmm.modular", "npt.py"),
+    "qc": ("colabmda.openmm.modular", "qc.py"),
+    "check_equil": ("colabmda.openmm.modular", "qc.py"),
+    "md": ("colabmda.openmm.modular", "md.py"),
 }
 
 
@@ -53,12 +54,12 @@ def _parse_last_step_time(log_path: Path):
         last = s
     if not last:
         return None, None
-    parts = re.split(r"\s+", last)
+    parts = last.split(",") if "," in last else re.split(r"\s+", last)
     if len(parts) < 2:
         return None, None
     try:
-        step = int(float(parts[0]))
-        time_ps = float(parts[1])
+        step = int(float(parts[0].strip()))
+        time_ps = float(parts[1].strip())
         return step, time_ps
     except Exception:
         return None, None
@@ -277,14 +278,16 @@ def _sync_tree(src_dir: Path, dst_dir: Path):
     print(f"[INFO] Synced {copied} files: {src_dir} -> {dst_dir}")
 
 
-def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: str | None = None):
-    from colabmda.openmm_pw.engine.pdbfixer_cleaning import run_clean_by_pdbid
+def openmm_prep_from_pdbid(
+    pdbid: str, root_dir: str | None = None, ph: float = 7.4, sync_dir: str | None = None
+):
+    from colabmda.openmm.engine.pdbfixer_cleaning import run_clean_by_pdbid
 
     base = Path(root_dir or os.getcwd()).resolve()
     outdir = base / pdbid / "prep"
     outdir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Prep output will be written to: {outdir}")
-    run_clean_by_pdbid(pdbid, outdir=str(outdir))
+    run_clean_by_pdbid(pdbid, outdir=str(outdir), ph=ph)
     if sync_dir:
         _sync_tree(outdir, Path(sync_dir).resolve())
 
@@ -292,7 +295,7 @@ def openmm_prep_from_pdbid(pdbid: str, root_dir: str | None = None, sync_dir: st
 def openmm_prep_from_file(
     pdb_file: str, outdir: str, pdbid: str = "4ldj", ph: float = 7.0, sync_dir: str | None = None
 ):
-    from colabmda.openmm_pw.engine.pdbfixer_clean_fromfile import run_clean_from_file
+    from colabmda.openmm.engine.pdbfixer_clean_fromfile import run_clean_from_file
 
     outdir_path = Path(outdir).resolve()
     print(f"[INFO] Prep output will be written to: {outdir_path}")
@@ -309,8 +312,9 @@ def openmm_run_colab(
     equil_time: float,
     checkpoint_ps: float,
     sync_dir: str | None,
+    equil_only: bool = False,
 ):
-    from colabmda.openmm_pw.engine.openmm_proteinwater_colab import run_colab_md
+    from colabmda.openmm.engine.openmm_proteinwater_colab import run_colab_md
 
     run_colab_md(
         workdir=workdir,
@@ -320,6 +324,7 @@ def openmm_run_colab(
         equil_time=equil_time,
         checkpoint_ps=checkpoint_ps,
         sync_dir=sync_dir,
+        equil_only=equil_only,
     )
 
 
@@ -336,7 +341,7 @@ def openmm_merge(
     ca_only: bool = False,
     protein_only: bool = False,
 ):
-    from colabmda.openmm_pw.engine.openmm_trajmerge import (
+    from colabmda.openmm.engine.openmm_trajmerge import (
         merge_logs,
         merge_trajectories,
         merge_trajectories_mda,
@@ -376,7 +381,7 @@ def openmm_analysis(
     interval_ps: float | None,
     outdir: str | None,
 ):
-    from colabmda.openmm_pw.engine.openmm_trajanalysis import run_trajectory_analysis
+    from colabmda.openmm.engine.openmm_trajanalysis import run_trajectory_analysis
 
     run_trajectory_analysis(
         pdbid=pdbid_dir,
@@ -396,34 +401,77 @@ def openmm_analysis(
             print(f"[INFO] Copied equilibration QC plot to {out_path}")
 
 
-def openmm_em(workdir: str, pdbid: str):
-    from colabmda.openmm_pw.modular.em import run_em
+def openmm_em(
+    workdir: str,
+    pdbid: str,
+    ligand: str | None = None,
+    keep_mg: bool = False,
+    amber_prmtop: str | None = None,
+    amber_inpcrd: str | None = None,
+    padding_nm: float | str = "auto",
+    protein_ff: str = "ff19SB",
+    water_model: str = "opc",
+    small_molecule_ff: str = "gaff-2.11",
+):
+    from colabmda.openmm.modular.em import run_em
 
-    success = run_em(workdir, pdbid)
+    success = run_em(
+        workdir,
+        pdbid,
+        ligand=ligand,
+        keep_mg=keep_mg,
+        amber_prmtop=amber_prmtop,
+        amber_inpcrd=amber_inpcrd,
+        padding_nm=padding_nm,
+        protein_ff=protein_ff,
+        water_model=water_model,
+        small_molecule_ff=small_molecule_ff,
+    )
     if not success:
         raise SystemExit(1)
 
 
-def openmm_nvt(workdir: str, pdbid: str, equil_time: float, seed: int | None = None):
-    from colabmda.openmm_pw.modular.nvt import run_nvt
+def openmm_nvt(
+    workdir: str,
+    pdbid: str,
+    equil_time: float,
+    seed: int | None = None,
+    protocol: str = "varmdyn",
+):
+    from colabmda.openmm.modular.nvt import run_nvt
 
-    success = run_nvt(workdir, pdbid, equil_time_ps=equil_time, seed=seed)
+    success = run_nvt(workdir, pdbid, equil_time_ps=equil_time, seed=seed, protocol=protocol)
     if not success:
         raise SystemExit(1)
 
 
-def openmm_npt(workdir: str, pdbid: str, equil_time: float):
-    from colabmda.openmm_pw.modular.npt import run_npt
+def openmm_npt(
+    workdir: str,
+    pdbid: str,
+    equil_time: float,
+    seed: int | None = None,
+    protocol: str = "varmdyn",
+):
+    from colabmda.openmm.modular.npt import run_npt
 
-    success = run_npt(workdir, pdbid, equil_time_ps=equil_time)
+    success = run_npt(workdir, pdbid, equil_time_ps=equil_time, seed=seed, protocol=protocol)
     if not success:
         raise SystemExit(1)
 
 
-def openmm_check_equil(workdir: str):
-    from colabmda.openmm_pw.modular.check_equil import analyze_logs
+def openmm_qc(workdir: str, strict: bool = True):
+    from colabmda.openmm.modular.qc import analyze_logs
 
-    analyze_logs(workdir)
+    passed = analyze_logs(workdir)
+    if strict and not passed:
+        raise SystemExit(
+            "Equilibration QC failed; inspect equilibration_qc.json/PNG before production"
+        )
+    return passed
+
+
+openmm_check_equil = openmm_qc
+
 
 
 def openmm_md(
@@ -433,8 +481,9 @@ def openmm_md(
     traj_interval: float,
     checkpoint_ps: float,
     sync_dir: str | None = None,
+    seed: int | None = None,
 ):
-    from colabmda.openmm_pw.modular.md import run_md
+    from colabmda.openmm.modular.md import run_md
 
     success = run_md(
         workdir=workdir,
@@ -443,6 +492,7 @@ def openmm_md(
         traj_interval_ps=traj_interval,
         checkpoint_ps=checkpoint_ps,
         sync_dir=sync_dir,
+        seed=seed,
     )
     if not success:
         raise SystemExit(1)
@@ -455,7 +505,13 @@ def openmm_compare(series_list, outdir):
     outpath = Path(outdir)
     outpath.mkdir(parents=True, exist_ok=True)
 
-    plt.style.use("seaborn-v0_8-muted")
+    try:
+        plt.style.use("seaborn-v0_8-muted")
+    except Exception:
+        try:
+            plt.style.use("seaborn-muted")
+        except Exception:
+            plt.style.use("ggplot")
     plt.rcParams.update({"font.size": 12, "axes.grid": True, "grid.alpha": 0.3})
 
     metrics = {
@@ -624,7 +680,7 @@ zoom kras and polymer, buffer=4
 
 def openmm_snapshots(
     config_path: str | None = None,
-    output: str = "manuscript/figures/master_3x8_snapshots.png",
+    output: str = "data/analysis/snapshots/master_3x8_snapshots.png",
     temp_dir: str = "scratch/master_grid_3x8",
     font_path: str | None = None,
 ):

@@ -6,6 +6,10 @@ ColabMDA Documentation
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Google Colab Workflow
 
-
+   installation
+   simulation_protocol
+   protein_water_simulation
+   protein_ligand_simulation
+   pymol_visualization

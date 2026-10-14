@@ -14,6 +14,9 @@ import glob
 import os
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")  # Use non-interactive backend; safe in both script and Colab kernel contexts
 import matplotlib.pyplot as plt
 import MDAnalysis as mda
 import mdtraj as md
@@ -43,7 +46,7 @@ def _infer_interval(sim_dir, n_frames):
                 except Exception:
                     continue
         if len(times) >= 2:
-            return (times[-1] - times[0]) / max(1, n_frames - 1)
+            return (times[-1] - times[0]) / max(1, n_frames)
     return None
 
 

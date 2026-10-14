@@ -4,9 +4,10 @@ channels:
   - salilab  # For modeller
 dependencies:
   - python=3.10
-  - openmm
-  - openmmtools
+  - openmm>=8.5
   - pdbfixer
+  - pdb2pqr
+  - propka
   - mdanalysis
   - mdtraj
   - numpy
@@ -15,6 +16,9 @@ dependencies:
   - pandas
   - scipy
   - modeller
+  - rdkit
+  - meeko
+  - vina
   - pip
   - pip:
     - -e .
