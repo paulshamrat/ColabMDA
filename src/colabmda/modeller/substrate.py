@@ -540,37 +540,124 @@ def dock_substrate_peptide(
 
     tmpl_acceptor_idx = [num for _, num in tmpl_residues].index(tmpl_acceptor_num)
 
+    # Extract and transform all residues present in template
+    known_coords: dict[int, dict[str, np.ndarray]] = {}
+    for i in range(len(peptide_seq)):
+        ref_idx = tmpl_acceptor_idx + (i - acceptor_idx)
+        if 0 <= ref_idx < len(tmpl_residues):
+            ref_tmpl_resnum = tmpl_residues[ref_idx][1]
+            tmpl_res_atoms = parse_pdb_atoms(tmpl_path, chain=sub_chain, res_num=ref_tmpl_resnum)
+            if tmpl_res_atoms and "CA" in tmpl_res_atoms:
+                known_coords[i] = {
+                    atom: coord @ atp_rot + atp_trans for atom, coord in tmpl_res_atoms.items()
+                }
+
+    if not known_coords:
+        raise ValueError("No template substrate residues could be mapped")
+
+    # Extend missing C-terminal residues along backbone trajectory
+    for i in range(len(peptide_seq)):
+        if i in known_coords:
+            continue
+        if i > max(known_coords.keys()):
+            last_i = i - 1
+            prev_i = i - 2 if (i - 2) in known_coords else last_i
+            last_res = known_coords[last_i]
+            prev_res = known_coords[prev_i]
+
+            if "CA" in last_res and "CA" in prev_res and last_i != prev_i:
+                u = last_res["CA"] - prev_res["CA"]
+                norm = np.linalg.norm(u)
+                u = u / norm if norm > 1e-4 else np.array([1.0, 0.0, 0.0])
+            elif "C" in last_res and "CA" in last_res:
+                u = last_res["C"] - last_res["CA"]
+                norm = np.linalg.norm(u)
+                u = u / norm if norm > 1e-4 else np.array([1.0, 0.0, 0.0])
+            else:
+                u = np.array([1.0, 0.0, 0.0])
+
+            up = np.cross(u, np.array([0.0, 0.0, 1.0]))
+            if np.linalg.norm(up) < 0.1:
+                up = np.cross(u, np.array([0.0, 1.0, 0.0]))
+            up = up / np.linalg.norm(up)
+
+            last_c = last_res.get("C", last_res["CA"] + 1.52 * u)
+            n_pos = last_c + 1.33 * u
+            ca_pos = n_pos + 1.46 * u
+            c_pos = ca_pos + 1.52 * u
+            o_pos = c_pos + 1.23 * up
+            cb_pos = ca_pos - 1.53 * up
+
+            known_coords[i] = {
+                "N": n_pos,
+                "CA": ca_pos,
+                "C": c_pos,
+                "O": o_pos,
+                "CB": cb_pos,
+            }
+
+    # Extend missing N-terminal residues in reverse
+    for i in range(len(peptide_seq) - 1, -1, -1):
+        if i in known_coords:
+            continue
+        if i < min(known_coords.keys()):
+            next_i = i + 1
+            next2_i = i + 2 if (i + 2) in known_coords else next_i
+            next_res = known_coords[next_i]
+            next2_res = known_coords[next2_i]
+
+            if "CA" in next_res and "CA" in next2_res and next_i != next2_i:
+                u = next2_res["CA"] - next_res["CA"]
+                norm = np.linalg.norm(u)
+                u = u / norm if norm > 1e-4 else np.array([1.0, 0.0, 0.0])
+            else:
+                u = np.array([1.0, 0.0, 0.0])
+
+            up = np.cross(u, np.array([0.0, 0.0, 1.0]))
+            if np.linalg.norm(up) < 0.1:
+                up = np.cross(u, np.array([0.0, 1.0, 0.0]))
+            up = up / np.linalg.norm(up)
+
+            next_n = next_res.get("N", next_res["CA"] - 1.46 * u)
+            c_pos = next_n - 1.33 * u
+            ca_pos = c_pos - 1.52 * u
+            n_pos = ca_pos - 1.46 * u
+            o_pos = c_pos + 1.23 * up
+            cb_pos = ca_pos - 1.53 * up
+
+            known_coords[i] = {
+                "N": n_pos,
+                "CA": ca_pos,
+                "C": c_pos,
+                "O": o_pos,
+                "CB": cb_pos,
+            }
+
     peptide_records = []
     serial = 80000
 
     for i, aa in enumerate(peptide_seq):
         res_3 = AA1_TO_3.get(aa, "ALA")
         target_resnum = start_res + i
+        res_atoms = known_coords[i]
 
-        ref_idx = tmpl_acceptor_idx + (i - acceptor_idx)
-        if 0 <= ref_idx < len(tmpl_residues):
-            ref_tmpl_resnum = tmpl_residues[ref_idx][1]
-        else:
-            ref_tmpl_resnum = tmpl_acceptor_num
-
-        tmpl_res_atoms = parse_pdb_atoms(tmpl_path, chain=sub_chain, res_num=ref_tmpl_resnum)
-        if not tmpl_res_atoms:
-            tmpl_res_atoms = parse_pdb_atoms(tmpl_path, chain=sub_chain, res_num=tmpl_acceptor_num)
-
-        allowed_atoms = {"N", "CA", "C", "O"}
+        allowed_atoms = ["N", "CA", "C", "O"]
         if aa != "G":
-            allowed_atoms.add("CB")
+            allowed_atoms.append("CB")
         if i == acceptor_idx:
-            allowed_atoms.add("OG" if aa == "S" else "OG1")
+            og_name = "OG" if aa == "S" else "OG1"
+            allowed_atoms.append(og_name)
+            if og_name not in res_atoms and "CB" in res_atoms:
+                res_atoms[og_name] = res_atoms["CB"] + np.array([0.0, 1.43, 0.0])
 
-        for atom_name, coord in tmpl_res_atoms.items():
-            if atom_name not in allowed_atoms:
+        for atom_name in allowed_atoms:
+            if atom_name not in res_atoms:
                 continue
-            final_coord = coord @ atp_rot + atp_trans
+            coord = res_atoms[atom_name]
             elem = atom_name[:1]
             rec = (
                 f"ATOM  {serial:5d} {atom_name:>4s} {res_3} {chain_id}{target_resnum:4d}    "
-                f"{final_coord[0]:8.3f}{final_coord[1]:8.3f}{final_coord[2]:8.3f}  1.00  0.00          {elem:>2s}\n"
+                f"{coord[0]:8.3f}{coord[1]:8.3f}{coord[2]:8.3f}  1.00  0.00          {elem:>2s}\n"
             )
             peptide_records.append(rec)
             serial += 1
