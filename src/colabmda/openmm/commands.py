@@ -473,7 +473,6 @@ def openmm_qc(workdir: str, strict: bool = True):
 openmm_check_equil = openmm_qc
 
 
-
 def openmm_md(
     workdir: str,
     pdbid: str,

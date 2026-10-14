@@ -171,7 +171,9 @@ def main():
     )
     p_run.add_argument("--checkpoint-ps", type=float, default=1000.0, help="ps per chunk")
     p_run.add_argument("--sync-dir", default=None, help="Optional: sync outputs to this directory")
-    p_run.add_argument("--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2, r3)")
+    p_run.add_argument(
+        "--replica", default=None, help="Optional: replica subfolder (e.g. r1, r2, r3)"
+    )
     p_run.add_argument("--ligand", default=None, help="Optional: Path to ligand SDF/MOL2 file")
     p_run.add_argument(
         "--small-molecule-ff",
@@ -273,7 +275,11 @@ def main():
     g.add_argument("--pdb-id", help="Use ./<pdb-id> as simulation directory")
     g.add_argument("--pdb-dir", help="Simulation directory (e.g. 4ldj_wt)")
     g.add_argument("--name", help="Simulation system name (e.g. 4ldj_wt)")
-    p_ana.add_argument("--replica", default=None, help="Replica subfolder (default: all replicas if present, or r1)")
+    p_ana.add_argument(
+        "--replica",
+        default=None,
+        help="Replica subfolder (default: all replicas if present, or r1)",
+    )
     p_ana.add_argument("--topology", default=None)
     p_ana.add_argument("--trajectory", default=None)
     p_ana.add_argument(
@@ -359,11 +365,15 @@ def main():
         "stage", help="Stage a WT/mutant structure into simulations/<name>"
     )
     p_stage.add_argument(
-        "--pdb-file", required=True, help="Input structure PDB file (typically from data/structure/)"
+        "--pdb-file",
+        required=True,
+        help="Input structure PDB file (typically from data/structure/)",
     )
     p_stage.add_argument("--name", required=True, help="Simulation name (e.g. 4ldj_wt, 4ldj_G12C)")
     p_stage.add_argument(
-        "--replica", default=None, help="Optional: create nested replica subfolder (e.g. r1, r2, r3)"
+        "--replica",
+        default=None,
+        help="Optional: create nested replica subfolder (e.g. r1, r2, r3)",
     )
     p_stage.add_argument("--ph", type=float, default=7.4, help="Hydrogen pH (default: 7.4)")
     p_stage.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
@@ -406,7 +416,9 @@ def main():
     p_npt.add_argument("--workdir", default=None)
     p_npt.add_argument("--root", "--project", dest="root", default=None)
 
-    p_qc = sub_openmm.add_parser("qc", aliases=["check-equil"], help="Modular: Stability Check & QC Plots")
+    p_qc = sub_openmm.add_parser(
+        "qc", aliases=["check-equil"], help="Modular: Stability Check & QC Plots"
+    )
     p_qc.add_argument("--name", required=True)
     p_qc.add_argument("--workdir", default=None)
     p_qc.add_argument("--root", "--project", dest="root", default=None)
@@ -481,7 +493,9 @@ def main():
                 root = _resolve_root(args.drive, args.root)
                 if root:
                     _ensure_dir(root)
-                openmm_prep_from_pdbid(args.pdb_id, root_dir=root, ph=args.ph, sync_dir=args.sync_dir)
+                openmm_prep_from_pdbid(
+                    args.pdb_id, root_dir=root, ph=args.ph, sync_dir=args.sync_dir
+                )
             else:
                 name = args.name or Path(args.pdb_file).stem
                 root = _resolve_root(args.drive, args.root)
@@ -533,7 +547,9 @@ def main():
             if target_clean.exists():
                 shutil.copy2(target_clean, eq_dir / f"{name}_cleaned.pdb")
             if (sim_dir / "protonation_summary.json").exists():
-                shutil.copy2(sim_dir / "protonation_summary.json", eq_dir / "protonation_summary.json")
+                shutil.copy2(
+                    sim_dir / "protonation_summary.json", eq_dir / "protonation_summary.json"
+                )
 
             if args.replica:
                 rep_dir = sim_dir / args.replica
@@ -541,7 +557,9 @@ def main():
                 if target_clean.exists():
                     shutil.copy2(target_clean, rep_dir / f"{name}_cleaned.pdb")
                 if (sim_dir / "protonation_summary.json").exists():
-                    shutil.copy2(sim_dir / "protonation_summary.json", rep_dir / "protonation_summary.json")
+                    shutil.copy2(
+                        sim_dir / "protonation_summary.json", rep_dir / "protonation_summary.json"
+                    )
 
             print(f"[INFO] Staged simulation folder: {sim_dir}")
 
@@ -652,7 +670,9 @@ def main():
                     workdir_path.parent / "eq" / f"{name}_cleaned.pdb",
                     workdir_path.parent / "equil" / f"{name}_cleaned.pdb",
                 ]
-                glob_cands = list(workdir_path.glob("*/*_cleaned.pdb")) + list(workdir_path.glob("*_cleaned.pdb"))
+                glob_cands = list(workdir_path.glob("*/*_cleaned.pdb")) + list(
+                    workdir_path.glob("*_cleaned.pdb")
+                )
                 str_cands = (
                     list(Path.cwd().glob(f"data/structure/**/{name}*/*_cleaned.pdb"))
                     + list(Path.cwd().glob(f"data/structures/**/{name}*/*_cleaned.pdb"))
@@ -689,6 +709,7 @@ def main():
 
             # MODULAR RUN: EM -> NVT -> NPT -> Check -> MD
             from colabmda.openmm.modular.utils import derive_replica_seed
+
             replica_seed = derive_replica_seed(args.seed, args.replica)
 
             # Skip equilibration for non-r1 replicas (e.g. r2, r3) as they inherit from r1/parent
@@ -723,7 +744,9 @@ def main():
                 openmm_check_equil(workdir_str, strict=equil_protocol == "varmdyn")
 
             if getattr(args, "equil_only", False):
-                print("✔ Shared equilibration complete. Stopping before production MD as requested by --equil-only.")
+                print(
+                    "✔ Shared equilibration complete. Stopping before production MD as requested by --equil-only."
+                )
                 return
 
             openmm_md(
@@ -789,7 +812,9 @@ def main():
             replica = getattr(args, "replica", None)
             if name:
                 sim_base = _simulation_workdir(root or ".", name)
-                sim_dir = str((sim_base / replica).resolve()) if replica else str(sim_base.resolve())
+                sim_dir = (
+                    str((sim_base / replica).resolve()) if replica else str(sim_base.resolve())
+                )
                 if args.outdir:
                     out_base = Path(args.outdir)
                 elif root:
@@ -822,7 +847,11 @@ def main():
                     sim_dir = str((Path(root) / pdb_path).resolve())
                 else:
                     sim_dir = args.pdb_dir
-                parent_name = Path(sim_dir).parent.name if Path(sim_dir).name.startswith("r") else Path(sim_dir).name
+                parent_name = (
+                    Path(sim_dir).parent.name
+                    if Path(sim_dir).name.startswith("r")
+                    else Path(sim_dir).name
+                )
                 if args.outdir:
                     out_base = Path(args.outdir)
                 elif root:

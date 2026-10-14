@@ -154,6 +154,7 @@ def run_em(
         parent_candidate = os.path.join(os.path.dirname(workdir), f"{pdbid}_cleaned.pdb")
         if os.path.exists(parent_candidate):
             import shutil
+
             shutil.copy2(parent_candidate, cleaned_pdb)
         else:
             print(f"Error: cleaned PDB not found: {cleaned_pdb}")
@@ -331,16 +332,14 @@ def run_em(
                         candidate_paths.append(
                             str(root_dir / str_folder / base_pdb / f"{base_pdb}.pdb")
                         )
-                        candidate_paths.append(
-                            str(root_dir / str_folder / f"{base_pdb}_orig.pdb")
-                        )
-                        candidate_paths.append(
-                            str(root_dir / str_folder / f"{base_pdb}.pdb")
-                        )
+                        candidate_paths.append(str(root_dir / str_folder / f"{base_pdb}_orig.pdb"))
+                        candidate_paths.append(str(root_dir / str_folder / f"{base_pdb}.pdb"))
 
                 # Also check local CWD-relative structure and structures folders
                 for str_folder in ["data/structure", "data/str", "structure", "structures", "str"]:
-                    candidate_paths.append(str(pathlib_Path(str_folder) / base_pdb / f"{base_pdb}_orig.pdb"))
+                    candidate_paths.append(
+                        str(pathlib_Path(str_folder) / base_pdb / f"{base_pdb}_orig.pdb")
+                    )
                     candidate_paths.append(str(pathlib_Path(str_folder) / f"{base_pdb}_orig.pdb"))
 
                 found_raw = None
