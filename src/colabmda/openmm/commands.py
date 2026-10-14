@@ -461,10 +461,10 @@ def openmm_npt(
         raise SystemExit(1)
 
 
-def openmm_qc(workdir: str, strict: bool = True):
+def openmm_qc(workdir: str, strict: bool = True, protocol: str | None = None):
     from colabmda.openmm.modular.qc import analyze_logs
 
-    passed = analyze_logs(workdir)
+    passed = analyze_logs(workdir, strict=strict, protocol=protocol)
     if strict and not passed:
         raise SystemExit(
             "Equilibration QC failed; inspect equilibration_qc.json/PNG before production"

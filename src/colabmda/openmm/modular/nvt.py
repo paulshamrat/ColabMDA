@@ -79,27 +79,31 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         (50 if protocol == "varmdyn" else 300) * unit.kelvin, seed
     )
 
+    test_mode = os.environ.get("COLABMDA_TEST_1_24", "").strip() in {"1", "true", "True"}
+
     if protocol == "varmdyn":
+        init_min_iter = 10 if test_mode else 5000
         for label, weight in [("01", 100), ("02", 50), ("03", 25)]:
             print(f"  • Stage {label}: restrained minimization, k={weight} kcal/mol/Å²")
             set_restraint_strength(sim.context, restraint_parameter, weight)
-            sim.minimizeEnergy(maxIterations=5000)
+            sim.minimizeEnergy(maxIterations=init_min_iter)
             save_stage_artifacts(
                 sim, workdir, label, f"restrained minimization; k={weight} kcal/mol/A^2"
             )
+        heat_steps = 10 if test_mode else 10000
         for index, temperature in enumerate((50, 100, 150, 200, 250, 300), start=4):
             print(f"  • Stage {index:02d}: NVT heating, 10 ps at {temperature} K, 1 fs")
             sim.integrator.setTemperature(temperature * unit.kelvin)
-            sim.step(10000)
+            sim.step(heat_steps)
             save_stage_artifacts(
                 sim, workdir, index, f"NVT heating; 10 ps; {temperature} K; 1 fs; k=25"
             )
         for label, weight, iterations in [
-            ("10", 25, 5000),
-            ("11", 10, 1000),
-            ("12", 5, 1000),
-            ("13", 2, 1000),
-            ("14", 1, 1000),
+            ("10", 25, 10 if test_mode else 5000),
+            ("11", 10, 10 if test_mode else 1000),
+            ("12", 5, 10 if test_mode else 1000),
+            ("13", 2, 10 if test_mode else 1000),
+            ("14", 1, 10 if test_mode else 1000),
         ]:
             print(f"  • Stage {label}: restrained minimization, k={weight} kcal/mol/Å²")
             set_restraint_strength(sim.context, restraint_parameter, weight)
@@ -113,13 +117,14 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         sim = make_sim(pdb.topology, system_2fs, 2.0 * unit.femtoseconds, seed=offset_seed(seed))
         load_stage_state(sim, "nvt_heating.state.xml")
         restraint_parameter = "nvt_restraint_k"
-        eq_steps = 50000
+        eq_steps = 10 if test_mode else 50000
     else:
         eq_steps = max(1, int((equil_time_ps * unit.picoseconds) / dt))
+    report_interval = 2 if test_mode else max(1, eq_steps // 50)
     sim.reporters.append(
         StateDataReporter(
             log_file,
-            max(1, eq_steps // 50),
+            report_interval,
             step=True,
             time=True,
             temperature=True,

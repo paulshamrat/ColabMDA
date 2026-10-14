@@ -18,7 +18,7 @@ def parse_em_log(workdir):
     return "Minimized" if os.path.exists(os.path.join(workdir, "em.chk")) else "Failed"
 
 
-def analyze_logs(workdir, strict=False):
+def analyze_logs(workdir, strict=False, protocol=None):
     workdir = os.path.abspath(workdir)
     old_cwd = os.getcwd()
     try:
@@ -33,6 +33,8 @@ def analyze_logs(workdir, strict=False):
         last_20_pct_nvt = max(2 if len(df_nvt) >= 2 else 1, int(len(df_nvt) * 0.2))
         avg_temp = df_nvt["Temperature (K)"].tail(last_20_pct_nvt).mean()
         std_temp = df_nvt["Temperature (K)"].tail(last_20_pct_nvt).std()
+        if pd.isna(std_temp):
+            std_temp = 0.0
 
         # Process NPT
         df_npt = pd.read_csv(npt_log)
@@ -44,6 +46,32 @@ def analyze_logs(workdir, strict=False):
             slope, _, _, _, _ = linregress(subset["Time (ps)"], subset["Density (g/mL)"])
         else:
             slope = 0.0 if len(subset) == 1 else math.nan
+
+        # Detect protocol
+        effective_protocol = protocol
+        if effective_protocol is None:
+            for proto_candidate in ["npt_protocol.json", "nvt_protocol.json"]:
+                if os.path.exists(proto_candidate):
+                    try:
+                        with open(proto_candidate) as pf:
+                            effective_protocol = json.load(pf).get("protocol")
+                        if effective_protocol:
+                            break
+                    except Exception:
+                        pass
+
+        # Check 1-24 stages if varmdyn
+        varmdyn_stages_found = []
+        varmdyn_stages_missing = []
+        if effective_protocol == "varmdyn":
+            eq_dir = os.path.join(workdir, "equilibration")
+            for st in range(1, 25):
+                st_json = os.path.join(eq_dir, f"stage_{st:02d}.json")
+                st_xml = os.path.join(eq_dir, f"stage_{st:02d}.state.xml")
+                if os.path.exists(st_json) and os.path.exists(st_xml):
+                    varmdyn_stages_found.append(st)
+                else:
+                    varmdyn_stages_missing.append(st)
 
         # Plotting
         fig, axes = plt.subplots(3, 2, figsize=(12, 15))
@@ -78,9 +106,17 @@ def analyze_logs(workdir, strict=False):
 
         # 6. Status Info Text
         axes[2, 1].axis("off")
+        proto_line = f"Protocol    : {effective_protocol}\n" if effective_protocol else ""
+        varmdyn_line = (
+            f"VarMDyn 1-24: {len(varmdyn_stages_found)}/24 stages\n"
+            if effective_protocol == "varmdyn"
+            else ""
+        )
         status_text = (
             f"EQUILIBRATION SUMMARY\n"
             f"---------------------\n"
+            f"{proto_line}"
+            f"{varmdyn_line}"
             f"EM Status   : {parse_em_log(workdir)}\n"
             f"NVT Temp    : {avg_temp:.2f} K (±{std_temp:.2f})\n"
             f"NPT Density : {avg_dens:.4f} g/mL\n"
@@ -111,19 +147,36 @@ def analyze_logs(workdir, strict=False):
             passed = False
             reasons.append("absolute final density slope exceeds 1e-4 g/mL/ps")
 
+        if effective_protocol == "varmdyn":
+            if varmdyn_stages_missing:
+                print(
+                    f"⚠ WARNING: Missing {len(varmdyn_stages_missing)}/24 VarMDyn stages: {varmdyn_stages_missing}"
+                )
+                passed = False
+                reasons.append(
+                    f"missing {len(varmdyn_stages_missing)}/24 VarMDyn stages: {varmdyn_stages_missing}"
+                )
+            else:
+                print("  • Verified all 24/24 VarMDyn equilibration stages")
+
+        qc_data = {
+            "passed": passed,
+            "protocol": effective_protocol,
+            "temperature_mean_k": float(avg_temp),
+            "temperature_std_k": float(std_temp),
+            "density_mean_g_ml": float(avg_dens),
+            "density_slope_g_ml_ps": float(slope),
+            "reasons": reasons,
+        }
+        if effective_protocol == "varmdyn":
+            qc_data["varmdyn_stages_total"] = 24
+            qc_data["varmdyn_stages_verified"] = len(varmdyn_stages_found)
+            qc_data["varmdyn_stages_complete"] = len(varmdyn_stages_missing) == 0
+            if varmdyn_stages_missing:
+                qc_data["varmdyn_missing_stages"] = varmdyn_stages_missing
+
         with open("equilibration_qc.json", "w") as handle:
-            json.dump(
-                {
-                    "passed": passed,
-                    "temperature_mean_k": float(avg_temp),
-                    "temperature_std_k": float(std_temp),
-                    "density_mean_g_ml": float(avg_dens),
-                    "density_slope_g_ml_ps": float(slope),
-                    "reasons": reasons,
-                },
-                handle,
-                indent=2,
-            )
+            json.dump(qc_data, handle, indent=2)
             handle.write("\n")
 
         return passed
@@ -134,6 +187,8 @@ def analyze_logs(workdir, strict=False):
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("workdir")
+    p.add_argument("--protocol", default=None)
+    p.add_argument("--strict", action="store_true")
     args = p.parse_args()
-    if not analyze_logs(args.workdir):
+    if not analyze_logs(args.workdir, strict=args.strict, protocol=args.protocol):
         raise SystemExit(1)

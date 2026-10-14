@@ -63,13 +63,17 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     sim = make_sim(pdb.topology, system, dt, seed=seed, barostat_seed=offset_seed(seed))
     load_stage_state(sim, state_in)
 
+    test_mode = os.environ.get("COLABMDA_TEST_1_24", "").strip() in {"1", "true", "True"}
     eq_steps = (
-        50000 if protocol == "varmdyn" else max(1, int((equil_time_ps * unit.picoseconds) / dt))
+        (10 if test_mode else 50000)
+        if protocol == "varmdyn"
+        else max(1, int((equil_time_ps * unit.picoseconds) / dt))
     )
+    report_interval = 2 if test_mode else max(1, eq_steps // 50)
     sim.reporters.append(
         StateDataReporter(
             log_file,
-            max(1, eq_steps // 50),
+            report_interval,
             step=True,
             time=True,
             temperature=True,
@@ -95,7 +99,8 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         sim.step(eq_steps)
         save_stage_artifacts(sim, workdir, 23, "unrestrained NPT; 100 ps; 300 K; 1 bar; 2 fs")
         print("  • Stage 24: unrestrained NPT, 1000 ps at 300 K/1 bar")
-        sim.step(500000)
+        stage24_steps = 10 if test_mode else 500000
+        sim.step(stage24_steps)
         save_stage_artifacts(sim, workdir, 24, "unrestrained NPT; 1000 ps; 300 K; 1 bar; 2 fs")
     else:
         sim.step(eq_steps)

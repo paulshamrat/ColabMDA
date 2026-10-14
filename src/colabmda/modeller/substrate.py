@@ -420,6 +420,10 @@ def position_nucleotide(
     common_res = sorted(set(rec_ca.keys()) & set(tmpl_ca.keys()))
     if len(common_res) < 20:
         n_common = min(len(rec_ca), len(tmpl_ca), 250)
+        if n_common < 3:
+            if rec_path.resolve() != out_path.resolve():
+                shutil.copy2(rec_path, out_path)
+            return False
         source_pts = np.vstack([tmpl_ca[k] for k in sorted(tmpl_ca.keys())[:n_common]])
         target_pts = np.vstack([rec_ca[k] for k in sorted(rec_ca.keys())[:n_common]])
     else:

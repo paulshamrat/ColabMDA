@@ -258,6 +258,11 @@ cmda analyze --state "${{STATE}}" --variant "${{VARIANT}}"
 
 set -euo pipefail
 
+# Ensure execution runs from project root
+SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
+PROJECT_ROOT="$(cd "${{SCRIPT_DIR}}/.." && pwd)"
+cd "${{PROJECT_ROOT}}"
+
 # Activate environment on Palmetto
 if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
@@ -290,6 +295,11 @@ cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage em,nvt,npt,qc --p
 
 set -euo pipefail
 
+# Ensure execution runs from project root
+SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
+PROJECT_ROOT="$(cd "${{SCRIPT_DIR}}/.." && pwd)"
+cd "${{PROJECT_ROOT}}"
+
 # Activate environment on Palmetto
 if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
@@ -316,6 +326,10 @@ cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage md --replica "${{
     chain_content = """#!/usr/bin/env bash
 # Submit equilibration first, then chain production replicas as a dependency
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${PROJECT_ROOT}"
 mkdir -p logs
 
 echo "Submitting equilibration job to Palmetto..."
@@ -407,14 +421,15 @@ def _dispatch_sim(args) -> int:
                 protocol=args.protocol,
             )
         elif stage in ["qc", "check-equil"]:
-            openmm_qc(eq_dir, strict=False)
+            openmm_qc(eq_dir, strict=False, protocol=getattr(args, "protocol", None))
         elif stage == "md":
             rep_dir = str(paths.replica_dir(spec, args.replica))
             paths.replica_dir(spec, args.replica).mkdir(parents=True, exist_ok=True)
-            eq_restart = paths.eq_dir(spec) / "restart.chk"
-            rep_restart = paths.replica_dir(spec, args.replica) / "restart.chk"
-            if eq_restart.exists() and not rep_restart.exists():
-                shutil.copy2(eq_restart, rep_restart)
+            for artifact in ["npt.state.xml", "system.xml", "solvated.pdb", "restart.chk"]:
+                eq_art = paths.eq_dir(spec) / artifact
+                rep_art = paths.replica_dir(spec, args.replica) / artifact
+                if eq_art.exists() and not rep_art.exists():
+                    shutil.copy2(eq_art, rep_art)
             rep_clean = paths.replica_dir(spec, args.replica) / f"{name}_cleaned.pdb"
             if eq_clean.exists() and not rep_clean.exists():
                 shutil.copy2(eq_clean, rep_clean)

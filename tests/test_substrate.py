@@ -228,3 +228,72 @@ def test_assemble_system_model_synthetic(mock_catalytic_system, tmp_path):
     assert "ATP" in content
     assert "MG" in content
     assert " B " in content
+
+
+def test_assemble_system_model_apo_normalization(tmp_path):
+    # Starting structure has PTR171, ATP, MG, and Chain B peptide
+    lines = [
+        "ATOM      1  N   MET A   1       0.000   0.000   0.000  1.00  0.00           N\n",
+        "ATOM      2  CA  MET A   1       1.000   0.000   0.000  1.00  0.00           C\n",
+        "ATOM     11  CZ  PTR A 171       1.660   8.446   1.413  1.00  0.00           C\n",
+        "ATOM     12  OH  PTR A 171       0.702   9.116   2.067  1.00  0.00           O\n",
+        "ATOM     13  P   PTR A 171       0.000   9.000   2.000  1.00  0.00           P\n",
+        "ATOM     14  O1P PTR A 171       0.100   9.100   2.100  1.00  0.00           O\n",
+        "HETATM 2974  PG  ATP A 300     -23.284  -1.633  18.344  1.00  6.41           P\n",
+        "HETATM 2975  MG   MG A 301     -22.000  -4.000  19.000  1.00  4.80          MG\n",
+        "ATOM   3000  N   LYS B 219     -20.000   1.000  15.000  1.00  5.00           N\n",
+        "ATOM   3001  CA  LYS B 219     -21.000   1.200  15.500  1.00  5.00           C\n",
+        "TER\n",
+        "END\n",
+    ]
+    inp_pdb = tmp_path / "complex_input.pdb"
+    inp_pdb.write_text("".join(lines))
+
+    out_pdb = tmp_path / "apo_output.pdb"
+    spec = SystemSpec.from_tag("apo", variant="WT")
+    assemble_system_model(spec=spec, receptor_pdb=inp_pdb, output_pdb=out_pdb)
+
+    content = out_pdb.read_text()
+    assert "TYR A 171" in content
+    assert "PTR" not in content
+    assert "O1P" not in content
+    assert "ATP" not in content
+    assert "MG" not in content
+    assert " B " not in content
+
+
+def test_position_nucleotide(tmp_path):
+    from colabmda.modeller.substrate import position_nucleotide
+
+    # Receptor with CA atoms in 3D but NO ATP
+    rec_lines = [
+        f"ATOM  {i:5d}  CA  ALA A{i:4d}    {float(i):8.3f}{float(i*2):8.3f}{float(i%5):8.3f}  1.00  0.00           C\n"
+        for i in range(1, 30)
+    ] + ["TER\n", "END\n"]
+    rec_pdb = tmp_path / "rec_no_atp.pdb"
+    rec_pdb.write_text("".join(rec_lines))
+
+    # Template with matching CA atoms and an ATP molecule
+    tmpl_lines = [
+        f"ATOM  {i:5d}  CA  ALA A{i:4d}    {float(i):8.3f}{float(i*2):8.3f}{float(i%5):8.3f}  1.00  0.00           C\n"
+        for i in range(1, 30)
+    ] + [
+        "HETATM 2974  PG  ATP A 300     -23.284  -1.633  18.344  1.00  6.41           P\n",
+        "HETATM 2975  O1G ATP A 300     -23.539  -0.309  19.041  1.00  7.63           O\n",
+        "TER\n",
+        "END\n",
+    ]
+    tmpl_pdb = tmp_path / "tmpl_with_atp.pdb"
+    tmpl_pdb.write_text("".join(tmpl_lines))
+
+    out_pdb = tmp_path / "rec_with_placed_atp.pdb"
+    success = position_nucleotide(
+        receptor_pdb=rec_pdb,
+        output_pdb=out_pdb,
+        template_pdb=tmpl_pdb,
+        ligand_name="ATP",
+    )
+    assert success is True
+    content = out_pdb.read_text()
+    assert "ATP" in content
+    assert "PG" in content

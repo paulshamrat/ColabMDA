@@ -160,10 +160,22 @@ def test_top_level_stage_command(tmp_path):
     # Verify decoupled scripts
     run_sh = tmp_path / "scripts" / "run.sh"
     submit_slurm = tmp_path / "scripts" / "submit.slurm"
+    submit_eq = tmp_path / "scripts" / "submit_eq.slurm"
+    submit_prod = tmp_path / "scripts" / "submit_prod.slurm"
+    submit_chain = tmp_path / "scripts" / "submit_chain.sh"
+
     assert run_sh.exists()
     assert submit_slurm.exists()
+    assert submit_eq.exists()
+    assert submit_prod.exists()
+    assert submit_chain.exists()
+
     assert "#SBATCH --array=1-3" in submit_slurm.read_text()
     assert "cmda sim" in run_sh.read_text()
+    assert "--protocol varmdyn" in submit_eq.read_text()
+    assert "PROJECT_ROOT" in submit_eq.read_text()
+    assert "PROJECT_ROOT" in submit_prod.read_text()
+    assert "--dependency=afterok:" in submit_chain.read_text()
 
 
 def test_top_level_subcommands_help():
