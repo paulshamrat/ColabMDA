@@ -343,14 +343,17 @@ def _dispatch_sim(args) -> int:
                 shutil.copy2(eq_clean, rep_clean)
 
             total_ns = args.total_ns
+            traj_interval = 10.0
             if args.steps is not None:
                 total_ns = (args.steps * 0.002) / 1000.0
+                total_ps = total_ns * 1000.0
+                traj_interval = min(10.0, max(0.002, total_ps / 5.0))
 
             openmm_md(
                 rep_dir,
                 name,
                 total_ns=total_ns,
-                traj_interval=10.0,
+                traj_interval=traj_interval,
                 checkpoint_ps=1000.0,
             )
     return 0
@@ -370,11 +373,11 @@ def _dispatch_merge(args) -> int:
     for rep in replicas:
         rep_dir = paths.replica_dir(spec, rep)
         prmtop = paths.prepared_prmtop(spec)
-        dcd_candidates = sorted(rep_dir.glob("prod_*.dcd"))
+        dcd_candidates = [f for f in sorted(rep_dir.glob("prod_*.dcd")) if f.stat().st_size > 0]
         if not dcd_candidates:
-            dcd_candidates = sorted(rep_dir.glob("*.dcd"))
+            dcd_candidates = [f for f in sorted(rep_dir.glob("*.dcd")) if f.stat().st_size > 0]
         if not dcd_candidates:
-            print(f"[INFO] No DCD trajectories found in {rep_dir}")
+            print(f"[INFO] No non-empty DCD trajectories found in {rep_dir}")
             continue
 
         out_traj = rep_dir / "prod_keep_ligand.dcd"
