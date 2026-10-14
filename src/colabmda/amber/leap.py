@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 from importlib import resources
 from pathlib import Path
 
@@ -150,6 +152,16 @@ def run_tleap(
     workdir.mkdir(parents=True, exist_ok=True)
 
     exe = tleap_binary or shutil.which("tleap")
+    if not exe:
+        py_tleap = Path(sys.executable).parent / "tleap"
+        if py_tleap.exists():
+            exe = str(py_tleap)
+    if not exe:
+        for env_key in ["AMBERHOME", "AMBER_HOME"]:
+            val = os.environ.get(env_key)
+            if val and (Path(val) / "bin" / "tleap").exists():
+                exe = str(Path(val) / "bin" / "tleap")
+                break
     if not exe:
         raise RuntimeError("tleap executable not found in PATH or environment.")
 

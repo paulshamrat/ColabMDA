@@ -36,7 +36,30 @@ AA3_TO_1 = {
     "TPO": "T",
 }
 
-AA1_TO_3 = {v: k for k, v in AA3_TO_1.items() if len(k) == 3}
+CANONICAL_AA1_TO_3 = {
+    "A": "ALA",
+    "C": "CYS",
+    "D": "ASP",
+    "E": "GLU",
+    "F": "PHE",
+    "G": "GLY",
+    "H": "HIS",
+    "I": "ILE",
+    "K": "LYS",
+    "L": "LEU",
+    "M": "MET",
+    "N": "ASN",
+    "P": "PRO",
+    "Q": "GLN",
+    "R": "ARG",
+    "S": "SER",
+    "T": "THR",
+    "V": "VAL",
+    "W": "TRP",
+    "Y": "TYR",
+}
+
+AA1_TO_3 = CANONICAL_AA1_TO_3
 
 RCSB_DOWNLOAD_URL = "https://files.rcsb.org/download/{pdb_id}.pdb"
 
@@ -534,7 +557,9 @@ def dock_substrate_peptide(
         if not tmpl_res_atoms:
             tmpl_res_atoms = parse_pdb_atoms(tmpl_path, chain=sub_chain, res_num=tmpl_acceptor_num)
 
-        allowed_atoms = {"N", "CA", "C", "O", "CB"}
+        allowed_atoms = {"N", "CA", "C", "O"}
+        if aa != "G":
+            allowed_atoms.add("CB")
         if i == acceptor_idx:
             allowed_atoms.add("OG" if aa == "S" else "OG1")
 
@@ -646,6 +671,19 @@ def assemble_system_model(
 
     # Step 3: Divalent catalytic ions
     if spec.ions and template_pdb:
+        # Strip preexisting ions from receptor to prevent Coulombic clashes
+        stripped_pdb = w_dir / "step_strip_ions.pdb"
+        clean_lines = []
+        with open(current_pdb) as f:
+            for line in f:
+                if line.startswith(("ATOM  ", "HETATM")):
+                    resname = line[17:20].strip()
+                    if resname in {"MG", "MN", "CA", "ZN"}:
+                        continue
+                clean_lines.append(line)
+        stripped_pdb.write_text("".join(clean_lines))
+        current_pdb = stripped_pdb
+
         total_ions = 0
         primary_ion = "MG"
         for ion_name, count in spec.ions.items():

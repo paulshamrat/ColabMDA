@@ -310,25 +310,25 @@ def _dispatch_sim(args) -> int:
         print(f"\n[SIM] Executing stage: {stage.upper()} for {spec.state_tag}/{spec.variant}")
         if stage == "em":
             openmm_em(
-                workdir=eq_dir,
-                name=name,
+                eq_dir,
+                name,
                 amber_prmtop=prmtop,
                 amber_inpcrd=inpcrd,
             )
         elif stage == "nvt":
             openmm_nvt(
-                workdir=eq_dir,
-                name=name,
-                equil_time_ps=args.equil_time,
+                eq_dir,
+                name,
+                equil_time=args.equil_time,
             )
         elif stage == "npt":
             openmm_npt(
-                workdir=eq_dir,
-                name=name,
-                equil_time_ps=args.equil_time,
+                eq_dir,
+                name,
+                equil_time=args.equil_time,
             )
         elif stage in ["qc", "check-equil"]:
-            openmm_qc(workdir=eq_dir, strict=False)
+            openmm_qc(eq_dir, strict=False)
         elif stage == "md":
             rep_dir = str(paths.replica_dir(spec, args.replica))
             paths.replica_dir(spec, args.replica).mkdir(parents=True, exist_ok=True)
@@ -345,9 +345,11 @@ def _dispatch_sim(args) -> int:
                 total_ns = (args.steps * 0.002) / 1000.0
 
             openmm_md(
-                workdir=rep_dir,
-                name=name,
+                rep_dir,
+                name,
                 total_ns=total_ns,
+                traj_interval=10.0,
+                checkpoint_ps=1000.0,
             )
     return 0
 
