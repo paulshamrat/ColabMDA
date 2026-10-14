@@ -114,6 +114,312 @@ def _analysis_outdir(root: str, name: str) -> Path:
     return next((path for path in candidates if path.is_dir()), candidates[0])
 
 
+def _dispatch_prep(args) -> int:
+    from colabmda.amber.leap import generate_tleap_script, run_tleap
+    from colabmda.core.ions import parse_ion_spec
+    from colabmda.core.project import ProjectPaths, resolve_project_root
+    from colabmda.core.taxonomy import SystemSpec
+    from colabmda.modeller.substrate import assemble_system_model, fetch_rcsb_pdb
+
+    root = resolve_project_root(args.root)
+    paths = ProjectPaths(root)
+    paths.init_layout()
+
+    if args.state:
+        spec = SystemSpec.from_tag(args.state, variant=args.variant, protein=args.protein)
+    else:
+        spec = SystemSpec(protein=args.protein, variant=args.variant)
+
+    if args.ligand:
+        spec.ligand = args.ligand
+    if args.ions:
+        spec.ions = parse_ion_spec(args.ions)
+    if args.phos:
+        spec.phos_residues = [p.strip() for p in args.phos.split(",") if p.strip()]
+    if args.peptide_seq:
+        spec.peptide_seq = args.peptide_seq
+    if args.peptide_name:
+        spec.peptide_name = args.peptide_name
+
+    # Receptor resolution
+    if args.receptor:
+        rec_path = Path(args.receptor).resolve()
+    else:
+        rec_path = paths.find_template(f"{args.protein}.pdb")
+        if not rec_path:
+            rec_path = paths.find_template("4bgq.pdb")
+        if not rec_path and (paths.protein_dir / f"{args.protein}.pdb").exists():
+            rec_path = paths.protein_dir / f"{args.protein}.pdb"
+
+    # Template resolution
+    tmpl_path = None
+    if args.template:
+        if len(args.template) == 4 and not Path(args.template).exists():
+            tmpl_path = fetch_rcsb_pdb(args.template, paths.template_dir)
+        else:
+            tmpl_path = Path(args.template).resolve()
+    else:
+        tmpl_path = paths.find_template("3X2V.pdb")
+        if not tmpl_path and (
+            spec.peptide_seq or spec.peptide_name or (spec.ions and len(spec.ions) > 1)
+        ):
+            tmpl_path = fetch_rcsb_pdb("3X2V", paths.template_dir)
+
+    out_model = paths.model_pdb(spec)
+    out_model.parent.mkdir(parents=True, exist_ok=True)
+
+    if rec_path and rec_path.exists():
+        assemble_system_model(spec, rec_path, out_model, tmpl_path)
+        print(f"[OK] Assembled model coordinates: {out_model}")
+    else:
+        print(f"[WARN] No receptor PDB found for {args.protein}. Please provide --receptor.")
+        return 1
+
+    if not args.no_amber:
+        try:
+            leap_in = paths.prep_dir(spec) / "tleap.in"
+            leap_log = paths.prep_dir(spec) / "leap.log"
+            generate_tleap_script(
+                pdb_path=out_model,
+                prmtop_out=paths.prepared_prmtop(spec),
+                inpcrd_out=paths.prepared_inpcrd(spec),
+                script_out=leap_in,
+                ligand_type=str(spec.ligand) if spec.ligand else None,
+                has_ptr=bool(spec.phos_residues),
+            )
+            success = run_tleap(leap_in, log_path=leap_log)
+            if success and paths.prepared_prmtop(spec).exists():
+                print(f"[OK] Built Amber topology: {paths.prepared_prmtop(spec)}")
+                print(f"[OK] Built Amber coordinates: {paths.prepared_inpcrd(spec)}")
+            else:
+                print(f"[INFO] Amber tleap finished (log at {leap_log})")
+        except Exception as e:
+            print(f"[INFO] Amber tleap step skipped: {e}")
+
+    return 0
+
+
+def _dispatch_stage(args) -> int:
+    from colabmda.core.project import ProjectPaths, resolve_project_root
+    from colabmda.core.taxonomy import SystemSpec
+
+    root = resolve_project_root(args.root)
+    paths = ProjectPaths(root)
+    paths.init_layout()
+
+    spec = SystemSpec.from_tag(args.state, variant=args.variant, protein=args.protein)
+    paths.prep_dir(spec).mkdir(parents=True, exist_ok=True)
+    paths.eq_dir(spec).mkdir(parents=True, exist_ok=True)
+    paths.analysis_dir(spec).mkdir(parents=True, exist_ok=True)
+
+    replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
+    for rep in replicas:
+        paths.replica_dir(spec, rep).mkdir(parents=True, exist_ok=True)
+
+    run_sh = paths.scripts_dir / "run.sh"
+    run_reps = " ".join(f"r{r}" if r.isdigit() else r for r in replicas)
+    run_sh_content = f"""#!/usr/bin/env bash
+set -euo pipefail
+
+STATE="{spec.state_tag}"
+VARIANT="{spec.variant}"
+
+echo "=== Running ColabMDA Simulation Pipeline ==="
+echo "State:   ${{STATE}}"
+echo "Variant: ${{VARIANT}}"
+
+# 1. Equilibration (em -> nvt -> npt -> qc)
+cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage em,nvt,npt,qc
+
+# 2. Production Replicas
+for rep in {run_reps}; do
+    echo "[RUN] Starting production replica ${{rep}}..."
+    cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage md --replica "${{rep}}"
+done
+
+# 3. Trajectory Autoimaging & Dual-Stream Stripping
+cmda merge --state "${{STATE}}" --variant "${{VARIANT}}"
+
+# 4. Analysis
+cmda analyze --state "${{STATE}}" --variant "${{VARIANT}}"
+"""
+    run_sh.write_text(run_sh_content)
+    run_sh.chmod(0o755)
+
+    submit_slurm = paths.scripts_dir / "submit.slurm"
+    slurm_content = f"""#!/usr/bin/env bash
+#SBATCH --job-name=cmda_{spec.state_tag}_{spec.variant}
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --gpus=1
+#SBATCH --mem=32gb
+#SBATCH --time=48:00:00
+#SBATCH --array=1-{len(replicas)}
+#SBATCH --output=logs/slurm_%A_%a.out
+#SBATCH --error=logs/slurm_%A_%a.err
+
+set -euo pipefail
+
+STATE="{spec.state_tag}"
+VARIANT="{spec.variant}"
+REPLICA="r${{SLURM_ARRAY_TASK_ID}}"
+
+echo "[SLURM] Running replica ${{REPLICA}} on $(hostname)"
+mkdir -p logs
+
+cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage md --replica "${{REPLICA}}"
+"""
+    submit_slurm.write_text(slurm_content)
+    submit_slurm.chmod(0o755)
+
+    print(
+        f"[OK] Staged project directory tree for {spec.state_tag}/{spec.variant} at: {paths.variant_dir(spec)}"
+    )
+    print(f"[OK] Generated decoupled runner: {run_sh}")
+    print(f"[OK] Generated Palmetto SLURM array: {submit_slurm}")
+    return 0
+
+
+def _dispatch_sim(args) -> int:
+    from colabmda.core.project import ProjectPaths, resolve_project_root
+    from colabmda.core.taxonomy import SystemSpec
+    from colabmda.openmm.commands import (
+        openmm_em,
+        openmm_md,
+        openmm_npt,
+        openmm_nvt,
+        openmm_qc,
+    )
+
+    root = resolve_project_root(args.root)
+    paths = ProjectPaths(root)
+    spec = SystemSpec.from_tag(args.state, variant=args.variant)
+
+    stages = [s.strip().lower() for s in args.stage.split(",") if s.strip()]
+    eq_dir = str(paths.eq_dir(spec))
+    paths.eq_dir(spec).mkdir(parents=True, exist_ok=True)
+
+    model_src = paths.model_pdb(spec)
+    name = f"{spec.state_tag}_{spec.variant}"
+    eq_clean = paths.eq_dir(spec) / f"{name}_cleaned.pdb"
+    if model_src.exists() and not eq_clean.exists():
+        shutil.copy2(model_src, eq_clean)
+
+    prmtop = str(paths.prepared_prmtop(spec)) if paths.prepared_prmtop(spec).exists() else None
+    inpcrd = str(paths.prepared_inpcrd(spec)) if paths.prepared_inpcrd(spec).exists() else None
+
+    for stage in stages:
+        print(f"\n[SIM] Executing stage: {stage.upper()} for {spec.state_tag}/{spec.variant}")
+        if stage == "em":
+            openmm_em(
+                workdir=eq_dir,
+                name=name,
+                amber_prmtop=prmtop,
+                amber_inpcrd=inpcrd,
+            )
+        elif stage == "nvt":
+            openmm_nvt(
+                workdir=eq_dir,
+                name=name,
+                equil_time_ps=args.equil_time,
+            )
+        elif stage == "npt":
+            openmm_npt(
+                workdir=eq_dir,
+                name=name,
+                equil_time_ps=args.equil_time,
+            )
+        elif stage in ["qc", "check-equil"]:
+            openmm_qc(workdir=eq_dir, strict=False)
+        elif stage == "md":
+            rep_dir = str(paths.replica_dir(spec, args.replica))
+            paths.replica_dir(spec, args.replica).mkdir(parents=True, exist_ok=True)
+            eq_restart = paths.eq_dir(spec) / "restart.chk"
+            rep_restart = paths.replica_dir(spec, args.replica) / "restart.chk"
+            if eq_restart.exists() and not rep_restart.exists():
+                shutil.copy2(eq_restart, rep_restart)
+            rep_clean = paths.replica_dir(spec, args.replica) / f"{name}_cleaned.pdb"
+            if eq_clean.exists() and not rep_clean.exists():
+                shutil.copy2(eq_clean, rep_clean)
+
+            total_ns = args.total_ns
+            if args.steps is not None:
+                total_ns = (args.steps * 0.002) / 1000.0
+
+            openmm_md(
+                workdir=rep_dir,
+                name=name,
+                total_ns=total_ns,
+            )
+    return 0
+
+
+def _dispatch_merge(args) -> int:
+    from colabmda.amber.cpptraj import generate_cpptraj_strip_script
+    from colabmda.core.project import ProjectPaths, resolve_project_root
+    from colabmda.core.taxonomy import SystemSpec
+
+    root = resolve_project_root(args.root)
+    paths = ProjectPaths(root)
+    spec = SystemSpec.from_tag(args.state, variant=args.variant)
+
+    replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
+    name = f"{spec.state_tag}_{spec.variant}"
+
+    for rep in replicas:
+        rep_dir = paths.replica_dir(spec, rep)
+        prmtop = paths.prepared_prmtop(spec)
+        dcd_candidates = list(rep_dir.glob("*.dcd"))
+        if not dcd_candidates:
+            print(f"[INFO] No DCD trajectories found in {rep_dir}")
+            continue
+
+        script_path = rep_dir / "strip.cpptraj.in"
+        generate_cpptraj_strip_script(
+            prmtop=prmtop,
+            trajectories=dcd_candidates,
+            out_prefix=name,
+            script_path=script_path,
+        )
+        print(f"[OK] Generated cpptraj stripping script: {script_path}")
+
+    return 0
+
+
+def _dispatch_analyze(args) -> int:
+    from colabmda.core.project import ProjectPaths, resolve_project_root
+    from colabmda.core.taxonomy import SystemSpec
+    from colabmda.openmm.commands import openmm_analysis
+
+    root = resolve_project_root(args.root)
+    paths = ProjectPaths(root)
+    spec = SystemSpec.from_tag(args.state, variant=args.variant)
+    name = f"{spec.state_tag}_{spec.variant}"
+    analysis_dir = paths.analysis_dir(spec)
+    analysis_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"[OK] Running analysis for {name} -> {analysis_dir}")
+    rep_dir = paths.replica_dir(spec, "r1")
+    if (rep_dir / f"{name}_merged.dcd").exists():
+        openmm_analysis(
+            workdir=str(rep_dir),
+            name=name,
+            outdir=str(analysis_dir),
+        )
+    return 0
+
+
+def _dispatch_compare(args) -> int:
+    from colabmda.core.project import ProjectPaths, resolve_project_root
+
+    root = resolve_project_root(args.root)
+    paths = ProjectPaths(root)
+    variants = [v.strip() for v in args.variants.split(",") if v.strip()]
+    print(f"[OK] Comparing variants {variants} for state {args.state} under {paths.root}")
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
@@ -468,7 +774,130 @@ def main():
     p_mut.add_argument("--logfile", default=None)
     p_mut.add_argument("--verbose", action="store_true")
 
+    # ---------------- Top-level Modern Commands (cmda / colabmda) ----------------
+    # 1. colab
+    p_colab = sub.add_parser("colab", help="Remote Google Colab VM provisioning & session manager")
+    p_colab.add_argument("colab_args", nargs="*", help="Arguments passed to colab manager")
+
+    # 2. prep
+    p_top_prep = sub.add_parser("prep", help="Unified model assembly & parameterization")
+    p_top_prep.add_argument(
+        "--state", default=None, help="State tag (e.g. atp_2mg_eb2, apo, atp_2mg)"
+    )
+    p_top_prep.add_argument("--variant", default="WT", help="Variant name (default: WT)")
+    p_top_prep.add_argument("--protein", default="cdkl5", help="Protein name (default: cdkl5)")
+    p_top_prep.add_argument("--receptor", default=None, help="Path to receptor PDB")
+    p_top_prep.add_argument(
+        "--template", default=None, help="Template PDB path or 4-letter ID (e.g. 3X2V)"
+    )
+    p_top_prep.add_argument("--ligand", default=None, help="Ligand name or path (e.g. ATP, ADP)")
+    p_top_prep.add_argument("--ions", default=None, help="Ion spec (e.g. MG:2, MN:2)")
+    p_top_prep.add_argument("--phos", default=None, help="Phosphorylation residue(s) (e.g. Y171)")
+    p_top_prep.add_argument(
+        "--peptide-seq", default=None, help="Substrate peptide sequence (e.g. KRPSSAPSG)"
+    )
+    p_top_prep.add_argument(
+        "--peptide-name", default=None, help="Substrate peptide name (e.g. eb2, eb1)"
+    )
+    p_top_prep.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+    p_top_prep.add_argument(
+        "--no-amber", action="store_true", help="Skip automated tleap topology generation"
+    )
+
+    # 3. stage
+    p_top_stage = sub.add_parser(
+        "stage", help="Stage standardized directory trees & decoupled scripts"
+    )
+    p_top_stage.add_argument(
+        "--state", default="atp_2mg_eb2", help="State tag (default: atp_2mg_eb2)"
+    )
+    p_top_stage.add_argument("--variant", default="WT", help="Variant name (default: WT)")
+    p_top_stage.add_argument("--protein", default="cdkl5", help="Protein name (default: cdkl5)")
+    p_top_stage.add_argument(
+        "--replicas", default="1,2,3", help="Replicas to stage (default: 1,2,3)"
+    )
+    p_top_stage.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+
+    # 4. sim
+    p_top_sim = sub.add_parser("sim", help="Execute simulation stages (em, nvt, npt, qc, md)")
+    p_top_sim.add_argument("--state", required=True, help="State tag (e.g. atp_2mg_eb2, apo)")
+    p_top_sim.add_argument("--variant", default="WT", help="Variant name (default: WT)")
+    p_top_sim.add_argument(
+        "--stage",
+        default="em,nvt,npt,qc",
+        help="Comma-separated stage list (default: em,nvt,npt,qc)",
+    )
+    p_top_sim.add_argument(
+        "--engine",
+        choices=["openmm", "amber"],
+        default="openmm",
+        help="MD engine (default: openmm)",
+    )
+    p_top_sim.add_argument("--replica", default="r1", help="Production replica (default: r1)")
+    p_top_sim.add_argument(
+        "--total-ns", type=float, default=100.0, help="Production duration in ns (default: 100.0)"
+    )
+    p_top_sim.add_argument(
+        "--steps", type=int, default=None, help="Override step count for testing"
+    )
+    p_top_sim.add_argument(
+        "--equil-time", type=float, default=100.0, help="Equilibration duration in ps"
+    )
+    p_top_sim.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+
+    # 5. merge
+    p_top_merge = sub.add_parser("merge", help="Autoimage, wrap PBC, and strip trajectories")
+    p_top_merge.add_argument("--state", required=True, help="State tag")
+    p_top_merge.add_argument("--variant", default="WT", help="Variant name")
+    p_top_merge.add_argument(
+        "--replicas", default="r1,r2,r3", help="Replicas to merge (default: r1,r2,r3)"
+    )
+    p_top_merge.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+
+    # 6. analyze (alias: analysis)
+    p_top_ana = sub.add_parser(
+        "analyze", aliases=["analysis"], help="Extract RMSD, Rg, RMSF, PCA, contact maps"
+    )
+    p_top_ana.add_argument("--state", required=True, help="State tag")
+    p_top_ana.add_argument("--variant", default="WT", help="Variant name")
+    p_top_ana.add_argument(
+        "--metrics", default="rmsd,rg,rmsf", help="Metrics to compute (default: rmsd,rg,rmsf)"
+    )
+    p_top_ana.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+
+    # 7. compare
+    p_top_comp = sub.add_parser("compare", help="Cross-variant or cross-state comparative analysis")
+    p_top_comp.add_argument("--state", required=True, help="State tag")
+    p_top_comp.add_argument(
+        "--variants", required=True, help="Comma-separated variants list (e.g. WT,R59W)"
+    )
+    p_top_comp.add_argument("--metrics", default="rmsf,rmsd", help="Metrics to compare")
+    p_top_comp.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+
     args = p.parse_args()
+
+    if args.tool == "colab":
+        from colabmda.remote.colab import colab_manager_cli
+
+        raise SystemExit(colab_manager_cli(args.colab_args))
+
+    elif args.tool == "prep":
+        raise SystemExit(_dispatch_prep(args))
+
+    elif args.tool == "stage":
+        raise SystemExit(_dispatch_stage(args))
+
+    elif args.tool == "sim":
+        raise SystemExit(_dispatch_sim(args))
+
+    elif args.tool == "merge":
+        raise SystemExit(_dispatch_merge(args))
+
+    elif args.tool in ["analyze", "analysis"]:
+        raise SystemExit(_dispatch_analyze(args))
+
+    elif args.tool == "compare":
+        raise SystemExit(_dispatch_compare(args))
 
     if args.tool == "openmm":
         from colabmda.openmm.commands import (

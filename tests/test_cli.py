@@ -116,3 +116,61 @@ def test_stage_creates_eq_and_replica(tmp_path):
     assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "eq" / "4ldj_wt_cleaned.pdb").exists()
     # r1 replica should be created and populated
     assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "r1" / "4ldj_wt_cleaned.pdb").exists()
+
+
+def test_top_level_single_keyword_help():
+    res = subprocess.run(
+        [sys.executable, "-m", "colabmda.cli", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0
+    for cmd in ["prep", "stage", "sim", "merge", "analyze", "compare", "colab"]:
+        assert cmd in res.stdout
+
+
+def test_top_level_stage_command(tmp_path):
+    res = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "colabmda.cli",
+            "stage",
+            "--state",
+            "atp_2mg_eb2",
+            "--variant",
+            "WT",
+            "--replicas",
+            "1,2,3",
+            "--root",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0
+    variant_base = tmp_path / "simulation" / "atp_2mg_eb2" / "WT"
+    assert (variant_base / "prep").is_dir()
+    assert (variant_base / "eq").is_dir()
+    assert (variant_base / "r1").is_dir()
+    assert (variant_base / "r2").is_dir()
+    assert (variant_base / "r3").is_dir()
+    assert (variant_base / "analysis").is_dir()
+
+    # Verify decoupled scripts
+    run_sh = tmp_path / "scripts" / "run.sh"
+    submit_slurm = tmp_path / "scripts" / "submit.slurm"
+    assert run_sh.exists()
+    assert submit_slurm.exists()
+    assert "#SBATCH --array=1-3" in submit_slurm.read_text()
+    assert "cmda sim" in run_sh.read_text()
+
+
+def test_top_level_subcommands_help():
+    for subcmd in ["prep", "stage", "sim", "merge", "analyze", "compare", "colab"]:
+        res = subprocess.run(
+            [sys.executable, "-m", "colabmda.cli", subcmd, "--help"],
+            capture_output=True,
+            text=True,
+        )
+        assert res.returncode == 0, f"Command {subcmd} --help failed: {res.stderr}"
