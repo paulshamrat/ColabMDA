@@ -103,33 +103,31 @@ class TestProjectPaths:
         paths = ProjectPaths(root=tmp_path)
         spec = SystemSpec.from_tag("atp_2mg_eb2", variant="WT")
 
-        assert paths.raw_dir == tmp_path / "data" / "raw"
-        assert paths.models_dir(spec) == tmp_path / "data" / "models" / "atp_2mg_eb2"
-        assert paths.model_pdb(spec) == tmp_path / "data" / "models" / "atp_2mg_eb2" / "WT.pdb"
+        assert paths.structure_dir == tmp_path / "structure"
+        assert paths.template_dir == tmp_path / "structure" / "template"
+        assert paths.scripts_dir == tmp_path / "scripts"
+        assert paths.variant_dir(spec) == tmp_path / "simulation" / "atp_2mg_eb2" / "WT"
+        assert paths.prep_dir(spec) == tmp_path / "simulation" / "atp_2mg_eb2" / "WT" / "prep"
+        assert (
+            paths.model_pdb(spec)
+            == tmp_path / "simulation" / "atp_2mg_eb2" / "WT" / "prep" / "model.pdb"
+        )
         assert (
             paths.prepared_prmtop(spec)
-            == tmp_path / "data" / "prepared" / "atp_2mg_eb2" / "WT" / "system.prmtop"
+            == tmp_path / "simulation" / "atp_2mg_eb2" / "WT" / "prep" / "system.prmtop"
+        )
+        assert paths.eq_dir(spec) == tmp_path / "simulation" / "atp_2mg_eb2" / "WT" / "eq"
+        assert (
+            paths.replica_dir(spec, "r1") == tmp_path / "simulation" / "atp_2mg_eb2" / "WT" / "r1"
         )
         assert (
-            paths.simulation_dir(spec, "equil")
-            == tmp_path / "data" / "simulation" / "atp_2mg_eb2" / "WT" / "equil"
-        )
-        assert (
-            paths.simulation_dir(spec, "r1")
-            == tmp_path / "data" / "simulation" / "atp_2mg_eb2" / "WT" / "r1"
-        )
-        assert (
-            paths.processed_dir(spec, "keep_ligand")
-            == tmp_path / "data" / "processed" / "atp_2mg_eb2" / "WT" / "keep_ligand"
-        )
-        assert (
-            paths.processed_dir(spec, "ca_backbone")
-            == tmp_path / "data" / "processed" / "atp_2mg_eb2" / "WT" / "ca_backbone"
+            paths.analysis_dir(spec) == tmp_path / "simulation" / "atp_2mg_eb2" / "WT" / "analysis"
         )
 
     def test_init_layout(self, tmp_path):
         paths = ProjectPaths(root=tmp_path)
         paths.init_layout()
-        assert (tmp_path / "data" / "raw").exists()
-        assert (tmp_path / "data" / "models").exists()
-        assert (tmp_path / "data" / "prepared").exists()
+        assert (tmp_path / "scripts").exists()
+        assert (tmp_path / "structure" / "template").exists()
+        assert (tmp_path / "structure" / "protein").exists()
+        assert (tmp_path / "simulation").exists()

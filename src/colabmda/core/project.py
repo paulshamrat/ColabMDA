@@ -54,7 +54,26 @@ def resolve_project_root(
 
 @dataclass
 class ProjectPaths:
-    """Standardized directory hierarchy for ColabMDA simulation projects."""
+    """Standardized, decoupled directory hierarchy for ColabMDA simulation projects.
+
+    Layout:
+        <project_root>/
+        ├── config.yaml
+        ├── scripts/
+        │   ├── run.sh
+        │   └── submit.slurm
+        ├── structure/
+        │   ├── protein/
+        │   ├── template/
+        │   ├── ligand/
+        │   └── peptide/
+        └── simulation/
+            └── <state>/<variant>/
+                ├── prep/ (model.pdb, system.prmtop, system.inpcrd)
+                ├── eq/   (em, nvt, npt, qc)
+                ├── r1/   (chunks, checkpoints, logs)
+                └── analysis/
+    """
 
     root: Path
 
@@ -62,39 +81,89 @@ class ProjectPaths:
         self.root = Path(self.root).resolve()
 
     @property
-    def data_dir(self) -> Path:
-        return self.root / "data"
+    def config_yaml(self) -> Path:
+        return self.root / "config.yaml"
 
     @property
-    def raw_dir(self) -> Path:
-        return self.data_dir / "raw"
+    def scripts_dir(self) -> Path:
+        return self.root / "scripts"
 
-    def models_dir(self, spec: SystemSpec) -> Path:
-        return self.data_dir / "models" / spec.state_tag
+    @property
+    def structure_dir(self) -> Path:
+        return self.root / "structure"
+
+    @property
+    def protein_dir(self) -> Path:
+        return self.structure_dir / "protein"
+
+    @property
+    def template_dir(self) -> Path:
+        return self.structure_dir / "template"
+
+    @property
+    def ligand_dir(self) -> Path:
+        return self.structure_dir / "ligand"
+
+    @property
+    def peptide_dir(self) -> Path:
+        return self.structure_dir / "peptide"
+
+    @property
+    def simulation_base(self) -> Path:
+        return self.root / "simulation"
+
+    def variant_dir(self, spec: SystemSpec) -> Path:
+        """Root directory for a specific state and variant (e.g. simulation/atp_2mg_eb2/WT)."""
+        return self.simulation_base / spec.state_tag / spec.variant
+
+    def prep_dir(self, spec: SystemSpec) -> Path:
+        """Preparation folder containing model coordinates and Amber topologies."""
+        return self.variant_dir(spec) / "prep"
 
     def model_pdb(self, spec: SystemSpec) -> Path:
-        return self.models_dir(spec) / f"{spec.variant}.pdb"
-
-    def prepared_dir(self, spec: SystemSpec) -> Path:
-        return self.data_dir / "prepared" / spec.state_tag / spec.variant
+        return self.prep_dir(spec) / "model.pdb"
 
     def prepared_prmtop(self, spec: SystemSpec) -> Path:
-        return self.prepared_dir(spec) / "system.prmtop"
+        return self.prep_dir(spec) / "system.prmtop"
 
     def prepared_inpcrd(self, spec: SystemSpec) -> Path:
-        return self.prepared_dir(spec) / "system.inpcrd"
+        return self.prep_dir(spec) / "system.inpcrd"
 
-    def simulation_dir(self, spec: SystemSpec, stage_or_replica: str = "equil") -> Path:
-        return self.data_dir / "simulation" / spec.state_tag / spec.variant / stage_or_replica
+    def eq_dir(self, spec: SystemSpec) -> Path:
+        """Equilibration folder (em, nvt, npt, qc)."""
+        return self.variant_dir(spec) / "eq"
 
-    def processed_dir(self, spec: SystemSpec, stream: str = "keep_ligand") -> Path:
-        return self.data_dir / "processed" / spec.state_tag / spec.variant / stream
+    def replica_dir(self, spec: SystemSpec, replica: str = "r1") -> Path:
+        """Production replica folder (pure data: chk, dcd)."""
+        norm_rep = f"r{replica}" if str(replica).isdigit() else str(replica).lower()
+        return self.variant_dir(spec) / norm_rep
 
-    def analysis_dir(self, spec: SystemSpec, replica: str | None = None) -> Path:
-        base = self.data_dir / "analysis" / spec.state_tag / spec.variant
-        return base / replica if replica else base
+    def analysis_dir(self, spec: SystemSpec) -> Path:
+        """Analysis folder for this specific state and variant."""
+        return self.variant_dir(spec) / "analysis"
+
+    def find_template(self, filename: str) -> Path | None:
+        """Search for a template or structure file flexibly across structure subfolders."""
+        candidates = [
+            self.structure_dir / "template" / filename,
+            self.structure_dir / "protein" / filename,
+            self.structure_dir / "ligand" / filename,
+            self.structure_dir / "peptide" / filename,
+            self.structure_dir / filename,
+        ]
+        for c in candidates:
+            if c.exists():
+                return c
+        return None
 
     def init_layout(self) -> None:
         """Create standard top-level project folders."""
-        for p in [self.raw_dir, self.data_dir / "models", self.data_dir / "prepared"]:
+        for p in [
+            self.scripts_dir,
+            self.protein_dir,
+            self.template_dir,
+            self.ligand_dir,
+            self.peptide_dir,
+            self.simulation_base,
+        ]:
             p.mkdir(parents=True, exist_ok=True)
