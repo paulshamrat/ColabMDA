@@ -19,18 +19,25 @@ from openmm.app import PDBFile
 from pdbfixer import PDBFixer
 
 
-def _apply_propka_titration(raw_pdb: str, temp_fixed_pdb: str, out_pdb: str, ph: float, summary_json: str) -> bool:
+def _apply_propka_titration(
+    raw_pdb: str, temp_fixed_pdb: str, out_pdb: str, ph: float, summary_json: str
+) -> bool:
     """Run PDB2PQR with PROPKA at specified pH to assign explicit AMBER titration states (HID/HIE/HIP/ASH/GLH/LYN/CYX)."""
     pdb2pqr_bin = shutil.which("pdb2pqr")
     if not pdb2pqr_bin:
-        for cand in ["/root/miniforge3/envs/openmm_env/bin/pdb2pqr", os.path.expanduser("~/miniforge3/envs/openmm_env/bin/pdb2pqr")]:
+        for cand in [
+            "/root/miniforge3/envs/openmm_env/bin/pdb2pqr",
+            os.path.expanduser("~/miniforge3/envs/openmm_env/bin/pdb2pqr"),
+        ]:
             if os.path.exists(cand):
                 pdb2pqr_bin = cand
                 break
 
     if not pdb2pqr_bin:
         print("[Protonation] Notice: 'pdb2pqr' is not found in the active environment.")
-        print("[Protonation] To enable 3D PROPKA pKa titration, run: mamba install -y -c conda-forge pdb2pqr propka")
+        print(
+            "[Protonation] To enable 3D PROPKA pKa titration, run: mamba install -y -c conda-forge pdb2pqr propka"
+        )
         return False
 
     temp_pqr = out_pdb + ".tmp.pqr"
@@ -50,7 +57,11 @@ def _apply_propka_titration(raw_pdb: str, temp_fixed_pdb: str, out_pdb: str, ph:
     try:
         print(f"[Protonation] Running PDB2PQR with PROPKA titration at pH {ph}...")
         res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if res.returncode == 0 and os.path.exists(temp_prot_pdb) and os.path.getsize(temp_prot_pdb) > 0:
+        if (
+            res.returncode == 0
+            and os.path.exists(temp_prot_pdb)
+            and os.path.getsize(temp_prot_pdb) > 0
+        ):
             # Audit assigned titratable residue forms
             assigned_forms = {}
             with open(temp_prot_pdb) as fin, open(out_pdb, "w") as fout:
@@ -77,10 +88,14 @@ def _apply_propka_titration(raw_pdb: str, temp_fixed_pdb: str, out_pdb: str, ph:
             with open(summary_json, "w") as fj:
                 json.dump(audit_data, fj, indent=2)
 
-            print(f"[Protonation] Successfully assigned {len(assigned_forms)} explicit titratable residue states at pH {ph}.")
+            print(
+                f"[Protonation] Successfully assigned {len(assigned_forms)} explicit titratable residue states at pH {ph}."
+            )
             return True
     except Exception as exc:
-        print(f"[Protonation] Warning: PDB2PQR titration failed ({exc}). Falling back to PDBFixer heuristics.")
+        print(
+            f"[Protonation] Warning: PDB2PQR titration failed ({exc}). Falling back to PDBFixer heuristics."
+        )
         for p in (temp_pqr, temp_prot_pdb):
             if os.path.exists(p):
                 os.remove(p)

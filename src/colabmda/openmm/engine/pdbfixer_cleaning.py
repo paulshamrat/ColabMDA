@@ -52,7 +52,9 @@ def preprocess(input_pdb, output_pdb, target_pH=7.4):
 
     from colabmda.openmm.engine.pdbfixer_clean_fromfile import _apply_propka_titration
 
-    success = _apply_propka_titration(input_pdb, temp_fixed_pdb, output_pdb, target_pH, summary_json)
+    success = _apply_propka_titration(
+        input_pdb, temp_fixed_pdb, output_pdb, target_pH, summary_json
+    )
 
     if not success:
         print(f"[Preprocess] Adding hydrogens using PDBFixer heuristics at pH {target_pH}…")
@@ -95,7 +97,9 @@ def main():
     parser = argparse.ArgumentParser(description="Download & preprocess a PDB by ID")
     parser.add_argument("pdb_id", help="4-character PDB identifier (e.g., 4ldj)")
     parser.add_argument("--outdir", default=None, help="Output directory (default: ./<pdbid>)")
-    parser.add_argument("--ph", type=float, default=7.4, help="Target pH for titration (default: 7.4)")
+    parser.add_argument(
+        "--ph", type=float, default=7.4, help="Target pH for titration (default: 7.4)"
+    )
     args = parser.parse_args()
 
     run_clean_by_pdbid(args.pdb_id, args.outdir, ph=args.ph)

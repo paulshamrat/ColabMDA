@@ -88,7 +88,9 @@ def test_stage_creates_eq_and_replica(tmp_path):
     str_dir = tmp_path / "data" / "structure" / "4ldj" / "wt" / "prep"
     str_dir.mkdir(parents=True)
     dummy_pdb = str_dir / "4ldj_wt_cleaned.pdb"
-    dummy_pdb.write_text("ATOM      1  N   MET A   1       0.000   0.000   0.000  1.00  0.00\nEND\n")
+    dummy_pdb.write_text(
+        "ATOM      1  N   MET A   1       0.000   0.000   0.000  1.00  0.00\nEND\n"
+    )
 
     res = subprocess.run(
         [
@@ -114,4 +116,3 @@ def test_stage_creates_eq_and_replica(tmp_path):
     assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "eq" / "4ldj_wt_cleaned.pdb").exists()
     # r1 replica should be created and populated
     assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "r1" / "4ldj_wt_cleaned.pdb").exists()
-

@@ -147,7 +147,9 @@ def setup_and_equilibrate(cleaned_pdb, dt, eq_steps, xml_sys, pdb_saved, chk_fil
     return sim, 0
 
 
-def _try_copy_shared_equilibration(workdir: str, xml_system: str, pdb_saved: str, state_file: str = "npt.state.xml") -> bool:
+def _try_copy_shared_equilibration(
+    workdir: str, xml_system: str, pdb_saved: str, state_file: str = "npt.state.xml"
+) -> bool:
     if os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
         return True
 
@@ -164,7 +166,9 @@ def _try_copy_shared_equilibration(workdir: str, xml_system: str, pdb_saved: str
             sys_xml = os.path.join(cand, xml_system)
             solv_pdb = os.path.join(cand, pdb_saved)
             if os.path.exists(sys_xml) and os.path.exists(solv_pdb):
-                print(f"[INFO] Sibling/parent equilibrated state found at {cand}. Copying topology and system files...")
+                print(
+                    f"[INFO] Sibling/parent equilibrated state found at {cand}. Copying topology and system files..."
+                )
                 shutil.copy2(sys_xml, xml_system)
                 shutil.copy2(solv_pdb, pdb_saved)
                 for st in [state_file, "em.state.xml", "nvt.log", "npt.log"]:
@@ -203,7 +207,15 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
         return
     os.makedirs(sync_dir, exist_ok=True)
     # Copy only essential + new chunk files
-    essentials = ["system.xml", "solvated.pdb", "prod.chk", "nvt.log", "npt.log", "prod_full.log", "npt.state.xml"]
+    essentials = [
+        "system.xml",
+        "solvated.pdb",
+        "prod.chk",
+        "nvt.log",
+        "npt.log",
+        "prod_full.log",
+        "npt.state.xml",
+    ]
     if extra_files:
         essentials += extra_files
     for fn in essentials:
@@ -260,7 +272,11 @@ def run_colab_md(
         if os.path.isfile(chk_file) and os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
             print("▶ Resuming …")
             sim, steps_done = resume_sim(xml_system, pdb_saved, chk_file, dt)
-        elif os.path.isfile("npt.state.xml") and os.path.isfile(xml_system) and os.path.isfile(pdb_saved):
+        elif (
+            os.path.isfile("npt.state.xml")
+            and os.path.isfile(xml_system)
+            and os.path.isfile(pdb_saved)
+        ):
             print("▶ Branching independent Production from shared npt.state.xml …")
             with open(xml_system) as f:
                 system = XmlSerializer.deserializeSystem(f.read())
@@ -268,6 +284,7 @@ def run_colab_md(
             sim = make_sim(pdb.topology, system, dt)
             with open("npt.state.xml") as handle:
                 from openmm import XmlSerializer as XmlSer
+
                 state = XmlSer.deserialize(handle.read())
             sim.context.setPeriodicBoxVectors(*state.getPeriodicBoxVectors())
             sim.context.setPositions(state.getPositions())
