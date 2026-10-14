@@ -59,12 +59,14 @@ Before committing any changes to `dev1`:
    ```bash
    python -m py_compile src/colabmda/**/*.py
    ```
-2. Run linting & formatting checks:
+2. Run code formatting & linting checks:
    ```bash
-   ruff check src/colabmda/
-   ruff format --check src/colabmda/
+   black --check .
+   ruff check .
    ```
+   *(If formatting fails, auto-format using `black .`)*
 3. Run the test suite:
    ```bash
    pytest tests/
    ```
+
