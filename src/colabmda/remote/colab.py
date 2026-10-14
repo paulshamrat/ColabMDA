@@ -76,9 +76,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     )
     p_new.add_argument(
         "--gpu",
-        action="store_true",
-        default=True,
-        help="Request GPU instance (Tesla T4)",
+        default="T4",
+        help="Request GPU instance (e.g. T4, L4, A100; default: T4)",
     )
 
     # Stop session
@@ -133,7 +132,7 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     if args.colab_action == "new":
         cmd = ["colab", "new", "-s", args.session]
         if args.gpu:
-            cmd.append("--gpu")
+            cmd.extend(["--gpu", args.gpu])
         return subprocess.call(cmd)
 
     if args.colab_action == "stop":
