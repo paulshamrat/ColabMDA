@@ -32,6 +32,7 @@ import argparse
 import csv
 import os
 import re
+import shutil
 import sys
 import urllib.request
 from contextlib import redirect_stderr, redirect_stdout
@@ -270,6 +271,102 @@ def print_alignment_summary(aln_path, logfh):
             write(logfh, "")
     except Exception as e:
         write(logfh, f"Warning: Could not generate alignment summary: {e}")
+
+
+def align_pdb_to_template_in_place(model_path, template_path, logfh):
+    """Aligns model_path PDB to template_path PDB using Bio.PDB.Superimposer with sequence-based matching."""
+    try:
+        from Bio.Align import PairwiseAligner
+        from Bio.PDB import PDBIO, PDBParser, Superimposer
+
+        parser = PDBParser(QUIET=True)
+        model_struct = parser.get_structure("model", model_path)
+        template_struct = parser.get_structure("template", template_path)
+
+        three_to_one = {
+            "ALA": "A",
+            "ARG": "R",
+            "ASN": "N",
+            "ASP": "D",
+            "CYS": "C",
+            "GLN": "Q",
+            "GLU": "E",
+            "GLY": "G",
+            "HIS": "H",
+            "ILE": "I",
+            "LEU": "L",
+            "LYS": "K",
+            "MET": "M",
+            "PHE": "F",
+            "PRO": "P",
+            "SER": "S",
+            "THR": "T",
+            "TRP": "W",
+            "TYR": "Y",
+            "VAL": "V",
+        }
+
+        # Extract CA atoms and sequence
+        model_atoms = []
+        model_seq = []
+        for model in model_struct:
+            for chain in model:
+                for residue in chain:
+                    if residue.id[0] == " " and "CA" in residue:
+                        resname = residue.get_resname().strip().upper()
+                        model_seq.append(three_to_one.get(resname, "X"))
+                        model_atoms.append(residue["CA"])
+
+        template_atoms = []
+        template_seq = []
+        for model in template_struct:
+            for chain in model:
+                for residue in chain:
+                    if residue.id[0] == " " and "CA" in residue:
+                        resname = residue.get_resname().strip().upper()
+                        template_seq.append(three_to_one.get(resname, "X"))
+                        template_atoms.append(residue["CA"])
+
+        aligner = PairwiseAligner()
+        aligner.mode = "global"
+        aligner.match_score = 2
+        aligner.mismatch_score = -1
+        aligner.open_gap_score = -10
+        aligner.extend_gap_score = -1
+
+        alignments = aligner.align("".join(model_seq), "".join(template_seq))
+        if not alignments:
+            write(logfh, "Warning: Could not align sequences for coordinate alignment.")
+            return
+
+        best_aln = alignments[0]
+        aligned_indices = best_aln.aligned
+
+        matched_model_atoms = []
+        matched_template_atoms = []
+
+        for seg_mod, seg_tmpl in zip(aligned_indices[0], aligned_indices[1]):
+            for m_idx, t_idx in zip(range(seg_mod[0], seg_mod[1]), range(seg_tmpl[0], seg_tmpl[1])):
+                matched_model_atoms.append(model_atoms[m_idx])
+                matched_template_atoms.append(template_atoms[t_idx])
+
+        if not matched_model_atoms:
+            write(logfh, "Warning: No matching residues found for coordinate alignment.")
+            return
+
+        superimposer = Superimposer()
+        superimposer.set_atoms(matched_template_atoms, matched_model_atoms)
+        superimposer.apply(model_struct.get_atoms())
+
+        write(
+            logfh, f"Aligned model to template structure. RMSD = {superimposer.rms:.4f} Angstroms"
+        )
+
+        io = PDBIO()
+        io.set_structure(model_struct)
+        io.save(model_path)
+    except Exception as e:
+        write(logfh, f"Warning: Failed to align model to template coordinate frame: {e}")
 
 
 def renumber_pdb(pdb_path, start_res, logfh):
@@ -793,6 +890,13 @@ def main():
                     write(logfh, f"{m} → {status}; out={out_pdb}, E_unopt={E_unopt}, E_opt={E_opt}")
                     if out_pdb:
                         created.append(out_pdb)
+                        if outdir_mut:
+                            outdir_mut_abs = os.path.abspath(outdir_mut)
+                            mut_stem = os.path.basename(outdir_mut_abs)
+                            std_mut_path = os.path.join(outdir_mut_abs, f"{mut_stem}.pdb")
+                            if os.path.abspath(out_pdb) != std_mut_path:
+                                shutil.copy2(out_pdb, std_mut_path)
+                                write(logfh, f"Standardized mutant PDB: {std_mut_path}")
                 except Exception as e:
                     w.writerow([pdb_in, m, args.chain, args.seed, "", "", "", "", f"FAIL: {e}"])
                     write(logfh, f"{m} → FAIL: {e}")
@@ -901,6 +1005,9 @@ def main():
         base_with_cryst_abs = os.path.abspath(base_with_cryst)
         write(logfh, f"Base model (CRYST1): {base_with_cryst_abs}")
 
+        # Align model back to template coordinate space to ensure ligand/cofactor alignment
+        align_pdb_to_template_in_place(base_with_cryst_abs, f"{pdb_id}_orig.pdb", logfh)
+
         # Fix Numbering
         renumber_pdb(base_with_cryst_abs, start_num, logfh)
 
@@ -985,9 +1092,17 @@ def main():
                         )
                         write(logfh, f"{m} → FAIL: {e}")
 
+        # Standardize build output PDB name to match outdir folder stem (e.g. 4ldj_wt.pdb)
+        current_outdir = os.getcwd()
+        folder_stem = os.path.basename(current_outdir)
+        std_pdb_path = os.path.join(current_outdir, f"{folder_stem}.pdb")
+        shutil.copy2(base_with_cryst_abs, std_pdb_path)
+        write(logfh, f"Standardized build PDB: {std_pdb_path}")
+
         # Final summary
         print(f"\n✅ Build complete. Log: {log_path}")
         print("• Base model with CRYST1:", base_with_cryst_abs)
+        print("• Standardized model    :", std_pdb_path)
         if trunc_for_mut:
             print("• Truncated model      :", trunc_for_mut)
         if created:
