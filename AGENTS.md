@@ -70,3 +70,32 @@ Before committing any changes to `dev1`:
    pytest tests/
    ```
 
+---
+
+## 6. Google Colab CLI & Remote Cloud Testing
+
+The developer workstation is pre-authenticated with Google OAuth2 (`colab whoami`). When testing cloud bootstrapping or remote GPU execution:
+
+1. **Check Authentication & Identity:**
+   ```bash
+   colab whoami
+   ```
+2. **Launch a Cloud GPU Test Instance:**
+   ```bash
+   colab new -s test-gpu --gpu T4
+   ```
+3. **Execute Commands Remotely:**
+   ```bash
+   colab exec -s test-gpu "nvidia-smi"
+   colab exec -s test-gpu "bash scripts/colab.sh"
+   ```
+4. **List Active Sessions:**
+   ```bash
+   colab ls
+   ```
+5. **Terminate Sessions Promptly (Conserves Compute Units):**
+   ```bash
+   colab stop -s test-gpu
+   ```
+
+
