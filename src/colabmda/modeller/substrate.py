@@ -361,6 +361,107 @@ def phosphorylate_residue(
     return out_path
 
 
+def position_nucleotide(
+    receptor_pdb: str | Path,
+    output_pdb: str | Path,
+    template_pdb: str | Path,
+    ligand_name: str = "ATP",
+    res_num: int = 304,
+    chain: str = "A",
+) -> bool:
+    """Transfer nucleotide from template_pdb to receptor_pdb using kinase CA alignment."""
+    rec_path = Path(receptor_pdb)
+    out_path = Path(output_pdb)
+    tmpl_path = Path(template_pdb)
+
+    if not rec_path.exists():
+        raise FileNotFoundError(f"Receptor PDB not found: {rec_path}")
+    if not tmpl_path.exists():
+        raise FileNotFoundError(f"Template PDB not found: {tmpl_path}")
+
+    existing_lig = parse_pdb_atoms(rec_path, res_name=ligand_name)
+    if existing_lig:
+        if rec_path.resolve() != out_path.resolve():
+            shutil.copy2(rec_path, out_path)
+        return True
+
+    tmpl_lig_atoms = parse_pdb_atoms(tmpl_path, res_name=ligand_name)
+    if not tmpl_lig_atoms:
+        if rec_path.resolve() != out_path.resolve():
+            shutil.copy2(rec_path, out_path)
+        return False
+
+    rec_ca: dict[int, np.ndarray] = {}
+    with open(rec_path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("ATOM  ") and line[12:16].strip() == "CA":
+                try:
+                    r_num = int(line[22:26])
+                    x = float(line[30:38])
+                    y = float(line[38:46])
+                    z = float(line[46:54])
+                    rec_ca[r_num] = np.array([x, y, z])
+                except ValueError:
+                    pass
+
+    tmpl_ca: dict[int, np.ndarray] = {}
+    with open(tmpl_path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("ATOM  ") and line[12:16].strip() == "CA" and line[21] in {"A", " "}:
+                try:
+                    r_num = int(line[22:26])
+                    x = float(line[30:38])
+                    y = float(line[38:46])
+                    z = float(line[46:54])
+                    tmpl_ca[r_num] = np.array([x, y, z])
+                except ValueError:
+                    pass
+
+    common_res = sorted(set(rec_ca.keys()) & set(tmpl_ca.keys()))
+    if len(common_res) < 20:
+        n_common = min(len(rec_ca), len(tmpl_ca), 250)
+        source_pts = np.vstack([tmpl_ca[k] for k in sorted(tmpl_ca.keys())[:n_common]])
+        target_pts = np.vstack([rec_ca[k] for k in sorted(rec_ca.keys())[:n_common]])
+    else:
+        source_pts = np.vstack([tmpl_ca[k] for k in common_res])
+        target_pts = np.vstack([rec_ca[k] for k in common_res])
+
+    rotation, translation = kabsch(source_pts, target_pts)
+
+    lig_records: list[str] = []
+    atom_idx = 5000
+    with open(tmpl_path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith(("HETATM", "ATOM  ")) and line[17:20].strip() == ligand_name:
+                try:
+                    x = float(line[30:38])
+                    y = float(line[38:46])
+                    z = float(line[46:54])
+                    new_xyz = np.dot(np.array([x, y, z]), rotation) + translation
+                    atom_name = line[12:16]
+                    atom_idx += 1
+                    occ = float(line[54:60]) if len(line) >= 60 else 1.00
+                    b_fac = float(line[60:66]) if len(line) >= 66 else 0.00
+                    elem = line[76:78].strip() if len(line) >= 78 else atom_name.strip()[:1]
+                    lig_line = (
+                        f"HETATM{atom_idx:5d} {atom_name:4s} {ligand_name:>3s} {chain}{res_num:4d}    "
+                        f"{new_xyz[0]:8.3f}{new_xyz[1]:8.3f}{new_xyz[2]:8.3f}"
+                        f"{occ:6.2f}{b_fac:6.2f}          {elem:>2s}\n"
+                    )
+                    lig_records.append(lig_line)
+                except ValueError:
+                    continue
+
+    with open(rec_path, encoding="utf-8") as f:
+        clean_lines = [line for line in f if not line.strip().startswith(("END", "ENDMDL"))]
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.writelines(clean_lines + lig_records + ["END\n"])
+
+    return True
+
+
 def position_ions(
     receptor_pdb: str | Path,
     output_pdb: str | Path,
@@ -723,6 +824,53 @@ def assemble_system_model(
 
     current_pdb = rec_path
 
+    # Step 0: State normalization (strip extraneous components if not requested by SystemSpec)
+    clean_lines = []
+    has_phos = bool(spec.phos_residues)
+    has_nucleotide = bool(spec.ligand)
+    has_peptide = bool(spec.peptide_seq or spec.peptide_name)
+    allowed_ions = set(spec.ions.keys()) if spec.ions else set()
+
+    with open(current_pdb, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith(("ATOM  ", "HETATM")):
+                resname = line[17:20].strip()
+                atomname = line[12:16].strip()
+                chain_id = line[21]
+
+                # Strip peptide chain B if not requested
+                if not has_peptide and chain_id == "B":
+                    continue
+
+                # Strip nucleotide if not requested
+                if not has_nucleotide and resname in {"ATP", "ADP", "GDP", "GTP", "ANP"}:
+                    continue
+
+                # Strip ions if not requested
+                if resname in {"MG", "MN", "CA", "ZN"} and resname not in allowed_ions:
+                    continue
+
+                # If phosphorylation is NOT requested, convert non-standard phosphorylated residues to canonical forms
+                if not has_phos:
+                    if resname == "PTR":
+                        if atomname in {"P", "O1P", "O2P", "O3P"}:
+                            continue
+                        line = line[:17] + "TYR" + line[20:]
+                    elif resname == "SEP":
+                        if atomname in {"P", "O1P", "O2P", "O3P"}:
+                            continue
+                        line = line[:17] + "SER" + line[20:]
+                    elif resname == "TPO":
+                        if atomname in {"P", "O1P", "O2P", "O3P"}:
+                            continue
+                        line = line[:17] + "THR" + line[20:]
+
+            clean_lines.append(line)
+
+    norm_pdb = w_dir / "step_state_normalized.pdb"
+    norm_pdb.write_text("".join(clean_lines))
+    current_pdb = norm_pdb
+
     # Step 1: Mutation (if variant != WT)
     if spec.variant and spec.variant.upper() != "WT":
         try:
@@ -762,7 +910,20 @@ def assemble_system_model(
                 )
                 current_pdb = phos_pdb
 
-    # Step 3: Divalent catalytic ions
+    # Step 3: Nucleotide positioning (if spec.ligand and missing from receptor)
+    if spec.ligand and template_pdb:
+        lig_upper = str(spec.ligand).upper()
+        if lig_upper in {"ATP", "ADP", "GDP"}:
+            nuc_pdb = w_dir / f"step_nucleotide_{lig_upper}.pdb"
+            position_nucleotide(
+                receptor_pdb=current_pdb,
+                output_pdb=nuc_pdb,
+                template_pdb=template_pdb,
+                ligand_name=lig_upper,
+            )
+            current_pdb = nuc_pdb
+
+    # Step 4: Divalent catalytic ions
     if spec.ions and template_pdb:
         # Strip preexisting ions from receptor to prevent Coulombic clashes
         stripped_pdb = w_dir / "step_strip_ions.pdb"

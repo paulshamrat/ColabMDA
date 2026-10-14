@@ -144,6 +144,7 @@ def run_em(
     protein_ff="ff19SB",
     water_model="opc",
     small_molecule_ff="gaff-2.11",
+    max_iterations=0,
 ):
     workdir = os.path.abspath(workdir)
     os.makedirs(workdir, exist_ok=True)
@@ -472,7 +473,7 @@ def run_em(
     sim.context.setPositions(modeller.positions)
 
     print("  • Minimizing…")
-    sim.minimizeEnergy()
+    sim.minimizeEnergy(maxIterations=max_iterations)
 
     # Save files
     with open(xml_system, "w") as f:

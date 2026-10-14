@@ -412,6 +412,7 @@ def openmm_em(
     protein_ff: str = "ff19SB",
     water_model: str = "opc",
     small_molecule_ff: str = "gaff-2.11",
+    max_iterations: int = 0,
 ):
     from colabmda.openmm.modular.em import run_em
 
@@ -426,6 +427,7 @@ def openmm_em(
         protein_ff=protein_ff,
         water_model=water_model,
         small_molecule_ff=small_molecule_ff,
+        max_iterations=max_iterations,
     )
     if not success:
         raise SystemExit(1)

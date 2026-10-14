@@ -243,8 +243,40 @@ cmda analyze --state "${{STATE}}" --variant "${{VARIANT}}"
     run_sh.write_text(run_sh_content)
     run_sh.chmod(0o755)
 
-    submit_slurm = paths.scripts_dir / "submit.slurm"
-    slurm_content = f"""#!/usr/bin/env bash
+    # Palmetto SLURM scripts
+    eq_slurm = paths.scripts_dir / "submit_eq.slurm"
+    eq_slurm_content = f"""#!/usr/bin/env bash
+#SBATCH --job-name=eq_{spec.state_tag}_{spec.variant}
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --gpus=1
+#SBATCH --mem=32gb
+#SBATCH --time=24:00:00
+#SBATCH --output=logs/eq_%j.out
+#SBATCH --error=logs/eq_%j.err
+
+set -euo pipefail
+
+# Activate environment on Palmetto
+if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
+    source "$HOME/miniforge3/etc/profile.d/conda.sh"
+    conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
+fi
+
+STATE="{spec.state_tag}"
+VARIANT="{spec.variant}"
+
+echo "[SLURM] Running 1-24 equilibration for ${{STATE}}/${{VARIANT}} on $(hostname)"
+mkdir -p logs
+
+cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage em,nvt,npt,qc --protocol varmdyn
+"""
+    eq_slurm.write_text(eq_slurm_content)
+    eq_slurm.chmod(0o755)
+
+    prod_slurm = paths.scripts_dir / "submit_prod.slurm"
+    prod_slurm_content = f"""#!/usr/bin/env bash
 #SBATCH --job-name=cmda_{spec.state_tag}_{spec.variant}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -253,10 +285,16 @@ cmda analyze --state "${{STATE}}" --variant "${{VARIANT}}"
 #SBATCH --mem=32gb
 #SBATCH --time=48:00:00
 #SBATCH --array=1-{len(replicas)}
-#SBATCH --output=logs/slurm_%A_%a.out
-#SBATCH --error=logs/slurm_%A_%a.err
+#SBATCH --output=logs/prod_%A_%a.out
+#SBATCH --error=logs/prod_%A_%a.err
 
 set -euo pipefail
+
+# Activate environment on Palmetto
+if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
+    source "$HOME/miniforge3/etc/profile.d/conda.sh"
+    conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
+fi
 
 STATE="{spec.state_tag}"
 VARIANT="{spec.variant}"
@@ -267,14 +305,39 @@ mkdir -p logs
 
 cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage md --replica "${{REPLICA}}"
 """
-    submit_slurm.write_text(slurm_content)
+    prod_slurm.write_text(prod_slurm_content)
+    prod_slurm.chmod(0o755)
+
+    submit_slurm = paths.scripts_dir / "submit.slurm"
+    submit_slurm.write_text(prod_slurm_content)
     submit_slurm.chmod(0o755)
+
+    chain_sh = paths.scripts_dir / "submit_chain.sh"
+    chain_content = """#!/usr/bin/env bash
+# Submit equilibration first, then chain production replicas as a dependency
+set -euo pipefail
+mkdir -p logs
+
+echo "Submitting equilibration job to Palmetto..."
+EQ_ID=$(sbatch scripts/submit_eq.slurm | awk '{print $NF}')
+echo "Equilibration Job ID: ${EQ_ID}"
+
+echo "Submitting production replica array (dependent on ${EQ_ID})..."
+PROD_ID=$(sbatch --dependency=afterok:${EQ_ID} scripts/submit_prod.slurm | awk '{print $NF}')
+echo "Production Array Job ID: ${PROD_ID}"
+
+echo "Watch queue with: squeue -u $USER"
+"""
+    chain_sh.write_text(chain_content)
+    chain_sh.chmod(0o755)
 
     print(
         f"[OK] Staged project directory tree for {spec.state_tag}/{spec.variant} at: {paths.variant_dir(spec)}"
     )
     print(f"[OK] Generated decoupled runner: {run_sh}")
-    print(f"[OK] Generated Palmetto SLURM array: {submit_slurm}")
+    print(f"[OK] Generated Palmetto equilibration SLURM: {eq_slurm}")
+    print(f"[OK] Generated Palmetto production SLURM array: {prod_slurm}")
+    print(f"[OK] Generated Palmetto chained submission helper: {chain_sh}")
     return 0
 
 
@@ -309,24 +372,38 @@ def _dispatch_sim(args) -> int:
     for stage in stages:
         print(f"\n[SIM] Executing stage: {stage.upper()} for {spec.state_tag}/{spec.variant}")
         if stage == "em":
+            max_iter = 200 if getattr(args, "protocol", "varmdyn") == "quick" else 0
             openmm_em(
                 eq_dir,
                 name,
                 amber_prmtop=prmtop,
                 amber_inpcrd=inpcrd,
+                max_iterations=max_iter,
             )
         elif stage == "nvt":
+            eq_time = args.equil_time
+            if (
+                getattr(args, "protocol", "varmdyn") == "quick"
+                and getattr(args, "steps", None) is not None
+            ):
+                eq_time = min(args.equil_time, max(0.002, args.steps * 0.002))
             openmm_nvt(
                 eq_dir,
                 name,
-                equil_time=args.equil_time,
+                equil_time=eq_time,
                 protocol=args.protocol,
             )
         elif stage == "npt":
+            eq_time = args.equil_time
+            if (
+                getattr(args, "protocol", "varmdyn") == "quick"
+                and getattr(args, "steps", None) is not None
+            ):
+                eq_time = min(args.equil_time, max(0.002, args.steps * 0.002))
             openmm_npt(
                 eq_dir,
                 name,
-                equil_time=args.equil_time,
+                equil_time=eq_time,
                 protocol=args.protocol,
             )
         elif stage in ["qc", "check-equil"]:
