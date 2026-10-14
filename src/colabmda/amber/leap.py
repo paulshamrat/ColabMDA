@@ -81,7 +81,10 @@ def generate_tleap_script(
 
     # 3. Phosphorylation parameters (if pY171 / PTR is present)
     if spec.is_phosphorylated:
-        lines.append("source leaprc.phosaa19SB")
+        if "14" in protein_ff:
+            lines.append("source leaprc.phosaa14SB")
+        else:
+            lines.append("source leaprc.phosaa19SB")
 
     # 4. Water model and ions
     water_lower = water_model.lower()

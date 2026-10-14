@@ -747,12 +747,18 @@ def assemble_system_model(
             m = re.search(r"(\d+)", phos)
             if m:
                 res_num = int(m.group(1))
-                phos_pdb = w_dir / f"step_phos_{res_num}.pdb"
+                target_res = "PTR"
+                if "S" in phos.upper():
+                    target_res = "SEP"
+                elif "T" in phos.upper():
+                    target_res = "TPO"
+
+                phos_pdb = w_dir / f"step_phos_{target_res}_{res_num}.pdb"
                 phosphorylate_residue(
                     input_pdb=current_pdb,
                     output_pdb=phos_pdb,
                     res_num=res_num,
-                    target_res="PTR",
+                    target_res=target_res,
                 )
                 current_pdb = phos_pdb
 
