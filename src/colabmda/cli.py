@@ -177,22 +177,19 @@ def _dispatch_prep(args) -> int:
 
     if not args.no_amber:
         try:
-            leap_in = paths.prep_dir(spec) / "tleap.in"
-            leap_log = paths.prep_dir(spec) / "leap.log"
-            generate_tleap_script(
-                pdb_path=out_model,
-                prmtop_out=paths.prepared_prmtop(spec),
-                inpcrd_out=paths.prepared_inpcrd(spec),
-                script_out=leap_in,
-                ligand_type=str(spec.ligand) if spec.ligand else None,
-                has_ptr=bool(spec.phos_residues),
+            script_text = generate_tleap_script(
+                spec=spec,
+                input_pdb=out_model,
+                output_prmtop=paths.prepared_prmtop(spec),
+                output_inpcrd=paths.prepared_inpcrd(spec),
             )
-            success = run_tleap(leap_in, log_path=leap_log)
-            if success and paths.prepared_prmtop(spec).exists():
+            retcode, log_out = run_tleap(script_text, workdir=paths.prep_dir(spec))
+            (paths.prep_dir(spec) / "leap.log").write_text(log_out)
+            if retcode == 0 and paths.prepared_prmtop(spec).exists():
                 print(f"[OK] Built Amber topology: {paths.prepared_prmtop(spec)}")
                 print(f"[OK] Built Amber coordinates: {paths.prepared_inpcrd(spec)}")
             else:
-                print(f"[INFO] Amber tleap finished (log at {leap_log})")
+                print(f"[INFO] Amber tleap finished with returncode {retcode}")
         except Exception as e:
             print(f"[INFO] Amber tleap step skipped: {e}")
 

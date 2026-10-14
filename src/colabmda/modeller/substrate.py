@@ -124,7 +124,7 @@ def parse_pdb_atoms(
             line_resname = line[17:20].strip()
             line_atom = line[12:16].strip()
 
-            if chain is not None and line_chain != chain:
+            if chain is not None and line_chain != chain and line_chain != " ":
                 continue
             if res_num is not None and line_resnum != res_num:
                 continue
@@ -238,7 +238,15 @@ def phosphorylate_residue(
 
     target_atoms = parse_pdb_atoms(in_path, chain=chain, res_num=res_num)
     if not target_atoms:
+        target_atoms = parse_pdb_atoms(in_path, chain=None, res_num=res_num)
+    if not target_atoms:
         raise ValueError(f"Residue {chain}:{res_num} not found in {in_path}")
+
+    # If residue is already phosphorylated (contains P and phosphate oxygens), preserve it
+    if "P" in target_atoms and any(k in target_atoms for k in ["O1P", "O2P", "O3P"]):
+        if str(in_path.resolve()) != str(out_path.resolve()):
+            shutil.copy2(in_path, out_path)
+        return out_path
 
     replacement_records = []
     serial = 90000
