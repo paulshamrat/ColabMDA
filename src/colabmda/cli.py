@@ -320,12 +320,14 @@ def _dispatch_sim(args) -> int:
                 eq_dir,
                 name,
                 equil_time=args.equil_time,
+                protocol=args.protocol,
             )
         elif stage == "npt":
             openmm_npt(
                 eq_dir,
                 name,
                 equil_time=args.equil_time,
+                protocol=args.protocol,
             )
         elif stage in ["qc", "check-equil"]:
             openmm_qc(eq_dir, strict=False)
@@ -841,6 +843,12 @@ def main():
     )
     p_top_sim.add_argument(
         "--equil-time", type=float, default=100.0, help="Equilibration duration in ps"
+    )
+    p_top_sim.add_argument(
+        "--protocol",
+        choices=["varmdyn", "quick"],
+        default="varmdyn",
+        help="Equilibration protocol: varmdyn (rigorous multi-stage) or quick (single stage; default: varmdyn)",
     )
     p_top_sim.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
 
