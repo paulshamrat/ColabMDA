@@ -20,7 +20,18 @@ It combines **MODELLER** (homology modeling & mutagenesis with biological residu
 ```text
 tools/ColabMDA/
 ├── src/colabmda/
-│   ├── cli.py                     # Central CLI entrypoint (lazy-loaded modules)
+│   ├── cli.py                     # Central CLI entrypoint (cmda and colabmda)
+│   ├── core/                      # System taxonomy, ion registry, project paths
+│   │   ├── taxonomy.py            # SystemSpec definition & state-tag parser
+│   │   ├── ions.py                # Divalent ion parameters & registry
+│   │   └── project.py             # ProjectPaths layout resolver
+│   ├── amber/                     # AmberTools parameterization & cpptraj engine
+│   │   ├── params/                # Hu 2024 quantum nucleotide parameters
+│   │   ├── leap.py                # Fast tleap solvator with addIonsRand
+│   │   └── cpptraj.py             # Dual-stream trajectory autoimaging & stripper
+│   ├── modeller/                  # MODELLER homology and substrate engine
+│   │   ├── engine.py              # Biological numbering and mutation builder
+│   │   └── substrate.py           # Mathematical PTR builder & peptide docking
 │   ├── openmm/                    # Core OpenMM simulation engine
 │   │   ├── commands.py            # High-level subcommands (prep, stage, run, merge, analysis)
 │   │   ├── modular/               # Sequentially numbered simulation stages
@@ -31,24 +42,49 @@ tools/ColabMDA/
 │   │   │   ├── md.py              # Production MD & chunked checkpointing
 │   │   │   └── utils.py           # Shared OpenMM helpers
 │   │   └── engine/                # Trajectory merge, analysis & PDBFixer cleaning
-│   └── modeller/                  # MODELLER homology and mutation engine
-│       └── engine.py              # Biological numbering and mutation builder
-├── tests/                         # Unit and regression test suite
+│   └── remote/                    # Google Colab VM remote session manager
+│       └── colab.py               # colab CLI wrapper & upload orchestrator
+├── tests/                         # Unit and regression test suite (40+ passing tests)
 ├── docs/                          # Sphinx / Markdown documentation
-├── scripts/                       # Colab bootstrap & remote execution scripts
-└── AGENTS.md                      # This developer rules file
+├── scripts/                       # Exactly one standalone bootstrap script: setup.sh
+└── AGENTS.md                      # Developer and agent rules
 ```
 
 ---
 
-## 4. Naming & Execution Standards
+## 4. Architectural Rules & Invariants
 
-- **Single-Keyword Stages:** Simulation stages follow clean single-keyword identifiers: `em`, `nvt`, `npt`, `qc`, `md`.
-- **Equilibration Directory:** The shared equilibration baseline is strictly named `equil/` (e.g. `sim/<system_id>/equil/`). Production replicas branch off as `r1/`, `r2/`, etc.
-- **Headless Plotting:** All plotting code must explicitly configure `matplotlib.use('Agg')` before importing `pyplot` to prevent crashes in headless Colab or remote terminal environments.
-- **Decoupled Compute & Visualization:** Trajectory metric calculations (RMSD, Rg, RMSF, PCA) write raw numerical CSVs before rendering figures.
-- **Figure Standards:** Output figures follow publication dimensions (double-column 7.0-inch width, 300 DPI, Okabe-Ito / high-contrast accessible color palettes).
-- **wwPDB Standards:** Ingestion pipelines must support both PDBx/mmCIF (`.cif` / `.cif.gz`) and legacy `.pdb`.
+1. **Zero Data in `src/`:**
+   - Never commit raw structural files (`*.pdb`, `*.cif`, `*.sdf`, `*.mol2`), topologies (`*.prmtop`, `*.inpcrd`), or trajectories (`*.dcd`, `*.nc`) into `src/colabmda/`.
+   - All structural inputs belong strictly in the user's project workspace:
+     - Receptor structures: `<project>/structure/protein/`
+     - Template structures: `<project>/structure/template/`
+   - Non-standard residues like phosphotyrosine (`pY171` -> `PTR171`) are constructed mathematically via pure NumPy vectors with zero external template files.
+
+2. **Decoupled Scripts Architecture:**
+   - Never place bash or SLURM scripts inside simulation data folders (e.g., no `simulation/atp_2mg_eb2/WT/run.sh`).
+   - All execution scripts live in `<project>/scripts/`:
+     - Standalone local/remote runner: `<project>/scripts/run.sh`
+     - HPC Palmetto scheduler: `<project>/scripts/submit.slurm`
+
+3. **Single Bootstrap Script:**
+   - Exactly one bootstrap script exists in the repository: `scripts/setup.sh`.
+   - Never introduce loose or duplicate shell bootstrap files.
+
+4. **Single-Keyword Unified CLI:**
+   - The CLI is accessible via both `colabmda` and the shortcut `cmda`.
+   - Core subcommands:
+     - `cmda stage`: Prepares standard folder layout and decoupled scripts.
+     - `cmda prep`: Mathematical assembly and Amber `tleap` parameterization.
+     - `cmda sim`: Executes simulation stages (`em`, `nvt`, `npt`, `qc`, `md`).
+     - `cmda merge`: Autoimages PBC and strips bulk solvent via `cpptraj`.
+     - `cmda analyze`: Extracts RMSD, Rg, RMSF, PCA, and contact maps.
+     - `cmda compare`: Multi-replica or cross-variant comparative plotting.
+     - `cmda colab`: Provisions and manages remote Google Colab GPU sessions.
+
+5. **Post-Verification Compute Cleanup:**
+   - Always terminate Colab GPU VM sessions (`colab stop -s <session>`) immediately after use to conserve user cloud compute units.
+   - Clean up temporary local tarballs and scratch files after test completion.
 
 ---
 
@@ -61,10 +97,10 @@ Before committing any changes to `dev1`:
    ```
 2. Run code formatting & linting checks:
    ```bash
-   black --check .
-   ruff check .
+   black --check src tests
+   ruff check src tests
    ```
-   *(If formatting fails, auto-format using `black .`)*
+   *(If formatting fails, auto-format using `black src tests`)*
 3. Run the test suite:
    ```bash
    pytest tests/
@@ -82,12 +118,11 @@ The developer workstation is pre-authenticated with Google OAuth2 (`colab whoami
    ```
 2. **Launch a Cloud GPU Test Instance:**
    ```bash
-   colab new -s test-gpu --gpu T4
+   colab new -s colabmda-gpu --gpu T4
    ```
 3. **Execute Commands Remotely:**
    ```bash
-   colab exec -s test-gpu "nvidia-smi"
-   colab exec -s test-gpu "bash scripts/colab.sh"
+   echo '!nvidia-smi' | colab exec -s colabmda-gpu
    ```
 4. **List Active Sessions:**
    ```bash
@@ -95,7 +130,8 @@ The developer workstation is pre-authenticated with Google OAuth2 (`colab whoami
    ```
 5. **Terminate Sessions Promptly (Conserves Compute Units):**
    ```bash
-   colab stop -s test-gpu
+   colab stop -s colabmda-gpu
    ```
+
 
 
