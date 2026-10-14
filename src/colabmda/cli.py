@@ -428,12 +428,30 @@ def _dispatch_analyze(args) -> int:
 
     print(f"[OK] Running analysis for {name} -> {analysis_dir}")
     rep_dir = paths.replica_dir(spec, "r1")
-    if (rep_dir / f"{name}_merged.dcd").exists():
+    traj = None
+    top = None
+    for cand_traj in ["prod_keep_ligand.dcd", f"{name}_merged.dcd", "prod_ca.dcd"]:
+        if (rep_dir / cand_traj).exists():
+            traj = str(rep_dir / cand_traj)
+            break
+    for cand_top in ["stripped.system.prmtop", "stripped.prmtop", "system.prmtop"]:
+        if (rep_dir / cand_top).exists():
+            top = str(rep_dir / cand_top)
+            break
+        elif (paths.prepared_dir(spec) / cand_top).exists():
+            top = str(paths.prepared_dir(spec) / cand_top)
+            break
+
+    if traj and top:
         openmm_analysis(
-            workdir=str(rep_dir),
-            name=name,
+            pdbid_dir=str(rep_dir),
+            topology=top,
+            trajectory=traj,
+            interval_ps=10.0,
             outdir=str(analysis_dir),
         )
+    else:
+        print(f"[WARN] No suitable trajectory/topology found in {rep_dir}")
     return 0
 
 
