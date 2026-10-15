@@ -139,8 +139,19 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
         return subprocess.call(["colab", "stop", "-s", args.session])
 
     if args.colab_action == "exec":
-        full_cmd = " ".join(args.cmd) if args.cmd else "nvidia-smi"
-        return subprocess.call(["colab", "exec", "-s", args.session, full_cmd])
+        full_cmd = " ".join(args.cmd) if args.cmd else "!nvidia-smi"
+        if (
+            not full_cmd.startswith("!")
+            and not full_cmd.startswith("%")
+            and not full_cmd.startswith("import")
+            and not full_cmd.startswith("print")
+        ):
+            full_cmd = f"!{full_cmd}"
+        return subprocess.run(
+            ["colab", "exec", "-s", args.session],
+            input=full_cmd,
+            text=True,
+        ).returncode
 
     if args.colab_action == "setup":
         setup_script = repo_root / "scripts" / "setup.sh"
@@ -177,7 +188,6 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             )
 
             remote_cmd = (
-                "bash -c '"
                 "chmod +x /content/setup.sh && "
                 "/content/setup.sh && "
                 "if [ -f /content/ColabMDA-upload.zip ]; then "
@@ -186,20 +196,21 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
                 '  source "$HOME/miniforge3/etc/profile.d/conda.sh" && '
                 "  conda activate openmm_env && "
                 "  pip install -e /content/ColabMDA; "
-                "fi'"
+                "fi"
             )
             print(f"[INFO] Executing setup on session {args.session}...")
-            return subprocess.call(
+            return subprocess.run(
                 [
                     "colab",
                     "exec",
                     "-s",
                     args.session,
-                    remote_cmd,
                     "--timeout",
                     str(args.timeout),
-                ]
-            )
+                ],
+                input=f"!{remote_cmd}",
+                text=True,
+            ).returncode
         finally:
             if source_zip is not None:
                 source_zip.unlink(missing_ok=True)
