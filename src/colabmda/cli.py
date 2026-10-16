@@ -492,31 +492,33 @@ def _dispatch_sim(args) -> int:
         elif stage in ["qc", "check-equil"]:
             openmm_qc(eq_dir, strict=False, protocol=protocol)
         elif stage == "md":
-            rep_dir = str(paths.replica_dir(spec, args.replica))
-            paths.replica_dir(spec, args.replica).mkdir(parents=True, exist_ok=True)
-            for artifact in ["npt.state.xml", "system.xml", "solvated.pdb", "restart.chk"]:
-                eq_art = paths.eq_dir(spec) / artifact
-                rep_art = paths.replica_dir(spec, args.replica) / artifact
-                if eq_art.exists() and not rep_art.exists():
-                    shutil.copy2(eq_art, rep_art)
-            rep_clean = paths.replica_dir(spec, args.replica) / f"{name}_cleaned.pdb"
-            if eq_clean.exists() and not rep_clean.exists():
-                shutil.copy2(eq_clean, rep_clean)
+            replicas = [r.strip() for r in args.replica.split(",") if r.strip()]
+            for rep in replicas:
+                rep_dir = str(paths.replica_dir(spec, rep))
+                paths.replica_dir(spec, rep).mkdir(parents=True, exist_ok=True)
+                for artifact in ["npt.state.xml", "system.xml", "solvated.pdb", "restart.chk"]:
+                    eq_art = paths.eq_dir(spec) / artifact
+                    rep_art = paths.replica_dir(spec, rep) / artifact
+                    if eq_art.exists() and not rep_art.exists():
+                        shutil.copy2(eq_art, rep_art)
+                rep_clean = paths.replica_dir(spec, rep) / f"{name}_cleaned.pdb"
+                if eq_clean.exists() and not rep_clean.exists():
+                    shutil.copy2(eq_clean, rep_clean)
 
-            total_ns = args.total_ns
-            traj_interval = 10.0
-            if args.steps is not None:
-                total_ns = (args.steps * 0.002) / 1000.0
-                total_ps = total_ns * 1000.0
-                traj_interval = min(10.0, max(0.002, total_ps / 5.0))
+                total_ns = args.total_ns
+                traj_interval = getattr(args, "traj_interval", 10.0)
+                if args.steps is not None:
+                    total_ns = (args.steps * 0.002) / 1000.0
+                    total_ps = total_ns * 1000.0
+                    traj_interval = min(traj_interval, max(0.002, total_ps / 5.0))
 
-            openmm_md(
-                rep_dir,
-                name,
-                total_ns=total_ns,
-                traj_interval=traj_interval,
-                checkpoint_ps=1000.0,
-            )
+                openmm_md(
+                    rep_dir,
+                    name,
+                    total_ns=total_ns,
+                    traj_interval=traj_interval,
+                    checkpoint_ps=1000.0,
+                )
     return 0
 
 
@@ -1039,9 +1041,21 @@ def main():
         default="openmm",
         help="MD engine (default: openmm)",
     )
-    p_top_sim.add_argument("--replica", default="r1", help="Production replica (default: r1)")
+    p_top_sim.add_argument(
+        "--replica",
+        "--replicas",
+        dest="replica",
+        default="r1",
+        help="Production replica(s) (comma-separated, e.g. r1 or r1,r2,r3; default: r1)",
+    )
     p_top_sim.add_argument(
         "--total-ns", type=float, default=100.0, help="Production duration in ns (default: 100.0)"
+    )
+    p_top_sim.add_argument(
+        "--traj-interval",
+        type=float,
+        default=10.0,
+        help="Trajectory save interval in ps (default: 10.0)",
     )
     p_top_sim.add_argument(
         "--steps", type=int, default=None, help="Override step count for testing"
@@ -1062,7 +1076,11 @@ def main():
     p_top_merge.add_argument("--state", required=True, help="State tag")
     p_top_merge.add_argument("--variant", default="WT", help="Variant name")
     p_top_merge.add_argument(
-        "--replicas", default="r1,r2,r3", help="Replicas to merge (default: r1,r2,r3)"
+        "--replicas",
+        "--replica",
+        dest="replicas",
+        default="r1,r2,r3",
+        help="Replicas to merge (default: r1,r2,r3)",
     )
     p_top_merge.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
 
@@ -1085,6 +1103,39 @@ def main():
     )
     p_top_comp.add_argument("--metrics", default="rmsf,rmsd", help="Metrics to compare")
     p_top_comp.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+
+    # 8. view
+    p_top_view = sub.add_parser("view", help="View trajectory in PyMOL")
+    p_top_view.add_argument(
+        "--pdb-dir",
+        default=None,
+        help="Directory containing the merged files (default: current directory)",
+    )
+    p_top_view.add_argument(
+        "-t", "--topology", default=None, help="Topology file (default: prod_full.pdb)"
+    )
+    p_top_view.add_argument(
+        "-x", "--trajectory", default=None, help="Trajectory file (default: prod_full.dcd)"
+    )
+    p_top_view.add_argument(
+        "-r", "--resi", type=int, default=12, help="Highlight residue index (default: 12)"
+    )
+
+    # 9. snapshots
+    p_top_snap = sub.add_parser("snapshots", help="Generate comparative snapshot grid")
+    p_top_snap.add_argument(
+        "-c", "--config", required=True, help="Path to custom JSON configuration file"
+    )
+    p_top_snap.add_argument(
+        "-o",
+        "--output",
+        default="data/analysis/snapshots/master_3x8_snapshots.png",
+        help="Path to output image grid file",
+    )
+    p_top_snap.add_argument(
+        "--temp-dir", default="scratch/master_grid_3x8", help="Temporary folder for panel rendering"
+    )
+    p_top_snap.add_argument("--font-path", default=None, help="Custom TrueType font path")
 
     args = p.parse_args()
 
@@ -1110,6 +1161,23 @@ def main():
 
     elif args.tool == "compare":
         raise SystemExit(_dispatch_compare(args))
+
+    elif args.tool == "view":
+        from colabmda.openmm.commands import openmm_view
+
+        raise SystemExit(openmm_view(args.pdb_dir, args.topology, args.trajectory, resi=args.resi) or 0)
+
+    elif args.tool == "snapshots":
+        from colabmda.openmm.commands import openmm_snapshots
+
+        raise SystemExit(
+            openmm_snapshots(
+                config_path=args.config,
+                output=args.output,
+                temp_dir=args.temp_dir,
+                font_path=args.font_path,
+            ) or 0
+        )
 
     if args.tool == "openmm":
         from colabmda.openmm.commands import (

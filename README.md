@@ -18,9 +18,9 @@
 | **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
 | **Dependencies** | `OpenMM`, `AmberTools (tleap, cpptraj)`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA` |
 | **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
-| **Structure** | [Source Layout](#-project-structure) |
+| **Structure** | [Source Layout](#project-structure) |
 
-### 📂 Project Structure
+### 📂 Project Structure <a id="project-structure"></a>
 ColabMDA is organized into clear, functional modules:
 *   `src/colabmda/cli.py`: Central unified CLI (`cmda` and `colabmda`).
 *   `src/colabmda/core/`: System taxonomy (`SystemSpec`), project layout (`ProjectPaths`), and divalent ion parameters.
@@ -90,7 +90,7 @@ A Modeller license key is **required** to run homology modeling and point-mutati
 ### 1.2. HPC Clusters (SLURM)
 
 #### 1.2.1. Scratch Storage
-On HPC clusters running SLURM, run simulations on high-speed scratch storage (`/scratch/$USER/projects/<project>`):
+On HPC clusters running SLURM, run simulations on high-speed scratch storage (`/scratch/$USER/research/projects/<project>`):
 
 ```bash
 # 1. Activate conda environment
@@ -98,7 +98,7 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate colabmda
 
 # 2. Define scratch project workspace
-export SCRATCH_PROJECT="/scratch/$USER/projects/test-project"
+export SCRATCH_PROJECT="/scratch/$USER/research/projects/test-project"
 ```
 
 #### 1.2.2. Interactive GPU Allocation
@@ -150,7 +150,7 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 3. **Single Bootstrap Script:** Standalone environment provisioning is handled by a single script: `scripts/setup.sh`.
 
 ```text
-<project_root>/                               # E.g. test-project or /content/drive/MyDrive/projects/test-project
+<project_root>/                               # E.g. research/projects/test-project or /content/drive/MyDrive/research/projects/test-project
 ├── scripts/                                  # Decoupled execution & batch submission scripts
 │   ├── run.sh                                # Local / Colab runner script
 │   ├── submit_eq.slurm                       # HPC SLURM equilibration batch script
@@ -198,6 +198,8 @@ ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `c
 | **`merge`** | `cmda merge --state <tag> --variant <var>` | Wraps PBC and strips bulk solvent via `cpptraj` (`stripped.system.prmtop`). |
 | **`analyze`** | `cmda analyze --state <tag> --variant <var>` | Computes RMSD, $R_g$, RMSF, PCA, and contact maps. |
 | **`compare`** | `cmda compare --state <tag> --variants <v1,v2>` | Renders multi-replica or cross-variant comparative overlay plots. |
+| **`view`** | `cmda view --pdb-dir <dir> [-r <resi>]` | Generates automated `visualize.pml` and launches PyMOL trajectory viewer. |
+| **`snapshots`** | `cmda snapshots --config <cfg.json>` | Renders multi-state comparative transition snapshot grids. |
 | **`colab`** | `cmda colab <new\|setup\|exec\|stop>` | Provisions remote GPU VMs, bootstraps environments, and dispatches simulations. |
 
 ---
@@ -217,10 +219,10 @@ Modeller automated building confirms:
 
 ```bash
 # 1. Build WT CDKL5 catalytic kinase domain (residues 1-303 matching UniProt O76039)
-cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/data/structure/4bgq/wt
+cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir research/projects/test-project/data/structure/4bgq/wt
 
 # 2. Mutate to create prioritized pathogenic variant (L119R) preserving biological numbering
-cmda modeller mutate --pdb-in test-project/data/structure/4bgq/wt/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/data/structure/4bgq/mutants/4bgq_l119r
+cmda modeller mutate --pdb-in research/projects/test-project/data/structure/4bgq/wt/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut research/projects/test-project/data/structure/4bgq/mutants/4bgq_l119r
 ```
 
 ---
@@ -233,8 +235,8 @@ The **Apo state** represents the unliganded kinase domain in explicit OPC water 
 #### 3.3.2. Directory Staging
 Scaffold independent directory hierarchies and batch scripts for `WT` and `L119R`:
 ```bash
-cmda stage --state apo --variant WT --root test-project
-cmda stage --state apo --variant L119R --root test-project
+cmda stage --state apo --variant WT --root research/projects/test-project
+cmda stage --state apo --variant L119R --root research/projects/test-project
 ```
 
 #### 3.3.3. Preparation & Titration (cmda prep)
@@ -247,8 +249,8 @@ Accurate protonation states are critical for biophysical simulation fidelity. `c
 
 ```bash
 # Amber ff19SB + OPC 4-point water + randomized 0.15 M NaCl neutralization
-cmda prep --state apo --variant WT --root test-project
-cmda prep --state apo --variant L119R --root test-project
+cmda prep --state apo --variant WT --root research/projects/test-project
+cmda prep --state apo --variant L119R --root research/projects/test-project
 ```
 *Outputs in `data/simulation/apo/<variant>/prep/`:* `model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, and `prep.json`.
 
@@ -258,8 +260,8 @@ ColabMDA allows running equilibration either as an automated all-in-one hub or a
 ##### A. Composite All-in-One Hub (`--stage eq`)
 Executes the full 24-stage VarMDyn relaxation protocol (minimization $\rightarrow$ gradual thermalization to 300 K $\rightarrow$ staged restraint release down to unconstrained NPT $\rightarrow$ automated QC gating) in one call:
 ```bash
-cmda sim --state apo --variant WT --stage eq --root test-project
-cmda sim --state apo --variant L119R --stage eq --root test-project
+cmda sim --state apo --variant WT --stage eq --root research/projects/test-project
+cmda sim --state apo --variant L119R --stage eq --root research/projects/test-project
 ```
 
 ##### B. Granular Modular Execution (`--stage <stages>`)
@@ -274,10 +276,10 @@ For fine-grained control over individual thermodynamic ensembles:
 
 ```bash
 # Step-by-step modular progression
-cmda sim --state apo --variant WT --stage em --root test-project
-cmda sim --state apo --variant WT --stage nvt --equil-time 100 --root test-project
-cmda sim --state apo --variant WT --stage npt --equil-time 100 --root test-project
-cmda sim --state apo --variant WT --stage qc --root test-project
+cmda sim --state apo --variant WT --stage em --root research/projects/test-project
+cmda sim --state apo --variant WT --stage nvt --equil-time 100 --root research/projects/test-project
+cmda sim --state apo --variant WT --stage npt --equil-time 100 --root research/projects/test-project
+cmda sim --state apo --variant WT --stage qc --root research/projects/test-project
 ```
 
 > 🛡️ **Stability Gate:** The `qc` stage automatically parses equilibration logs (temperature drift, potential energy, density convergence) and aborts execution if the system has not stabilized, preventing wasted cloud GPU time.
@@ -290,8 +292,8 @@ cmda sim --state apo --variant WT --stage qc --root test-project
 Execute resume-safe production replicas, forking independently from `eq/`:
 ```bash
 # Triplicate production MD (100 ns each)
-cmda sim --state apo --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root test-project
-cmda sim --state apo --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root test-project
+cmda sim --state apo --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root research/projects/test-project
+cmda sim --state apo --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root research/projects/test-project
 ```
 
 ---
@@ -309,8 +311,8 @@ Rather than blind docking, ColabMDA replicates the validated `cdkl5-activation` 
 
 #### 3.4.3. Directory Staging
 ```bash
-cmda stage --state atp_mg --variant WT --root test-project
-cmda stage --state atp_mg --variant L119R --root test-project
+cmda stage --state atp_mg --variant WT --root research/projects/test-project
+cmda stage --state atp_mg --variant L119R --root research/projects/test-project
 ```
 
 #### 3.4.4. Holo Parameterization
@@ -320,20 +322,20 @@ cmda stage --state atp_mg --variant L119R --root test-project
 * **Divalent Cations:** Amber 12-6-4 Lennard-Jones parameters for $\text{Mg}^{2+}$
 * **Neutralization:** Automatically accounts for the $-4.0e$ net charge of ATP and $+2.0e$ of $\text{Mg}^{2+}$:
 ```bash
-cmda prep --state atp_mg --variant WT --root test-project
-cmda prep --state atp_mg --variant L119R --root test-project
+cmda prep --state atp_mg --variant WT --root research/projects/test-project
+cmda prep --state atp_mg --variant L119R --root research/projects/test-project
 ```
 
 #### 3.4.5. Equilibration & Production
 Equilibrates the complex using 24-stage multi-step relaxation with dedicated positional restraints on ATP heavy atoms and $\text{Mg}^{2+}$ coordination geometry during heating:
 ```bash
 # 1. Equilibrate complex in shared eq/ hub
-cmda sim --state atp_mg --variant WT --stage eq --root test-project
-cmda sim --state atp_mg --variant L119R --stage eq --root test-project
+cmda sim --state atp_mg --variant WT --stage eq --root research/projects/test-project
+cmda sim --state atp_mg --variant L119R --stage eq --root research/projects/test-project
 
 # 2. Run triplicate production MD (100 ns each)
-cmda sim --state atp_mg --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root test-project
-cmda sim --state atp_mg --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root test-project
+cmda sim --state atp_mg --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root research/projects/test-project
+cmda sim --state atp_mg --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --traj-interval 10 --root research/projects/test-project
 ```
 
 ---
@@ -355,12 +357,12 @@ ColabMDA's declarative taxonomy natively supports the subsequent stages in the C
 Uses `cpptraj` to center the solute, wrap across periodic boundary conditions, and strip bulk water while preserving ligand and active-site ions (>90% storage savings):
 ```bash
 # Apo trajectories
-cmda merge --state apo --variant WT --replicas r1,r2,r3 --root test-project
-cmda merge --state apo --variant L119R --replicas r1,r2,r3 --root test-project
+cmda merge --state apo --variant WT --replicas r1,r2,r3 --root research/projects/test-project
+cmda merge --state apo --variant L119R --replicas r1,r2,r3 --root research/projects/test-project
 
 # Holo trajectories
-cmda merge --state atp_mg --variant WT --replicas r1,r2,r3 --root test-project
-cmda merge --state atp_mg --variant L119R --replicas r1,r2,r3 --root test-project
+cmda merge --state atp_mg --variant WT --replicas r1,r2,r3 --root research/projects/test-project
+cmda merge --state atp_mg --variant L119R --replicas r1,r2,r3 --root research/projects/test-project
 ```
 
 #### 3.6.2. Reference Topologies
@@ -380,19 +382,19 @@ When analyzing or visualizing trajectories, the topology file used **must strict
 #### 3.7.1. System Metrics (cmda analyze)
 Extracts time-series metrics (Backbone RMSD, Radius of Gyration $R_g$, per-residue RMSF) and publication summary plots:
 ```bash
-cmda analyze --state apo --variant WT --root test-project
-cmda analyze --state apo --variant L119R --root test-project
-cmda analyze --state atp_mg --variant WT --root test-project
-cmda analyze --state atp_mg --variant L119R --root test-project
+cmda analyze --state apo --variant WT --root research/projects/test-project
+cmda analyze --state apo --variant L119R --root research/projects/test-project
+cmda analyze --state atp_mg --variant WT --root research/projects/test-project
+cmda analyze --state atp_mg --variant L119R --root research/projects/test-project
 ```
 
 #### 3.7.2. Comparative Overlays (cmda compare)
 ```bash
 # 1. Compare Wild-Type vs Hinge Mutant in Apo state
-cmda compare --state apo --variants WT,L119R --root test-project
+cmda compare --state apo --variants WT,L119R --root research/projects/test-project
 
 # 2. Compare Wild-Type vs Hinge Mutant in Holo state
-cmda compare --state atp_mg --variants WT,L119R --root test-project
+cmda compare --state atp_mg --variants WT,L119R --root research/projects/test-project
 ```
 
 #### 3.7.3. Expected Frame Counts
@@ -407,7 +409,7 @@ $$\text{Merged Frames} = \frac{\text{Total Frames}}{\text{Stride}} = \frac{10,00
 #### 3.7.4. MDAnalysis Frame Check
 To verify frame counts and coordinate integrity directly in Python:
 ```bash
-python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/apo/WT/r1/prod_full.pdb', 'data/simulation/apo/WT/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
+python3 -c "import MDAnalysis as mda; u = mda.Universe('research/projects/test-project/data/simulation/apo/WT/r1/prod_full.pdb', 'research/projects/test-project/data/simulation/apo/WT/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
 ```
 
 ---
@@ -428,10 +430,10 @@ python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.gi
 #### 3.8.2. Launching Visualization
 ```bash
 # Visualize Apo WT replica 1
-colabmda openmm view --pdb-dir data/simulation/apo/WT/r1
+cmda view --pdb-dir research/projects/test-project/data/simulation/apo/WT/r1
 
 # Visualize Holo L119R replica 1 highlighting mutated Arg119 sidechain
-colabmda openmm view --pdb-dir data/simulation/atp_mg/L119R/r1 --resi 119
+cmda view --pdb-dir research/projects/test-project/data/simulation/atp_mg/L119R/r1 --resi 119
 ```
 
 <details>
@@ -474,12 +476,12 @@ zoom kinase and polymer, buffer=4
 #### 3.8.3. Snapshot Grids
 Render publication-quality structural snapshot grids comparing conformational transitions across time points:
 ```bash
-colabmda openmm snapshots --config my_config.json --output figures/comparison_grid.png
+cmda snapshots --config my_config.json --output figures/comparison_grid.png
 ```
 
 ```json
 {
-  "align_ref_pdb": "test-project/data/structure/4bgq/wt/target.B99990001_with_cryst.pdb",
+  "align_ref_pdb": "research/projects/test-project/data/structure/4bgq/wt/target.B99990001_with_cryst.pdb",
   "stable_core_sel": "resi 20-35 or resi 85-110 or resi 180-260",
   "camera_view": [
     0.0, 1.0, 0.0,
@@ -489,8 +491,8 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
   ],
   "systems": {
     "WT": {
-      "pdb": "data/simulation/apo/WT/r1/prod_full.pdb",
-      "dcd": "data/simulation/apo/WT/r1/prod_full.dcd",
+      "pdb": "research/projects/test-project/data/simulation/apo/WT/r1/prod_full.pdb",
+      "dcd": "research/projects/test-project/data/simulation/apo/WT/r1/prod_full.dcd",
       "states": [1, 100],
       "times": ["0.00 ns", "1.00 ns"],
       "mut_residue": 119
@@ -500,7 +502,6 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
 ```
 
 ---
-
 
 ## Acknowledgements
 - [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)

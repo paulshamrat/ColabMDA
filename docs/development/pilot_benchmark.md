@@ -20,7 +20,7 @@
 # ==============================================================================
 # Google Colab Pilot Execution (WT & L119R across Apo and Holo atp_mg)
 # ==============================================================================
-PROJECT_DIR="/content/drive/MyDrive/projects/test-project"
+PROJECT_DIR="/content/drive/MyDrive/research/projects/test-project"
 
 # 1. Stage project directories and scripts
 cmda stage --state apo --variant WT --root "${PROJECT_DIR}"
@@ -69,7 +69,7 @@ cmda compare --state atp_mg --variants WT,L119R --root "${PROJECT_DIR}"
 # ==============================================================================
 # HPC Cluster Scratch Pilot Execution (SLURM)
 # ==============================================================================
-export SCRATCH_PROJECT="/scratch/$USER/projects/test-project"
+export SCRATCH_PROJECT="/scratch/$USER/research/projects/test-project"
 
 # 1. Stage project directories and generate SLURM runner scripts
 cmda stage --state apo --variant WT --root "${SCRATCH_PROJECT}"
