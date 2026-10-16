@@ -138,21 +138,32 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 │
 └── data/                                     # Single root for all scientific domain data
     ├── structure/                            # Raw and modeled structural inputs (Zero raw PDBs in src/)
-    │   ├── protein/                          # Target receptor structures (e.g. cdkl5_wt.pdb, cdkl5_r59w.pdb, cdkl5_l119r.pdb)
-    │   ├── template/                         # Structural templates (e.g. 4BGQ.pdb, 3X2V.pdb, 8FP5.pdb)
-    │   ├── peptide/                          # Substrate peptides (e.g. EB2.pdb)
+    │   ├── protein/                          # Target receptor structures (cdkl5_wt.pdb, cdkl5_l119r.pdb)
+    │   ├── template/                         # Structural templates (4BGQ.pdb, 8FP5.pdb)
+    │   ├── peptide/                          # Substrate peptides (EB2.pdb)
     │   └── ligand/                           # Small molecules & nucleotides (ATP.sdf, ADP.sdf)
     ├── simulation/                           # Staged & executed simulation data
-    │   └── <state>/<variant>/                # E.g. apo/WT/, atp_2mg/WT/, atp_2mg_eb2/R59W/
-    │       ├── prep/                         # Model assembly & Amber topology (model.pdb, solvated.pdb, system.prmtop, prep.json)
-    │       ├── eq/                           # Shared equilibration hub (solvated.pdb, eq.pdb, qc.png, qc.json)
-    │       ├── r1/                           # Production replica 1 (prod.dcd, prod.log, restart.chk)
-    │       ├── r2/                           # Production replica 2 (independent seed from eq/)
-    │       └── r3/                           # Production replica 3
+    │   ├── apo/                              # Track 1: Unliganded kinase state
+    │   │   ├── WT/                           # Wild-Type CDKL5
+    │   │   │   ├── prep/                     # Parameterization & Amber topology (model.pdb, solvated.pdb, system.prmtop, prep.json)
+    │   │   │   ├── eq/                       # Shared 24-stage equilibration hub (eq.pdb, qc.png, qc.json)
+    │   │   │   ├── r1/                       # Production replica 1 (prod.dcd, prod.log, restart.chk)
+    │   │   │   ├── r2/                       # Production replica 2 (independent velocity seed from eq/)
+    │   │   │   └── r3/                       # Production replica 3
+    │   │   └── L119R/                        # Pathogenic hinge mutant (same modular structure)
+    │   └── atp_2mg/                          # Track 2: Pre-catalytic holo state (CDKL5 + ATP + 2Mg2+)
+    │       ├── WT/                           # Holo WT (prep/, eq/, r1/, r2/, r3/)
+    │       └── L119R/                        # Holo L119R (prep/, eq/, r1/, r2/, r3/)
     └── analysis/                             # Trajectory metrics, CSVs, and publication plots
-        └── <state>/                          # E.g. apo/, atp_2mg/, atp_2mg_eb2/
-            ├── <variant>/                    # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
-            └── compare/                      # Cross-variant comparative plots (wt_vs_r59w.png, wt_vs_l119r.png)
+        ├── apo/                              # Unliganded trajectory analysis
+        │   ├── WT/                           # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
+        │   ├── L119R/                        # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
+        │   └── compare/                      # Cross-variant comparative plots (wt_vs_l119r.png)
+        ├── atp_2mg/                          # Holo trajectory analysis
+        │   ├── WT/                           # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
+        │   ├── L119R/                        # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
+        │   └── compare/                      # Cross-variant comparative plots (wt_vs_l119r.png)
+        └── compare_apo_vs_holo/              # Conformational response to nucleotide binding (apo vs holo)
 ```
 
 > 💡 **Why Shared `eq/`?**
@@ -190,98 +201,142 @@ ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `c
 
 ---
 
-### 4.3. Progressive End-to-End Walkthrough (CDKL5 Exemplar)
+### 4.3. Foundation: Homology Modeling & Biological Mutagenesis (`cmda modeller`)
 
-ColabMDA structures simulation campaigns into clear, progressive biophysical scenarios—from unliganded baseline dynamics to fully active signaling complexes. Here we demonstrate the full pipeline using the human **CDKL5 catalytic kinase domain (UniProt `O76039`, residues 1–303, template PDB `4BGQ`)** and prioritized pathogenic variants from our CDKL5 panel (**`R59W`** in the N-lobe ATP cradle, **`L119R`** in the hinge region, and **`D193H`** in the catalytic loop).
-
-#### Step 0: Structure Foundation & Variant Modeling (`cmda modeller`)
-Build the target receptor matching biological UniProt numbering and introduce point mutations directly into `<project_root>/data/structure/protein/`:
+ColabMDA structures simulation campaigns into clear, progressive biophysical tracks—from unliganded baseline dynamics to fully active signaling complexes. Here we demonstrate the full pipeline using the human **CDKL5 catalytic kinase domain (UniProt `O76039`, residues 1–303, template PDB `4BGQ`)** comparing the **Wild-Type (`WT`)** against the prioritized pathogenic hinge-region variant **`L119R`**.
 
 ```bash
 # 1. Build WT CDKL5 catalytic kinase domain (residues 1-303 matching UniProt O76039)
 cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/data/structure/protein
 
-# 2. Mutate to create prioritized pathogenic variants (R59W, L119R, D193H) preserving biological numbering
-cmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/data/structure/protein
+# 2. Mutate to create prioritized pathogenic variant (L119R) preserving biological numbering
 cmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/data/structure/protein
-cmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut D193H --outdir-mut test-project/data/structure/protein
 ```
 
 ---
 
-#### Scenario A: Baseline Apo State (`--state apo`)
-*Biophysical Purpose:* Pure kinase in explicit OPC/TIP3P water + neutralizing counterions. Establishes the unperturbed baseline conformational dynamics and quantifies intrinsic mutation-induced destabilization in the N-lobe (residues 13–56) and activation loop (residues 151–191).
+### 4.4. Track 1: Unliganded Apo Dynamics Pipeline (`--state apo`)
 
+#### 4.4.1. Biophysical Scope & Input Requirements
+The **Apo state** represents the unliganded kinase domain in explicit OPC water with neutralizing counterions ($0.15\text{ M NaCl}$). It establishes the baseline conformational plasticity and quantifies intrinsic mutation-induced destabilization in the N-lobe (residues 13–56) and activation loop (residues 151–191) without cofactor stabilization.
+
+#### 4.4.2. Staging Project Directory Trees
+Scaffold independent directory hierarchies and batch scripts for `WT` and `L119R`:
 ```bash
-# 1. Stage decoupled directory structures and runner scripts for WT and variants
 cmda stage --state apo --variant WT --root test-project
-cmda stage --state apo --variant R59W --root test-project
 cmda stage --state apo --variant L119R --root test-project
+```
 
-# 2. Solvate and parameterize with Amber ff19SB / OPC water (tleap runs in <2s)
+#### 4.4.3. Apo Receptor Preparation & Parameterization
+`cmda prep` automatically detects the modeled receptors in `data/structure/protein/`, evaluates 3D electrostatic microenvironments with PROPKA 3 at physiological pH 7.4, strips unneeded crystallographic waters, and executes Amber `tleap` in <2 seconds:
+```bash
+# Amber ff19SB + OPC 4-point water + randomized 0.15 M NaCl neutralization
 cmda prep --state apo --variant WT --root test-project
-cmda prep --state apo --variant R59W --root test-project
 cmda prep --state apo --variant L119R --root test-project
+```
+*Outputs in `data/simulation/apo/<variant>/prep/`:* `model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, and `prep.json` (audit manifest).
 
-# 3. Equilibrate in shared eq/ hub (runs 24-stage EM -> NVT -> NPT -> QC gate)
+#### 4.4.4. 24-Stage Multi-Step Equilibration
+Runs the rigorous 24-stage VarMDyn relaxation protocol (minimization $\rightarrow$ gradual thermalization to 300 K $\rightarrow$ staged restraint release on backbone and sidechains down to unconstrained NPT):
+```bash
 cmda sim --state apo --variant WT --stage eq --root test-project
-cmda sim --state apo --variant R59W --stage eq --root test-project
 cmda sim --state apo --variant L119R --stage eq --root test-project
+```
+*Outputs in `data/simulation/apo/<variant>/eq/`:* `solvated.pdb`, `eq.pdb` (equilibrated seed for production), `qc.png` (4-panel stability plot), and `qc.json`.
 
-# 4. Run resume-safe chunked production MD across triplicates (r1, r2, r3)
-cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
-cmda sim --state apo --variant R59W --stage md --replica r1 --total-ns 100.0 --root test-project
-cmda sim --state apo --variant L119R --stage md --replica r1 --total-ns 100.0 --root test-project
+#### 4.4.5. Production MD Triplicates (`r1`, `r2`, `r3`)
+Execute resume-safe production replicas, forking independently from `eq/`:
+```bash
+# Triplicate production MD (100 ns each)
+cmda sim --state apo --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
+cmda sim --state apo --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
 ```
 
 ---
 
-#### Scenario B: Pre-Catalytic Holo State (`--state atp_2mg`)
-*Biophysical Purpose:* Adds quantum-calculated ATP (Hu et al. 2024 parameters) and dual catalytic $Mg^{2+}$ ions (Amber 12-6-4 parameters) transferred from reference CDK2 active-site coordinates (`PDB: 8FP5` / `3X2V`).
+### 4.5. Track 2: Pre-Catalytic Holo Dynamics Pipeline (`--state atp_2mg` / `--state atp_mg`)
 
+#### 4.5.1. Biophysical Scope & Active-Site Chemistry
+The **Holo state** models CDKL5 with bound ATP and catalytic divalent magnesium ions ($\text{Mg}^{2+}$). This state investigates nucleotide-induced active site closure, the positioning of the catalytic Lys42–Glu60 salt bridge, and how mutations like `L119R` perturb cofactor coordination.
+
+#### 4.5.2. ATP & $\text{Mg}^{2+}$ Coordinate Transfer
+Rather than blind docking, ColabMDA replicates the validated `cdkl5-activation` / `varmdyn` protocol:
+1. Performs core $\text{C}\alpha$ alignment (residues 30–220) between CDKL5 and the active CDK2 crystal structure (**PDB: `8FP5`**).
+2. Transfers the exact coordinates of ATP (`atponly.pdb`) and catalytic $\text{Mg}^{2+}$ ions (`mgonly.pdb`) into the CDKL5 binding cleft.
+3. Automatically writes the complex coordinate into `data/simulation/atp_2mg/<variant>/prep/model.pdb`.
+
+#### 4.5.3. Staging Holo Directory Trees
 ```bash
-# Simply set --state to atp_2mg
 cmda stage --state atp_2mg --variant WT --root test-project
+cmda stage --state atp_2mg --variant L119R --root test-project
+```
+
+#### 4.5.4. Holo Parameterization (Hu et al. 2024 Quantum Parameters)
+`cmda prep` routes specialized force field parameters for the nucleotide-cofactor complex:
+* **Protein:** Amber `ff19SB`
+* **Nucleotide:** Hu et al. 2024 quantum-calculated ATP parameters (`hu2024_atp.frcmod` + unit library)
+* **Divalent Cations:** Amber 12-6-4 Lennard-Jones parameters for $\text{Mg}^{2+}$
+* **Neutralization:** Automatically accounts for the $-4.0e$ net charge of ATP and $+4.0e$ of $2\text{Mg}^{2+}$:
+```bash
 cmda prep --state atp_2mg --variant WT --root test-project
+cmda prep --state atp_2mg --variant L119R --root test-project
+```
+
+#### 4.5.5. Cofactor-Aware Equilibration & Production MD
+Equilibrates the complex using 24-stage multi-step relaxation with dedicated positional restraints on ATP heavy atoms and $\text{Mg}^{2+}$ coordination geometry during heating:
+```bash
+# 1. Equilibrate complex in shared eq/ hub
 cmda sim --state atp_2mg --variant WT --stage eq --root test-project
-cmda sim --state atp_2mg --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
+cmda sim --state atp_2mg --variant L119R --stage eq --root test-project
+
+# 2. Run triplicate production MD (100 ns each)
+cmda sim --state atp_2mg --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
+cmda sim --state atp_2mg --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
 ```
 
 ---
 
-#### Scenario C: Active Ternary Complex (`--state atp_2mg_eb2`)
-*Biophysical Purpose:* Simulates the fully assembled active signaling complex:
-* Regulatory autophosphorylation at **Tyr171** (`pY171` -> Amber `PTR` with `phosaa19SB`)
-* Catalytic dual $Mg^{2+}$ + quantum ATP
-* Native human EB2 Ser222 substrate peptide (`KRPSSAPSG` motif) docked with geometric backbone continuity
+### 4.6. Progressive State Expansion Roadmap
 
-```bash
-# Stage, assemble, equilibrate, and produce active complex
-cmda stage --state atp_2mg_eb2 --variant WT --root test-project
-cmda prep --state atp_2mg_eb2 --variant WT --root test-project
-cmda sim --state atp_2mg_eb2 --variant WT --stage eq --root test-project
-cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
-```
+ColabMDA's declarative taxonomy natively supports the next stages in the CDKL5 activation cascade without changing CLI syntax:
+
+1. **State 3: Post-Catalytic / Autophosphorylated Kinase (`--state adp_2mg_py171`)**
+   - Incorporates autophosphorylation of the activation loop at Tyr171 (`pY171` $\rightarrow$ Amber `PTR` parameterized via `phosaa19SB`) alongside Hu 2024 ADP and $2\text{Mg}^{2+}$.
+2. **State 4: Active Quaternary Signaling Complex (`--state atp_2mg_py171_peb2`)**
+   - Combines phosphorylated kinase `pY171`, quantum ATP, $2\text{Mg}^{2+}$, and continuous geometric docking of the human EB2 Ser222 substrate peptide (`KRPSSAPSG` motif).
 
 ---
 
-#### Scenario D: Trajectory Post-Processing & Comparative Analysis
-Applies universally across any simulated state or variant to autoimage periodic boundaries, strip bulk solvent, and quantify structural divergence:
+### 4.7. Trajectory Post-Processing & Comparative Analytics
 
+#### 4.7.1. PBC Autoimaging & Bulk Solvent Stripping (`cmda merge`)
+Uses `cpptraj` to center the solute, wrap across periodic boundary conditions, and strip bulk water while preserving ligand and active-site ions (>90% storage savings):
 ```bash
-# 1. Autoimage PBC and strip bulk solvent with cpptraj (>90% storage savings)
+# Apo trajectories
 cmda merge --state apo --variant WT --replicas r1,r2,r3 --root test-project
-cmda merge --state apo --variant R59W --replicas r1,r2,r3 --root test-project
 cmda merge --state apo --variant L119R --replicas r1,r2,r3 --root test-project
 
-# 2. Extract trajectory metrics (RMSD, Rg, RMSF) and publication plots
-cmda analyze --state apo --variant WT --root test-project
-cmda analyze --state apo --variant R59W --root test-project
-cmda analyze --state apo --variant L119R --root test-project
+# Holo trajectories
+cmda merge --state atp_2mg --variant WT --replicas r1,r2,r3 --root test-project
+cmda merge --state atp_2mg --variant L119R --replicas r1,r2,r3 --root test-project
+```
 
-# 3. Comparative overlay: Wild-Type vs Mutants (N-lobe, hinge, and T-loop flexibility profiles)
-cmda compare --state apo --variants WT,R59W --root test-project
-cmda compare --state apo --variants WT,L119R,D193H --root test-project
+#### 4.7.2. Trajectory Metrics & Convergence (`cmda analyze`)
+Extracts time-series metrics (Backbone RMSD, Radius of Gyration $R_g$, per-residue RMSF) and publication summary plots:
+```bash
+cmda analyze --state apo --variant WT --root test-project
+cmda analyze --state apo --variant L119R --root test-project
+cmda analyze --state atp_2mg --variant WT --root test-project
+cmda analyze --state atp_2mg --variant L119R --root test-project
+```
+
+#### 4.7.3. Cross-Variant & Cross-State Comparative Overlays (`cmda compare`)
+```bash
+# 1. Compare Wild-Type vs Hinge Mutant in Apo state
+cmda compare --state apo --variants WT,L119R --root test-project
+
+# 2. Compare Wild-Type vs Hinge Mutant in Holo state
+cmda compare --state atp_2mg --variants WT,L119R --root test-project
 ```
 
 > 💡 **Specifying Project Root (`--root`):**
@@ -311,8 +366,8 @@ conda activate modeller_env
 # 1. Build Wild-Type CDKL5 (Residues 1–303 matching UniProt O76039)
 colabmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/data/structure/protein
 
-# 2. Create Point Mutant (e.g. R59W) preserving biological numbering
-colabmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/data/structure/protein
+# 2. Create Point Mutant (e.g. L119R) preserving biological numbering
+colabmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/data/structure/protein
 ```
 
 ---
@@ -328,7 +383,7 @@ conda activate openmm_env
 
 # Run 3D pKa titration at physiological pH 7.4
 colabmda openmm prep --pdb-file test-project/data/structure/protein/cdkl5_wt.pdb --outdir test-project/data/structure/protein/prep --name cdkl5_wt --ph 7.4
-colabmda openmm prep --pdb-file test-project/data/structure/protein/cdkl5_r59w.pdb --outdir test-project/data/structure/protein/prep --name cdkl5_r59w --ph 7.4
+colabmda openmm prep --pdb-file test-project/data/structure/protein/cdkl5_l119r.pdb --outdir test-project/data/structure/protein/prep --name cdkl5_l119r --ph 7.4
 ```
 
 *Key features:*
@@ -416,10 +471,10 @@ colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap
 colabmda openmm merge --name cdkl5_wt --replica r2 --center --wrap
 colabmda openmm merge --name cdkl5_wt --replica r3 --center --wrap
 
-# For Mutant (R59W):
-colabmda openmm merge --name cdkl5_r59w --replica r1 --center --wrap
-colabmda openmm merge --name cdkl5_r59w --replica r2 --center --wrap
-colabmda openmm merge --name cdkl5_r59w --replica r3 --center --wrap
+# # For Mutant (L119R):
+colabmda openmm merge --name cdkl5_l119r --replica r1 --center --wrap
+colabmda openmm merge --name cdkl5_l119r --replica r2 --center --wrap
+colabmda openmm merge --name cdkl5_l119r --replica r3 --center --wrap
 ```
 
 #### Output Files:
@@ -434,7 +489,7 @@ colabmda openmm merge --name cdkl5_r59w --replica r3 --center --wrap
 > 💡 **Protein-Only Trajectory (Optional):**
 > To save >85% storage, add the `--protein-only` flag to extract only protein atoms, discarding solvent water and ions:
 > `colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap --protein-only`
->
+
 > **Outputs with `--protein-only`:**
 > * `prod_full.dcd`: Thinned trajectory containing protein atoms only.
 > * `prod_full.pdb`: Matching protein-only topology PDB file (crucial for subsequent analysis/visualization to avoid atom mismatch).
@@ -499,10 +554,10 @@ colabmda openmm analysis --name cdkl5_wt --replica r1
 colabmda openmm analysis --name cdkl5_wt --replica r2
 colabmda openmm analysis --name cdkl5_wt --replica r3
 
-# For Mutant Triplicates (R59W):
-colabmda openmm analysis --name cdkl5_r59w --replica r1
-colabmda openmm analysis --name cdkl5_r59w --replica r2
-colabmda openmm analysis --name cdkl5_r59w --replica r3
+# For Mutant Triplicates (L119R):
+colabmda openmm analysis --name cdkl5_l119r --replica r1
+colabmda openmm analysis --name cdkl5_l119r --replica r2
+colabmda openmm analysis --name cdkl5_l119r --replica r3
 ```
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually with `--interval 10`.
@@ -511,8 +566,8 @@ colabmda openmm analysis --name cdkl5_r59w --replica r3
 ```bash
 colabmda openmm compare \
   --series "WT=data/analysis/cdkl5_wt/r1,data/analysis/cdkl5_wt/r2,data/analysis/cdkl5_wt/r3" \
-  --series "R59W=data/analysis/cdkl5_r59w/r1,data/analysis/cdkl5_r59w/r2,data/analysis/cdkl5_r59w/r3" \
-  --outdir data/analysis/compare/wt_vs_r59w
+  --series "L119R=data/analysis/cdkl5_l119r/r1,data/analysis/cdkl5_l119r/r2,data/analysis/cdkl5_l119r/r3" \
+  --outdir data/analysis/compare/wt_vs_l119r
 ```
 
 ---
@@ -550,8 +605,8 @@ Run the view command from your simulation folder (it looks for `prod_full.pdb` a
 # For Wild-Type:
 colabmda openmm view --pdb-dir data/simulation/cdkl5_wt/r1
 
-# For Mutant (R59W, highlighting residue 59):
-colabmda openmm view --pdb-dir data/simulation/cdkl5_r59w/r1 --resi 59
+# For Mutant (L119R, highlighting residue 119):
+colabmda openmm view --pdb-dir data/simulation/cdkl5_l119r/r1 --resi 119
 ```
 
 The command automatically generates a `visualize.pml` script in the folder.
@@ -590,9 +645,9 @@ show cartoon, cdkl5
 color cyan, cdkl5 and name C*
 util.cnc("cdkl5")
 
-# 7. Highlight mutated residue 59 side chain sticks
-show sticks, cdkl5 and resi 59 and not name N+C+O+H
-color yellow, cdkl5 and resi 59 and name NE1
+# 7. Highlight mutated residue 119 side chain sticks
+show sticks, cdkl5 and resi 119 and not name N+C+O+H
+color yellow, cdkl5 and resi 119 and name NH1+NH2
 set stick_radius, 0.25
 
 # 8. Focus camera onto protein
@@ -605,7 +660,7 @@ zoom cdkl5 and polymer, buffer=4
 Render publication-quality structural snapshot grids comparing transitions over trajectories (such as WT vs Mutants across specific frames):
 
 ```bash
-# Generate the default 3x8 transition snapshot grid (WT vs R59W vs L119R)
+# Generate the default transition snapshot grid (WT vs L119R)
 colabmda openmm snapshots
 ```
 
@@ -630,7 +685,7 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
       "dcd": "data/simulation/cdkl5_wt/r1/prod_full.dcd",
       "states": [1, 200],
       "times": ["0.00 ns", "2.00 ns"],
-      "mut_residue": 59
+      "mut_residue": 119
     }
   }
 }

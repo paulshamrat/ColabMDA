@@ -117,7 +117,7 @@ class SystemSpec:
         if clean_tag == "apo":
             return cls(protein=protein, variant=variant, ligand=None, ions={})
 
-        if clean_tag in {"atpmg", "atp_1mg"}:
+        if clean_tag in {"atpmg", "atp_mg", "atp_1mg"}:
             return cls(protein=protein, variant=variant, ligand="ATP", ions={"MG": 1})
 
         if clean_tag == "atp_2mg":
@@ -129,7 +129,7 @@ class SystemSpec:
         if clean_tag == "gdp_1mg":
             return cls(protein=protein, variant=variant, ligand="GDP", ions={"MG": 1})
 
-        if clean_tag == "atp_2mg_eb2":
+        if clean_tag in {"atp_2mg_eb2", "atp_2mg_py171_eb2", "atp_2mg_py171_peb2"}:
             return cls(
                 protein=protein,
                 variant=variant,
@@ -151,7 +151,7 @@ class SystemSpec:
                 peptide_seq=SUBSTRATE_PRESETS["eb2"]["seq"],
             )
 
-        # Dynamic parsing for composed tags: e.g. "atp_2mg_eb1", "adp_1mg_amph1"
+        # Dynamic parsing for composed tags: e.g. "atp_2mg_eb1", "adp_1mg_amph1", "adp_2mg_py171"
         tokens = clean_tag.split("_")
         ligand_val = None
         ions_val: dict[str, int] = {}
@@ -167,9 +167,17 @@ class SystemSpec:
                 if m:
                     count, sym = int(m.group(1)), m.group(2).upper()
                     ions_val[sym] = count
+            elif token in {"py171", "y171"}:
+                if "Y171" not in phos_val:
+                    phos_val.append("Y171")
             elif token in SUBSTRATE_PRESETS:
                 peptide_val = token
-                phos_val = ["Y171"]  # Substrate complex implies active phosphorylated kinase
+                if "Y171" not in phos_val:
+                    phos_val.append("Y171")  # Substrate complex implies active phosphorylated kinase
+            elif token.startswith("p") and token[1:] in SUBSTRATE_PRESETS:
+                peptide_val = token[1:]
+                if "Y171" not in phos_val:
+                    phos_val.append("Y171")
 
         return cls(
             protein=protein,

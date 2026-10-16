@@ -48,11 +48,23 @@ class TestSystemSpec:
         assert spec.ions == {"MG": 1}
         assert spec.state_tag == "atp_1mg"
 
+        # atp_mg alias
+        spec_alias = SystemSpec.from_tag("atp_mg")
+        assert spec_alias.ligand == "ATP"
+        assert spec_alias.ions == {"MG": 1}
+
     def test_atp_2mg_state(self):
         spec = SystemSpec.from_tag("atp_2mg")
         assert spec.ligand == "ATP"
         assert spec.ions == {"MG": 2}
         assert spec.state_tag == "atp_2mg"
+
+    def test_adp_2mg_py171_state(self):
+        spec = SystemSpec.from_tag("adp_2mg_py171")
+        assert spec.ligand == "ADP"
+        assert spec.ions == {"MG": 2}
+        assert spec.phos_residues == ["Y171"]
+        assert spec.is_phosphorylated is True
 
     def test_adp_1mg_state(self):
         spec = SystemSpec.from_tag("adp_1mg")
