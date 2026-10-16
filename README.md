@@ -108,7 +108,7 @@ salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --mem=32gb --time=02:00:0
 ```
 
 #### 1.2.3. Batch Submission (SLURM Array)
-ColabMDA automatically generates decoupled SLURM batch scripts under `<project>/scripts/`:
+When you run `cmda stage`, ColabMDA automatically generates decoupled SLURM batch scripts under `<project>/scripts/`:
 * `eq.slurm`: Single GPU job executing equilibration (EM -> NVT -> NPT -> QC).
 * `prod.slurm`: SLURM job array (`--array=1-3`) running triplicates `r1`, `r2`, and `r3` in parallel.
 * `chain.sh`: Chained submission helper (`sbatch --dependency=afterok:$EQ_ID`).
@@ -233,11 +233,14 @@ cmda modeller mutate --pdb-in research/projects/test-project/data/structure/4bgq
 The **Apo state** represents the unliganded kinase domain in explicit OPC water with neutralizing counterions ($0.15\text{ M NaCl}$). It establishes the baseline conformational plasticity and quantifies intrinsic mutation-induced destabilization in the N-lobe (residues 13–56) and activation loop (residues 151–191) without cofactor stabilization.
 
 #### 3.3.2. Directory Staging
-Scaffold independent directory hierarchies and batch scripts for `WT` and `L119R`:
+Scaffold independent directory hierarchies and automatically generate ready-to-run batch scripts for `WT` and `L119R`:
 ```bash
 cmda stage --state apo --variant WT --root research/projects/test-project
 cmda stage --state apo --variant L119R --root research/projects/test-project
 ```
+*Outputs generated automatically:*
+* **`research/projects/test-project/scripts/`:** Ready-to-run execution scripts (`run.sh`, `eq.slurm`, `prod.slurm`, `chain.sh`).
+* **`research/projects/test-project/data/simulation/apo/<variant>/`:** Staged directories (`prep/`, `eq/`, `r1/`, `r2/`, `r3/`).
 
 #### 3.3.3. Preparation & Titration (cmda prep)
 Accurate protonation states are critical for biophysical simulation fidelity. `cmda prep` automates coordinate repair and electrostatics:
