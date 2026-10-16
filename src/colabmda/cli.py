@@ -305,7 +305,8 @@ cmda analyze --state "${{STATE}}" --variant "${{VARIANT}}"
     run_sh.chmod(0o755)
 
     # HPC SLURM scripts
-    eq_slurm = paths.scripts_dir / "submit_eq.slurm"
+    eq_slurm = paths.scripts_dir / "eq.slurm"
+    eq_slurm_compat = paths.scripts_dir / "submit_eq.slurm"
     eq_slurm_content = f"""#!/usr/bin/env bash
 #SBATCH --job-name=eq_{spec.state_tag}_{spec.variant}
 #SBATCH --nodes=1
@@ -340,8 +341,11 @@ cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage eq
 """
     eq_slurm.write_text(eq_slurm_content)
     eq_slurm.chmod(0o755)
+    eq_slurm_compat.write_text(eq_slurm_content)
+    eq_slurm_compat.chmod(0o755)
 
-    prod_slurm = paths.scripts_dir / "submit_prod.slurm"
+    prod_slurm = paths.scripts_dir / "prod.slurm"
+    prod_slurm_compat = paths.scripts_dir / "submit_prod.slurm"
     prod_slurm_content = f"""#!/usr/bin/env bash
 #SBATCH --job-name=cmda_{spec.state_tag}_{spec.variant}
 #SBATCH --nodes=1
@@ -378,12 +382,15 @@ cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage md --replica "${{
 """
     prod_slurm.write_text(prod_slurm_content)
     prod_slurm.chmod(0o755)
+    prod_slurm_compat.write_text(prod_slurm_content)
+    prod_slurm_compat.chmod(0o755)
 
     submit_slurm = paths.scripts_dir / "submit.slurm"
     submit_slurm.write_text(prod_slurm_content)
     submit_slurm.chmod(0o755)
 
-    chain_sh = paths.scripts_dir / "submit_chain.sh"
+    chain_sh = paths.scripts_dir / "chain.sh"
+    chain_sh_compat = paths.scripts_dir / "submit_chain.sh"
     chain_content = """#!/usr/bin/env bash
 # Submit equilibration first, then chain production replicas as a dependency
 set -euo pipefail
@@ -394,17 +401,19 @@ cd "${PROJECT_ROOT}"
 mkdir -p logs
 
 echo "Submitting equilibration job..."
-EQ_ID=$(sbatch scripts/submit_eq.slurm | awk '{print $NF}')
+EQ_ID=$(sbatch scripts/eq.slurm | awk '{print $NF}')
 echo "Equilibration Job ID: ${EQ_ID}"
 
 echo "Submitting production replica array (dependent on ${EQ_ID})..."
-PROD_ID=$(sbatch --dependency=afterok:${EQ_ID} scripts/submit_prod.slurm | awk '{print $NF}')
+PROD_ID=$(sbatch --dependency=afterok:${EQ_ID} scripts/prod.slurm | awk '{print $NF}')
 echo "Production Array Job ID: ${PROD_ID}"
 
 echo "Watch queue with: squeue -u $USER"
 """
     chain_sh.write_text(chain_content)
     chain_sh.chmod(0o755)
+    chain_sh_compat.write_text(chain_content)
+    chain_sh_compat.chmod(0o755)
 
     print(
         f"[OK] Staged project directory tree for {spec.state_tag}/{spec.variant} at: {paths.variant_dir(spec)}"

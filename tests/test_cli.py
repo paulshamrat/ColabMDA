@@ -161,23 +161,29 @@ def test_top_level_stage_command(tmp_path):
 
     # Verify decoupled scripts
     run_sh = tmp_path / "scripts" / "run.sh"
+    eq_slurm = tmp_path / "scripts" / "eq.slurm"
+    prod_slurm = tmp_path / "scripts" / "prod.slurm"
+    chain_sh = tmp_path / "scripts" / "chain.sh"
     submit_slurm = tmp_path / "scripts" / "submit.slurm"
     submit_eq = tmp_path / "scripts" / "submit_eq.slurm"
     submit_prod = tmp_path / "scripts" / "submit_prod.slurm"
     submit_chain = tmp_path / "scripts" / "submit_chain.sh"
 
     assert run_sh.exists()
+    assert eq_slurm.exists()
+    assert prod_slurm.exists()
+    assert chain_sh.exists()
     assert submit_slurm.exists()
     assert submit_eq.exists()
     assert submit_prod.exists()
     assert submit_chain.exists()
 
-    assert "#SBATCH --array=1-3" in submit_slurm.read_text()
+    assert "#SBATCH --array=1-3" in prod_slurm.read_text()
     assert "cmda sim" in run_sh.read_text()
-    assert "--stage eq" in submit_eq.read_text()
-    assert "PROJECT_ROOT" in submit_eq.read_text()
-    assert "PROJECT_ROOT" in submit_prod.read_text()
-    assert "--dependency=afterok:" in submit_chain.read_text()
+    assert "--stage eq" in eq_slurm.read_text()
+    assert "PROJECT_ROOT" in eq_slurm.read_text()
+    assert "PROJECT_ROOT" in prod_slurm.read_text()
+    assert "--dependency=afterok:" in chain_sh.read_text()
 
 
 def test_top_level_subcommands_help():

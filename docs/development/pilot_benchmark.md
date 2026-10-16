@@ -92,5 +92,5 @@ cmda sim --state atp_mg --variant WT --stage md --replica r1 --total-ns 1.0 --tr
 
 # 4. Or Submit via Chained SLURM Batch Helpers (EQ -> Array Prod)
 cd "${SCRATCH_PROJECT}"
-bash scripts/submit_chain.sh
+bash scripts/chain.sh
 ```

@@ -109,14 +109,14 @@ salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --mem=32gb --time=02:00:0
 
 #### 1.2.3. Batch Submission (SLURM Array)
 ColabMDA automatically generates decoupled SLURM batch scripts under `<project>/scripts/`:
-* `submit_eq.slurm`: Single GPU job executing equilibration (EM -> NVT -> NPT -> QC).
-* `submit_prod.slurm`: SLURM job array (`--array=1-3`) running triplicates `r1`, `r2`, and `r3` in parallel.
-* `submit_chain.sh`: Chained submission helper (`sbatch --dependency=afterok:$EQ_ID`).
+* `eq.slurm`: Single GPU job executing equilibration (EM -> NVT -> NPT -> QC).
+* `prod.slurm`: SLURM job array (`--array=1-3`) running triplicates `r1`, `r2`, and `r3` in parallel.
+* `chain.sh`: Chained submission helper (`sbatch --dependency=afterok:$EQ_ID`).
 
 Submit the full production campaign with a single command:
 ```bash
 cd "${SCRATCH_PROJECT}"
-bash scripts/submit_chain.sh
+bash scripts/chain.sh
 ```
 
 ---
@@ -153,9 +153,9 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 <project_root>/                               # E.g. research/projects/test-project or /content/drive/MyDrive/research/projects/test-project
 ├── scripts/                                  # Decoupled execution & batch submission scripts
 │   ├── run.sh                                # Local / Colab runner script
-│   ├── submit_eq.slurm                       # HPC SLURM equilibration batch script
-│   ├── submit_prod.slurm                     # HPC SLURM production array job script
-│   └── submit_chain.sh                       # Chained submission helper (EQ -> Array Prod)
+│   ├── eq.slurm                              # HPC SLURM equilibration batch script
+│   ├── prod.slurm                            # HPC SLURM production array job script
+│   └── chain.sh                              # Chained submission helper (EQ -> Array Prod)
 │
 └── data/                                     # Single root for all domain data
     ├── structure/                            # Raw and modeled structural inputs (Zero raw PDBs in src/)
