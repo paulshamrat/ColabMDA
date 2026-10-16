@@ -131,12 +131,12 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 ```text
 <project_root>/                           # E.g. test-project (local) or /content/drive/MyDrive/ColabMDA/test-project (Colab)
 ├── structure/                            # Raw structural inputs (Zero raw PDBs in src/)
-│   ├── protein/                          # Target receptor structures (e.g. receptor_wt.pdb)
-│   ├── template/                         # Structural templates (e.g. 3X2V.pdb)
+│   ├── protein/                          # Target receptor structures (e.g. cdkl5_wt.pdb, cdkl5_r59w.pdb)
+│   ├── template/                         # Structural templates (e.g. 4BGQ.pdb, 3X2V.pdb, 8FP5.pdb)
 │   ├── peptide/                          # Substrate peptides (e.g. EB2.pdb)
 │   └── ligand/                           # Small molecules & cofactors
 ├── simulation/                           # Staged & executed simulation data
-│   └── <state>/<variant>/                # E.g. atp_2mg_eb2/WT/
+│   └── <state>/<variant>/                # E.g. apo/WT/, atp_2mg/WT/, atp_2mg_eb2/R59W/
 │       ├── prep/                         # Model assembly & Amber topology (model.pdb, solvated.pdb, system.prmtop, prep.json)
 │       ├── eq/                           # Shared equilibration hub (solvated.pdb, eq.pdb, qc.png, qc.json)
 │       ├── r1/                           # Production replica 1 (prod.dcd, prod.log, restart.chk)
@@ -146,7 +146,7 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 │   ├── run.sh                            # Standalone runner for local/remote execution
 │   └── submit.slurm                      # HPC SLURM batch submission script
 └── analysis/                             # Trajectory metrics, CSVs, and publication plots
-    └── <state>/<variant>/                # E.g. atp_2mg_eb2/WT/ (rmsd.csv, rmsf.csv, rg.csv)
+    └── <state>/<variant>/                # E.g. apo/WT/, atp_2mg_eb2/R59W/ (rmsd.csv, rmsf.csv, rg.csv)
 ```
 
 > 💡 **Why Shared `eq/`?**
@@ -173,38 +173,100 @@ ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `c
 
 | Command | Syntax | Description |
 | :--- | :--- | :--- |
+| **`modeller`** | `cmda modeller <build\|mutate>` | Builds homology models (UniProt biological numbering) and introduces point mutations. |
 | **`stage`** | `cmda stage --state <tag> --variant <var>` | Generates decoupled project trees and runner scripts (`run.sh`, `submit.slurm`). |
 | **`prep`** | `cmda prep --state <tag> --variant <var>` | Assembles coordinates and parameterizes Amber topology (`system.prmtop`, `system.inpcrd`). |
 | **`sim`** | `cmda sim --state <tag> --variant <var> --stage <stages>` | Dispatches OpenMM simulations (`em`, `nvt`, `npt`, `qc`, `md`, or `eq`). |
 | **`merge`** | `cmda merge --state <tag> --variant <var>` | Wraps PBC and strips bulk solvent via `cpptraj` (`stripped.system.prmtop`). |
 | **`analyze`** | `cmda analyze --state <tag> --variant <var>` | Computes RMSD, $R_g$, RMSF, PCA, and contact maps. |
 | **`compare`** | `cmda compare --state <tag> --variants <v1,v2>` | Renders multi-replica or cross-variant comparative overlay plots. |
-| **`colab`** | `cmda colab <new|setup|exec|stop>` | Provisions remote GPU VMs, bootstraps environments, and dispatches timeout-proof simulations. |
+| **`colab`** | `cmda colab <new\|setup\|exec\|stop>` | Provisions remote GPU VMs, bootstraps environments, and dispatches timeout-proof simulations. |
 
-#### Complete End-to-End Walkthrough:
+---
+
+### 4.3. Progressive End-to-End Walkthrough (CDKL5 Exemplar)
+
+ColabMDA structures simulation campaigns into clear, progressive biophysical scenarios—from unliganded baseline dynamics to fully active signaling complexes. Here we demonstrate the full pipeline using human **CDKL5 kinase domain (UniProt `O76039`, residues 1–303, template PDB `4BGQ`)** and its pathogenic N-lobe variant **`R59W`**.
+
+#### Step 0: Structure Foundation & Variant Modeling (`cmda modeller`)
+Build the target receptor matching biological UniProt numbering and introduce point mutations directly into `<project_root>/structure/protein/`:
+
 ```bash
-# 1. Stage the decoupled directory structure and scripts
+# 1. Build WT CDKL5 catalytic kinase domain (residues 1-303 matching UniProt O76039)
+cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/structure/protein
+
+# 2. Mutate to create pathogenic variant R59W preserving biological numbering
+cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/structure/protein
+```
+
+---
+
+#### Scenario A: Baseline Apo State (`--state apo`)
+*Biophysical Purpose:* Pure kinase in explicit OPC/TIP3P water + neutralizing counterions. Establishes the unperturbed baseline conformational dynamics and quantifies intrinsic mutation-induced destabilization in the N-lobe (residues 13–56) and activation loop (residues 151–191).
+
+```bash
+# 1. Stage decoupled directory structures and runner scripts for WT and R59W
+cmda stage --state apo --variant WT --root test-project
+cmda stage --state apo --variant R59W --root test-project
+
+# 2. Solvate and parameterize with Amber ff19SB / OPC water (tleap runs in <2s)
+cmda prep --state apo --variant WT --root test-project
+cmda prep --state apo --variant R59W --root test-project
+
+# 3. Equilibrate in shared eq/ hub (runs 24-stage EM -> NVT -> NPT -> QC gate)
+cmda sim --state apo --variant WT --stage eq --root test-project
+cmda sim --state apo --variant R59W --stage eq --root test-project
+
+# 4. Run resume-safe chunked production MD across triplicates (r1, r2, r3)
+cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
+cmda sim --state apo --variant R59W --stage md --replica r1 --total-ns 100.0 --root test-project
+```
+
+---
+
+#### Scenario B: Pre-Catalytic Holo State (`--state atp_2mg`)
+*Biophysical Purpose:* Adds quantum-calculated ATP (Hu et al. 2024 parameters) and dual catalytic $Mg^{2+}$ ions (Amber 12-6-4 parameters) transferred from reference CDK2 active-site coordinates (`PDB: 8FP5` / `3X2V`).
+
+```bash
+# Simply set --state to atp_2mg
+cmda stage --state atp_2mg --variant WT --root test-project
+cmda prep --state atp_2mg --variant WT --root test-project
+cmda sim --state atp_2mg --variant WT --stage eq --root test-project
+cmda sim --state atp_2mg --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
+```
+
+---
+
+#### Scenario C: Active Ternary Complex (`--state atp_2mg_eb2`)
+*Biophysical Purpose:* Simulates the fully assembled active signaling complex:
+* Regulatory autophosphorylation at **Tyr171** (`pY171` -> Amber `PTR` with `phosaa19SB`)
+* Catalytic dual $Mg^{2+}$ + quantum ATP
+* Native human EB2 Ser222 substrate peptide (`KRPSSAPSG` motif) docked with geometric backbone continuity
+
+```bash
+# Stage, assemble, equilibrate, and produce active complex
 cmda stage --state atp_2mg_eb2 --variant WT --root test-project
-
-# 2. Build coordinates and Amber topology (pY171 + ATP + 2 Mg2+ + EB2 peptide)
 cmda prep --state atp_2mg_eb2 --variant WT --root test-project
-
-# 3. Run equilibration and QC gate in shared eq/ hub (runs EM -> NVT -> NPT -> QC)
-cmda sim --state atp_2mg_eb2 --variant WT --stage eq --protocol varmdyn --root test-project
-
-# 4. Run resume-safe production MD across triplicates (r1, r2, r3)
+cmda sim --state atp_2mg_eb2 --variant WT --stage eq --root test-project
 cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
-cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r2 --total-ns 100.0 --root test-project
-cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r3 --total-ns 100.0 --root test-project
+```
 
-# 5. Autoimage PBC and strip bulk solvent with cpptraj
-cmda merge --state atp_2mg_eb2 --variant WT --replicas r1,r2,r3 --root test-project
+---
 
-# 6. Extract trajectory metrics and plots
-cmda analyze --state atp_2mg_eb2 --variant WT --root test-project
+#### Scenario D: Trajectory Post-Processing & Comparative Analysis
+Applies universally across any simulated state or variant to autoimage periodic boundaries, strip bulk solvent, and quantify structural divergence:
 
-# 7. Compare Wild-Type vs Mutant (e.g. R59W)
-cmda compare --state atp_2mg_eb2 --variants WT,R59W --root test-project
+```bash
+# 1. Autoimage PBC and strip bulk solvent with cpptraj (>90% storage savings)
+cmda merge --state apo --variant WT --replicas r1,r2,r3 --root test-project
+cmda merge --state apo --variant R59W --replicas r1,r2,r3 --root test-project
+
+# 2. Extract trajectory metrics (RMSD, Rg, RMSF) and publication plots
+cmda analyze --state apo --variant WT --root test-project
+cmda analyze --state apo --variant R59W --root test-project
+
+# 3. Comparative overlay: Wild-Type vs R59W (N-lobe & T-loop flexibility profiles)
+cmda compare --state apo --variants WT,R59W --root test-project
 ```
 
 > 💡 **Specifying Project Root (`--root`):**
@@ -231,11 +293,11 @@ The Modeller workflow includes **Biological Residue Numbering** and **Automated 
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
-# 1. Build Wild-Type KRAS (Starting at Residue 1 matching UniProt)
-colabmda modeller build --pdb-id 4ldj --uniprot-id P01116 --chain A --range 1 169 --uniprot-numbering --outdir data/structure/4ldj/wt
+# 1. Build Wild-Type CDKL5 (Residues 1–303 matching UniProt O76039)
+colabmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/structure/protein
 
-# 2. Create Point Mutant (e.g. G12D) preserving biological numbering
-colabmda modeller mutate --pdb-in data/structure/4ldj/wt/target.B99990001_with_cryst.pdb --chain A --mut G12D --outdir-mut data/structure/4ldj/mutants/4ldj_g12d
+# 2. Create Point Mutant (e.g. R59W) preserving biological numbering
+colabmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/structure/protein
 ```
 
 ---
@@ -250,8 +312,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Run 3D pKa titration at physiological pH 7.4
-colabmda openmm prep --pdb-file data/structure/4ldj/wt/4ldj_wt.pdb --outdir data/structure/4ldj/wt/prep --name 4ldj_wt --ph 7.4
-colabmda openmm prep --pdb-file data/structure/4ldj/mutants/4ldj_g12d/4ldj_g12d.pdb --outdir data/structure/4ldj/mutants/4ldj_g12d/prep --name 4ldj_g12d --ph 7.4
+colabmda openmm prep --pdb-file test-project/structure/protein/cdkl5_wt.pdb --outdir test-project/structure/protein/prep --name cdkl5_wt --ph 7.4
+colabmda openmm prep --pdb-file test-project/structure/protein/cdkl5_r59w.pdb --outdir test-project/structure/protein/prep --name cdkl5_r59w --ph 7.4
 ```
 
 *Key features:*

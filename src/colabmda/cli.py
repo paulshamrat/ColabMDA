@@ -12,12 +12,13 @@ ROOT_HELP = "Override project root (defaults to current working directory)"
 
 def _normalize_equil_protocol(protocol: str) -> str:
     """Map user-facing equilibration labels to internal implementation names."""
-    if protocol in {"default", "full", "staged"}:
+    p_norm = str(protocol).lower().strip()
+    if p_norm in {"default", "full", "staged"}:
         return "varmdyn"
-    if protocol in {"varmdyn", "quick"}:
-        return protocol
+    if p_norm in {"varmdyn", "quick"}:
+        return p_norm
     raise SystemExit(
-        "ERROR: --equil-protocol must be 'default' for the full staged protocol "
+        "ERROR: --protocol must be 'staged' for the full staged protocol "
         "or 'quick' for a short smoke-test equilibration."
     )
 
@@ -145,11 +146,49 @@ def _dispatch_prep(args) -> int:
     if args.receptor:
         rec_path = Path(args.receptor).resolve()
     else:
-        rec_path = paths.find_template(f"{args.protein}.pdb")
+        rec_path = None
+        # 1. If variant is specified and not WT, prioritize variant-specific receptor
+        if args.variant and args.variant.upper() != "WT":
+            var_candidates = [
+                f"{args.protein}_{args.variant}.pdb",
+                f"{args.protein}_{args.variant.lower()}.pdb",
+                f"{args.variant}.pdb",
+                f"{args.variant.lower()}.pdb",
+                f"target.B99990001_{args.variant}_with_cryst.pdb",
+                f"target.B99990001_{args.variant}.pdb",
+            ]
+            for cand in var_candidates:
+                rec_path = paths.find_template(cand)
+                if rec_path:
+                    break
+            if not rec_path and (paths.variants_dir / spec.variant / "model.pdb").exists():
+                rec_path = paths.variants_dir / spec.variant / "model.pdb"
+            if not rec_path and (paths.variants_dir / f"{spec.variant}.pdb").exists():
+                rec_path = paths.variants_dir / f"{spec.variant}.pdb"
+
+        # 2. Otherwise look for WT / base protein receptor
         if not rec_path:
-            rec_path = paths.find_template("4bgq.pdb")
-        if not rec_path and (paths.protein_dir / f"{args.protein}.pdb").exists():
-            rec_path = paths.protein_dir / f"{args.protein}.pdb"
+            wt_candidates = [
+                f"{args.protein}_wt.pdb",
+                f"{args.protein}_WT.pdb",
+                f"{args.protein}.pdb",
+                "target.B99990001_with_cryst.pdb",
+                "target.B99990001.pdb",
+                "4bgq.pdb",
+            ]
+            for cand in wt_candidates:
+                rec_path = paths.find_template(cand)
+                if rec_path:
+                    break
+
+        # 3. Direct fallback to protein_dir
+        if not rec_path and paths.protein_dir.exists():
+            if (paths.protein_dir / f"{args.protein}.pdb").exists():
+                rec_path = paths.protein_dir / f"{args.protein}.pdb"
+            else:
+                pdb_files = list(paths.protein_dir.glob("*.pdb"))
+                if len(pdb_files) == 1:
+                    rec_path = pdb_files[0]
 
     # Template resolution
     tmpl_path = None
@@ -285,7 +324,7 @@ VARIANT="{spec.variant}"
 echo "[SLURM] Running 1-24 equilibration for ${{STATE}}/${{VARIANT}} on $(hostname)"
 mkdir -p logs
 
-cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage em,nvt,npt,qc --protocol varmdyn
+cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage eq
 """
     eq_slurm.write_text(eq_slurm_content)
     eq_slurm.chmod(0o755)
@@ -399,10 +438,12 @@ def _dispatch_sim(args) -> int:
     prmtop = str(paths.prepared_prmtop(spec)) if paths.prepared_prmtop(spec).exists() else None
     inpcrd = str(paths.prepared_inpcrd(spec)) if paths.prepared_inpcrd(spec).exists() else None
 
+    protocol = _normalize_equil_protocol(getattr(args, "protocol", "staged"))
+
     for stage in stages:
         print(f"\n[SIM] Executing stage: {stage.upper()} for {spec.state_tag}/{spec.variant}")
         if stage == "em":
-            max_iter = 200 if getattr(args, "protocol", "varmdyn") == "quick" else 0
+            max_iter = 200 if protocol == "quick" else 0
             openmm_em(
                 eq_dir,
                 name,
@@ -413,7 +454,7 @@ def _dispatch_sim(args) -> int:
         elif stage == "nvt":
             eq_time = args.equil_time
             if (
-                getattr(args, "protocol", "varmdyn") == "quick"
+                protocol == "quick"
                 and getattr(args, "steps", None) is not None
             ):
                 eq_time = min(args.equil_time, max(0.002, args.steps * 0.002))
@@ -421,12 +462,12 @@ def _dispatch_sim(args) -> int:
                 eq_dir,
                 name,
                 equil_time=eq_time,
-                protocol=args.protocol,
+                protocol=protocol,
             )
         elif stage == "npt":
             eq_time = args.equil_time
             if (
-                getattr(args, "protocol", "varmdyn") == "quick"
+                protocol == "quick"
                 and getattr(args, "steps", None) is not None
             ):
                 eq_time = min(args.equil_time, max(0.002, args.steps * 0.002))
@@ -434,10 +475,10 @@ def _dispatch_sim(args) -> int:
                 eq_dir,
                 name,
                 equil_time=eq_time,
-                protocol=args.protocol,
+                protocol=protocol,
             )
         elif stage in ["qc", "check-equil"]:
-            openmm_qc(eq_dir, strict=False, protocol=getattr(args, "protocol", None))
+            openmm_qc(eq_dir, strict=False, protocol=protocol)
         elif stage == "md":
             rep_dir = str(paths.replica_dir(spec, args.replica))
             paths.replica_dir(spec, args.replica).mkdir(parents=True, exist_ok=True)
@@ -998,9 +1039,9 @@ def main():
     )
     p_top_sim.add_argument(
         "--protocol",
-        choices=["varmdyn", "quick"],
-        default="varmdyn",
-        help="Equilibration protocol: varmdyn (rigorous multi-stage) or quick (single stage; default: varmdyn)",
+        choices=["staged", "quick", "default", "varmdyn"],
+        default="staged",
+        help="Equilibration protocol: staged (rigorous 24-stage; default) or quick (smoke-test)",
     )
     p_top_sim.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
 
