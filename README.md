@@ -129,7 +129,7 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 3. **Single Bootstrap Script:** Standalone environment provisioning is handled by a single script: `scripts/setup.sh`.
 
 ```text
-<project_root>/                           # E.g. test-project (local) or /content/drive/MyDrive/ColabMDA/test-project (Colab)
+<project_root>/                           # E.g. test-project (local) or /content/drive/MyDrive/projects/test-project (Colab)
 ├── structure/                            # Raw structural inputs (Zero raw PDBs in src/)
 │   ├── protein/                          # Target receptor structures (e.g. cdkl5_wt.pdb, cdkl5_r59w.pdb)
 │   ├── template/                         # Structural templates (e.g. 4BGQ.pdb, 3X2V.pdb, 8FP5.pdb)
@@ -186,7 +186,7 @@ ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `c
 
 ### 4.3. Progressive End-to-End Walkthrough (CDKL5 Exemplar)
 
-ColabMDA structures simulation campaigns into clear, progressive biophysical scenarios—from unliganded baseline dynamics to fully active signaling complexes. Here we demonstrate the full pipeline using human **CDKL5 kinase domain (UniProt `O76039`, residues 1–303, template PDB `4BGQ`)** and its pathogenic N-lobe variant **`R59W`**.
+ColabMDA structures simulation campaigns into clear, progressive biophysical scenarios—from unliganded baseline dynamics to fully active signaling complexes. Here we demonstrate the full pipeline using the human **CDKL5 catalytic kinase domain (UniProt `O76039`, residues 1–303, template PDB `4BGQ`)** and prioritized pathogenic variants from our CDKL5 panel (**`R59W`** in the N-lobe ATP cradle, **`L119R`** in the hinge region, and **`D193H`** in the catalytic loop).
 
 #### Step 0: Structure Foundation & Variant Modeling (`cmda modeller`)
 Build the target receptor matching biological UniProt numbering and introduce point mutations directly into `<project_root>/structure/protein/`:
@@ -195,8 +195,10 @@ Build the target receptor matching biological UniProt numbering and introduce po
 # 1. Build WT CDKL5 catalytic kinase domain (residues 1-303 matching UniProt O76039)
 cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/structure/protein
 
-# 2. Mutate to create pathogenic variant R59W preserving biological numbering
+# 2. Mutate to create prioritized pathogenic variants (R59W, L119R, D193H) preserving biological numbering
 cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/structure/protein
+cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/structure/protein
+cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut D193H --outdir-mut test-project/structure/protein
 ```
 
 ---
@@ -205,21 +207,25 @@ cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_wi
 *Biophysical Purpose:* Pure kinase in explicit OPC/TIP3P water + neutralizing counterions. Establishes the unperturbed baseline conformational dynamics and quantifies intrinsic mutation-induced destabilization in the N-lobe (residues 13–56) and activation loop (residues 151–191).
 
 ```bash
-# 1. Stage decoupled directory structures and runner scripts for WT and R59W
+# 1. Stage decoupled directory structures and runner scripts for WT and variants
 cmda stage --state apo --variant WT --root test-project
 cmda stage --state apo --variant R59W --root test-project
+cmda stage --state apo --variant L119R --root test-project
 
 # 2. Solvate and parameterize with Amber ff19SB / OPC water (tleap runs in <2s)
 cmda prep --state apo --variant WT --root test-project
 cmda prep --state apo --variant R59W --root test-project
+cmda prep --state apo --variant L119R --root test-project
 
 # 3. Equilibrate in shared eq/ hub (runs 24-stage EM -> NVT -> NPT -> QC gate)
 cmda sim --state apo --variant WT --stage eq --root test-project
 cmda sim --state apo --variant R59W --stage eq --root test-project
+cmda sim --state apo --variant L119R --stage eq --root test-project
 
 # 4. Run resume-safe chunked production MD across triplicates (r1, r2, r3)
 cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
 cmda sim --state apo --variant R59W --stage md --replica r1 --total-ns 100.0 --root test-project
+cmda sim --state apo --variant L119R --stage md --replica r1 --total-ns 100.0 --root test-project
 ```
 
 ---
@@ -260,19 +266,22 @@ Applies universally across any simulated state or variant to autoimage periodic 
 # 1. Autoimage PBC and strip bulk solvent with cpptraj (>90% storage savings)
 cmda merge --state apo --variant WT --replicas r1,r2,r3 --root test-project
 cmda merge --state apo --variant R59W --replicas r1,r2,r3 --root test-project
+cmda merge --state apo --variant L119R --replicas r1,r2,r3 --root test-project
 
 # 2. Extract trajectory metrics (RMSD, Rg, RMSF) and publication plots
 cmda analyze --state apo --variant WT --root test-project
 cmda analyze --state apo --variant R59W --root test-project
+cmda analyze --state apo --variant L119R --root test-project
 
-# 3. Comparative overlay: Wild-Type vs R59W (N-lobe & T-loop flexibility profiles)
+# 3. Comparative overlay: Wild-Type vs Mutants (N-lobe, hinge, and T-loop flexibility profiles)
 cmda compare --state apo --variants WT,R59W --root test-project
+cmda compare --state apo --variants WT,L119R,D193H --root test-project
 ```
 
 > 💡 **Specifying Project Root (`--root`):**
 > You can pass either a relative folder in your workspace or a complete path:
 > * **Relative path (Workstation / CWD):** `--root test-project`
-> * **Complete path (Google Colab):** `--root /content/drive/MyDrive/ColabMDA/test-project` (guarantees persistent storage on Google Drive across VM restarts)
+> * **Complete path (Google Colab):** `--root /content/drive/MyDrive/projects/test-project` (guarantees persistent storage on Google Drive across VM restarts)
 > * **Complete path (HPC Cluster):** `--root /scratch/users/<username>/test-project`
 
 ---

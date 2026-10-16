@@ -6,7 +6,7 @@ from pathlib import Path
 
 from colabmda.core.taxonomy import SystemSpec
 
-DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/projects"
 ENV_ROOT = "COLABMDA_ROOT"
 ENV_PROJECT = "COLABMDA_PROJECT_DIR"
 
@@ -22,7 +22,7 @@ def resolve_project_root(
         1. Explicit root path if provided.
         2. Subfolder under root if project_name provided.
         3. Environment variables (COLABMDA_PROJECT_DIR or COLABMDA_ROOT).
-        4. Colab Drive mounted path (/content/drive/MyDrive/ColabMDA/<project>).
+        4. Colab Drive mounted path (/content/drive/MyDrive/projects/<project>).
         5. Current working directory ($CWD).
     """
     # 1. Explicit root provided
@@ -41,6 +41,9 @@ def resolve_project_root(
 
     # 3. If in Colab temporary /content folder, check Drive
     if str(cwd) == "/content" and use_drive and os.path.exists("/content/drive/MyDrive"):
+        if os.path.exists("/content/drive/MyDrive/projects"):
+            base = Path("/content/drive/MyDrive/projects")
+            return base / project_name if project_name else base
         if os.path.exists("/content/drive/MyDrive/ColabMDA"):
             base = Path("/content/drive/MyDrive/ColabMDA")
             return base / project_name if project_name else base
