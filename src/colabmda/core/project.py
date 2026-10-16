@@ -96,14 +96,17 @@ class ProjectPaths:
 
     @property
     def structure_dir(self) -> Path:
-        """Resolve 01_structure or structure."""
+        """Resolve data/structure, 01_structure, or structure."""
+        p_data = self.root / "data" / "structure"
         p01 = self.root / "01_structure"
         p_legacy = self.root / "structure"
+        if p_data.exists():
+            return p_data
         if p01.exists() and not p_legacy.exists():
             return p01
         if p_legacy.exists():
             return p_legacy
-        return p01 if p01.exists() else p_legacy
+        return p_legacy
 
     @property
     def structure_01(self) -> Path:
@@ -131,14 +134,17 @@ class ProjectPaths:
 
     @property
     def simulation_base(self) -> Path:
-        """Resolve 02_simulation or simulation."""
+        """Resolve data/simulation, 02_simulation, or simulation."""
+        p_data = self.root / "data" / "simulation"
         p02 = self.root / "02_simulation"
         p_legacy = self.root / "simulation"
+        if p_data.exists():
+            return p_data
         if p02.exists() and not p_legacy.exists():
             return p02
         if p_legacy.exists():
             return p_legacy
-        return p02 if p02.exists() else p_legacy
+        return p_legacy
 
     @property
     def simulation_02(self) -> Path:
@@ -146,14 +152,17 @@ class ProjectPaths:
 
     @property
     def analysis_base(self) -> Path:
-        """Resolve 03_analysis or analysis."""
+        """Resolve data/analysis, 03_analysis, or analysis."""
+        p_data = self.root / "data" / "analysis"
         p03 = self.root / "03_analysis"
         p_legacy = self.root / "analysis"
+        if p_data.exists():
+            return p_data
         if p03.exists() and not p_legacy.exists():
             return p03
         if p_legacy.exists():
             return p_legacy
-        return p03 if p03.exists() else p_legacy
+        return p_legacy
 
     @property
     def analysis_03(self) -> Path:
@@ -259,21 +268,27 @@ class ProjectPaths:
 
     def find_template(self, filename: str) -> Path | None:
         """Search for a template or structure file flexibly across structure subfolders."""
-        candidates = [
-            self.structure_dir / "template" / filename,
-            self.structure_dir / "protein" / filename,
-            self.structure_dir / "ligand" / filename,
-            self.structure_dir / "peptide" / filename,
-            self.structure_dir / "variants" / filename,
-            self.structure_dir / filename,
-        ]
+        bases = [self.structure_dir, self.root / "data" / "structure", self.root / "structure"]
+        candidates = []
+        for b in bases:
+            candidates.extend(
+                [
+                    b / "template" / filename,
+                    b / "protein" / filename,
+                    b / "ligand" / filename,
+                    b / "peptide" / filename,
+                    b / "variants" / filename,
+                    b / filename,
+                ]
+            )
         # Also search one subfolder level deeper (e.g. template/8FP5/8FP5.pdb or variants/WT/model.pdb)
-        for sub in ["template", "protein", "variants", "ligand", "peptide"]:
-            subpath = self.structure_dir / sub
-            if subpath.is_dir():
-                for child in subpath.iterdir():
-                    if child.is_dir():
-                        candidates.append(child / filename)
+        for b in bases:
+            for sub in ["template", "protein", "variants", "ligand", "peptide"]:
+                subpath = b / sub
+                if subpath.is_dir():
+                    for child in subpath.iterdir():
+                        if child.is_dir():
+                            candidates.append(child / filename)
         for c in candidates:
             if c.exists():
                 return c

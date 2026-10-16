@@ -129,24 +129,30 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 3. **Single Bootstrap Script:** Standalone environment provisioning is handled by a single script: `scripts/setup.sh`.
 
 ```text
-<project_root>/                           # E.g. test-project (local) or /content/drive/MyDrive/projects/test-project (Colab)
-├── structure/                            # Raw structural inputs (Zero raw PDBs in src/)
-│   ├── protein/                          # Target receptor structures (e.g. cdkl5_wt.pdb, cdkl5_r59w.pdb)
-│   ├── template/                         # Structural templates (e.g. 4BGQ.pdb, 3X2V.pdb, 8FP5.pdb)
-│   ├── peptide/                          # Substrate peptides (e.g. EB2.pdb)
-│   └── ligand/                           # Small molecules & cofactors
-├── simulation/                           # Staged & executed simulation data
-│   └── <state>/<variant>/                # E.g. apo/WT/, atp_2mg/WT/, atp_2mg_eb2/R59W/
-│       ├── prep/                         # Model assembly & Amber topology (model.pdb, solvated.pdb, system.prmtop, prep.json)
-│       ├── eq/                           # Shared equilibration hub (solvated.pdb, eq.pdb, qc.png, qc.json)
-│       ├── r1/                           # Production replica 1 (prod.dcd, prod.log, restart.chk)
-│       ├── r2/                           # Production replica 2 (independent seed from eq/)
-│       └── r3/                           # Production replica 3
-├── scripts/                              # Decoupled execution scripts
-│   ├── run.sh                            # Standalone runner for local/remote execution
-│   └── submit.slurm                      # HPC SLURM batch submission script
-└── analysis/                             # Trajectory metrics, CSVs, and publication plots
-    └── <state>/<variant>/                # E.g. apo/WT/, atp_2mg_eb2/R59W/ (rmsd.csv, rmsf.csv, rg.csv)
+<project_root>/                               # E.g. test-project (local) or /content/drive/MyDrive/projects/test-project (Colab)
+├── scripts/                                  # Decoupled execution & batch submission scripts
+│   ├── run.sh                                # Standalone runner for local workstation or Colab
+│   ├── submit_eq.slurm                       # HPC SLURM equilibration batch script
+│   ├── submit_prod.slurm                     # HPC SLURM production array job script
+│   └── submit_chain.sh                       # Chained submission helper (EQ -> Array Prod)
+│
+└── data/                                     # Single root for all scientific domain data
+    ├── structure/                            # Raw and modeled structural inputs (Zero raw PDBs in src/)
+    │   ├── protein/                          # Target receptor structures (e.g. cdkl5_wt.pdb, cdkl5_r59w.pdb, cdkl5_l119r.pdb)
+    │   ├── template/                         # Structural templates (e.g. 4BGQ.pdb, 3X2V.pdb, 8FP5.pdb)
+    │   ├── peptide/                          # Substrate peptides (e.g. EB2.pdb)
+    │   └── ligand/                           # Small molecules & nucleotides (ATP.sdf, ADP.sdf)
+    ├── simulation/                           # Staged & executed simulation data
+    │   └── <state>/<variant>/                # E.g. apo/WT/, atp_2mg/WT/, atp_2mg_eb2/R59W/
+    │       ├── prep/                         # Model assembly & Amber topology (model.pdb, solvated.pdb, system.prmtop, prep.json)
+    │       ├── eq/                           # Shared equilibration hub (solvated.pdb, eq.pdb, qc.png, qc.json)
+    │       ├── r1/                           # Production replica 1 (prod.dcd, prod.log, restart.chk)
+    │       ├── r2/                           # Production replica 2 (independent seed from eq/)
+    │       └── r3/                           # Production replica 3
+    └── analysis/                             # Trajectory metrics, CSVs, and publication plots
+        └── <state>/                          # E.g. apo/, atp_2mg/, atp_2mg_eb2/
+            ├── <variant>/                    # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
+            └── compare/                      # Cross-variant comparative plots (wt_vs_r59w.png, wt_vs_l119r.png)
 ```
 
 > 💡 **Why Shared `eq/`?**
@@ -189,16 +195,16 @@ ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `c
 ColabMDA structures simulation campaigns into clear, progressive biophysical scenarios—from unliganded baseline dynamics to fully active signaling complexes. Here we demonstrate the full pipeline using the human **CDKL5 catalytic kinase domain (UniProt `O76039`, residues 1–303, template PDB `4BGQ`)** and prioritized pathogenic variants from our CDKL5 panel (**`R59W`** in the N-lobe ATP cradle, **`L119R`** in the hinge region, and **`D193H`** in the catalytic loop).
 
 #### Step 0: Structure Foundation & Variant Modeling (`cmda modeller`)
-Build the target receptor matching biological UniProt numbering and introduce point mutations directly into `<project_root>/structure/protein/`:
+Build the target receptor matching biological UniProt numbering and introduce point mutations directly into `<project_root>/data/structure/protein/`:
 
 ```bash
 # 1. Build WT CDKL5 catalytic kinase domain (residues 1-303 matching UniProt O76039)
-cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/structure/protein
+cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/data/structure/protein
 
 # 2. Mutate to create prioritized pathogenic variants (R59W, L119R, D193H) preserving biological numbering
-cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/structure/protein
-cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/structure/protein
-cmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut D193H --outdir-mut test-project/structure/protein
+cmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/data/structure/protein
+cmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/data/structure/protein
+cmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut D193H --outdir-mut test-project/data/structure/protein
 ```
 
 ---
@@ -303,10 +309,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type CDKL5 (Residues 1–303 matching UniProt O76039)
-colabmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/structure/protein
+colabmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/data/structure/protein
 
 # 2. Create Point Mutant (e.g. R59W) preserving biological numbering
-colabmda modeller mutate --pdb-in test-project/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/structure/protein
+colabmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut R59W --outdir-mut test-project/data/structure/protein
 ```
 
 ---
@@ -321,8 +327,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Run 3D pKa titration at physiological pH 7.4
-colabmda openmm prep --pdb-file test-project/structure/protein/cdkl5_wt.pdb --outdir test-project/structure/protein/prep --name cdkl5_wt --ph 7.4
-colabmda openmm prep --pdb-file test-project/structure/protein/cdkl5_r59w.pdb --outdir test-project/structure/protein/prep --name cdkl5_r59w --ph 7.4
+colabmda openmm prep --pdb-file test-project/data/structure/protein/cdkl5_wt.pdb --outdir test-project/data/structure/protein/prep --name cdkl5_wt --ph 7.4
+colabmda openmm prep --pdb-file test-project/data/structure/protein/cdkl5_r59w.pdb --outdir test-project/data/structure/protein/prep --name cdkl5_r59w --ph 7.4
 ```
 
 *Key features:*
@@ -355,46 +361,46 @@ ColabMDA provides both fine-grained single-keyword commands and an automated all
 
 ```bash
 # 1. Initialize simulation folder and eq hub
-colabmda openmm stage --pdb-file data/structure/4ldj/wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
+colabmda openmm stage --pdb-file test-project/data/structure/protein/prep/cdkl5_wt_cleaned.pdb --name cdkl5_wt --replica r1
 
 # 2. Energy Minimization in shared eq/ hub (ff19SB / OPC 4-point water)
-colabmda openmm em --name 4ldj_wt --protein-ff ff19SB --water-model opc
+colabmda openmm em --name cdkl5_wt --protein-ff ff19SB --water-model opc
 
 # 3. NVT Thermalization (100 ps heating to 300 K)
-colabmda openmm nvt --name 4ldj_wt --equil-time 100
+colabmda openmm nvt --name cdkl5_wt --equil-time 100
 
 # 4. NPT Density Equilibration (100 ps with Monte Carlo barostat)
-colabmda openmm npt --name 4ldj_wt --equil-time 100
+colabmda openmm npt --name cdkl5_wt --equil-time 100
 
 # 5. Equilibration Quality Control Gating
-colabmda openmm qc --name 4ldj_wt
+colabmda openmm qc --name cdkl5_wt
 
 # 6. Production MD across Triplicates (r1, r2, r3 fork automatically from eq/)
-colabmda openmm md --name 4ldj_wt --replica r1 --total-ns 100.0 --traj-interval 10
-colabmda openmm md --name 4ldj_wt --replica r2 --total-ns 100.0 --traj-interval 10
-colabmda openmm md --name 4ldj_wt --replica r3 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name cdkl5_wt --replica r1 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name cdkl5_wt --replica r2 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name cdkl5_wt --replica r3 --total-ns 100.0 --traj-interval 10
 
 # 7. Merge Trajectory Chunks for all replicas (Center + Wrap)
-colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap
-colabmda openmm merge --name 4ldj_wt --replica r2 --center --wrap
-colabmda openmm merge --name 4ldj_wt --replica r3 --center --wrap
+colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap
+colabmda openmm merge --name cdkl5_wt --replica r2 --center --wrap
+colabmda openmm merge --name cdkl5_wt --replica r3 --center --wrap
 
 # 8. Check Status & Frame Counts
-colabmda openmm status --name 4ldj_wt --replica r1
+colabmda openmm status --name cdkl5_wt --replica r1
 
 # 9. Biophysical Trajectory Analysis (RMSD, Rg, RMSF)
-colabmda openmm analysis --name 4ldj_wt --replica r1
-colabmda openmm analysis --name 4ldj_wt --replica r2
-colabmda openmm analysis --name 4ldj_wt --replica r3
+colabmda openmm analysis --name cdkl5_wt --replica r1
+colabmda openmm analysis --name cdkl5_wt --replica r2
+colabmda openmm analysis --name cdkl5_wt --replica r3
 ```
 
 #### All-in-One Alternative (`run`):
 For automated, hands-off staging and execution from EM through Production MD in one call:
 ```bash
-colabmda openmm run --name 4ldj_wt --replica r1 --total-ns 100.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
+colabmda openmm run --name cdkl5_wt --replica r1 --total-ns 100.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
 ```
 
-> 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
+> 💡 **Storage Tip:** For a typical system (e.g., CDKL5 kinase domain in water, ~35,000 atoms), a 100ns run at high resolution (1ps) can produce over **40GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~4GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
 > 🛡️ **Stability Gate:** The `qc` command (and built-in gating in `run`) automatically analyzes equilibration logs and aborts if the system has not stabilized, preventing wasted cloud GPU time.
 
@@ -406,14 +412,14 @@ Combine trajectory chunks into a single DCD, apply periodic boundary condition (
 
 ```bash
 # Standard Merge (Center + Wrap, All Atoms)
-colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap
-colabmda openmm merge --name 4ldj_wt --replica r2 --center --wrap
-colabmda openmm merge --name 4ldj_wt --replica r3 --center --wrap
+colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap
+colabmda openmm merge --name cdkl5_wt --replica r2 --center --wrap
+colabmda openmm merge --name cdkl5_wt --replica r3 --center --wrap
 
-# For Mutant (G12D):
-colabmda openmm merge --name 4ldj_g12d --replica r1 --center --wrap
-colabmda openmm merge --name 4ldj_g12d --replica r2 --center --wrap
-colabmda openmm merge --name 4ldj_g12d --replica r3 --center --wrap
+# For Mutant (R59W):
+colabmda openmm merge --name cdkl5_r59w --replica r1 --center --wrap
+colabmda openmm merge --name cdkl5_r59w --replica r2 --center --wrap
+colabmda openmm merge --name cdkl5_r59w --replica r3 --center --wrap
 ```
 
 #### Output Files:
@@ -427,7 +433,7 @@ colabmda openmm merge --name 4ldj_g12d --replica r3 --center --wrap
 
 > 💡 **Protein-Only Trajectory (Optional):**
 > To save >85% storage, add the `--protein-only` flag to extract only protein atoms, discarding solvent water and ions:
-> `colabmda openmm merge --name 4ldj_wt --replica r1 --center --wrap --protein-only`
+> `colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap --protein-only`
 >
 > **Outputs with `--protein-only`:**
 > * `prod_full.dcd`: Thinned trajectory containing protein atoms only.
@@ -441,16 +447,16 @@ colabmda openmm merge --name 4ldj_g12d --replica r3 --center --wrap
 #### 5.5.1. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
-colabmda openmm status --name 4ldj_wt --replica r1
+colabmda openmm status --name cdkl5_wt --replica r1
 ```
 This prints a comprehensive status report including topology stats, chunks, and exact frame counts:
 ```text
 [STATUS]
-  Workdir          : data/simulation/4ldj_wt/r1
+  Workdir          : data/simulation/cdkl5_wt/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
-                     └─ 27273 atoms, 8388 residues
-                     └─ (169 protein, 8170 water, 49 ions)
+                     └─ 33450 atoms, 10240 residues
+                     └─ (303 protein, 10120 water, 62 ions)
   Trajectory File  : prod_full.dcd (10000 frames)
   Log File         : prod_full.log (10000 frames)
   Frames (from logs): 10000
@@ -458,7 +464,7 @@ This prints a comprehensive status report including topology stats, chunks, and 
 
 Alternatively, query the frame count directly with MDAnalysis:
 ```bash
-python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/4ldj_wt/r1/prod_full.pdb', 'data/simulation/4ldj_wt/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
+python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/cdkl5_wt/r1/prod_full.pdb', 'data/simulation/cdkl5_wt/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
 ```
 
 #### 5.5.2. ⏱️ Understanding Simulation Time vs. Frame Counts
@@ -480,7 +486,7 @@ When merging trajectories, the reference topology file used and the resulting ou
 | **Protein-Only Merge** | `colabmda openmm merge --protein-only` | `solvated.pdb` | `prod_full.pdb` (protein atoms only) | **Must** use `prod_full.pdb` (since `prod_full.dcd` contains only protein coordinates). |
 
 > ⚠️ **Why does this matter?**
-> If you merge using `--protein-only`, `prod_full.dcd` contains only protein coordinates (~2,600 atoms). Attempting to load this trajectory along with `solvated.pdb` (~27,000 atoms) in PyMOL or MDAnalysis will result in a **fatal atom mismatch error**. Always match the trajectory file with its corresponding topology file as shown in the table above.
+> If you merge using `--protein-only`, `prod_full.dcd` contains only protein coordinates (~4,800 atoms). Attempting to load this trajectory along with `solvated.pdb` (~33,000 atoms) in PyMOL or MDAnalysis will result in a **fatal atom mismatch error**. Always match the trajectory file with its corresponding topology file as shown in the table above.
 
 ---
 
@@ -489,14 +495,14 @@ When merging trajectories, the reference topology file used and the resulting ou
 #### 5.6.1. Single System Analysis (RMSD, Rg, RMSF)
 ```bash
 # For Wild-Type Triplicates:
-colabmda openmm analysis --name 4ldj_wt --replica r1
-colabmda openmm analysis --name 4ldj_wt --replica r2
-colabmda openmm analysis --name 4ldj_wt --replica r3
+colabmda openmm analysis --name cdkl5_wt --replica r1
+colabmda openmm analysis --name cdkl5_wt --replica r2
+colabmda openmm analysis --name cdkl5_wt --replica r3
 
-# For Mutant Triplicates (G12D):
-colabmda openmm analysis --name 4ldj_g12d --replica r1
-colabmda openmm analysis --name 4ldj_g12d --replica r2
-colabmda openmm analysis --name 4ldj_g12d --replica r3
+# For Mutant Triplicates (R59W):
+colabmda openmm analysis --name cdkl5_r59w --replica r1
+colabmda openmm analysis --name cdkl5_r59w --replica r2
+colabmda openmm analysis --name cdkl5_r59w --replica r3
 ```
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually with `--interval 10`.
@@ -504,9 +510,9 @@ colabmda openmm analysis --name 4ldj_g12d --replica r3
 #### 5.6.2. WT vs Mutant Comparison (Triplicate Statistics)
 ```bash
 colabmda openmm compare \
-  --series "WT=data/analysis/4ldj_wt/r1,data/analysis/4ldj_wt/r2,data/analysis/4ldj_wt/r3" \
-  --series "G12D=data/analysis/4ldj_g12d/r1,data/analysis/4ldj_g12d/r2,data/analysis/4ldj_g12d/r3" \
-  --outdir data/analysis/compare/wt_vs_g12d
+  --series "WT=data/analysis/cdkl5_wt/r1,data/analysis/cdkl5_wt/r2,data/analysis/cdkl5_wt/r3" \
+  --series "R59W=data/analysis/cdkl5_r59w/r1,data/analysis/cdkl5_r59w/r2,data/analysis/cdkl5_r59w/r3" \
+  --outdir data/analysis/compare/wt_vs_r59w
 ```
 
 ---
@@ -542,10 +548,10 @@ Run the view command from your simulation folder (it looks for `prod_full.pdb` a
 
 ```bash
 # For Wild-Type:
-colabmda openmm view --pdb-dir data/simulation/4ldj_wt/r1
+colabmda openmm view --pdb-dir data/simulation/cdkl5_wt/r1
 
-# For Mutant (G12D, highlighting residue 12):
-colabmda openmm view --pdb-dir data/simulation/4ldj_g12d/r1 --resi 12
+# For Mutant (R59W, highlighting residue 59):
+colabmda openmm view --pdb-dir data/simulation/cdkl5_r59w/r1 --resi 59
 ```
 
 The command automatically generates a `visualize.pml` script in the folder.
@@ -559,12 +565,12 @@ reinitialize
 bg_color white
 
 # 2. Load merged trajectory files
-load prod_full.pdb, kras
-load_traj prod_full.dcd, kras
+load prod_full.pdb, cdkl5
+load_traj prod_full.dcd, cdkl5
 
-# 2b. Align trajectory to crystal reference (e.g., 4ldj_wt.pdb)
-load 4ldj_wt.pdb, crystal_ref
-align kras and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
+# 2b. Align trajectory to reference (e.g., cdkl5_wt.pdb)
+load cdkl5_wt.pdb, crystal_ref
+align cdkl5 and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
 delete crystal_ref
 
 # 3. Hide solvent water and ions
@@ -573,24 +579,24 @@ hide nonbonded, all
 hide nb_spheres, all
 
 # 4. Freeze backbone tumbling frame-by-frame
-intra_fit kras and name CA
+intra_fit cdkl5 and name CA
 
 # 5. Generate crisp secondary structure ribbon
-dss kras
-cartoon automatic, kras
-show cartoon, kras
+dss cdkl5
+cartoon automatic, cdkl5
+show cartoon, cdkl5
 
 # 6. Apply smooth cyan color scheme
-color cyan, kras and name C*
-util.cnc("kras")
+color cyan, cdkl5 and name C*
+util.cnc("cdkl5")
 
-# 7. Highlight mutated residue 12 side chain sticks
-show sticks, kras and resi 12 and not name N+C+O+H
-color yellow, kras and resi 12 and name SG
+# 7. Highlight mutated residue 59 side chain sticks
+show sticks, cdkl5 and resi 59 and not name N+C+O+H
+color yellow, cdkl5 and resi 59 and name NE1
 set stick_radius, 0.25
 
 # 8. Focus camera onto protein
-zoom kras and polymer, buffer=4
+zoom cdkl5 and polymer, buffer=4
 ```
 
 </details>
@@ -599,7 +605,7 @@ zoom kras and polymer, buffer=4
 Render publication-quality structural snapshot grids comparing transitions over trajectories (such as WT vs Mutants across specific frames):
 
 ```bash
-# Generate the default 3x8 transition snapshot grid (WT vs G12C vs G12D)
+# Generate the default 3x8 transition snapshot grid (WT vs R59W vs L119R)
 colabmda openmm snapshots
 ```
 
@@ -610,8 +616,8 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
 
 ```json
 {
-  "align_ref_pdb": "data/structure/4ldj/wt/target.B99990001_with_cryst.pdb",
-  "stable_core_sel": "resi 1-10 or resi 40-55 or resi 80-169",
+  "align_ref_pdb": "test-project/data/structure/protein/target.B99990001_with_cryst.pdb",
+  "stable_core_sel": "resi 20-35 or resi 85-110 or resi 180-260",
   "camera_view": [
     0.0, 1.0, 0.0,
     0.0, 0.0, 1.0,
@@ -620,11 +626,11 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
   ],
   "systems": {
     "WT": {
-      "pdb": "data/simulation/4ldj_wt/r1/prod_full.pdb",
-      "dcd": "data/simulation/4ldj_wt/r1/prod_full.dcd",
+      "pdb": "data/simulation/cdkl5_wt/r1/prod_full.pdb",
+      "dcd": "data/simulation/cdkl5_wt/r1/prod_full.dcd",
       "states": [1, 200],
       "times": ["0.00 ns", "2.00 ns"],
-      "mut_residue": 12
+      "mut_residue": 59
     }
   }
 }

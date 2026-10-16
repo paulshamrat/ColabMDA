@@ -264,6 +264,16 @@ def _dispatch_stage(args) -> int:
     for rep in replicas:
         paths.replica_dir(spec, rep).mkdir(parents=True, exist_ok=True)
 
+    # Mirror layout under both data/ and project root for universal compatibility
+    for base_sim in [Path(root) / "data" / "simulation", Path(root) / "simulation"]:
+        v_base = base_sim / spec.state_tag / spec.variant
+        (v_base / "prep").mkdir(parents=True, exist_ok=True)
+        (v_base / "eq").mkdir(parents=True, exist_ok=True)
+        for rep in replicas:
+            (v_base / rep).mkdir(parents=True, exist_ok=True)
+    for base_ana in [Path(root) / "data" / "analysis", Path(root) / "analysis"]:
+        (base_ana / spec.state_tag / spec.variant).mkdir(parents=True, exist_ok=True)
+
     run_sh = paths.scripts_dir / "run.sh"
     run_reps = " ".join(f"r{r}" if r.isdigit() else r for r in replicas)
     run_sh_content = f"""#!/usr/bin/env bash
