@@ -284,6 +284,8 @@ cmda sim --state apo --variant WT --stage qc --root test-project
 
 > 💡 **Storage Optimization Pro-Tip:** For a typical kinase system in water (~35,000 atoms), a 100 ns run at 1 ps saving frequency produces over **40 GB** of data. Adding **`--traj-interval 10`** (10 ps interval) reduces this to ~4 GB, fitting comfortably on Google Drive while preserving full conformational statistics.
 
+> 🧪 **Smoke-Test Tip:** Before launching full production campaigns, verify end-to-end setup with a rapid 1 ns test by setting `--total-ns 1.0` and `--protocol quick`.
+
 #### 3.3.5. Triplicate Production MD (`r1`, `r2`, `r3`)
 Execute resume-safe production replicas, forking independently from `eq/`:
 ```bash
@@ -499,123 +501,6 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
 
 ---
 
-## 4. Benchmark Pilot Run: 1 ns Equilibration + 1 ns Production (WT & L119R)
-
-Before launching full 100 ns production campaigns, execute a standardized **1 ns Equilibration + 1 ns Production Pilot Run** to benchmark GPU performance, verify active-site coordination, and validate the automated autoimaging and analysis pipelines.
-
-### 4.1. Pilot Run Benchmark Parameters
-* **Equilibration Duration:** 1 ns total (`--equil-time 1000` = 1,000 ps across NVT and NPT).
-* **Production Duration:** 1 ns total (`--total-ns 1.0` = 500,000 steps at 2.0 fs timestep).
-* **Trajectory Frame Interval:** `--traj-interval 10` (10 ps = 100 frames).
-* **Expected Walltime:** ~1.5–2.5 minutes per replica on modern NVIDIA GPUs (T4 / V100 / A100 / RTX).
-
----
-
-### 4.2. Google Colab End-to-End Pilot Execution
-
-```bash
-# ==============================================================================
-# Google Colab Pilot Execution (WT & L119R across Apo and Holo atp_mg)
-# ==============================================================================
-PROJECT_DIR="/content/drive/MyDrive/projects/test-project"
-
-# 1. Stage project directories and scripts
-cmda stage --state apo --variant WT --root "${PROJECT_DIR}"
-cmda stage --state apo --variant L119R --root "${PROJECT_DIR}"
-cmda stage --state atp_mg --variant WT --root "${PROJECT_DIR}"
-cmda stage --state atp_mg --variant L119R --root "${PROJECT_DIR}"
-
-# 2. Build parameter topologies (Amber ff19SB / Hu 2024 / OPC 4-point water)
-cmda prep --state apo --variant WT --root "${PROJECT_DIR}"
-cmda prep --state apo --variant L119R --root "${PROJECT_DIR}"
-cmda prep --state atp_mg --variant WT --root "${PROJECT_DIR}"
-cmda prep --state atp_mg --variant L119R --root "${PROJECT_DIR}"
-
-# 3. 1 ns Equilibration Hub (EM -> NVT -> NPT -> QC)
-cmda sim --state apo --variant WT --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
-cmda sim --state apo --variant L119R --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
-cmda sim --state atp_mg --variant WT --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
-cmda sim --state atp_mg --variant L119R --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
-
-# 4. 1 ns Production MD Pilot Replicas (r1)
-cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
-cmda sim --state apo --variant L119R --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
-cmda sim --state atp_mg --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
-cmda sim --state atp_mg --variant L119R --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
-
-# 5. Automated Autoimaging & Trajectory Post-Processing
-cmda merge --state apo --variant WT --replicas r1 --root "${PROJECT_DIR}"
-cmda merge --state apo --variant L119R --replicas r1 --root "${PROJECT_DIR}"
-cmda merge --state atp_mg --variant WT --replicas r1 --root "${PROJECT_DIR}"
-cmda merge --state atp_mg --variant L119R --replicas r1 --root "${PROJECT_DIR}"
-
-# 6. Biophysical Analysis & Comparative Overlays
-cmda analyze --state apo --variant WT --root "${PROJECT_DIR}"
-cmda analyze --state apo --variant L119R --root "${PROJECT_DIR}"
-cmda analyze --state atp_mg --variant WT --root "${PROJECT_DIR}"
-cmda analyze --state atp_mg --variant L119R --root "${PROJECT_DIR}"
-cmda compare --state apo --variants WT,L119R --root "${PROJECT_DIR}"
-cmda compare --state atp_mg --variants WT,L119R --root "${PROJECT_DIR}"
-```
-
----
-
-### 4.3. HPC Cluster Scratch End-to-End Pilot Execution
-
-```bash
-# ==============================================================================
-# HPC Cluster Scratch Pilot Execution (SLURM)
-# ==============================================================================
-export SCRATCH_PROJECT="/scratch/$USER/projects/test-project"
-
-# 1. Stage project directories and generate SLURM runner scripts
-cmda stage --state apo --variant WT --root "${SCRATCH_PROJECT}"
-cmda stage --state apo --variant L119R --root "${SCRATCH_PROJECT}"
-cmda stage --state atp_mg --variant WT --root "${SCRATCH_PROJECT}"
-cmda stage --state atp_mg --variant L119R --root "${SCRATCH_PROJECT}"
-
-# 2. Build parameter topologies
-cmda prep --state apo --variant WT --root "${SCRATCH_PROJECT}"
-cmda prep --state apo --variant L119R --root "${SCRATCH_PROJECT}"
-cmda prep --state atp_mg --variant WT --root "${SCRATCH_PROJECT}"
-cmda prep --state atp_mg --variant L119R --root "${SCRATCH_PROJECT}"
-
-# 3. Interactive Pilot Execution on GPU Node (salloc / qsub)
-# Request GPU node: salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --mem=32gb --time=01:00:00
-cmda sim --state apo --variant WT --stage eq --equil-time 1000 --root "${SCRATCH_PROJECT}"
-cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${SCRATCH_PROJECT}"
-cmda sim --state atp_mg --variant WT --stage eq --equil-time 1000 --root "${SCRATCH_PROJECT}"
-cmda sim --state atp_mg --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${SCRATCH_PROJECT}"
-
-# 4. Or Submit via Chained SLURM Batch Helpers (EQ -> Array Prod)
-cd "${SCRATCH_PROJECT}"
-bash scripts/submit_chain.sh
-```
-
----
-
-## 5. Appendix: Backward-Compatibility Mapping (v0.2.0 to v0.3.0)
-
-<details>
-<summary><b>Click to expand translation table for legacy <code>colabmda openmm</code> subcommands</b></summary>
-
-For users maintaining legacy shell scripts from earlier versions of ColabMDA, the table below maps legacy multi-keyword commands to their modern single-keyword `cmda` equivalents:
-
-| Legacy Command (v0.2.0) | Modern Command (v0.3.0) | Key Advantages |
-| :--- | :--- | :--- |
-| `colabmda modeller build ...` | `cmda modeller build ...` | Direct top-level access, biological numbering by default. |
-| `colabmda openmm prep ...` | `cmda prep --state <tag> --variant <var>` | Combines PDBFixer, PROPKA 3 at pH 7.4, and Amber tleap solvation into one step. |
-| `colabmda openmm stage ...` | `cmda stage --state <tag> --variant <var>` | Auto-creates standard `data/simulation/<state>/<var>` layout and decoupled scripts. |
-| `colabmda openmm em/nvt/npt/qc` | `cmda sim --state <tag> --stage eq` | Executes full 24-stage relaxation hub with automated QC gating in one command. |
-| `colabmda openmm md ...` | `cmda sim --state <tag> --stage md --replica r1` | Resume-safe checkpointed production MD. |
-| `colabmda openmm merge ...` | `cmda merge --state <tag> --variant <var>` | Automated `cpptraj` PBC autoimaging and dual-stream solvent stripping. |
-| `colabmda openmm analysis ...` | `cmda analyze --state <tag> --variant <var>` | Generates time-series metrics (RMSD, Rg, RMSF, PCA). |
-| `colabmda openmm compare ...` | `cmda compare --state <tag> --variants WT,L119R` | Multi-replica and cross-variant comparative overlays. |
-| `colabmda openmm view ...` | `colabmda openmm view --pdb-dir <dir>` | Generates automated `visualize.pml` and launches PyMOL. |
-
-</details>
-
----
 
 ## Acknowledgements
 - [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
