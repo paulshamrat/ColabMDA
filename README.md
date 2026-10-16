@@ -34,13 +34,13 @@ ColabMDA is organized into clear, functional modules:
 
 ---
 
-## 1. Platform Setup & Environment Provisioning (Google Colab & HPC)
+## 1. Platform Setup
 
 ColabMDA is engineered to run seamlessly across cloud instances, high-performance computing (HPC) clusters, and local Linux workstations.
 
-### 1.1. Environment A: Google Colab (Remote Cloud GPU)
+### 1.1. Google Colab
 
-#### 1.1.1. Local Terminal Runner (Recommended — Zero Browser)
+#### 1.1.1. Terminal Runner (Recommended)
 Drive remote Colab GPU simulations directly from your local terminal using the `colab` CLI:
 
 ```bash
@@ -58,7 +58,7 @@ colab console
 > [!TIP]
 > **Headless Execution:** If you prefer running simulations directly from your local terminal without entering `colab console`, you can dispatch any command with `cmda colab exec "<command>"`.
 
-#### 1.1.2. Web Browser Notebook Interface Alternative
+#### 1.1.2. Web Notebook
 If you prefer using the Google Colab web browser interface:
 1. **Enable GPU:** Go to `Runtime` -> `Change runtime type` -> select **T4 GPU**.
 2. **Mount Drive:** Run in a notebook cell:
@@ -73,23 +73,23 @@ If you prefer using the Google Colab web browser interface:
    bash setup.sh latest
    ```
 
-#### 1.1.3. Timeout Immunity & Crash Recovery Logic
+#### 1.1.3. Crash Recovery & Checkpointing
 * **Timeout-Proof Execution:** Running simulations via `cmda colab exec` keeps the remote kernel in a `BUSY` execution state, permanently preventing Colab's 30-minute idle VM reaper from shutting down your run.
 * **Granular Checkpoint Recovery:** If a Colab session expires at its 12-hour platform limit, simply restart the command. ColabMDA automatically detects saved `stage_*.state.xml` checkpoints on Google Drive and fast-forwards directly to the unfinished step.
 
-#### 1.1.4. Modeller Academic License Provisioning
+#### 1.1.4. Modeller License
 A Modeller license key is **required** to run homology modeling and point-mutation workflows (`cmda modeller`).
 * 🔑 **Get a Free Academic License:** Register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html) (Licenses are free for academic use and sent instantly via email).
 * To provision MODELLER during bootstrap:
-  ```bash
-  KEY_MODELLER="YOUR_LICENSE_KEY" WITH_MODELLER=1 cmda colab setup
-  ```
+   ```bash
+   KEY_MODELLER="YOUR_LICENSE_KEY" WITH_MODELLER=1 cmda colab setup
+   ```
 
 ---
 
-### 1.2. Environment B: High-Performance Computing (HPC / SLURM)
+### 1.2. HPC Clusters (SLURM)
 
-#### 1.2.1. Cluster Conda Activation & Scratch Storage
+#### 1.2.1. Scratch Storage
 On HPC clusters running SLURM, run simulations on high-speed scratch storage (`/scratch/$USER/projects/<project>`):
 
 ```bash
@@ -101,13 +101,13 @@ conda activate colabmda
 export SCRATCH_PROJECT="/scratch/$USER/projects/test-project"
 ```
 
-#### 1.2.2. Interactive GPU Node Allocation (`salloc` / `qsub`)
+#### 1.2.2. Interactive GPU Allocation
 For testing or pilot runs, request an interactive GPU compute node:
 ```bash
 salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --mem=32gb --time=02:00:00
 ```
 
-#### 1.2.3. Decoupled Batch Submission (SLURM Array Jobs)
+#### 1.2.3. Batch Submission (SLURM Array)
 ColabMDA automatically generates decoupled SLURM batch scripts under `<project>/scripts/`:
 * `submit_eq.slurm`: Single GPU job executing equilibration (EM -> NVT -> NPT -> QC).
 * `submit_prod.slurm`: SLURM job array (`--array=1-3`) running triplicates `r1`, `r2`, and `r3` in parallel.
@@ -121,9 +121,9 @@ bash scripts/submit_chain.sh
 
 ---
 
-### 1.3. Environment C: Local Linux Workstation & Test Verification
+### 1.3. Local Workstation
 
-#### 1.3.1. Conda / Mamba Environment Provisioning
+#### 1.3.1. Installation
 ColabMDA runs natively on Linux workstations with NVIDIA GPUs. Provision the environment using `environment.yml`:
 ```bash
 git clone https://github.com/paulshamrat/ColabMDA.git
@@ -132,7 +132,7 @@ mamba env create -f environment.yml
 conda activate colabmda
 ```
 
-#### 1.3.2. Automated Test Suite Verification
+#### 1.3.2. Test Suite
 Verify force field parameters, peptide docking, Amber leap parameterization, and CLI execution across all modules:
 ```bash
 pytest tests/ -v
@@ -141,7 +141,7 @@ pytest tests/ -v
 
 ---
 
-## 2. Standardized Project & Data Architecture
+## 2. Project Architecture
 
 ColabMDA enforces strict architectural separation to ensure reproducibility across local workstations, cloud GPUs, and HPC clusters:
 
@@ -183,11 +183,11 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 
 ---
 
-## 3. The Unified Molecular Dynamics Protocol (`cmda`)
+## 3. Simulation Protocol (cmda)
 
 ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `colabmda`) that unifies structure preparation, parameterization, OpenMM simulation dispatch, trajectory post-processing, and multi-replica analysis.
 
-### 3.1. Single-Keyword Command Reference Table
+### 3.1. Command Reference
 
 | Command | Syntax | Description |
 | :--- | :--- | :--- |
@@ -202,15 +202,15 @@ ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `c
 
 ---
 
-### 3.2. Foundation: Homology Modeling & Point Mutagenesis (`cmda modeller`)
+### 3.2. Homology Modeling & Mutagenesis
 
 ColabMDA structures simulation campaigns into clear, progressive biophysical tracks—from unliganded baseline dynamics to fully active signaling complexes. Here we demonstrate the full pipeline using the human **CDKL5 catalytic kinase domain (UniProt `O76039`, residues 1–303, template PDB `4BGQ`)** comparing the **Wild-Type (`WT`)** against the prioritized pathogenic hinge-region variant **`L119R`**.
 
-#### Biological Residue Numbering (`--uniprot-numbering`)
+#### Biological Numbering
 Crystal structures frequently contain expression tags, truncated N-termini, or crystallographic offsets that offset residue numbering (e.g. residue 119 in clinical reports appearing as residue 108 in raw PDB files). 
 * The **`--uniprot-numbering`** flag aligns the template sequence to the canonical UniProt sequence (`O76039`) and physically renumbers coordinates so that mutation indices directly match clinical genetics and biochemical literature.
 
-#### Automated Quality Control (QC)
+#### Quality Control (QC)
 Modeller automated building confirms:
 * **Sequence Alignment Summary:** Confirms 100% sequence identity across resolved crystal regions before building coordinates.
 * **Stereochemical Energy Gating:** Verifies modeled loop geometries, DOPE scores, and stereochemical restraint satisfaction.
@@ -225,19 +225,19 @@ cmda modeller mutate --pdb-in test-project/data/structure/4bgq/wt/target.B999900
 
 ---
 
-### 3.3. Track 1: Unliganded Apo Dynamics Pipeline (`--state apo`)
+### 3.3. Track 1: Apo Dynamics
 
-#### 3.3.1. Biophysical Scope & Input Requirements
+#### 3.3.1. Scope & Inputs
 The **Apo state** represents the unliganded kinase domain in explicit OPC water with neutralizing counterions ($0.15\text{ M NaCl}$). It establishes the baseline conformational plasticity and quantifies intrinsic mutation-induced destabilization in the N-lobe (residues 13–56) and activation loop (residues 151–191) without cofactor stabilization.
 
-#### 3.3.2. Staging Project Directory Trees
+#### 3.3.2. Directory Staging
 Scaffold independent directory hierarchies and batch scripts for `WT` and `L119R`:
 ```bash
 cmda stage --state apo --variant WT --root test-project
 cmda stage --state apo --variant L119R --root test-project
 ```
 
-#### 3.3.3. Chemical Preparation, Coordinate Repair & 3D pKa Titration (`cmda prep`)
+#### 3.3.3. Preparation & Titration (cmda prep)
 Accurate protonation states are critical for biophysical simulation fidelity. `cmda prep` automates coordinate repair and electrostatics:
 * **Automated Coordinate Repair:** PDBFixer resolves missing heavy atoms, non-standard residues, and chain breaks.
 * **3D Electrostatic Titration:** Evaluates local hydrogen-bonding microenvironments using **PROPKA 3** at physiological pH (default: `7.4`).
@@ -252,7 +252,7 @@ cmda prep --state apo --variant L119R --root test-project
 ```
 *Outputs in `data/simulation/apo/<variant>/prep/`:* `model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, and `prep.json`.
 
-#### 3.3.4. Simulation Execution: Modular Stages vs. Composite Hub (`cmda sim`)
+#### 3.3.4. Simulation Execution (cmda sim)
 ColabMDA allows running equilibration either as an automated all-in-one hub or as granular individual steps:
 
 ##### A. Composite All-in-One Hub (`--stage eq`)
@@ -286,7 +286,7 @@ cmda sim --state apo --variant WT --stage qc --root test-project
 
 > 🧪 **Smoke-Test Tip:** Before launching full production campaigns, verify end-to-end setup with a rapid 1 ns test by setting `--total-ns 1.0` and `--protocol quick`.
 
-#### 3.3.5. Triplicate Production MD (`r1`, `r2`, `r3`)
+#### 3.3.5. Production MD (r1, r2, r3)
 Execute resume-safe production replicas, forking independently from `eq/`:
 ```bash
 # Triplicate production MD (100 ns each)
@@ -296,24 +296,24 @@ cmda sim --state apo --variant L119R --stage md --replica r1,r2,r3 --total-ns 10
 
 ---
 
-### 3.4. Track 2: Pre-Catalytic Holo Dynamics Pipeline (`--state atp_mg`)
+### 3.4. Track 2: Holo Dynamics (ATP + Mg2+)
 
-#### 3.4.1. Biophysical Scope & Active-Site Chemistry
+#### 3.4.1. Scope & Chemistry
 The **Holo state** models CDKL5 with bound ATP and catalytic divalent magnesium ions ($\text{Mg}^{2+}$). This state investigates nucleotide-induced active site closure, the positioning of the catalytic Lys42–Glu60 salt bridge, and how mutations like `L119R` perturb cofactor coordination.
 
-#### 3.4.2. ATP & $\text{Mg}^{2+}$ Coordinate Transfer Protocol
+#### 3.4.2. ATP & Mg2+ Transfer
 Rather than blind docking, ColabMDA replicates the validated `cdkl5-activation` / `varmdyn` protocol:
 1. Performs core $\text{C}\alpha$ alignment (residues 30–220) between CDKL5 and the active CDK2 crystal structure (**PDB: `8FP5`**).
 2. Transfers the exact coordinates of ATP (`atponly.pdb`) and catalytic $\text{Mg}^{2+}$ ions (`mgonly.pdb`) into the CDKL5 binding cleft.
 3. Automatically writes the complex coordinate into `data/simulation/atp_mg/<variant>/prep/model.pdb`.
 
-#### 3.4.3. Staging Holo Directory Trees
+#### 3.4.3. Directory Staging
 ```bash
 cmda stage --state atp_mg --variant WT --root test-project
 cmda stage --state atp_mg --variant L119R --root test-project
 ```
 
-#### 3.4.4. Holo Parameterization (Hu et al. 2024 Quantum Parameters)
+#### 3.4.4. Holo Parameterization
 `cmda prep` routes specialized force field parameters for the nucleotide-cofactor complex:
 * **Protein:** Amber `ff19SB`
 * **Nucleotide:** Hu et al. 2024 quantum-calculated ATP parameters (`hu2024_atp.frcmod` + unit library)
@@ -324,7 +324,7 @@ cmda prep --state atp_mg --variant WT --root test-project
 cmda prep --state atp_mg --variant L119R --root test-project
 ```
 
-#### 3.4.5. Cofactor-Aware Equilibration & Production MD
+#### 3.4.5. Equilibration & Production
 Equilibrates the complex using 24-stage multi-step relaxation with dedicated positional restraints on ATP heavy atoms and $\text{Mg}^{2+}$ coordination geometry during heating:
 ```bash
 # 1. Equilibrate complex in shared eq/ hub
@@ -338,7 +338,7 @@ cmda sim --state atp_mg --variant L119R --stage md --replica r1,r2,r3 --total-ns
 
 ---
 
-### 3.5. Progressive Activation Cascade Roadmap
+### 3.5. Activation Roadmap
 
 ColabMDA's declarative taxonomy natively supports the subsequent stages in the CDKL5 activation cascade without changing CLI syntax:
 
@@ -349,9 +349,9 @@ ColabMDA's declarative taxonomy natively supports the subsequent stages in the C
 
 ---
 
-### 3.6. Trajectory Autoimaging, Solvent Stripping & Topology Matching (`cmda merge`)
+### 3.6. Autoimaging & Solvent Stripping (cmda merge)
 
-#### 3.6.1. Automated PBC Autoimaging & Solvent Stripping
+#### 3.6.1. PBC Autoimaging
 Uses `cpptraj` to center the solute, wrap across periodic boundary conditions, and strip bulk water while preserving ligand and active-site ions (>90% storage savings):
 ```bash
 # Apo trajectories
@@ -363,7 +363,7 @@ cmda merge --state atp_mg --variant WT --replicas r1,r2,r3 --root test-project
 cmda merge --state atp_mg --variant L119R --replicas r1,r2,r3 --root test-project
 ```
 
-#### 3.6.2. 🧬 Reference Topology Guidelines (Preventing Fatal Atom Mismatch)
+#### 3.6.2. Reference Topologies
 When analyzing or visualizing trajectories, the topology file used **must strictly match** the trajectory coordinates:
 
 | Trajectory File | Atoms | Reference Topology | Used For |
@@ -375,9 +375,9 @@ When analyzing or visualizing trajectories, the topology file used **must strict
 
 ---
 
-### 3.7. Biophysical Analytics & Trajectory Verification (`cmda analyze` & `cmda compare`)
+### 3.7. Trajectory Analysis (cmda analyze & compare)
 
-#### 3.7.1. Single-System Trajectory Metrics (`cmda analyze`)
+#### 3.7.1. System Metrics (cmda analyze)
 Extracts time-series metrics (Backbone RMSD, Radius of Gyration $R_g$, per-residue RMSF) and publication summary plots:
 ```bash
 cmda analyze --state apo --variant WT --root test-project
@@ -386,7 +386,7 @@ cmda analyze --state atp_mg --variant WT --root test-project
 cmda analyze --state atp_mg --variant L119R --root test-project
 ```
 
-#### 3.7.2. Cross-Variant & Cross-State Comparative Overlays (`cmda compare`)
+#### 3.7.2. Comparative Overlays (cmda compare)
 ```bash
 # 1. Compare Wild-Type vs Hinge Mutant in Apo state
 cmda compare --state apo --variants WT,L119R --root test-project
@@ -395,7 +395,7 @@ cmda compare --state apo --variants WT,L119R --root test-project
 cmda compare --state atp_mg --variants WT,L119R --root test-project
 ```
 
-#### 3.7.3. ⏱️ Mathematical Formula: Simulation Time vs. Expected Frame Counts
+#### 3.7.3. Expected Frame Counts
 Use this formula to calculate expected frames:
 $$\text{Expected Frames} = \frac{\text{Total Time (ps)}}{\text{Trajectory Saving Interval (ps)}}$$
 *Example:* A $100.0\text{ ns}$ ($100,000\text{ ps}$) simulation with a $10.0\text{ ps}$ saving interval:
@@ -404,7 +404,7 @@ $$\text{Expected Frames} = \frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{
 *Striding on Merged Trajectories:*
 $$\text{Merged Frames} = \frac{\text{Total Frames}}{\text{Stride}} = \frac{10,000}{10} = 1,000\text{ frames}$$
 
-#### 3.7.4. 🔍 Verification: Fast MDAnalysis Frame Check
+#### 3.7.4. MDAnalysis Frame Check
 To verify frame counts and coordinate integrity directly in Python:
 ```bash
 python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/apo/WT/r1/prod_full.pdb', 'data/simulation/apo/WT/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
@@ -412,9 +412,9 @@ python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/apo/WT/r
 
 ---
 
-### 3.8. Publication-Quality Trajectory Visualization in PyMOL
+### 3.8. PyMOL Visualization
 
-#### 3.8.1. Local Workstation Setup
+#### 3.8.1. Workstation Setup
 Visualization runs locally on your workstation/laptop:
 ```bash
 # 1. Provision PyMOL environment
@@ -425,7 +425,7 @@ conda activate pymol_env
 python3 -m pip install --upgrade "git+https://github.com/paulshamrat/ColabMDA.git@main"
 ```
 
-#### 3.8.2. Launching Trajectory Visualization
+#### 3.8.2. Launching Visualization
 ```bash
 # Visualize Apo WT replica 1
 colabmda openmm view --pdb-dir data/simulation/apo/WT/r1
@@ -471,7 +471,7 @@ zoom kinase and polymer, buffer=4
 ```
 </details>
 
-#### 3.8.3. Comparative Transition Snapshot Grids
+#### 3.8.3. Snapshot Grids
 Render publication-quality structural snapshot grids comparing conformational transitions across time points:
 ```bash
 colabmda openmm snapshots --config my_config.json --output figures/comparison_grid.png
