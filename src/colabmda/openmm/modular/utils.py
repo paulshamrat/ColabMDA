@@ -169,6 +169,33 @@ def safe_remove_if_empty(path):
             pass
 
 
+def find_highest_completed_stage(
+    workdir: str, start_stage: int = 1, end_stage: int = 24
+) -> tuple[int, str | None]:
+    """Scan workdir/equilibration to find the highest completed stage.
+
+    Returns:
+        (highest_stage_number, path_to_highest_state_xml)
+        e.g., (23, ".../equilibration/stage_23.state.xml")
+        If no stage completed, returns (0, None).
+    """
+    eq_dir = os.path.join(workdir, "equilibration")
+    if not os.path.exists(eq_dir):
+        return 0, None
+
+    for stage_num in range(end_stage, start_stage - 1, -1):
+        state_file = os.path.join(eq_dir, f"stage_{stage_num:02d}.state.xml")
+        json_file = os.path.join(eq_dir, f"stage_{stage_num:02d}.json")
+        if (
+            os.path.exists(state_file)
+            and os.path.exists(json_file)
+            and os.path.getsize(state_file) > 0
+        ):
+            return stage_num, state_file
+
+    return 0, None
+
+
 def sync_outputs(workdir, sync_dir, extra_files=None):
     if not sync_dir:
         return
@@ -185,6 +212,10 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
         "npt.state.xml",
         "npt_protocol.json",
         "parameterization.json",
+        "equilibrated.pdb",
+        "eq.pdb",
+        "qc.png",
+        "qc.json",
         "prod.chk",
         "nvt.log",
         "npt.log",

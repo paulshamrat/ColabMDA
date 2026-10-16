@@ -76,3 +76,34 @@ def test_cpptraj_strip_script(tmp_path):
         mode="ca_backbone",
     )
     assert "strip !@CA" in s_ca
+
+
+def test_tleap_script_with_solvated_pdb(tmp_path):
+    spec = SystemSpec.from_tag("atp_2mg")
+    out_pdb = tmp_path / "solvated.pdb"
+    script = generate_tleap_script(
+        spec=spec,
+        input_pdb=tmp_path / "model.pdb",
+        output_prmtop=tmp_path / "system.prmtop",
+        output_inpcrd=tmp_path / "system.inpcrd",
+        output_pdb=out_pdb,
+    )
+    assert f'savepdb mol "{out_pdb.resolve()}"' in script
+
+
+def test_write_prep_provenance(tmp_path):
+    import json
+
+    from colabmda.amber.leap import write_prep_provenance
+
+    spec = SystemSpec.from_tag("atp_2mg", variant="WT")
+    dest_json = tmp_path / "prep.json"
+    written = write_prep_provenance(spec, dest_json)
+
+    assert written.exists()
+    data = json.loads(written.read_text(encoding="utf-8"))
+    assert data["spec"]["state"] == "atp_2mg"
+    assert data["spec"]["variant"] == "WT"
+    assert data["parameters"]["protein_ff"] == "ff19SB"
+    assert data["parameters"]["water_model"] == "opc"
+    assert data["provenance"]["engine"] == "ColabMDA"

@@ -155,7 +155,9 @@ def test_top_level_stage_command(tmp_path):
     assert (variant_base / "r1").is_dir()
     assert (variant_base / "r2").is_dir()
     assert (variant_base / "r3").is_dir()
-    assert (variant_base / "analysis").is_dir()
+    assert (tmp_path / "analysis" / "atp_2mg_eb2" / "WT").is_dir() or (
+        variant_base / "analysis"
+    ).is_dir()
 
     # Verify decoupled scripts
     run_sh = tmp_path / "scripts" / "run.sh"

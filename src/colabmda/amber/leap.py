@@ -43,6 +43,7 @@ def generate_tleap_script(
     input_pdb: Path,
     output_prmtop: Path,
     output_inpcrd: Path,
+    output_pdb: Path | None = None,
     water_model: str = "opc",
     protein_ff: str = "ff19SB",
     padding_angstroms: float = 14.0,
@@ -161,6 +162,13 @@ def generate_tleap_script(
     lines.extend(
         [
             f'saveamberparm mol "{abs_top}" "{abs_crd}"',
+        ]
+    )
+    if output_pdb:
+        abs_pdb_out = Path(output_pdb).resolve()
+        lines.append(f'savepdb mol "{abs_pdb_out}"')
+    lines.extend(
+        [
             "charge mol",
             "quit",
             "",
@@ -174,6 +182,7 @@ def run_tleap(
     script_content: str,
     workdir: Path,
     tleap_binary: str | None = None,
+    keep_script: bool = False,
 ) -> tuple[int, str]:
     """Execute tleap in a specific working directory."""
     workdir = Path(workdir).resolve()
@@ -203,4 +212,56 @@ def run_tleap(
         capture_output=True,
         text=True,
     )
-    return proc.returncode, proc.stdout + "\n" + proc.stderr
+    log_text = proc.stdout + "\n" + proc.stderr
+
+    if not keep_script and script_file.exists():
+        script_file.unlink()
+
+    return proc.returncode, log_text
+
+
+def write_prep_provenance(
+    spec: SystemSpec,
+    dest_json: Path,
+    water_model: str = "opc",
+    protein_ff: str = "ff19SB",
+    padding_angstroms: float = 14.0,
+    salt_conc_molar: float = 0.15,
+    salt_type: str = "NaCl",
+    extra: dict | None = None,
+) -> Path:
+    """Write machine-readable provenance metadata for system preparation."""
+    import json
+    from datetime import datetime, timezone
+
+    dest_json = Path(dest_json).resolve()
+    dest_json.parent.mkdir(parents=True, exist_ok=True)
+
+    meta = {
+        "spec": {
+            "protein": spec.protein,
+            "state": spec.state_tag,
+            "variant": spec.variant,
+            "ligand": spec.ligand,
+            "ions": spec.ions,
+            "phos_residues": spec.phos_residues,
+            "peptide_name": spec.peptide_name,
+        },
+        "parameters": {
+            "protein_ff": protein_ff,
+            "water_model": water_model,
+            "padding_angstroms": padding_angstroms,
+            "salt_concentration_molar": salt_conc_molar,
+            "salt_type": salt_type,
+        },
+        "provenance": {
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "engine": "ColabMDA",
+            "generator": "colabmda.amber.leap",
+        },
+    }
+    if extra:
+        meta.update(extra)
+
+    dest_json.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return dest_json

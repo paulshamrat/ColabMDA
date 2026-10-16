@@ -115,7 +115,7 @@ def _analysis_outdir(root: str, name: str) -> Path:
 
 
 def _dispatch_prep(args) -> int:
-    from colabmda.amber.leap import generate_tleap_script, run_tleap
+    from colabmda.amber.leap import generate_tleap_script, run_tleap, write_prep_provenance
     from colabmda.core.ions import parse_ion_spec
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
@@ -177,18 +177,28 @@ def _dispatch_prep(args) -> int:
 
     if not args.no_amber:
         try:
+            solvated_out = paths.prepared_solvated(spec)
             script_text = generate_tleap_script(
                 spec=spec,
                 input_pdb=out_model,
                 output_prmtop=paths.prepared_prmtop(spec),
                 output_inpcrd=paths.prepared_inpcrd(spec),
+                output_pdb=solvated_out,
             )
-            retcode, log_out = run_tleap(script_text, workdir=paths.prep_dir(spec))
-            (paths.prep_dir(spec) / "leap.log").write_text(log_out)
+            retcode, log_out = run_tleap(
+                script_text,
+                workdir=paths.prep_dir(spec),
+                keep_script=False,
+            )
             if retcode == 0 and paths.prepared_prmtop(spec).exists():
+                write_prep_provenance(spec=spec, dest_json=paths.prep_json(spec))
                 print(f"[OK] Built Amber topology: {paths.prepared_prmtop(spec)}")
                 print(f"[OK] Built Amber coordinates: {paths.prepared_inpcrd(spec)}")
+                if solvated_out.exists():
+                    print(f"[OK] Built solvated model: {solvated_out}")
+                print(f"[OK] Generated provenance metadata: {paths.prep_json(spec)}")
             else:
+                (paths.prep_dir(spec) / "build_error.log").write_text(log_out)
                 print(f"[INFO] Amber tleap finished with returncode {retcode}")
         except Exception as e:
             print(f"[INFO] Amber tleap step skipped: {e}")
@@ -370,7 +380,13 @@ def _dispatch_sim(args) -> int:
     paths = ProjectPaths(root)
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
 
-    stages = [s.strip().lower() for s in args.stage.split(",") if s.strip()]
+    raw_stages = [s.strip().lower() for s in args.stage.split(",") if s.strip()]
+    stages = []
+    for s in raw_stages:
+        if s in {"eq", "equil", "equilibration"}:
+            stages.extend(["em", "nvt", "npt", "qc"])
+        else:
+            stages.append(s)
     eq_dir = str(paths.eq_dir(spec))
     paths.eq_dir(spec).mkdir(parents=True, exist_ok=True)
 

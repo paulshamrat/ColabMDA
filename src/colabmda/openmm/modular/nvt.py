@@ -7,6 +7,7 @@ from openmm.app import PDBFile, StateDataReporter
 
 from colabmda.openmm.modular.utils import (
     add_solute_heavy_atom_restraints,
+    find_highest_completed_stage,
     fresh_seed,
     load_stage_state,
     make_sim,
@@ -80,10 +81,17 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     )
 
     test_mode = os.environ.get("COLABMDA_TEST_1_24", "").strip() in {"1", "true", "True"}
+    highest_stage, latest_state_path = find_highest_completed_stage(workdir, 1, 18)
+    if highest_stage > 0:
+        print(f"[RECOVERY] Found existing progress up to Stage {highest_stage} in NVT!")
 
     if protocol == "varmdyn":
         init_min_iter = 10 if test_mode else 5000
         for label, weight in [("01", 100), ("02", 50), ("03", 25)]:
+            stage_idx = int(label)
+            if stage_idx <= highest_stage:
+                print(f"  • Stage {label}: already complete. Fast-forwarding...")
+                continue
             print(f"  • Stage {label}: restrained minimization, k={weight} kcal/mol/Å²")
             set_restraint_strength(sim.context, restraint_parameter, weight)
             sim.minimizeEnergy(maxIterations=init_min_iter)
@@ -92,6 +100,9 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
             )
         heat_steps = 10 if test_mode else 10000
         for index, temperature in enumerate((50, 100, 150, 200, 250, 300), start=4):
+            if index <= highest_stage:
+                print(f"  • Stage {index:02d}: already complete. Fast-forwarding...")
+                continue
             print(f"  • Stage {index:02d}: NVT heating, 10 ps at {temperature} K, 1 fs")
             sim.integrator.setTemperature(temperature * unit.kelvin)
             sim.step(heat_steps)
@@ -105,6 +116,10 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
             ("13", 2, 10 if test_mode else 1000),
             ("14", 1, 10 if test_mode else 1000),
         ]:
+            stage_idx = int(label)
+            if stage_idx <= highest_stage:
+                print(f"  • Stage {label}: already complete. Fast-forwarding...")
+                continue
             print(f"  • Stage {label}: restrained minimization, k={weight} kcal/mol/Å²")
             set_restraint_strength(sim.context, restraint_parameter, weight)
             sim.minimizeEnergy(maxIterations=iterations)
@@ -112,10 +127,17 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
                 sim, workdir, label, f"post-heating minimization; k={weight} kcal/mol/A^2"
             )
         # Rebuild at 2 fs for constrained 300 K equilibration, transferring only physical state.
-        save_stage_state(sim, "nvt_heating.state.xml")
+        if not os.path.exists("nvt_heating.state.xml") or highest_stage < 14:
+            save_stage_state(sim, "nvt_heating.state.xml")
         system_2fs = XmlSerializer.deserializeSystem(XmlSerializer.serializeSystem(system))
         sim = make_sim(pdb.topology, system_2fs, 2.0 * unit.femtoseconds, seed=offset_seed(seed))
-        load_stage_state(sim, "nvt_heating.state.xml")
+
+        # Load the latest state available for stages 15..18
+        if highest_stage >= 14 and latest_state_path:
+            load_stage_state(sim, latest_state_path)
+        else:
+            load_stage_state(sim, "nvt_heating.state.xml")
+
         restraint_parameter = "nvt_restraint_k"
         eq_steps = 10 if test_mode else 50000
     else:
@@ -134,6 +156,10 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
 
     if protocol == "varmdyn":
         for label, weight in [("15", 10), ("16", 5), ("17", 2), ("18", 1)]:
+            stage_idx = int(label)
+            if stage_idx <= highest_stage:
+                print(f"  • Stage {label}: already complete. Fast-forwarding...")
+                continue
             print(f"  • Stage {label}: NVT, 100 ps at 300 K, k={weight} kcal/mol/Å²")
             set_restraint_strength(sim.context, restraint_parameter, weight)
             sim.step(eq_steps)

@@ -54,6 +54,7 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     assert npt_ok is True
     assert (eq_dir / "npt.state.xml").exists()
     assert (eq_dir / "equilibrated.pdb").exists()
+    assert (eq_dir / "eq.pdb").exists()
 
     # Verify all 24 stages were generated with metadata
     eq_artifacts = eq_dir / "equilibration"
@@ -92,3 +93,28 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     assert md_ok is not False
     assert (r1_dir / "prod.chk").exists()
     assert (r1_dir / "npt.state.xml").exists()
+
+
+def test_varmdyn_stage_resumption(tmp_path: Path, monkeypatch):
+    """Test that NPT recovers from intermediate stages (e.g. stage 23) without restarting."""
+    from colabmda.openmm.modular.utils import find_highest_completed_stage
+
+    monkeypatch.setenv("COLABMDA_TEST_1_24", "1")
+    eq_dir = tmp_path / "eq"
+    eq_dir.mkdir(parents=True)
+    eq_artifacts = eq_dir / "equilibration"
+    eq_artifacts.mkdir(parents=True)
+
+    # Empty dir returns 0
+    highest, latest = find_highest_completed_stage(str(eq_dir), start_stage=19, end_stage=24)
+    assert highest == 0
+    assert latest is None
+
+    # Simulate completed stages 19-23
+    for s in range(19, 24):
+        (eq_artifacts / f"stage_{s:02d}.state.xml").write_text("<State/>")
+        (eq_artifacts / f"stage_{s:02d}.json").write_text(json.dumps({"stage": s}))
+
+    highest, latest = find_highest_completed_stage(str(eq_dir), start_stage=19, end_stage=24)
+    assert highest == 23
+    assert latest == str(eq_artifacts / "stage_23.state.xml")

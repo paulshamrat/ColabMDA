@@ -131,3 +131,72 @@ class TestProjectPaths:
         assert (tmp_path / "structure" / "template").exists()
         assert (tmp_path / "structure" / "protein").exists()
         assert (tmp_path / "simulation").exists()
+        assert (tmp_path / "01_structure" / "protein").exists()
+        assert (tmp_path / "02_simulation").exists()
+        assert (tmp_path / "03_analysis").exists()
+
+    def test_numbered_path_resolution(self, tmp_path):
+        numbered_root = tmp_path / "numbered_project"
+        paths = ProjectPaths(root=numbered_root)
+        spec = SystemSpec.from_tag("atp_2mg_eb2", variant="WT")
+
+        # Create pure numbered hierarchy
+        (numbered_root / "01_structure" / "variants" / "WT").mkdir(parents=True)
+        (numbered_root / "02_simulation").mkdir(parents=True)
+        (numbered_root / "03_analysis").mkdir(parents=True)
+
+        assert paths.structure_dir == numbered_root / "01_structure"
+        assert paths.simulation_base == numbered_root / "02_simulation"
+        assert paths.analysis_base == numbered_root / "03_analysis"
+        assert paths.variant_dir(spec) == numbered_root / "02_simulation" / "atp_2mg_eb2" / "WT"
+        assert (
+            paths.prep_dir(spec)
+            == numbered_root / "02_simulation" / "atp_2mg_eb2" / "WT" / "01_prep"
+        )
+        assert (
+            paths.eq_dir(spec) == numbered_root / "02_simulation" / "atp_2mg_eb2" / "WT" / "02_eq"
+        )
+        assert (
+            paths.prepared_solvated(spec)
+            == numbered_root / "02_simulation" / "atp_2mg_eb2" / "WT" / "01_prep" / "solvated.pdb"
+        )
+        assert (
+            paths.prep_json(spec)
+            == numbered_root / "02_simulation" / "atp_2mg_eb2" / "WT" / "01_prep" / "prep.json"
+        )
+        assert (
+            paths.compare_dir("atp_2mg_eb2")
+            == numbered_root / "03_analysis" / "atp_2mg_eb2" / "compare"
+        )
+
+    def test_clean_hybrid_layout(self, tmp_path):
+        """Test unnumbered root (structure, simulation, analysis) with numbered sub-stages (01_prep, 02_eq, 03_prod)."""
+        root = tmp_path / "hybrid_project"
+        paths = ProjectPaths(root=root)
+        spec = SystemSpec.from_tag("atp_2mg", variant="WT")
+
+        (root / "structure" / "variants" / "WT").mkdir(parents=True)
+        (root / "simulation" / "atp_2mg" / "WT" / "01_prep").mkdir(parents=True)
+        (root / "simulation" / "atp_2mg" / "WT" / "02_eq").mkdir(parents=True)
+        (root / "simulation" / "atp_2mg" / "WT" / "03_prod" / "r1").mkdir(parents=True)
+        (root / "analysis" / "atp_2mg" / "WT").mkdir(parents=True)
+
+        assert paths.structure_dir == root / "structure"
+        assert paths.simulation_base == root / "simulation"
+        assert paths.analysis_base == root / "analysis"
+        assert paths.prep_dir(spec) == root / "simulation" / "atp_2mg" / "WT" / "01_prep"
+        assert paths.eq_dir(spec) == root / "simulation" / "atp_2mg" / "WT" / "02_eq"
+        assert paths.prod_dir(spec) == root / "simulation" / "atp_2mg" / "WT" / "03_prod"
+        assert (
+            paths.replica_dir(spec, "r1")
+            == root / "simulation" / "atp_2mg" / "WT" / "03_prod" / "r1"
+        )
+        assert paths.analysis_dir(spec) == root / "analysis" / "atp_2mg" / "WT"
+        assert (
+            paths.prepared_solvated(spec)
+            == root / "simulation" / "atp_2mg" / "WT" / "01_prep" / "solvated.pdb"
+        )
+        assert (
+            paths.prep_json(spec)
+            == root / "simulation" / "atp_2mg" / "WT" / "01_prep" / "prep.json"
+        )

@@ -44,7 +44,7 @@ tools/ColabMDA/
 │   │   └── engine/                # Trajectory merge, analysis & PDBFixer cleaning
 │   └── remote/                    # Google Colab VM remote session manager
 │       └── colab.py               # colab CLI wrapper & upload orchestrator
-├── tests/                         # Unit and regression test suite (40+ passing tests)
+├── tests/                         # Unit and regression test suite (50 passing tests)
 ├── docs/                          # Sphinx / Markdown documentation
 ├── scripts/                       # Exactly one standalone bootstrap script: setup.sh
 └── AGENTS.md                      # Developer and agent rules
@@ -61,30 +61,61 @@ tools/ColabMDA/
      - Template structures: `<project>/structure/template/`
    - Non-standard residues like phosphotyrosine (`pY171` -> `PTR171`) are constructed mathematically via pure NumPy vectors with zero external template files.
 
-2. **Decoupled Scripts Architecture:**
+2. **Strict Tool vs. Data Separation (Zero Scripts in Project Data):**
+   - Never place executable scripts (`*.py`, `*.sh`, `*.pml`) or compiler batch input decks (`tleap.in`, `leap.log`) inside project data directories (e.g., `01_prep/`, `structure/variants/`).
+   - The tool (`ColabMDA`) executes external compilers (like `tleap`) in an ephemeral sandbox and unlinks temporary decks automatically (`keep_script=False`).
+   - Scientific parameters and audit trails are recorded strictly as structured JSON metadata (`prep.json`, `qc.json`).
+
+3. **Standardized Directory Layout:**
+   - **Top-Level Root:** Clean, unnumbered semantic nouns (`structure/`, `simulation/`, `analysis/`).
+   - **Simulation Pipeline:** Strictly numbered chronological sub-stages inside `<state>/<variant>/`:
+     - `01_prep/`: Parameterization & solvation deliverables (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `prep.json`).
+     - `02_eq/`: 24-Stage VarMDyn equilibration (`eq.pdb`, `qc.png`, `qc.json`, `stages/`).
+     - `03_prod/`: Production replicas (`r1/`, `r2/`, `r3/`).
+
+4. **Strict Single-Keyword File Naming Standard:**
+   - Primary deliverables and coordinates must use clean, single-word keywords:
+     - `model.pdb` (never `system_model.pdb` or `target.pdb`)
+     - `solvated.pdb` (never `system_solvated.pdb`)
+     - `eq.pdb` (never `equilibrated.pdb`)
+     - `prod.dcd`, `prod.log`, `restart.chk`, `state.xml`
+
+5. **Granular Resumption & Zero Redundant Compute:**
+   - Before running equilibration, `ColabMDA` must check for existing checkpoints using `find_highest_completed_stage()`.
+   - Completed stages (`em.state.xml`, `nvt.state.xml`, and `stage_01` through `stage_23`) must be fast-forwarded instantly without re-running earlier compute.
+
+6. **Decoupled Scripts Architecture:**
    - Never place bash or SLURM scripts inside simulation data folders (e.g., no `simulation/atp_2mg_eb2/WT/run.sh`).
    - All execution scripts live in `<project>/scripts/`:
      - Standalone local/remote runner: `<project>/scripts/run.sh`
      - HPC Palmetto scheduler: `<project>/scripts/submit.slurm`
 
-3. **Single Bootstrap Script:**
+7. **Single Bootstrap Script:**
    - Exactly one bootstrap script exists in the repository: `scripts/setup.sh`.
    - Never introduce loose or duplicate shell bootstrap files.
 
-4. **Single-Keyword Unified CLI:**
+8. **Single-Keyword Unified CLI:**
    - The CLI is accessible via both `colabmda` and the shortcut `cmda`.
    - Core subcommands:
      - `cmda stage`: Prepares standard folder layout and decoupled scripts.
      - `cmda prep`: Mathematical assembly and Amber `tleap` parameterization.
-     - `cmda sim`: Executes simulation stages (`em`, `nvt`, `npt`, `qc`, `md`).
+     - `cmda sim`: Executes simulation stages (`em`, `nvt`, `npt`, `qc`, `md`, or `eq`).
      - `cmda merge`: Autoimages PBC and strips bulk solvent via `cpptraj`.
      - `cmda analyze`: Extracts RMSD, Rg, RMSF, PCA, and contact maps.
      - `cmda compare`: Multi-replica or cross-variant comparative plotting.
      - `cmda colab`: Provisions and manages remote Google Colab GPU sessions.
 
-5. **Post-Verification Compute Cleanup:**
-   - Always terminate Colab GPU VM sessions (`colab stop -s <session>`) immediately after use to conserve user cloud compute units.
-   - Clean up temporary local tarballs and scratch files after test completion.
+9. **No Ad-Hoc Scratch Scripts for Agents:**
+   - Agents must **never** create temporary one-off helper scripts (e.g., `check_status.py`, `resume_stage24.py`, `install_colabmda.py`) to run or inspect workflows.
+   - All operations must strictly go through the official `cmda` CLI or official Python API.
+
+10. **Colab VM Deployment & Idle Reaper Protection:**
+    - To deploy local development code to remote VMs, always use the standard command `cmda colab setup -s <session> --local-source`.
+    - Never execute simulations with background `nohup ... &` on Colab; run them in the foreground with live streaming output to prevent Google Colab's 30-minute idle reaper from terminating the VM.
+
+11. **Post-Verification Compute Cleanup:**
+    - Always terminate Colab GPU VM sessions (`colab stop -s <session>`) immediately after use to conserve user cloud compute units.
+    - Clean up temporary local tarballs and scratch files after test completion.
 
 ---
 
