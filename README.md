@@ -1,6 +1,6 @@
 # ColabMDA
 
-**ColabMDA** is a specialized tool that lets you run high-quality Molecular Dynamics simulations on Google Colab without the fear of losing your work. The biggest problem with Colab is that it disconnects, often destroying hours of simulation data. **ColabMDA fixes this** with a "resume-safe" system that automatically saves your progress to Google Drive. If your session expires, you can resume exactly where you left off with one simple command. From modeling protein mutations to generating publication-ready analysis, ColabMDA handles the complex setup for you, making it the easiest way to get high-quality MD results using free cloud GPUs.
+**ColabMDA** is a high-performance Molecular Dynamics (MD) pipeline designed for Google Colab and HPC clusters. It eliminates lost simulation progress caused by cloud disconnections through automated Google Drive checkpointing and instant one-command resumption. ColabMDA streamlines the entire workflow—from homology modeling and physiological protonation (PROPKA 3) to AmberTools parameterization, OpenMM simulation, trajectory autoimaging (`cpptraj`), and publication analysis.
 
 📖 **Full Documentation:** Visit our official manual at [colabmda.readthedocs.io](https://colabmda.readthedocs.io/)
 
@@ -87,13 +87,13 @@ A Modeller license key is **required** to run homology modeling and point-mutati
 
 ---
 
-### 1.2. Environment B: High-Performance Computing (Clemson Palmetto / SLURM)
+### 1.2. Environment B: High-Performance Computing (HPC / SLURM)
 
 #### 1.2.1. Cluster Conda Activation & Scratch Storage
-On high-performance clusters like Clemson University's Palmetto cluster, execute simulations on high-speed scratch storage (`/scratch/$USER/projects/<project>`):
+On HPC clusters running SLURM, run simulations on high-speed scratch storage (`/scratch/$USER/projects/<project>`):
 
 ```bash
-# 1. Activate environment on Palmetto
+# 1. Activate conda environment
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate colabmda
 
@@ -560,11 +560,11 @@ cmda compare --state atp_mg --variants WT,L119R --root "${PROJECT_DIR}"
 
 ---
 
-### 4.3. Palmetto HPC Scratch End-to-End Pilot Execution
+### 4.3. HPC Cluster Scratch End-to-End Pilot Execution
 
 ```bash
 # ==============================================================================
-# Palmetto HPC Scratch Pilot Execution
+# HPC Cluster Scratch Pilot Execution (SLURM)
 # ==============================================================================
 export SCRATCH_PROJECT="/scratch/$USER/projects/test-project"
 

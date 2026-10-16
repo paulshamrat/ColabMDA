@@ -304,7 +304,7 @@ cmda analyze --state "${{STATE}}" --variant "${{VARIANT}}"
     run_sh.write_text(run_sh_content)
     run_sh.chmod(0o755)
 
-    # Palmetto SLURM scripts
+    # HPC SLURM scripts
     eq_slurm = paths.scripts_dir / "submit_eq.slurm"
     eq_slurm_content = f"""#!/usr/bin/env bash
 #SBATCH --job-name=eq_{spec.state_tag}_{spec.variant}
@@ -324,7 +324,7 @@ SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
 PROJECT_ROOT="$(cd "${{SCRIPT_DIR}}/.." && pwd)"
 cd "${{PROJECT_ROOT}}"
 
-# Activate environment on Palmetto
+# Activate environment
 if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
     conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
@@ -333,7 +333,7 @@ fi
 STATE="{spec.state_tag}"
 VARIANT="{spec.variant}"
 
-echo "[SLURM] Running 1-24 equilibration for ${{STATE}}/${{VARIANT}} on $(hostname)"
+echo "[SLURM] Running equilibration for ${{STATE}}/${{VARIANT}} on $(hostname)"
 mkdir -p logs
 
 cmda sim --state "${{STATE}}" --variant "${{VARIANT}}" --stage eq
@@ -361,7 +361,7 @@ SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
 PROJECT_ROOT="$(cd "${{SCRIPT_DIR}}/.." && pwd)"
 cd "${{PROJECT_ROOT}}"
 
-# Activate environment on Palmetto
+# Activate environment
 if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
     conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
@@ -393,7 +393,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 mkdir -p logs
 
-echo "Submitting equilibration job to Palmetto..."
+echo "Submitting equilibration job..."
 EQ_ID=$(sbatch scripts/submit_eq.slurm | awk '{print $NF}')
 echo "Equilibration Job ID: ${EQ_ID}"
 
@@ -410,9 +410,9 @@ echo "Watch queue with: squeue -u $USER"
         f"[OK] Staged project directory tree for {spec.state_tag}/{spec.variant} at: {paths.variant_dir(spec)}"
     )
     print(f"[OK] Generated decoupled runner: {run_sh}")
-    print(f"[OK] Generated Palmetto equilibration SLURM: {eq_slurm}")
-    print(f"[OK] Generated Palmetto production SLURM array: {prod_slurm}")
-    print(f"[OK] Generated Palmetto chained submission helper: {chain_sh}")
+    print(f"[OK] Generated HPC equilibration SLURM: {eq_slurm}")
+    print(f"[OK] Generated HPC production SLURM array: {prod_slurm}")
+    print(f"[OK] Generated HPC chained submission helper: {chain_sh}")
     return 0
 
 
