@@ -37,6 +37,7 @@ class SystemSpec:
     phos_residues: list[str] = field(default_factory=list)  # ["Y171"]
     peptide_name: str | None = None  # "eb2", "eb1", "amph1"
     peptide_seq: str | None = None  # e.g. "KRPSSAPSG"
+    _tag_override: str | None = None
 
     def __post_init__(self):
         # Normalize variant
@@ -72,6 +73,8 @@ class SystemSpec:
     @property
     def state_tag(self) -> str:
         """Generate a standardized, self-describing directory tag."""
+        if self._tag_override:
+            return self._tag_override
         if self.is_apo:
             return "apo"
 
@@ -105,7 +108,8 @@ class SystemSpec:
 
         Supported tags:
             - "apo": Unliganded monomer
-            - "atpmg" / "atp_1mg": Ground holo state (ATP + 1 Mg)
+            - "atp_mg" / "atpmg": Ground holo state (ATP + Mg)
+            - "atp_1mg": Explicit 1 Mg complex (ATP + 1 Mg)
             - "atp_2mg": Pre-catalytic complex (ATP + 2 Mg)
             - "adp_1mg": Post-catalytic product (ADP + 1 Mg)
             - "gdp_1mg": Crystal resting state (GDP + 1 Mg)
@@ -117,7 +121,16 @@ class SystemSpec:
         if clean_tag == "apo":
             return cls(protein=protein, variant=variant, ligand=None, ions={})
 
-        if clean_tag in {"atpmg", "atp_mg", "atp_1mg"}:
+        if clean_tag in {"atpmg", "atp_mg"}:
+            return cls(
+                protein=protein,
+                variant=variant,
+                ligand="ATP",
+                ions={"MG": 1},
+                _tag_override="atp_mg",
+            )
+
+        if clean_tag == "atp_1mg":
             return cls(protein=protein, variant=variant, ligand="ATP", ions={"MG": 1})
 
         if clean_tag == "atp_2mg":

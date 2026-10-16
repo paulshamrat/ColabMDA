@@ -138,7 +138,9 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 │
 └── data/                                     # Single root for all scientific domain data
     ├── structure/                            # Raw and modeled structural inputs (Zero raw PDBs in src/)
-    │   ├── protein/                          # Target receptor structures (cdkl5_wt.pdb, cdkl5_l119r.pdb)
+    │   ├── 4bgq/                             # Target kinase structure (PDB: 4BGQ)
+    │   │   ├── wt/                           # Wild-Type modeled receptor (4bgq_wt.pdb, prep/4bgq_wt_cleaned.pdb)
+    │   │   └── mutants/4bgq_l119r/           # Pathogenic hinge mutant (4bgq_l119r.pdb, prep/4bgq_l119r_cleaned.pdb)
     │   ├── template/                         # Structural templates (4BGQ.pdb, 8FP5.pdb)
     │   ├── peptide/                          # Substrate peptides (EB2.pdb)
     │   └── ligand/                           # Small molecules & nucleotides (ATP.sdf, ADP.sdf)
@@ -151,7 +153,7 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
     │   │   │   ├── r2/                       # Production replica 2 (independent velocity seed from eq/)
     │   │   │   └── r3/                       # Production replica 3
     │   │   └── L119R/                        # Pathogenic hinge mutant (same modular structure)
-    │   └── atp_2mg/                          # Track 2: Pre-catalytic holo state (CDKL5 + ATP + 2Mg2+)
+    │   └── atp_mg/                           # Track 2: Pre-catalytic holo state (CDKL5 + ATP + Mg2+)
     │       ├── WT/                           # Holo WT (prep/, eq/, r1/, r2/, r3/)
     │       └── L119R/                        # Holo L119R (prep/, eq/, r1/, r2/, r3/)
     └── analysis/                             # Trajectory metrics, CSVs, and publication plots
@@ -159,7 +161,7 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
         │   ├── WT/                           # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
         │   ├── L119R/                        # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
         │   └── compare/                      # Cross-variant comparative plots (wt_vs_l119r.png)
-        ├── atp_2mg/                          # Holo trajectory analysis
+        ├── atp_mg/                           # Holo trajectory analysis
         │   ├── WT/                           # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
         │   ├── L119R/                        # Per-variant metrics (rmsd.csv, rmsf.csv, rg.csv)
         │   └── compare/                      # Cross-variant comparative plots (wt_vs_l119r.png)
@@ -254,7 +256,7 @@ cmda sim --state apo --variant L119R --stage md --replica r1,r2,r3 --total-ns 10
 
 ---
 
-### 4.5. Track 2: Pre-Catalytic Holo Dynamics Pipeline (`--state atp_2mg` / `--state atp_mg`)
+### 4.5. Track 2: Pre-Catalytic Holo Dynamics Pipeline (`--state atp_mg`)
 
 #### 4.5.1. Biophysical Scope & Active-Site Chemistry
 The **Holo state** models CDKL5 with bound ATP and catalytic divalent magnesium ions ($\text{Mg}^{2+}$). This state investigates nucleotide-induced active site closure, the positioning of the catalytic Lys42–Glu60 salt bridge, and how mutations like `L119R` perturb cofactor coordination.
@@ -263,12 +265,12 @@ The **Holo state** models CDKL5 with bound ATP and catalytic divalent magnesium 
 Rather than blind docking, ColabMDA replicates the validated `cdkl5-activation` / `varmdyn` protocol:
 1. Performs core $\text{C}\alpha$ alignment (residues 30–220) between CDKL5 and the active CDK2 crystal structure (**PDB: `8FP5`**).
 2. Transfers the exact coordinates of ATP (`atponly.pdb`) and catalytic $\text{Mg}^{2+}$ ions (`mgonly.pdb`) into the CDKL5 binding cleft.
-3. Automatically writes the complex coordinate into `data/simulation/atp_2mg/<variant>/prep/model.pdb`.
+3. Automatically writes the complex coordinate into `data/simulation/atp_mg/<variant>/prep/model.pdb`.
 
 #### 4.5.3. Staging Holo Directory Trees
 ```bash
-cmda stage --state atp_2mg --variant WT --root test-project
-cmda stage --state atp_2mg --variant L119R --root test-project
+cmda stage --state atp_mg --variant WT --root test-project
+cmda stage --state atp_mg --variant L119R --root test-project
 ```
 
 #### 4.5.4. Holo Parameterization (Hu et al. 2024 Quantum Parameters)
@@ -276,22 +278,22 @@ cmda stage --state atp_2mg --variant L119R --root test-project
 * **Protein:** Amber `ff19SB`
 * **Nucleotide:** Hu et al. 2024 quantum-calculated ATP parameters (`hu2024_atp.frcmod` + unit library)
 * **Divalent Cations:** Amber 12-6-4 Lennard-Jones parameters for $\text{Mg}^{2+}$
-* **Neutralization:** Automatically accounts for the $-4.0e$ net charge of ATP and $+4.0e$ of $2\text{Mg}^{2+}$:
+* **Neutralization:** Automatically accounts for the $-4.0e$ net charge of ATP and $+2.0e$ / $+4.0e$ of $\text{Mg}^{2+}$:
 ```bash
-cmda prep --state atp_2mg --variant WT --root test-project
-cmda prep --state atp_2mg --variant L119R --root test-project
+cmda prep --state atp_mg --variant WT --root test-project
+cmda prep --state atp_mg --variant L119R --root test-project
 ```
 
 #### 4.5.5. Cofactor-Aware Equilibration & Production MD
 Equilibrates the complex using 24-stage multi-step relaxation with dedicated positional restraints on ATP heavy atoms and $\text{Mg}^{2+}$ coordination geometry during heating:
 ```bash
 # 1. Equilibrate complex in shared eq/ hub
-cmda sim --state atp_2mg --variant WT --stage eq --root test-project
-cmda sim --state atp_2mg --variant L119R --stage eq --root test-project
+cmda sim --state atp_mg --variant WT --stage eq --root test-project
+cmda sim --state atp_mg --variant L119R --stage eq --root test-project
 
 # 2. Run triplicate production MD (100 ns each)
-cmda sim --state atp_2mg --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
-cmda sim --state atp_2mg --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
+cmda sim --state atp_mg --variant WT --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
+cmda sim --state atp_mg --variant L119R --stage md --replica r1,r2,r3 --total-ns 100.0 --root test-project
 ```
 
 ---
@@ -317,8 +319,8 @@ cmda merge --state apo --variant WT --replicas r1,r2,r3 --root test-project
 cmda merge --state apo --variant L119R --replicas r1,r2,r3 --root test-project
 
 # Holo trajectories
-cmda merge --state atp_2mg --variant WT --replicas r1,r2,r3 --root test-project
-cmda merge --state atp_2mg --variant L119R --replicas r1,r2,r3 --root test-project
+cmda merge --state atp_mg --variant WT --replicas r1,r2,r3 --root test-project
+cmda merge --state atp_mg --variant L119R --replicas r1,r2,r3 --root test-project
 ```
 
 #### 4.7.2. Trajectory Metrics & Convergence (`cmda analyze`)
@@ -326,8 +328,8 @@ Extracts time-series metrics (Backbone RMSD, Radius of Gyration $R_g$, per-resid
 ```bash
 cmda analyze --state apo --variant WT --root test-project
 cmda analyze --state apo --variant L119R --root test-project
-cmda analyze --state atp_2mg --variant WT --root test-project
-cmda analyze --state atp_2mg --variant L119R --root test-project
+cmda analyze --state atp_mg --variant WT --root test-project
+cmda analyze --state atp_mg --variant L119R --root test-project
 ```
 
 #### 4.7.3. Cross-Variant & Cross-State Comparative Overlays (`cmda compare`)
@@ -336,14 +338,130 @@ cmda analyze --state atp_2mg --variant L119R --root test-project
 cmda compare --state apo --variants WT,L119R --root test-project
 
 # 2. Compare Wild-Type vs Hinge Mutant in Holo state
-cmda compare --state atp_2mg --variants WT,L119R --root test-project
+cmda compare --state atp_mg --variants WT,L119R --root test-project
 ```
 
 > 💡 **Specifying Project Root (`--root`):**
 > You can pass either a relative folder in your workspace or a complete path:
 > * **Relative path (Workstation / CWD):** `--root test-project`
 > * **Complete path (Google Colab):** `--root /content/drive/MyDrive/projects/test-project` (guarantees persistent storage on Google Drive across VM restarts)
-> * **Complete path (HPC Cluster):** `--root /scratch/users/<username>/test-project`
+> * **Complete path (HPC Cluster):** `--root /scratch/$USER/projects/test-project` (high-speed NVMe scratch storage)
+
+---
+
+### 4.8. Pilot Run Protocol: 1 ns Equilibration + 1 ns Production (WT & L119R)
+
+Before initiating full 100 ns production runs, execute a standardized **1 ns Equilibration + 1 ns Production Pilot Run** to benchmark GPU performance, verify active-site coordination, and validate the automated autoimaging and analysis pipelines.
+
+#### 4.8.1. Pilot Run Benchmark Parameters
+* **Equilibration Duration:** 1 ns total (`--equil-time 1000` = 1,000 ps across NVT thermalization and NPT density equilibration).
+* **Production Duration:** 1 ns total (`--total-ns 1.0` = 500,000 steps at 2.0 fs timestep).
+* **Trajectory Frame Interval:** `--traj-interval 10` (10 ps = 100 frames) or `--traj-interval 1.0` (1,000 frames).
+* **Expected Walltime:** ~1.5–2.5 minutes per replica on modern NVIDIA GPUs (T4 / V100 / A100 / RTX).
+
+#### 4.8.2. Environment 1: Google Colab (`--root /content/drive/MyDrive/projects/test-project`)
+On Google Colab, mount Google Drive to guarantee persistent storage across VM disconnections:
+
+```bash
+# ==============================================================================
+# Google Colab Pilot Execution (WT & L119R across Apo and Holo atp_mg)
+# ==============================================================================
+PROJECT_DIR="/content/drive/MyDrive/projects/test-project"
+
+# 1. Stage project directories and scripts
+cmda stage --state apo --variant WT --root "${PROJECT_DIR}"
+cmda stage --state apo --variant L119R --root "${PROJECT_DIR}"
+cmda stage --state atp_mg --variant WT --root "${PROJECT_DIR}"
+cmda stage --state atp_mg --variant L119R --root "${PROJECT_DIR}"
+
+# 2. Build parameter topologies (Amber ff19SB / Hu 2024 / OPC 4-point water)
+cmda prep --state apo --variant WT --root "${PROJECT_DIR}"
+cmda prep --state apo --variant L119R --root "${PROJECT_DIR}"
+cmda prep --state atp_mg --variant WT --root "${PROJECT_DIR}"
+cmda prep --state atp_mg --variant L119R --root "${PROJECT_DIR}"
+
+# 3. 1 ns Equilibration Hub (EM -> NVT -> NPT -> QC)
+cmda sim --state apo --variant WT --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
+cmda sim --state apo --variant L119R --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
+cmda sim --state atp_mg --variant WT --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
+cmda sim --state atp_mg --variant L119R --stage eq --equil-time 1000 --root "${PROJECT_DIR}"
+
+# 4. 1 ns Production MD Pilot Replicas (r1)
+cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
+cmda sim --state apo --variant L119R --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
+cmda sim --state atp_mg --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
+cmda sim --state atp_mg --variant L119R --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${PROJECT_DIR}"
+
+# 5. Automated Autoimaging & Trajectory Post-Processing
+cmda merge --state apo --variant WT --replicas r1 --root "${PROJECT_DIR}"
+cmda merge --state apo --variant L119R --replicas r1 --root "${PROJECT_DIR}"
+cmda merge --state atp_mg --variant WT --replicas r1 --root "${PROJECT_DIR}"
+cmda merge --state atp_mg --variant L119R --replicas r1 --root "${PROJECT_DIR}"
+
+# 6. Biophysical Analysis & Comparative Overlays
+cmda analyze --state apo --variant WT --root "${PROJECT_DIR}"
+cmda analyze --state apo --variant L119R --root "${PROJECT_DIR}"
+cmda analyze --state atp_mg --variant WT --root "${PROJECT_DIR}"
+cmda analyze --state atp_mg --variant L119R --root "${PROJECT_DIR}"
+cmda compare --state apo --variants WT,L119R --root "${PROJECT_DIR}"
+cmda compare --state atp_mg --variants WT,L119R --root "${PROJECT_DIR}"
+```
+
+#### 4.8.3. Environment 2: Palmetto HPC Scratch (`--root /scratch/$USER/projects/test-project`)
+On the Clemson University Palmetto cluster, execute high-throughput simulations on scratch NVMe/Lustre storage:
+
+```bash
+# ==============================================================================
+# Palmetto HPC Scratch Pilot Execution
+# ==============================================================================
+export SCRATCH_PROJECT="/scratch/$USER/projects/test-project"
+
+# 1. Stage project directories and generate SLURM runner scripts
+cmda stage --state apo --variant WT --root "${SCRATCH_PROJECT}"
+cmda stage --state apo --variant L119R --root "${SCRATCH_PROJECT}"
+cmda stage --state atp_mg --variant WT --root "${SCRATCH_PROJECT}"
+cmda stage --state atp_mg --variant L119R --root "${SCRATCH_PROJECT}"
+
+# 2. Build parameter topologies
+cmda prep --state apo --variant WT --root "${SCRATCH_PROJECT}"
+cmda prep --state apo --variant L119R --root "${SCRATCH_PROJECT}"
+cmda prep --state atp_mg --variant WT --root "${SCRATCH_PROJECT}"
+cmda prep --state atp_mg --variant L119R --root "${SCRATCH_PROJECT}"
+
+# 3. Interactive Pilot Execution on GPU Node (salloc / qsub)
+# Request GPU node: salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --mem=32gb --time=01:00:00
+cmda sim --state apo --variant WT --stage eq --equil-time 1000 --root "${SCRATCH_PROJECT}"
+cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${SCRATCH_PROJECT}"
+cmda sim --state atp_mg --variant WT --stage eq --equil-time 1000 --root "${SCRATCH_PROJECT}"
+cmda sim --state atp_mg --variant WT --stage md --replica r1 --total-ns 1.0 --traj-interval 10 --root "${SCRATCH_PROJECT}"
+
+# 4. Or Submit via Chained SLURM Batch Helpers (EQ -> Array Prod)
+cd "${SCRATCH_PROJECT}"
+bash scripts/submit_chain.sh
+```
+
+#### 4.8.4. Environment 3: Modular OpenMM CLI Execution (`<pdbid>_<variant>`)
+For users employing the modular OpenMM engine with `<pdbid>_<variant>` convention:
+
+```bash
+# 1. 1 ns Equilibration in shared eq/ hub (4bgq_wt)
+colabmda openmm stage --pdb-file test-project/data/structure/4bgq/wt/prep/4bgq_wt_cleaned.pdb --name 4bgq_wt --replica r1
+colabmda openmm em --name 4bgq_wt --protein-ff ff19SB --water-model opc
+colabmda openmm nvt --name 4bgq_wt --equil-time 500
+colabmda openmm npt --name 4bgq_wt --equil-time 500
+colabmda openmm qc --name 4bgq_wt
+
+# 2. 1 ns Production MD replica 1
+colabmda openmm md --name 4bgq_wt --replica r1 --total-ns 1.0 --traj-interval 10
+
+# 3. Repeat for Hinge Mutant (4bgq_l119r)
+colabmda openmm stage --pdb-file test-project/data/structure/4bgq/mutants/4bgq_l119r/prep/4bgq_l119r_cleaned.pdb --name 4bgq_l119r --replica r1
+colabmda openmm em --name 4bgq_l119r --protein-ff ff19SB --water-model opc
+colabmda openmm nvt --name 4bgq_l119r --equil-time 500
+colabmda openmm npt --name 4bgq_l119r --equil-time 500
+colabmda openmm qc --name 4bgq_l119r
+colabmda openmm md --name 4bgq_l119r --replica r1 --total-ns 1.0 --traj-interval 10
+```
 
 ---
 
@@ -364,10 +482,10 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate modeller_env
 
 # 1. Build Wild-Type CDKL5 (Residues 1–303 matching UniProt O76039)
-colabmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/data/structure/protein
+colabmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A --range 1 303 --uniprot-numbering --outdir test-project/data/structure/4bgq/wt
 
 # 2. Create Point Mutant (e.g. L119R) preserving biological numbering
-colabmda modeller mutate --pdb-in test-project/data/structure/protein/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/data/structure/protein
+colabmda modeller mutate --pdb-in test-project/data/structure/4bgq/wt/target.B99990001_with_cryst.pdb --chain A --mut L119R --outdir-mut test-project/data/structure/4bgq/mutants/4bgq_l119r
 ```
 
 ---
@@ -382,8 +500,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate openmm_env
 
 # Run 3D pKa titration at physiological pH 7.4
-colabmda openmm prep --pdb-file test-project/data/structure/protein/cdkl5_wt.pdb --outdir test-project/data/structure/protein/prep --name cdkl5_wt --ph 7.4
-colabmda openmm prep --pdb-file test-project/data/structure/protein/cdkl5_l119r.pdb --outdir test-project/data/structure/protein/prep --name cdkl5_l119r --ph 7.4
+colabmda openmm prep --pdb-file test-project/data/structure/4bgq/wt/4bgq_wt.pdb --outdir test-project/data/structure/4bgq/wt/prep --name 4bgq_wt --ph 7.4
+colabmda openmm prep --pdb-file test-project/data/structure/4bgq/mutants/4bgq_l119r/4bgq_l119r.pdb --outdir test-project/data/structure/4bgq/mutants/4bgq_l119r/prep --name 4bgq_l119r --ph 7.4
 ```
 
 *Key features:*
@@ -415,44 +533,44 @@ ColabMDA provides both fine-grained single-keyword commands and an automated all
 #### Step-by-Step Modular Execution:
 
 ```bash
-# 1. Initialize simulation folder and eq hub
-colabmda openmm stage --pdb-file test-project/data/structure/protein/prep/cdkl5_wt_cleaned.pdb --name cdkl5_wt --replica r1
+# 1. Initialize simulation folder and eq hub (WT)
+colabmda openmm stage --pdb-file test-project/data/structure/4bgq/wt/prep/4bgq_wt_cleaned.pdb --name 4bgq_wt --replica r1
 
 # 2. Energy Minimization in shared eq/ hub (ff19SB / OPC 4-point water)
-colabmda openmm em --name cdkl5_wt --protein-ff ff19SB --water-model opc
+colabmda openmm em --name 4bgq_wt --protein-ff ff19SB --water-model opc
 
 # 3. NVT Thermalization (100 ps heating to 300 K)
-colabmda openmm nvt --name cdkl5_wt --equil-time 100
+colabmda openmm nvt --name 4bgq_wt --equil-time 100
 
 # 4. NPT Density Equilibration (100 ps with Monte Carlo barostat)
-colabmda openmm npt --name cdkl5_wt --equil-time 100
+colabmda openmm npt --name 4bgq_wt --equil-time 100
 
 # 5. Equilibration Quality Control Gating
-colabmda openmm qc --name cdkl5_wt
+colabmda openmm qc --name 4bgq_wt
 
 # 6. Production MD across Triplicates (r1, r2, r3 fork automatically from eq/)
-colabmda openmm md --name cdkl5_wt --replica r1 --total-ns 100.0 --traj-interval 10
-colabmda openmm md --name cdkl5_wt --replica r2 --total-ns 100.0 --traj-interval 10
-colabmda openmm md --name cdkl5_wt --replica r3 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name 4bgq_wt --replica r1 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name 4bgq_wt --replica r2 --total-ns 100.0 --traj-interval 10
+colabmda openmm md --name 4bgq_wt --replica r3 --total-ns 100.0 --traj-interval 10
 
 # 7. Merge Trajectory Chunks for all replicas (Center + Wrap)
-colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap
-colabmda openmm merge --name cdkl5_wt --replica r2 --center --wrap
-colabmda openmm merge --name cdkl5_wt --replica r3 --center --wrap
+colabmda openmm merge --name 4bgq_wt --replica r1 --center --wrap
+colabmda openmm merge --name 4bgq_wt --replica r2 --center --wrap
+colabmda openmm merge --name 4bgq_wt --replica r3 --center --wrap
 
 # 8. Check Status & Frame Counts
-colabmda openmm status --name cdkl5_wt --replica r1
+colabmda openmm status --name 4bgq_wt --replica r1
 
 # 9. Biophysical Trajectory Analysis (RMSD, Rg, RMSF)
-colabmda openmm analysis --name cdkl5_wt --replica r1
-colabmda openmm analysis --name cdkl5_wt --replica r2
-colabmda openmm analysis --name cdkl5_wt --replica r3
+colabmda openmm analysis --name 4bgq_wt --replica r1
+colabmda openmm analysis --name 4bgq_wt --replica r2
+colabmda openmm analysis --name 4bgq_wt --replica r3
 ```
 
 #### All-in-One Alternative (`run`):
 For automated, hands-off staging and execution from EM through Production MD in one call:
 ```bash
-colabmda openmm run --name cdkl5_wt --replica r1 --total-ns 100.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
+colabmda openmm run --name 4bgq_wt --replica r1 --total-ns 100.0 --traj-interval 10 --equil-time 1000 --checkpoint-ps 1000
 ```
 
 > 💡 **Storage Tip:** For a typical system (e.g., CDKL5 kinase domain in water, ~35,000 atoms), a 100ns run at high resolution (1ps) can produce over **40GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~4GB. Always calculate your storage needs based on your specific system size before starting long runs.
@@ -467,14 +585,14 @@ Combine trajectory chunks into a single DCD, apply periodic boundary condition (
 
 ```bash
 # Standard Merge (Center + Wrap, All Atoms)
-colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap
-colabmda openmm merge --name cdkl5_wt --replica r2 --center --wrap
-colabmda openmm merge --name cdkl5_wt --replica r3 --center --wrap
+colabmda openmm merge --name 4bgq_wt --replica r1 --center --wrap
+colabmda openmm merge --name 4bgq_wt --replica r2 --center --wrap
+colabmda openmm merge --name 4bgq_wt --replica r3 --center --wrap
 
-# # For Mutant (L119R):
-colabmda openmm merge --name cdkl5_l119r --replica r1 --center --wrap
-colabmda openmm merge --name cdkl5_l119r --replica r2 --center --wrap
-colabmda openmm merge --name cdkl5_l119r --replica r3 --center --wrap
+# For Mutant (L119R):
+colabmda openmm merge --name 4bgq_l119r --replica r1 --center --wrap
+colabmda openmm merge --name 4bgq_l119r --replica r2 --center --wrap
+colabmda openmm merge --name 4bgq_l119r --replica r3 --center --wrap
 ```
 
 #### Output Files:
@@ -488,7 +606,7 @@ colabmda openmm merge --name cdkl5_l119r --replica r3 --center --wrap
 
 > 💡 **Protein-Only Trajectory (Optional):**
 > To save >85% storage, add the `--protein-only` flag to extract only protein atoms, discarding solvent water and ions:
-> `colabmda openmm merge --name cdkl5_wt --replica r1 --center --wrap --protein-only`
+> `colabmda openmm merge --name 4bgq_wt --replica r1 --center --wrap --protein-only`
 
 > **Outputs with `--protein-only`:**
 > * `prod_full.dcd`: Thinned trajectory containing protein atoms only.
@@ -502,12 +620,12 @@ colabmda openmm merge --name cdkl5_l119r --replica r3 --center --wrap
 #### 5.5.1. 🔍 Verifying Trajectory Frames
 To quickly check the status, simulation time, and number of frames in your merged files, run:
 ```bash
-colabmda openmm status --name cdkl5_wt --replica r1
+colabmda openmm status --name 4bgq_wt --replica r1
 ```
 This prints a comprehensive status report including topology stats, chunks, and exact frame counts:
 ```text
 [STATUS]
-  Workdir          : data/simulation/cdkl5_wt/r1
+  Workdir          : data/simulation/4bgq_wt/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
                      └─ 33450 atoms, 10240 residues
@@ -519,7 +637,7 @@ This prints a comprehensive status report including topology stats, chunks, and 
 
 Alternatively, query the frame count directly with MDAnalysis:
 ```bash
-python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/cdkl5_wt/r1/prod_full.pdb', 'data/simulation/cdkl5_wt/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
+python3 -c "import MDAnalysis as mda; u = mda.Universe('data/simulation/4bgq_wt/r1/prod_full.pdb', 'data/simulation/4bgq_wt/r1/prod_full.dcd'); print('Frames:', len(u.trajectory))"
 ```
 
 #### 5.5.2. ⏱️ Understanding Simulation Time vs. Frame Counts
@@ -550,14 +668,14 @@ When merging trajectories, the reference topology file used and the resulting ou
 #### 5.6.1. Single System Analysis (RMSD, Rg, RMSF)
 ```bash
 # For Wild-Type Triplicates:
-colabmda openmm analysis --name cdkl5_wt --replica r1
-colabmda openmm analysis --name cdkl5_wt --replica r2
-colabmda openmm analysis --name cdkl5_wt --replica r3
+colabmda openmm analysis --name 4bgq_wt --replica r1
+colabmda openmm analysis --name 4bgq_wt --replica r2
+colabmda openmm analysis --name 4bgq_wt --replica r3
 
 # For Mutant Triplicates (L119R):
-colabmda openmm analysis --name cdkl5_l119r --replica r1
-colabmda openmm analysis --name cdkl5_l119r --replica r2
-colabmda openmm analysis --name cdkl5_l119r --replica r3
+colabmda openmm analysis --name 4bgq_l119r --replica r1
+colabmda openmm analysis --name 4bgq_l119r --replica r2
+colabmda openmm analysis --name 4bgq_l119r --replica r3
 ```
 
 > ⚠️ **Analysis Tip:** If your plots show the wrong time scale (e.g., 10ns instead of 100ns), provide the frame interval manually with `--interval 10`.
@@ -565,8 +683,8 @@ colabmda openmm analysis --name cdkl5_l119r --replica r3
 #### 5.6.2. WT vs Mutant Comparison (Triplicate Statistics)
 ```bash
 colabmda openmm compare \
-  --series "WT=data/analysis/cdkl5_wt/r1,data/analysis/cdkl5_wt/r2,data/analysis/cdkl5_wt/r3" \
-  --series "L119R=data/analysis/cdkl5_l119r/r1,data/analysis/cdkl5_l119r/r2,data/analysis/cdkl5_l119r/r3" \
+  --series "WT=data/analysis/4bgq_wt/r1,data/analysis/4bgq_wt/r2,data/analysis/4bgq_wt/r3" \
+  --series "L119R=data/analysis/4bgq_l119r/r1,data/analysis/4bgq_l119r/r2,data/analysis/4bgq_l119r/r3" \
   --outdir data/analysis/compare/wt_vs_l119r
 ```
 
@@ -603,10 +721,10 @@ Run the view command from your simulation folder (it looks for `prod_full.pdb` a
 
 ```bash
 # For Wild-Type:
-colabmda openmm view --pdb-dir data/simulation/cdkl5_wt/r1
+colabmda openmm view --pdb-dir data/simulation/4bgq_wt/r1
 
 # For Mutant (L119R, highlighting residue 119):
-colabmda openmm view --pdb-dir data/simulation/cdkl5_l119r/r1 --resi 119
+colabmda openmm view --pdb-dir data/simulation/4bgq_l119r/r1 --resi 119
 ```
 
 The command automatically generates a `visualize.pml` script in the folder.
@@ -620,12 +738,12 @@ reinitialize
 bg_color white
 
 # 2. Load merged trajectory files
-load prod_full.pdb, cdkl5
-load_traj prod_full.dcd, cdkl5
+load prod_full.pdb, 4bgq
+load_traj prod_full.dcd, 4bgq
 
-# 2b. Align trajectory to reference (e.g., cdkl5_wt.pdb)
-load cdkl5_wt.pdb, crystal_ref
-align cdkl5 and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
+# 2b. Align trajectory to reference (e.g., 4bgq_wt.pdb)
+load 4bgq_wt.pdb, crystal_ref
+align 4bgq and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
 delete crystal_ref
 
 # 3. Hide solvent water and ions
@@ -634,24 +752,24 @@ hide nonbonded, all
 hide nb_spheres, all
 
 # 4. Freeze backbone tumbling frame-by-frame
-intra_fit cdkl5 and name CA
+intra_fit 4bgq and name CA
 
 # 5. Generate crisp secondary structure ribbon
-dss cdkl5
-cartoon automatic, cdkl5
-show cartoon, cdkl5
+dss 4bgq
+cartoon automatic, 4bgq
+show cartoon, 4bgq
 
 # 6. Apply smooth cyan color scheme
-color cyan, cdkl5 and name C*
-util.cnc("cdkl5")
+color cyan, 4bgq and name C*
+util.cnc("4bgq")
 
 # 7. Highlight mutated residue 119 side chain sticks
-show sticks, cdkl5 and resi 119 and not name N+C+O+H
-color yellow, cdkl5 and resi 119 and name NH1+NH2
+show sticks, 4bgq and resi 119 and not name N+C+O+H
+color yellow, 4bgq and resi 119 and name NH1+NH2
 set stick_radius, 0.25
 
 # 8. Focus camera onto protein
-zoom cdkl5 and polymer, buffer=4
+zoom 4bgq and polymer, buffer=4
 ```
 
 </details>
@@ -671,7 +789,7 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
 
 ```json
 {
-  "align_ref_pdb": "test-project/data/structure/protein/target.B99990001_with_cryst.pdb",
+  "align_ref_pdb": "test-project/data/structure/4bgq/wt/target.B99990001_with_cryst.pdb",
   "stable_core_sel": "resi 20-35 or resi 85-110 or resi 180-260",
   "camera_view": [
     0.0, 1.0, 0.0,
@@ -681,8 +799,8 @@ colabmda openmm snapshots --config my_config.json --output figures/comparison_gr
   ],
   "systems": {
     "WT": {
-      "pdb": "data/simulation/cdkl5_wt/r1/prod_full.pdb",
-      "dcd": "data/simulation/cdkl5_wt/r1/prod_full.dcd",
+      "pdb": "data/simulation/4bgq_wt/r1/prod_full.pdb",
+      "dcd": "data/simulation/4bgq_wt/r1/prod_full.dcd",
       "states": [1, 200],
       "times": ["0.00 ns", "2.00 ns"],
       "mut_residue": 119

@@ -271,6 +271,8 @@ class ProjectPaths:
         bases = [self.structure_dir, self.root / "data" / "structure", self.root / "structure"]
         candidates = []
         for b in bases:
+            if not b.exists():
+                continue
             candidates.extend(
                 [
                     b / "template" / filename,
@@ -281,14 +283,17 @@ class ProjectPaths:
                     b / filename,
                 ]
             )
-        # Also search one subfolder level deeper (e.g. template/8FP5/8FP5.pdb or variants/WT/model.pdb)
-        for b in bases:
-            for sub in ["template", "protein", "variants", "ligand", "peptide"]:
+            # Also search subfolders (e.g. 4bgq/wt, variants/WT, template/8FP5)
+            for sub in ["template", "protein", "variants", "ligand", "peptide", "4bgq"]:
                 subpath = b / sub
                 if subpath.is_dir():
                     for child in subpath.iterdir():
                         if child.is_dir():
                             candidates.append(child / filename)
+            # Comprehensive fallback search across structure directory
+            for match in b.rglob(filename):
+                if match.is_file():
+                    candidates.append(match)
         for c in candidates:
             if c.exists():
                 return c
