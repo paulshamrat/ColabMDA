@@ -4,7 +4,7 @@ import os
 import shutil
 from pathlib import Path
 
-DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/research/projects"
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
 ENV_ROOT = "COLABMDA_ROOT"
 ENV_PROJECT = "COLABMDA_PROJECT_DIR"
 ROOT_HELP = "Override project root (defaults to current working directory)"
@@ -36,10 +36,10 @@ def _resolve_root(use_drive: bool, root: str | None) -> str:
     cwd = os.getcwd()
     # 3. If on Colab but in the temporary /content folder, check Drive
     if cwd == "/content" and os.path.exists("/content/drive/MyDrive"):
-        if os.path.exists("/content/drive/MyDrive/research/projects"):
-            return "/content/drive/MyDrive/research/projects"
         if os.path.exists("/content/drive/MyDrive/ColabMDA"):
             return "/content/drive/MyDrive/ColabMDA"
+        if os.path.exists("/content/drive/MyDrive/research/projects"):
+            return "/content/drive/MyDrive/research/projects"
         return "/content/drive/MyDrive"
 
     # 4. Otherwise, use the Current Working Directory (standard for HPC/Laptop/Colab projects)

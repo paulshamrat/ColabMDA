@@ -54,6 +54,10 @@ def _make_source_zip(repo_root: Path) -> Path:
     return zip_path
 
 
+def _session_args(session: str | None) -> list[str]:
+    return ["-s", session] if session else []
+
+
 def colab_manager_cli(argv: list[str] | None = None) -> int:
     """CLI handler for `cmda colab`."""
     repo_root = Path(__file__).resolve().parents[3]
@@ -71,8 +75,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_new.add_argument(
         "-s",
         "--session",
-        default="colabmda-gpu",
-        help="Session name (default: colabmda-gpu)",
+        default=None,
+        help="Session name (default: auto-detected if omitted)",
     )
     p_new.add_argument(
         "--gpu",
@@ -85,8 +89,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_stop.add_argument(
         "-s",
         "--session",
-        default="colabmda-gpu",
-        help="Session name to terminate",
+        default=None,
+        help="Session name to terminate (default: auto-detected if omitted)",
     )
 
     # Exec arbitrary command or script
@@ -94,8 +98,14 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_exec.add_argument(
         "-s",
         "--session",
-        default="colabmda-gpu",
-        help="Target session name",
+        default=None,
+        help="Target session name (default: auto-detected if omitted)",
+    )
+    p_exec.add_argument(
+        "--timeout",
+        type=float,
+        default=7200,
+        help="Timeout in seconds (default: 7200)",
     )
     p_exec.add_argument("cmd", nargs="*", help="Command string to run remotely")
 
@@ -104,8 +114,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_boot.add_argument(
         "-s",
         "--session",
-        default="colabmda-gpu",
-        help="Target session name",
+        default=None,
+        help="Target session name (default: auto-detected if omitted)",
     )
     p_boot.add_argument(
         "--local-source",
@@ -130,13 +140,13 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
         return subprocess.call(["colab", "whoami"])
 
     if args.colab_action == "new":
-        cmd = ["colab", "new", "-s", args.session]
+        cmd = ["colab", "new"] + _session_args(args.session)
         if args.gpu:
             cmd.extend(["--gpu", args.gpu])
         return subprocess.call(cmd)
 
     if args.colab_action == "stop":
-        return subprocess.call(["colab", "stop", "-s", args.session])
+        return subprocess.call(["colab", "stop"] + _session_args(args.session))
 
     if args.colab_action == "exec":
         full_cmd = " ".join(args.cmd) if args.cmd else "!nvidia-smi"
@@ -147,8 +157,11 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             and not full_cmd.startswith("print")
         ):
             full_cmd = f"!{full_cmd}"
+        exec_cmd = ["colab", "exec"] + _session_args(args.session)
+        if args.timeout:
+            exec_cmd.extend(["--timeout", str(args.timeout)])
         return subprocess.run(
-            ["colab", "exec", "-s", args.session],
+            exec_cmd,
             input=full_cmd,
             text=True,
         ).returncode
@@ -164,11 +177,9 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
                 source_zip = _make_source_zip(repo_root)
                 print("[INFO] Uploading local ColabMDA source zip to /content/ColabMDA-upload.zip")
                 subprocess.check_call(
-                    [
-                        "colab",
-                        "upload",
-                        "-s",
-                        args.session,
+                    ["colab", "upload"]
+                    + _session_args(args.session)
+                    + [
                         str(source_zip),
                         "/content/ColabMDA-upload.zip",
                     ]
@@ -177,11 +188,9 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             # Upload setup.sh
             print("[INFO] Uploading scripts/setup.sh to /content/setup.sh")
             subprocess.check_call(
-                [
-                    "colab",
-                    "upload",
-                    "-s",
-                    args.session,
+                ["colab", "upload"]
+                + _session_args(args.session)
+                + [
                     str(setup_script),
                     "/content/setup.sh",
                 ]
@@ -198,16 +207,13 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
                 "  pip install -e /content/ColabMDA; "
                 "fi"
             )
-            print(f"[INFO] Executing setup on session {args.session}...")
+            session_desc = args.session if args.session else "active"
+            print(f"[INFO] Executing setup on {session_desc} session...")
+            exec_cmd = ["colab", "exec"] + _session_args(args.session)
+            if args.timeout:
+                exec_cmd.extend(["--timeout", str(args.timeout)])
             return subprocess.run(
-                [
-                    "colab",
-                    "exec",
-                    "-s",
-                    args.session,
-                    "--timeout",
-                    str(args.timeout),
-                ],
+                exec_cmd,
                 input=f"!{remote_cmd}",
                 text=True,
             ).returncode

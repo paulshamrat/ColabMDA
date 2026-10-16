@@ -34,46 +34,58 @@ ColabMDA is organized into clear, functional modules:
 
 ---
 
-## 1. Quick Start (Google Colab Installation)
+## 1. Quick Start (Google Colab Remote Execution)
 
-> 💡 **Terminal Access:** All bash commands should be run in the **Colab Terminal** (Open via the **⋮** menu -> **Terminal**).
-
-### 1.1. Setup Colab Runtime & Drive
-Before starting, ensure your environment is ready:
-1. **Enable GPU:** Go to `Runtime` -> `Change runtime type` and select **T4 GPU**.
-2. **Verify GPU:** Run `!nvidia-smi` in a cell to confirm GPU access.
-3. **Mount Drive:** Click the **Folder icon** 📂 in the left sidebar, then click the **Drive icon** (Mount Drive), or run the code block below:
-
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-```
-
-### 1.2. Environment & Package Installation (Required)
-Run the following in the **Colab Terminal** (⋮ → Terminal).
-*Estimated time: ~3–5 minutes.*
+### 1.1. Local Terminal Runner (Recommended — Zero Browser)
+Drive remote Colab GPU simulations directly from your local terminal using the `colab` CLI:
 
 ```bash
-# 1. Download and run the unified bootstrap script (provisions OpenMM, AmberTools, MDAnalysis, and ColabMDA)
-cd /content
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh -o setup.sh
-bash setup.sh latest
+# 1. Provision a remote GPU instance and mount Google Drive
+colab new --gpu T4
+colab drivemount /content/drive
 
-# Optional: To include MODELLER for homology modeling & mutagenesis:
-# WITH_MODELLER=1 bash setup.sh latest
+# 2. Bootstrap OpenMM, AmberTools, and ColabMDA on the VM (one-time)
+cmda colab setup
+
+# 3. Connect to your remote Colab GPU shell
+colab console
 ```
 
+> [!TIP]
+> **Headless Execution:** If you prefer running simulations directly from your local terminal without entering `colab console`, you can dispatch any command with `cmda colab exec "<command>"`.
+
 > [!IMPORTANT]
-> **Modeller License (Optional):** If you enable `WITH_MODELLER=1`, the script will prompt for your Modeller License Key.
-> 🔑 **Get a Free License:** Register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html) (Academic licenses are free and sent instantly via email).
+> **Modeller License (Required for Homology Modeling & Mutagenesis):**
+> A Modeller license key is **required** to run homology modeling and point-mutation workflows (`cmda modeller`).
+> 🔑 **Get a Free Academic License:** Register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html) (Licenses are free for academic use and sent instantly via email).
+> To provision MODELLER during bootstrap:
+> ```bash
+> KEY_MODELLER="YOUR_LICENSE_KEY" WITH_MODELLER=1 cmda colab setup
+> ```
+
+<details>
+<summary><b>🌐 Alternative: Running inside the Colab Browser UI</b></summary>
+
+If you prefer using the Google Colab web browser interface:
+1. **Enable GPU:** Go to `Runtime` -> `Change runtime type` -> select **T4 GPU**.
+2. **Mount Drive:** Run in a notebook cell:
+   ```python
+   from google.colab import drive
+   drive.mount('/content/drive')
+   ```
+3. **Install ColabMDA:** Open Colab Terminal (**⋮** menu -> **Terminal**) and run:
+   ```bash
+   cd /content
+   curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh -o setup.sh
+   bash setup.sh latest
+   ```
+</details>
 
 ---
 
-### 💡 Tip: How to Resume After a Timeout
-If your Google Colab session expires:
-1. Re-run **Required Step 1.2** (`bash setup.sh latest`) to restore the environment.
-2. Run your simulation command (`cmda sim ...` or `colabmda openmm run ...`).
-3. The engine automatically discovers existing `.chk` files and state XMLs and resumes seamless execution.
+### 💡 Tip: Timeout Immunity & Seamless Resumption
+* **Timeout-Proof:** Running via `cmda colab exec` keeps the remote kernel in a `BUSY` execution state, permanently preventing Colab's 30-minute idle VM reaper from shutting down your run.
+* **Granular Recovery:** If a Colab session ever expires at its 12-hour platform limit, simply restart the command. ColabMDA automatically detects saved `stage_*.state.xml` checkpoints on Google Drive and fast-forwards directly to the unfinished step.
 
 ---
 
@@ -117,14 +129,17 @@ ColabMDA enforces strict architectural separation to ensure reproducibility acro
 3. **Single Bootstrap Script:** Standalone environment provisioning is handled by a single script: `scripts/setup.sh`.
 
 ```text
-research/projects/<project_name>/         # Your project root (e.g. cdkl5, kras, 4ldj)
-├── structure/                            # Input structures (Zero raw PDBs in src/)
-│   ├── protein/                          # Target receptor structures (e.g. cdkl5_wt.pdb, cdkl5_r59w.pdb)
-│   └── template/                         # Structural templates (e.g. 3X2V.pdb)
+<project_root>/                           # E.g. test-project (local) or /content/drive/MyDrive/ColabMDA/test-project (Colab)
+├── structure/                            # Raw structural inputs (Zero raw PDBs in src/)
+│   ├── protein/                          # Target receptor structures (e.g. receptor_wt.pdb)
+│   ├── template/                         # Structural templates (e.g. 3X2V.pdb)
+│   ├── peptide/                          # Substrate peptides (e.g. EB2.pdb)
+│   └── ligand/                           # Small molecules & cofactors
 ├── simulation/                           # Staged & executed simulation data
 │   └── <state>/<variant>/                # E.g. atp_2mg_eb2/WT/
-│       ├── eq/                           # Shared equilibration hub (system.prmtop, em, nvt, npt, qc)
-│       ├── r1/                           # Production replica 1 (chunks + trajectory)
+│       ├── prep/                         # Model assembly & Amber topology (model.pdb, solvated.pdb, system.prmtop, prep.json)
+│       ├── eq/                           # Shared equilibration hub (solvated.pdb, eq.pdb, qc.png, qc.json)
+│       ├── r1/                           # Production replica 1 (prod.dcd, prod.log, restart.chk)
 │       ├── r2/                           # Production replica 2 (independent seed from eq/)
 │       └── r3/                           # Production replica 3
 ├── scripts/                              # Decoupled execution scripts
@@ -139,15 +154,16 @@ research/projects/<project_name>/         # Your project root (e.g. cdkl5, kras,
 
 ---
 
-## 4. Unified Kinase-Substrate Simulation Engine (`cmda`)
+## 4. Unified Biomolecular Simulation Engine (`cmda`)
 
 ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `colabmda`) that unifies structure preparation, parameterization, OpenMM simulation dispatch, trajectory post-processing, and multi-replica analysis.
 
-### 4.1. Core Capabilities: Kinase-Substrate Dynamics
-* **Phosphotyrosine Modeling (`pY171`):** Mathematically converts target tyrosine residues to Amber `PTR` with sp3-hybridized oxygens and $-2.0e$ net charge, dynamically routing Amber `phosaa19SB` (or `phosaa14SB`) force fields.
+### 4.1. Core Capabilities: Advanced Biomolecular Modeling & Dynamics
+* **Universal Protein & Mutant Support:** Prepares and simulates arbitrary wild-type and mutant protein structures with automated biological residue renumbering and Amber ff19SB/ff14SB parameterization.
+* **Post-Translational Phosphorylation (`pY171`):** Mathematically converts target tyrosine residues to Amber `PTR` with sp3-hybridized oxygens and $-2.0e$ net charge, dynamically routing Amber `phosaa19SB` (or `phosaa14SB`) force fields.
 * **Quantum Nucleotide Parameters:** Integrates Hu et al. 2024 quantum-calculated parameters for ATP, ADP, and GDP.
-* **Dual Divalent Metal Ions:** Supports catalytic dual $Mg^{2+}$ or $Mn^{2+}$ coordination using Amber 12-6-4 / standard LJ parameters.
-* **Substrate Peptide Docking:** Docks substrate peptides (e.g. EB2 `KRPSSAPSG` at Ser222) via continuous geometric backbone vector propagation ($d_{\text{C-N}} = 1.33\text{ Å}$), eliminating atom overlap and NaN minimization errors.
+* **Divalent Metal Ion Catalysis:** Supports catalytic dual $Mg^{2+}$ or $Mn^{2+}$ coordination using Amber 12-6-4 / standard LJ parameters.
+* **Complex & Substrate Peptide Docking:** Docks substrate peptides (e.g. EB2 `KRPSSAPSG` at Ser222) via continuous geometric backbone vector propagation ($d_{\text{C-N}} = 1.33\text{ Å}$), eliminating atom overlap and NaN minimization errors.
 * **Ultra-Fast Solvation & Neutralization:** Uses Amber `tleap` with randomized ion placement (`addIonsRand`), solvating systems in under 2 seconds.
 * **Dual-Stream Trajectory Stripping:** Automates `cpptraj` PBC autoimaging and strips bulk water, producing lightweight dry (`keep_ligand`) and hydration-shell trajectories (>90% storage savings).
 
@@ -159,37 +175,43 @@ ColabMDA provides a streamlined, single-keyword CLI accessible via `cmda` (or `c
 | :--- | :--- | :--- |
 | **`stage`** | `cmda stage --state <tag> --variant <var>` | Generates decoupled project trees and runner scripts (`run.sh`, `submit.slurm`). |
 | **`prep`** | `cmda prep --state <tag> --variant <var>` | Assembles coordinates and parameterizes Amber topology (`system.prmtop`, `system.inpcrd`). |
-| **`sim`** | `cmda sim --state <tag> --variant <var> --stage <stages>` | Dispatches OpenMM simulations (`em`, `nvt`, `npt`, `qc`, `md`). |
+| **`sim`** | `cmda sim --state <tag> --variant <var> --stage <stages>` | Dispatches OpenMM simulations (`em`, `nvt`, `npt`, `qc`, `md`, or `eq`). |
 | **`merge`** | `cmda merge --state <tag> --variant <var>` | Wraps PBC and strips bulk solvent via `cpptraj` (`stripped.system.prmtop`). |
 | **`analyze`** | `cmda analyze --state <tag> --variant <var>` | Computes RMSD, $R_g$, RMSF, PCA, and contact maps. |
 | **`compare`** | `cmda compare --state <tag> --variants <v1,v2>` | Renders multi-replica or cross-variant comparative overlay plots. |
-| **`colab`** | `cmda colab <status\|new\|run\|stop>` | Controls remote Google Colab GPU sessions directly from the terminal. |
+| **`colab`** | `cmda colab <new|setup|exec|stop>` | Provisions remote GPU VMs, bootstraps environments, and dispatches timeout-proof simulations. |
 
 #### Complete End-to-End Walkthrough:
 ```bash
 # 1. Stage the decoupled directory structure and scripts
-cmda stage --state atp_2mg_eb2 --variant WT --root research/projects/cdkl5
+cmda stage --state atp_2mg_eb2 --variant WT --root test-project
 
 # 2. Build coordinates and Amber topology (pY171 + ATP + 2 Mg2+ + EB2 peptide)
-cmda prep --state atp_2mg_eb2 --variant WT --root research/projects/cdkl5
+cmda prep --state atp_2mg_eb2 --variant WT --root test-project
 
-# 3. Run equilibration and QC gate in shared eq/ hub
-cmda sim --state atp_2mg_eb2 --variant WT --stage em,nvt,npt,qc --protocol varmdyn --root research/projects/cdkl5
+# 3. Run equilibration and QC gate in shared eq/ hub (runs EM -> NVT -> NPT -> QC)
+cmda sim --state atp_2mg_eb2 --variant WT --stage eq --protocol varmdyn --root test-project
 
 # 4. Run resume-safe production MD across triplicates (r1, r2, r3)
-cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r1 --total-ns 100.0 --root research/projects/cdkl5
-cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r2 --total-ns 100.0 --root research/projects/cdkl5
-cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r3 --total-ns 100.0 --root research/projects/cdkl5
+cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r1 --total-ns 100.0 --root test-project
+cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r2 --total-ns 100.0 --root test-project
+cmda sim --state atp_2mg_eb2 --variant WT --stage md --replica r3 --total-ns 100.0 --root test-project
 
 # 5. Autoimage PBC and strip bulk solvent with cpptraj
-cmda merge --state atp_2mg_eb2 --variant WT --replicas r1,r2,r3 --root research/projects/cdkl5
+cmda merge --state atp_2mg_eb2 --variant WT --replicas r1,r2,r3 --root test-project
 
 # 6. Extract trajectory metrics and plots
-cmda analyze --state atp_2mg_eb2 --variant WT --root research/projects/cdkl5
+cmda analyze --state atp_2mg_eb2 --variant WT --root test-project
 
 # 7. Compare Wild-Type vs Mutant (e.g. R59W)
-cmda compare --state atp_2mg_eb2 --variants WT,R59W --root research/projects/cdkl5
+cmda compare --state atp_2mg_eb2 --variants WT,R59W --root test-project
 ```
+
+> 💡 **Specifying Project Root (`--root`):**
+> You can pass either a relative folder in your workspace or a complete path:
+> * **Relative path (Workstation / CWD):** `--root test-project`
+> * **Complete path (Google Colab):** `--root /content/drive/MyDrive/ColabMDA/test-project` (guarantees persistent storage on Google Drive across VM restarts)
+> * **Complete path (HPC Cluster):** `--root /scratch/users/<username>/test-project`
 
 ---
 

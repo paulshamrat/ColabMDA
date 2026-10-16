@@ -6,7 +6,7 @@ from pathlib import Path
 
 from colabmda.core.taxonomy import SystemSpec
 
-DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/research/projects"
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/ColabMDA"
 ENV_ROOT = "COLABMDA_ROOT"
 ENV_PROJECT = "COLABMDA_PROJECT_DIR"
 
@@ -22,7 +22,7 @@ def resolve_project_root(
         1. Explicit root path if provided.
         2. Subfolder under root if project_name provided.
         3. Environment variables (COLABMDA_PROJECT_DIR or COLABMDA_ROOT).
-        4. Colab Drive mounted path (/content/drive/MyDrive/research/projects/<project>).
+        4. Colab Drive mounted path (/content/drive/MyDrive/ColabMDA/<project>).
         5. Current working directory ($CWD).
     """
     # 1. Explicit root provided
@@ -41,12 +41,14 @@ def resolve_project_root(
 
     # 3. If in Colab temporary /content folder, check Drive
     if str(cwd) == "/content" and use_drive and os.path.exists("/content/drive/MyDrive"):
+        if os.path.exists("/content/drive/MyDrive/ColabMDA"):
+            base = Path("/content/drive/MyDrive/ColabMDA")
+            return base / project_name if project_name else base
+        if os.path.exists("/content/drive/MyDrive/research/projects"):
+            base = Path("/content/drive/MyDrive/research/projects")
+            return base / project_name if project_name else base
         base_drive = Path(DEFAULT_DRIVE_ROOT)
-        if project_name:
-            return base_drive / project_name
-        if base_drive.exists() and (base_drive / "research" / "projects").exists():
-            return base_drive / "research" / "projects"
-        return Path("/content/drive/MyDrive")
+        return base_drive / project_name if project_name else base_drive
 
     # 4. Standard Current Working Directory
     return cwd / project_name if project_name else cwd
