@@ -15,6 +15,7 @@
   in docs/apo.md and docs/atpmg.md; docs/platforms/{colab,hpc}.md owns platform
   setup and execution. Keep one scientific workflow across platforms; no user YAML.
   examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
+  examples/hpc/analyze.slurm runs shared merge/analysis on CPUs without a GPU.
 - `cmda stage --example trpcage --root ...` installs templates and records hashes
   in data/00_setup/example.json. Ship templates in wheels and source snapshots.
   Refuse symlinks and different existing files; never overwrite user settings.
@@ -139,3 +140,7 @@ Normal work1 is not the only available profile. Verify allocated-GPU operation,
 not just plugin presence on the login node. Update the platform guide from tested
 scheduler behavior. Headless plotting must override MPLBACKEND before importing
 Matplotlib, since an inherited notebook backend can be unavailable in conda.
+
+CDKL5 reviewed WT pilots passed full 24-stage QC on Colab T4 (apo) and Palmetto
+A100 (ATP/one-Mg). Keep runtime source snapshots and collection receipts intact.
+GPU mutant coverage and biological convergence remain separate, untested claims.

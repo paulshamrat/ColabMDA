@@ -83,6 +83,14 @@ remount Drive and restore the recorded software before attempting recovery.
 Checkpoint compatibility across different GPUs or software versions is not assumed.
 The selected scientific guide explains restart behavior.
 
+An exec connection error does not prove the remote calculation stopped. Check
+the foreground console, process and log before retrying, so two writers cannot
+target the same run. Use `colab console -s colabmda-example` for long foreground
+commands. If the notebook control connection fails after computation has ended,
+`colab restart-kernel -s colabmda-example` can restore control; verify Drive is
+still mounted before collection. Do not restart a kernel during an active job.
+File download/removal APIs avoid opening another notebook execution connection.
+
 ### MODELLER License
 
 Model building and mutation require MODELLER and a valid key. Its registration page

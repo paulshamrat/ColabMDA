@@ -169,9 +169,27 @@ hpc exec -s hpc -- bash -lc 'squeue -h -u "$USER" -o "%i %j %T %M %R" | head -25
 hpc exec -s hpc -- sacct -j JOB_ID --format=JobID,State,ExitCode,Elapsed
 ```
 
-Replace `JOB_ID` with the actual submitted ID. Run merge/analysis from the
-scientific guide in a suitable allocation, using the same project/run/state
-variables. Retrieve compact reports with `hpc download`; verify SHA-256 against a
+Replace `JOB_ID` with the actual submitted ID. Install the CPU analysis adapter
+alongside the simulation adapter, then submit it after production completes:
+
+```bash
+hpc exec -s hpc -- bash -lc '
+  set -e
+  project=/scratch/shamrap/research/projects/colabmda-example
+  tool=/scratch/shamrap/research/tools/ColabMDA
+  export COLABMDA_CONDA_ROOT=$(conda info --base)
+  export COLABMDA_ENV=openmm_env
+  cd "$project"
+  cp "$tool/examples/hpc/analyze.slurm" scripts/simulation/02_analyze.slurm
+  sbatch --output=logs/atpmg/cdkl5_reviewed_v1/WT/analysis_%j.out \
+    --error=logs/atpmg/cdkl5_reviewed_v1/WT/analysis_%j.err \
+    scripts/simulation/02_analyze.slurm "$project" cdkl5_reviewed_v1 atpmg WT
+'
+```
+
+This uses two CPUs, 4 GB RAM and ten minutes on compbio, with no GPU request.
+It calls the shared merge/analysis commands and verifies nonempty tables/figures
+before writing `ANALYSIS_DONE`. Retrieve compact reports with `hpc download`; verify SHA-256 against a
 remote inventory. Heavy trajectories remain on scratch until a reviewed archival
 transfer. A Slurm `COMPLETED` result alone does not prove convergence.
 
@@ -188,10 +206,13 @@ and hash-verified. The tool is installed without changing the scientific librari
 The two normal-profile queued checks were cancelled after verifying they had not
 started. Compbio smoke job 18088560 completed successfully on an A100 in 57 seconds,
 with five finite frames. Its tiny software equilibration does not pass research
-QC and is not reused. Full ATP/Mg equilibration job 18088721 uses a fresh run and
-strict 24-stage QC; its outcome remains pending. Colab independently completed
-all 24 apo stages and passed timing/thermodynamic QC. Keep these evidence levels
-separate from biological convergence.
+QC and is not reused. Full ATP/Mg equilibration job 18088721 completed in 17:04,
+passing strict 24-stage timing and thermodynamic QC. Production job 18090842
+completed 100 ps in 74 seconds; CPU analysis job 18091098 completed in ten seconds.
+The ten finite frames retain ATP (43 atoms) and one Mg, with all 303 C-alpha atoms
+and residue labels 1–303. Colab independently passed full apo QC and 200 ps
+production, including an actual interruption/resume test. These are WT software
+pilots, not biological convergence or GPU validation of L119R.
 
 Palmetto currently rejects user changes to queued jobs. If a request must change,
 first verify that it is your pending job, cancel it, and resubmit; never alter

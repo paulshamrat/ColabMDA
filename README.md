@@ -28,7 +28,7 @@ ColabMDA is organized into clear, functional modules:
 *   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
 *   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
 *   `examples/{fkbp,hras,trpcage}/scripts/`: Runnable templates copied into the execution project.
-*   `examples/hpc/simulate.slurm`: Thin Slurm adapter for the shared scientific commands.
+*   `examples/hpc/{simulate,analyze}.slurm`: Thin GPU simulation and CPU analysis adapters for the shared scientific commands.
 *   `docs/{apo,atpmg}.md`: CDKL5 workflows, with setup under `docs/platforms/{colab,hpc}.md`.
 *   `tests/`: Comprehensive unit and regression test suite (`pytest`).
 
@@ -43,9 +43,12 @@ existing numbered examples below retain their historical paths. The full README
 baseline remains here alongside the shared guides.
 
 Current CDKL5 checks cover archive mapping, WT/L119R modeling, reviewed ATP/Mg
-transfer and actual Amber topology checks for four systems. Full staged Colab
-validation and an HPC GPU pilot remain pending; scheduler/syntax checks alone do
-not establish GPU or scientific acceptance.
+transfer and actual Amber topology checks for four systems. Reviewed-backbone WT
+pilots passed full 24-stage, 1.96 ns equilibration QC on Colab T4 (apo) and Palmetto
+A100 (ATP/one-Mg). Production and analysis cover 200 ps/20 frames and 100 ps/10
+frames, respectively. Colab also passed an actual interruption/resume check with
+unchanged committed chunks. L119R has CPU modeling/preparation checks only.
+These short pilots verify the workflow; they do not establish biological convergence.
 
 ## 1. Platform Setup
 
