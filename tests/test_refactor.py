@@ -156,13 +156,26 @@ def test_modeller_prompt_transfers_key_without_embedding_it_in_remote_code(tmp_p
     assert "trap 'rm -f /content/.colabmda-license' EXIT" in codes[0]
 
 
-def test_remote_multiline_shell_uses_one_bash_cell(monkeypatch):
+def test_remote_multiline_shell_preserves_context_and_failure(monkeypatch, tmp_path):
+    import shlex
+    import subprocess
+
     from colabmda.remote import colab
 
     seen = []
     monkeypatch.setattr(
         colab, "_execute_remote", lambda session, code, timeout: seen.append(code) or 0
     )
-    shell = "set -e\ncd /content\nexport TEST_VAR=value\nprintf '%s' \"$TEST_VAR\""
-    assert colab.colab_manager_cli(["exec", "-s", "pilot", shell]) == 0
-    assert seen == [f"get_ipython().run_cell_magic('bash', '', {shell!r})"]
+    for body, status, expected in [
+        ("export TEST_VAR='a b'\nprintf '%s' \"$TEST_VAR\"", 0, "a b"),
+        ("false\nprintf 'should not execute'", 1, ""),
+    ]:
+        shell = f"set -e\ncd {shlex.quote(str(tmp_path))}\n{body}"
+        assert colab.colab_manager_cli(["exec", "-s", "pilot", shell]) == 0
+        call = ast.parse(seen[-1]).body[0].value
+        assert call.func.attr == "system"
+        command = ast.literal_eval(call.args[0])
+        result = subprocess.run(["bash", "-c", command], capture_output=True, text=True)
+        assert result.returncode == status
+        assert result.stdout == expected
+        assert "Remote command failed" in seen[-1]
