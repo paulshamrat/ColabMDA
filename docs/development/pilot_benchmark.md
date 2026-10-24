@@ -4,7 +4,23 @@ The separate `research/projects/test-colabmda` project owns the input registry,
 numbered execution scripts and run reports. ColabMDA remains installed software
 under `research/tools/ColabMDA`; do not copy its implementation into a project.
 
-## Scope
+## Fast default
+
+The default software check uses Trp-cage (PDB 1L2Y, first NMR model, author chain A,
+20 residues) with native residue numbering. The project retrieves mmCIF, checks
+the full deposited sequence and coordinate presence, and records source/input
+hashes. It invokes the installed tool's `examples/basic/run.sh` through
+`scripts/02_pilot/05_example.sh`. Run 100 ps NVT, 100 ps NPT and 1 ns production,
+including a 100 ps smoke test and actual SIGINT/resume of the second chunk.
+Require ten complete chunks, 100 frames, continuous logged times, finite
+measurements and saved plots before PILOT_DONE. This one-system apo test covers
+core workflow and recovery; it does not validate mutant/cofactor workflows.
+
+The Trp-cage deposited sequence is the reference for this designed miniprotein;
+a canonical UniProt mutation annotation is not applicable. Raw coordinates remain
+in the project's ignored data tree, not in tool source or examples.
+
+## Extended CDKL5 scope
 
 Test WT and L119R in apo and ATP–Mg states. Reviewed inputs contain 303 protein
 residues; holo models contain one ATP and one Mg. Preparation records Amber
