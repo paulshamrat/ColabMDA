@@ -255,6 +255,12 @@ resolves the existing layout; do not create parallel compatibility trees. The
 numbered example layout above is the default for newly staged examples. Keep
 runtime data and logs outside Git and preserve native raw coordinates and provenance.
 
+The natural-protein examples use the same layout, with scripts under
+scripts/01_structure/{fkbp,hras}/ and scripts/02_simulation/{fkbp,hras}/.
+Their separate data/00_setup/{fkbp,hras}.json receipts allow both examples and
+historical Trp-cage to coexist. Structure inputs/mapping/models live under
+data/01_structure/<protein>/; simulation outputs use one run ID per system.
+
 Independent replicas may share an equilibration endpoint, while each production
 replica receives its own velocities, stochastic streams and checkpoint. They are
 independent simulation realizations, not proof of converged or uncorrelated sampling.
@@ -263,17 +269,31 @@ independent simulation realizations, not proof of converged or uncorrelated samp
 
 ## 3. Simulation Protocol (cmda)
 
-The following subsections retain the full modeling and apo/holo workflow. CDKL5
-is the representative research system from the original guide; it is separate
-from the small software example in section 4. Its structure selections, mutations
-and cofactor placements require scientific review.
+The full workflow uses two small natural proteins: FKBP12 in water (apo) and
+H-Ras with experimental GDP/Mg coordinates (holo). Each includes WT and one
+modeled substitution. They demonstrate separate workflows, not an apo/holo
+comparison of the same protein. Section 4 retains the smaller Trp-cage recovery
+test and its historical validation. Keep one working project and separate run IDs.
+
+| Track | Experimental input | Current UniProt region | Example variants |
+| :--- | :--- | :--- | :--- |
+| Apo | FKBP12, 1D6O, author chain A, residues 1–107 | P62942, 2–108 | WT, F37V |
+| Holo | H-Ras, 4Q21, author chain A, selected residues 1–166, GDP and Mg | P01112, 1–166 | WT, G12V |
+
+Sources: [1D6O](https://www.rcsb.org/structure/1D6O),
+[4Q21](https://www.rcsb.org/structure/4Q21),
+[FKBP12](https://www.uniprot.org/uniprotkb/P62942/entry), and
+[H-Ras](https://www.uniprot.org/uniprotkb/P01112/entry).
+The substitutions are workflow examples; short simulations cannot establish their
+biological effects. Structure fetch, modeling and Amber preparation have been
+checked on the CPU; GPU acceptance for these two new examples is pending.
 
 ### 3.1. Command Reference
 
 | Command | Purpose |
 | :--- | :--- |
 | `cmda modeller build` / `mutate` | Model a selected sequence or mutate a supplied structure using MODELLER. |
-| `cmda stage --example trpcage --root PROJECT` | Copy the complete small example safely. |
+| `cmda stage --example NAME --root PROJECT` | Install fkbp, hras or trpcage scripts without overwriting user edits. |
 | `cmda stage --state TAG --variant NAME --root PROJECT` | Stage an existing research state and generate compatibility runners. |
 | `cmda prep --state TAG --variant NAME --root PROJECT` | Assemble reviewed coordinates and parameterize them with AmberTools. |
 | `cmda sim --state TAG --variant NAME --stage STAGES --root PROJECT` | Run EM, NVT, NPT, QC or production MD. |
@@ -292,37 +312,64 @@ produces no plots; the implemented plotting command is `cmda openmm compare`.
 
 #### Biological Numbering
 
-The original research illustration uses CDKL5, UniProt `O76039`, residues 1–303,
-with template `4BGQ`, chain A, and mutation `L119R`. Review the template/sequence
-alignment and coordinate presence before using a model. A requested mutation must
-match the reference amino acid and mapped coordinate residue.
+FKBP12 illustrates why numbering must be checked. The selected 1D6O chain has
+107 residues numbered 1–107. Its sequence matches current UniProt P62942 residues
+2–108, including the initiator-methionine offset. Thus the conventional author
+mutation F36V is **F37V in UniProt numbering**. The archived reference numbering
+is outdated against the current sequence; the example records this discrepancy.
+H-Ras author and UniProt numbering agree for the selected region 1–166.
 
-MODELLER's `--uniprot-numbering` maps the modeled output to the target sequence.
-Retain raw experimental coordinates unchanged. Do not treat a scoring result as
-proof of a correct biological model.
+Fetch retains the untouched mmCIF archive (PDB fallback), the UniProt FASTA, a
+native-numbered template and mapping.json. Before modeling, the requested WT
+amino acid must match both UniProt and the mapped coordinate residue, with a
+C-alpha present. Missing, ambiguous or mismatched selected residues stop these
+examples. Derived models use UniProt numbers; raw archives are never renumbered.
+Model completion requires exact sequence, residue count, numbering and C-alpha
+checks. RMSF labels subsequently refer to the verified model numbering.
 
-**In the MODELLER environment**, install the same tool checkout if needed:
+**On Colab**, in the active local-control console with Drive mounted, install the
+scripts into the same project used in section 4:
+
+```bash
+export PROJECT_ROOT=/content/drive/MyDrive/research/projects/colabmda-example
+cmda stage --example fkbp --root "$PROJECT_ROOT"
+cmda stage --example hras --root "$PROJECT_ROOT"
+cd "$PROJECT_ROOT"
+python scripts/01_structure/fkbp/01_fetch.py
+python scripts/01_structure/hras/01_fetch.py
+```
+
+Each example has its own receipt in data/00_setup and scripts under its stage
+subfolder. Existing Trp-cage scripts and results remain intact. On a GPU
+workstation, use your local project path instead.
+
+**In the MODELLER environment**, install the same tool checkout if needed, then
+build WT and the mutant using the already reviewed local template and sequence:
 
 ```bash
 conda activate modeller_env
 python -m pip install -e /content/ColabMDA
+python scripts/01_structure/fkbp/02_model.py
+python scripts/01_structure/hras/02_model.py
+conda activate colabmda
 ```
 
-The path above is for Colab; on a workstation use your local tool checkout. Set
-`PROJECT_ROOT` to the actual CDKL5 simulation project, not the Trp-cage example.
-The commands below deliberately stop if that project choice is missing:
+The installer retains its optional MODELLER question and hidden license-key
+prompt. These examples require MODELLER; Trp-cage does not. The generated scripts
+call the public build/mutate commands, keep modeling artifacts under each
+protein's models/ directory, and publish MODEL_DONE only after verification.
+For example, the FKBP12 build uses:
 
 ```bash
-: "${PROJECT_ROOT:?Set PROJECT_ROOT to your existing CDKL5 simulation project}"
-mkdir -p "$PROJECT_ROOT/data/structure"
-cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A \
-  --range 1 303 --uniprot-numbering \
-  --outdir "$PROJECT_ROOT/data/structure/cdkl5_wt"
-cmda modeller mutate \
-  --pdb-in "$PROJECT_ROOT/data/structure/cdkl5_wt/cdkl5_wt.pdb" \
-  --chain A --mut L119R \
-  --outdir-mut "$PROJECT_ROOT/data/structure/cdkl5_l119r"
+cmda modeller build --pdb-id 1D6O --uniprot-id P62942 --chain A \
+  --range 2 108 --uniprot-numbering \
+  --template "$PROJECT_ROOT/data/01_structure/fkbp/template.pdb" \
+  --sequence "$PROJECT_ROOT/data/01_structure/fkbp/uniprot.fasta" \
+  --outdir "$PROJECT_ROOT/data/01_structure/fkbp/models/WT"
 ```
+
+The model script also checks the F37V result, saves WT.pdb/F37V.pdb and records
+their hashes. Do not pass author F36V to a model numbered by UniProt.
 
 #### Quality Control (QC)
 
@@ -335,36 +382,34 @@ Review protonation, cofactors and missing residues before parameterization.
 
 #### 3.3.1. Scope & Inputs
 
-Apo simulations omit the nucleotide/cofactor complex and provide a baseline for
-comparing the reviewed WT and mutant models. Keep the same preparation protocol
-when comparing variants. Return to the `colabmda` environment for the MD commands.
+The apo example uses FKBP12 without a bound organic ligand. Select author chain
+A, excluding the second crystallographic copy, sulfate/ammonium additives and
+crystal waters; preparation adds solvent and bulk salt. Compare WT and F37V with
+the same protocol. This is independent of the H-Ras holo example.
 
 #### 3.3.2. Directory Staging
 
-Unset the example run ID before working on an existing state-based research project.
-The following commands use its `data/structure` inputs and `data/simulation` outputs:
+Keep the numbered layout and choose one run ID per protein and variant. A run ID
+cannot be reused for another protein, variant, input or software revision.
+The scripts create their directories and validate recorded input/template hashes:
 
 ```bash
-conda activate colabmda
-unset COLABMDA_RUN_ID
-: "${PROJECT_ROOT:?Set the actual CDKL5 project root}"
-mkdir -p "$PROJECT_ROOT/data/simulation" "$PROJECT_ROOT/data/analysis"
-cmda stage --state apo --variant WT --root "$PROJECT_ROOT"
-cmda stage --state apo --variant L119R --root "$PROJECT_ROOT"
+export COLABMDA_RUN_ID=fkbp_wt
+python scripts/02_simulation/fkbp/01_prepare.py --variant WT
 ```
-
-State-based staging generates shared runner filenames. Review or restage the
-specific state/variant before using generated batch scripts; the commands below
-pass the desired system explicitly instead.
 
 #### 3.3.3. Preparation & Titration (cmda prep)
 
+For the second system, choose a different run ID:
+
 ```bash
-cmda prep --state apo --variant WT --root "$PROJECT_ROOT" \
-  --receptor "$PROJECT_ROOT/data/structure/cdkl5_wt/cdkl5_wt.pdb"
-cmda prep --state apo --variant L119R --root "$PROJECT_ROOT" \
-  --receptor "$PROJECT_ROOT/data/structure/cdkl5_l119r/cdkl5_l119r.pdb"
+export COLABMDA_RUN_ID=fkbp_f37v
+python scripts/02_simulation/fkbp/01_prepare.py --variant F37V
 ```
+
+The scripts call cmda prep with an explicit protein, state, variant and reviewed
+receptor. WT and mutant outputs live under
+`data/02_simulation/<run>/apo/<variant>/`. Retain the run ID for later stages.
 
 Inspect `model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd` and `prep.json`
 in each system's preparation folder. High-level preparation uses ff19SB, OPC,
@@ -376,66 +421,79 @@ preparation at the selected pH. High-level assembly does not imply that the same
 protonation calculation ran. Review explicit AMBER forms such as HID/HIE/HIP
 and ASH/GLH and retain any protonation audit output.
 
-### 3.4. Track 2: Holo Dynamics (ATP + Mg²⁺)
+### 3.4. Track 2: Holo Dynamics (GDP + Mg²⁺)
 
 #### 3.4.1. Scope & Chemistry
 
-Holo simulations add the reviewed nucleotide and divalent-ion configuration.
-Choose the number and placement of ions from the scientific model; a state tag
-alone does not establish catalytic geometry or a mechanistic conclusion.
+The holo example uses H-Ras residues 1–166 from 4Q21 with one GDP and one Mg.
+The resolved 1–166 region is modeled against the matching UniProt region; the
+unresolved C-terminal tail is not added. This is a soluble-domain software test,
+not a membrane-associated full-length Ras model or a nucleotide-hydrolysis study.
 
-#### 3.4.2. ATP & Mg²⁺ Placement
+#### 3.4.2. GDP & Mg²⁺ Placement
 
-Use a reviewed cofactor-bearing receptor in the same coordinate frame as the
-protein. Do not copy ATP/Mg coordinates from another protein by matching residue
-numbers alone. The old 8FP5/CDK2 transfer example is not a validated automatic
-placement workflow for CDKL5. Check cofactor identities, clashes and coordination.
+Retain GDP/Mg from the same experimental author chain and coordinate frame.
+WT modeling aligns the derived protein to its template; mutagenesis preserves
+that frame. The example retains experimental waters within 2.6 Å of Mg and
+records their author numbers. It verifies GDP heavy-atom names against the
+bundled template, the component counts and severe protein/ligand clashes.
+Review binding-site geometry and coordination before a scientific campaign.
 
 #### 3.4.3. Directory Staging & Holo Parameterization
 
-Set `HOLO_WT` and `HOLO_L119R` to the reviewed holo PDB files. `atp_mg` represents
-one ATP and one Mg in this state convention:
-
 ```bash
-: "${HOLO_WT:?Set the reviewed holo WT PDB path}"
-: "${HOLO_L119R:?Set the reviewed holo L119R PDB path}"
-cmda stage --state atp_mg --variant WT --root "$PROJECT_ROOT"
-cmda stage --state atp_mg --variant L119R --root "$PROJECT_ROOT"
-cmda prep --state atp_mg --variant WT --root "$PROJECT_ROOT" --receptor "$HOLO_WT"
-cmda prep --state atp_mg --variant L119R --root "$PROJECT_ROOT" --receptor "$HOLO_L119R"
+export COLABMDA_RUN_ID=hras_wt
+python scripts/02_simulation/hras/01_prepare.py --variant WT
+export COLABMDA_RUN_ID=hras_g12v
+python scripts/02_simulation/hras/01_prepare.py --variant G12V
 ```
 
-The nucleotide route loads the available ATP PREPI/FRCMOD resources and compatible
-water/ion parameters. Review `prep.json`, the actual loaded resources and topology.
-Generic GAFF ligand parameters are not equivalent to specialized nucleotide
-parameters. Preserve a matching external Amber topology/coordinate pair when
-reproducing a separately parameterized system.
+Outputs live under `data/02_simulation/<run>/gdp_1mg/<variant>/`. The nucleotide
+route loads GDP-B3.prepi and the shared ATP-B3.frcmod with ff19SB/OPC and compatible
+ion resources. CPU preparation retained a 40-atom GDP with charge −3 and one Mg
+with charge +2. Inspect prep.json, the loaded resource hashes and generated
+topology; parameter files being present alone does not validate a simulation.
 
 #### 3.4.4. Additional State Conventions
 
-The original activation roadmap also includes these composition tags:
-
-| State tag | Requested composition |
-| :--- | :--- |
-| `adp_2mg_py171` | ADP, two Mg ions and phosphorylated Tyr171. |
-| `atp_2mg_py171_peb2` | ATP, two Mg ions, phosphorylated Tyr171 and the EB2 peptide preset. |
-
-These are supported construction conventions, not evidence that the resulting
-complex has a validated activation state. Review residue identity, phosphorylation
-parameters, peptide placement, ion coordination and the actual assembled topology.
-The small Trp-cage test does not validate these advanced systems.
+ATP, ADP and GTP resources remain available for appropriate structures. Choose
+state tags and ion counts for the actual experimental/model composition. Existing
+phosphorylation and substrate-peptide conventions remain advanced capabilities;
+they are not required by the small tutorials or validated by their acceptance tests.
+Generic GAFF parameters are not equivalent to the specialized nucleotide route.
+Preserve a matching Amber topology/coordinate pair for independently parameterized
+systems, and review protonation, charge, ligand atom names and coordination.
 
 ### 3.5. Equilibration, QC & Production
 
 #### 3.5.1. Staged Equilibration
 
-After preparation, run the staged protocol for each system that will be studied:
+For the short software walkthrough, first choose a prepared system. For example:
 
 ```bash
-cmda sim --state apo --variant WT --stage eq --protocol staged --root "$PROJECT_ROOT"
-cmda sim --state apo --variant L119R --stage eq --protocol staged --root "$PROJECT_ROOT"
-cmda sim --state atp_mg --variant WT --stage eq --protocol staged --root "$PROJECT_ROOT"
-cmda sim --state atp_mg --variant L119R --stage eq --protocol staged --root "$PROJECT_ROOT"
+export COLABMDA_RUN_ID=fkbp_wt
+python scripts/02_simulation/fkbp/02_equilibrate.py --variant WT
+COLABMDA_EXAMPLE_NS=0.1 python scripts/02_simulation/fkbp/03_production.py --variant WT
+python scripts/02_simulation/fkbp/04_analysis.py --variant WT
+python scripts/02_simulation/fkbp/05_check.py --variant WT
+```
+
+Repeat with run fkbp_f37v and variant F37V. For holo, use the hras script folder,
+run hras_wt/variant WT or run hras_g12v/variant G12V. These scripts explicitly
+use quick 100 ps NVT/NPT and default 100 ps production; extend to 1 ns by setting
+COLABMDA_EXAMPLE_NS=1 with the same run ID and compatible inputs. Rerun analysis
+and the final check after extension. This short profile tests software, not
+physical convergence. Read summary.json and equilibration_qc.json separately.
+
+For research, the full staged protocol below remains available. Use a fresh run
+ID and reviewed preparation when changing protocols. Set STATE, VARIANT and
+COLABMDA_RUN_ID to the prepared research system, then run explicitly:
+
+```bash
+: "${STATE:?Set apo or gdp_1mg for the prepared system}"
+: "${VARIANT:?Set its reviewed variant}"
+: "${COLABMDA_RUN_ID:?Set its prepared research run ID}"
+cmda sim --state "$STATE" --variant "$VARIANT" --stage eq --protocol staged --root "$PROJECT_ROOT"
 ```
 
 Restraints act on solute heavy atoms; bulk water and monovalent ions remain
@@ -485,13 +543,11 @@ QC review. The following illustrates three 100 ns targets; it is not the softwar
 example or an instruction to launch an unreviewed full campaign:
 
 ```bash
-cmda sim --state apo --variant WT --stage md --replica r1,r2,r3 \
-  --total-ns 100 --checkpoint-ps 1000 --traj-interval 10 --root "$PROJECT_ROOT"
-cmda sim --state atp_mg --variant WT --stage md --replica r1,r2,r3 \
+cmda sim --state "$STATE" --variant "$VARIANT" --stage md --replica r1,r2,r3 \
   --total-ns 100 --checkpoint-ps 1000 --traj-interval 10 --root "$PROJECT_ROOT"
 ```
 
-Repeat for the reviewed mutant using `--variant L119R`. Targets are per replica.
+Repeat for each reviewed state/variant and its run ID. Targets are per replica.
 The high-level route processes the listed replicas sequentially; parallel batch
 execution needs an appropriate scheduler design.
 
@@ -559,8 +615,7 @@ checkpoints contain Context/RNG internals and are not assumed portable.
 #### 3.6.1. PBC Autoimaging
 
 ```bash
-cmda merge --state apo --variant WT --replicas r1,r2,r3 --root "$PROJECT_ROOT"
-cmda merge --state atp_mg --variant WT --replicas r1,r2,r3 --root "$PROJECT_ROOT"
+cmda merge --state "$STATE" --variant "$VARIANT" --replicas r1,r2,r3 --root "$PROJECT_ROOT"
 ```
 
 Repeat for each simulated variant. `cpptraj` autoimages the completed chunks and
@@ -585,10 +640,7 @@ verify its residue-label mapping rather than treating Amber indices as author nu
 #### 3.7.1. System Metrics (cmda analyze)
 
 ```bash
-cmda analyze --state apo --variant WT --root "$PROJECT_ROOT"
-cmda analyze --state apo --variant L119R --root "$PROJECT_ROOT"
-cmda analyze --state atp_mg --variant WT --root "$PROJECT_ROOT"
-cmda analyze --state atp_mg --variant L119R --root "$PROJECT_ROOT"
+cmda analyze --state "$STATE" --variant "$VARIANT" --root "$PROJECT_ROOT"
 ```
 
 The high-level route currently analyzes r1. RMSD uses backbone fitting to the first
@@ -611,8 +663,8 @@ Use directories containing already calculated `rmsd.csv`, `rg.csv` and `rmsf.csv
 ```bash
 : "${WT_ANALYSIS:?Set the WT analysis directory}"
 : "${MUTANT_ANALYSIS:?Set the mutant analysis directory}"
-cmda openmm compare --series "WT=$WT_ANALYSIS" --series "L119R=$MUTANT_ANALYSIS" \
-  --outdir "$PROJECT_ROOT/data/analysis/apo/compare"
+cmda openmm compare --series "WT=$WT_ANALYSIS" --series "F37V=$MUTANT_ANALYSIS" \
+  --outdir "$PROJECT_ROOT/data/03_analysis/fkbp/compare"
 ```
 
 The output PNGs are under the requested directory's `figures/`. Comma-separated
@@ -722,11 +774,11 @@ labels. The helper accepts explicit files instead of relying on old filename gue
 ```bash
 : "${VIEW_TOPOLOGY:?Set the matching viewer topology path}"
 : "${VIEW_TRAJECTORY:?Set the matching trajectory path}"
-cmda view --topology "$VIEW_TOPOLOGY" --trajectory "$VIEW_TRAJECTORY" --resi 119
+cmda view --topology "$VIEW_TOPOLOGY" --trajectory "$VIEW_TRAJECTORY" --resi 37
 ```
 
 Inspect the generated PyMOL selection and camera. The helper retains KRAS-oriented
-styling; do not assume its default residue selections annotate CDKL5 or another
+styling; do not assume its default residue selections annotate FKBP12, H-Ras or another
 protein correctly. Keep native numbering consistent when highlighting a mutation.
 
 #### 3.8.3. Snapshot Grids
@@ -911,6 +963,12 @@ reported separately from an actual GPU integration run.
 ## Changelog
 
 ### Unreleased Development
+
+- Added small FKBP12 WT/F37V and H-Ras–GDP/Mg WT/G12V workflows, replacing CDKL5
+  as the main guide illustration while retaining the full protocol reference.
+- Added explicit author-to-UniProt mapping, reviewed local modeling inputs and
+  strict sequence/mutation checks. Raw archives and historical Trp-cage results
+  remain unchanged. CPU modeling/preparation passed; new GPU tests are pending.
 
 * Flat OpenMM modules and one checkpointed production implementation.
 * Complete, safely staged Trp-cage example and a single installer with optional MODELLER prompting.

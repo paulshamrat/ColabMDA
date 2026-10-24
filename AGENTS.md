@@ -10,7 +10,7 @@
 - `scripts/setup.sh` is the only installer. `environment.yml` is its readable
   core dependency specification. Optional MODELLER stays separate for license
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
-- `examples/trpcage/scripts/` contains runnable user workflows, not engine code.
+- `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
   Main README owns installation/example/Colab/restart instructions. Do not add
   separate example Markdown guides or project configuration YAML.
 - `cmda stage --example trpcage --root ...` installs templates and records hashes
@@ -30,6 +30,15 @@
   mmCIF and PDB. Check sequence identity and C-alpha coordinate presence.
 - Trp-cage is a designed peptide; verify its deposited sequence, model 1 and
   author chain A. A canonical UniProt mutation annotation is not applicable.
+- The main guide uses FKBP12 apo (1D6O A; author 1–107 maps to current P62942
+  2–108, WT/F37V) and H-Ras GDP/Mg (4Q21 A; P01112 1–166, WT/G12V).
+  Preserve raw author numbering; derived models use verified UniProt numbering.
+  Check exact sequences/C-alpha presence, stop on mismatches, and retain mapping
+  and model hashes. Holo coordinates come from the same experimental chain/frame.
+- Natural-protein scripts install under scripts/<stage>/<name>/ with separate
+  data/00_setup/<name>.json receipts so they coexist with historical Trp-cage.
+  Use one run ID per protein/variant. Changing code/protocol requires a new run.
+  Confirm actual nucleotide/ion topology composition and charges, not just files.
 - RMSF author labels require a reference identity/count gate, including insertion
   codes and chain disambiguation. Never use Amber indices as author numbers.
 - Numerical calculation modules never import plotting libraries. Plot only saved

@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def templates(name):
-    if name != "trpcage":
+    if name not in {"trpcage", "fkbp", "hras"}:
         raise ValueError(f"Unknown example: {name}")
     repo = Path(__file__).resolve().parents[3]
     source = repo / "examples" / name
@@ -35,7 +35,9 @@ def templates(name):
 def install_example(name, root):
     root = Path(root).expanduser().resolve()
     files = {n: p.read_bytes() for n, p in templates(name).items()}
-    receipt = root / "data/00_setup/example.json"
+    if name != "trpcage":
+        files = {str(Path(n).parent / name / Path(n).name): payload for n, payload in files.items()}
+    receipt = root / "data/00_setup" / ("example.json" if name == "trpcage" else f"{name}.json")
     # Check script, metadata and log destinations before writing anything.
     destinations = [root / name for name in files] + [receipt, root / "logs/02_simulation"]
     for target in destinations:

@@ -877,21 +877,34 @@ def assemble_system_model(
 
     # Step 1: Mutation (if variant != WT)
     if spec.variant and spec.variant.upper() != "WT":
-        try:
-            from colabmda.modeller.engine import _MODELLER_OK, mutate_once
+        from colabmda.modeller.engine import (
+            _MODELLER_OK,
+            mutate_once,
+            observed_wt_letter,
+            parse_mut,
+        )
 
-            if _MODELLER_OK:
-                mut_res, _, _, _, _ = mutate_once(
-                    pdb_in=str(current_pdb),
-                    chain="A",
-                    mut_str=spec.variant,
-                    seed=42,
-                    outdir_mut=str(w_dir),
-                )
-                if mut_res and Path(mut_res).exists():
-                    current_pdb = Path(mut_res)
-        except Exception:
-            pass
+        wt, position, target = parse_mut(spec.variant)
+        observed = observed_wt_letter(str(current_pdb), "A", position)
+        if observed == target:
+            pass  # Already modeled and checked: do not mutate the mutant again.
+        elif observed != wt:
+            raise ValueError(f"Mutation identity mismatch for {spec.variant}: observed {observed}")
+        elif not _MODELLER_OK:
+            raise RuntimeError("Provide a reviewed mutant receptor or install MODELLER")
+        else:
+            mut_res, _, _, _, status = mutate_once(
+                pdb_in=str(current_pdb),
+                chain="A",
+                mut_str=spec.variant,
+                seed=42,
+                outdir_mut=str(w_dir),
+            )
+            if not mut_res or not Path(mut_res).exists():
+                raise RuntimeError(f"Mutation failed: {status}")
+            current_pdb = Path(mut_res)
+            if observed_wt_letter(str(current_pdb), "A", position) != target:
+                raise ValueError("Modeled mutation failed coordinate identity verification")
 
     # Step 2: Phosphorylation (e.g. Y171 -> PTR171)
     if spec.phos_residues:

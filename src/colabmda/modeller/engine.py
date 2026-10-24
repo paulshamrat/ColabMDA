@@ -12,20 +12,20 @@ Examples
 # Help
   python3 modeller6.py --help
 
-# Build model for chain A, UniProt 1–303
-  python3 modeller6.py 4bgq O76039 --chain A --range 1 303
+# Build model for chain A, UniProt 2–108
+  python3 modeller6.py 1d6o P62942 --chain A --range 2 108
 
 # Build + one mutation
-  python3 modeller6.py 4bgq O76039 --chain A --range 1 303 --mut K76E
+  python3 modeller6.py 1d6o P62942 --chain A --range 2 108 --mut F37V
 
 # Build + batch mutations saved under outdir
-  python3 modeller6.py 4bgq O76039 --chain A --range 1 303 --list mutations.txt --outdir-mut 4bgq_fix/mutants
+  python3 modeller6.py 1d6o P62942 --chain A --range 2 108 --list mutations.txt --outdir-mut fkbp_wt/mutants
 
 # Mutate-only (single)
-  python3 modeller6.py --pdb-in 4bgq_fix/target.B99990001_with_cryst.pdb --chain A --mut K76E
+  python3 modeller6.py --pdb-in fkbp_wt/target.B99990001_with_cryst.pdb --chain A --mut F37V
 
 # Mutate-only (batch)
-  python3 modeller6.py --pdb-in 4bgq_fix/target.B99990001_with_cryst.pdb --chain A --list mutations.txt --outdir-mut 4bgq_fix/mutants --seed 123
+  python3 modeller6.py --pdb-in fkbp_wt/target.B99990001_with_cryst.pdb --chain A --list mutations.txt --outdir-mut fkbp_wt/mutants --seed 123
 """
 
 import argparse
@@ -111,9 +111,7 @@ def build_template_from_atoms(clean_pdb, chain_id, logfh):
             chain = ch
             break
     if chain is None:
-        chain = list(model0)[0]
-        chain_id = chain.id
-        write(logfh, f"Requested chain not found; using first chain '{chain_id}'.")
+        raise ValueError(f"Requested chain {chain_id} is absent")
 
     pos2aa = {}
     for res in chain:
@@ -471,8 +469,12 @@ def verify_model_sequence(pdb_path, chain_id, expected_seq, expected_start, logf
         else:
             write(logfh, "❌ FAILED: Significant sequence errors detected.")
 
+        from colabmda.modeller.structure import verify_sequence
+
+        verify_sequence(pdb_path, chain_id, expected_seq, expected_start)
     except Exception as e:
-        write(logfh, f"Warning: Sanity check encountered an error: {e}")
+        write(logfh, f"Model verification failed: {e}")
+        raise
 
 
 # ───────────── mutation helpers ─────────────
@@ -725,6 +727,19 @@ def mutate_once(pdb_in, chain, mut_str, seed, outdir_mut=None, verbose=False):
         mdl1.write(file=core_abs)
         reinsert_cryst1(core_abs, final_abs, cryst1)
 
+        from Bio.SeqUtils import seq1
+
+        from colabmda.modeller.structure import protein_residues
+
+        expected = {r.id: seq1(r.resname) for r in protein_residues(pdb_in, chain)}
+        key = (" ", pos, " ")
+        if expected.get(key) != wt:
+            raise ValueError("Mutation residue identity/insertion code is ambiguous")
+        expected[key] = to
+        observed = {r.id: seq1(r.resname) for r in protein_residues(final_abs, chain)}
+        if observed != expected:
+            raise ValueError("Mutant sequence or native residue numbering changed unexpectedly")
+
         # Cleanup tmp (in working_dir)
         try:
             os.remove(tmp_abs)
@@ -763,13 +778,15 @@ def main():
     )
 
     # Positional for build mode
-    ap.add_argument("pdb_id", nargs="?", help="Template PDB ID (e.g., 4bgq)")
-    ap.add_argument("uni_id", nargs="?", help="UniProt ID (e.g., O76039)")
+    ap.add_argument("pdb_id", nargs="?", help="Template PDB ID (e.g., 1d6o)")
+    ap.add_argument("uni_id", nargs="?", help="UniProt ID (e.g., P62942)")
 
     # Mutate-only toggle
     ap.add_argument("--pdb-in", dest="pdb_in", help="Mutate-only mode: input PDB to mutate")
 
     # Build options
+    ap.add_argument("--template", help="Reviewed local single-chain PDB template")
+    ap.add_argument("--sequence", help="Reviewed local UniProt FASTA")
     ap.add_argument(
         "--outdir", default=None, help="Build output directory (default: <pdb_id>_fix/)"
     )
@@ -784,7 +801,7 @@ def main():
         nargs=2,
         type=int,
         metavar=("START", "END"),
-        help="Model UniProt START..END (1-based inclusive), e.g., --range 1 303",
+        help="Model UniProt START..END (1-based inclusive), e.g., --range 2 108",
     )
     ap.add_argument(
         "--truncate",
@@ -908,6 +925,8 @@ def main():
                 for p in created:
                     print("  -", p)
             print(f"• Summary: {os.path.join(basedir, 'mutate_summary.csv')}")
+        if len(created) != len(muts):
+            raise SystemExit("One or more mutations failed; inspect mutate_summary.csv")
         return
 
     # ── Build mode ──
@@ -931,14 +950,26 @@ def main():
             f"mut={args.mut}, list={args.list}, seed={args.seed}, outdir_mut={args.outdir_mut}",
         )
 
+        args.template = os.path.abspath(args.template) if args.template else None
+        args.sequence = os.path.abspath(args.sequence) if args.sequence else None
         os.chdir(outdir)
 
         # 1) Download inputs
-        pdb_url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
-        uni_url = f"https://rest.uniprot.org/uniprotkb/{uni_id}.fasta"
-        download(pdb_url, f"{pdb_id}.pdb", logfh)
-        download(uni_url, f"{uni_id}.fasta", logfh)
-        os.system(f"cp {pdb_id}.pdb {pdb_id}_orig.pdb")
+        from colabmda.modeller.structure import fetch_archive, write_chain
+
+        if args.template:
+            template = PDBParser(QUIET=True).get_structure("template", args.template)
+        else:
+            template, archive, source = fetch_archive(pdb_id, ".")
+            write(logfh, f"Original archive retained: {archive}; source: {source}")
+        model = next(iter(template))
+        if args.chain not in model:
+            raise ValueError(f"Requested author chain {args.chain} is absent")
+        write_chain(model[args.chain], f"{pdb_id}_orig.pdb")
+        if args.sequence:
+            shutil.copy2(args.sequence, f"{uni_id}.fasta")
+        else:
+            download(f"https://rest.uniprot.org/uniprotkb/{uni_id}.fasta", f"{uni_id}.fasta", logfh)
 
         # 2) Clean PDB + keep CRYST1 (Modeller reads <pdb_id>.pdb)
         cryst1_line = clean_pdb_keep_cryst1(f"{pdb_id}_orig.pdb", f"{pdb_id}_clean.pdb", logfh)
@@ -1092,7 +1123,10 @@ def main():
                         )
                         write(logfh, f"{m} → FAIL: {e}")
 
-        # Standardize build output PDB name to match outdir folder stem (e.g. 4ldj_wt.pdb)
+        if len(created) != len(muts):
+            raise SystemExit("One or more mutations failed; inspect mutate_summary.csv")
+
+        # Standardize build output PDB name to match outdir folder stem.
         current_outdir = os.getcwd()
         folder_stem = os.path.basename(current_outdir)
         std_pdb_path = os.path.join(current_outdir, f"{folder_stem}.pdb")

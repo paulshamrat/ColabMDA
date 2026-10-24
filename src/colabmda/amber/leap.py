@@ -260,6 +260,13 @@ def write_prep_provenance(
             "generator": "colabmda.amber.leap",
         },
     }
+    import hashlib
+
+    if spec.ligand in {"ATP", "ADP", "GDP", "GTP"}:
+        meta["parameter_files"] = {
+            name: hashlib.sha256(get_param_path(name).read_bytes()).hexdigest()
+            for name in [f"{spec.ligand}-B3.prepi", "ATP-B3.frcmod"]
+        }
     if extra:
         meta.update(extra)
 

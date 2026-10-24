@@ -1,6 +1,6 @@
 # Contributing to ColabMDA
 
-Read the [main README](README.md) for installation, the runnable Trp-cage example
+Read the [main README](README.md) for installation, FKBP12/H-Ras workflows, Trp-cage
 and the repository layout. Follow [AGENTS.md](AGENTS.md) for development rules.
 
 ## Development
@@ -22,8 +22,8 @@ use the single `scripts/setup.sh` installer and its key prompt when needed.
 - `openmm/` is flat: preparation, EM, NVT, NPT, MD, QC, merge, analysis and figures
   use separate operation modules. Do not recreate engine/modular subfolders.
 - `remote/colab.py` owns committed snapshot deployment and Colab execution.
-- `examples/trpcage/scripts/` contains thin, runnable user workflows that call the
-  public CLI/API. Install them with `cmda stage --example trpcage --root ...`.
+- `examples/<name>/scripts/` contains thin user workflows calling the public
+  CLI/API. Install fkbp, hras or trpcage with `cmda stage --example NAME --root ...`.
   Do not duplicate scientific implementations or add extra example guide files.
 
 Keep calculations separate from plotting. Preserve native author numbering and
@@ -46,6 +46,11 @@ using the generated example and the working project's `tests/gpu.py`. Keep it
 foreground, inspect physical QC separately, retrieve verified compact reports,
 and stop the dedicated session. Never include license keys or credentials in
 source, test fixtures using real secrets, logs or provenance.
+
+Natural-protein acceptance uses the staged FKBP12 WT/F37V and H-Ras–GDP/Mg
+WT/G12V scripts. Verify author-to-UniProt mapping, unchanged raw inputs, modeled
+mutations, actual topology charges/composition and model-based analysis labels.
+Keep CPU modeling/preparation results separate from real GPU simulation evidence.
 
 Update README/AGENTS.md when behavior changes. Keep the established README
 organization: platform setup, project architecture, full simulation workflow and

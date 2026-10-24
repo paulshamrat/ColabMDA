@@ -953,12 +953,14 @@ def main():
 
     # build
     p_build = sub_mod.add_parser("build", help="Build homology model")
-    p_build.add_argument("--pdb-id", required=True, help="Template PDB ID (e.g. 4bgq)")
+    p_build.add_argument("--pdb-id", required=True, help="Template PDB ID (e.g. 1d6o)")
     p_build.add_argument("--uniprot-id", required=True, help="UniProt ID (e.g. O76039)")
     p_build.add_argument("--chain", default="A", help="Chain ID (default: A)")
     p_build.add_argument("--range", nargs=2, type=int, metavar=("START", "END"))
     p_build.add_argument("--truncate", action="store_true")
     p_build.add_argument("--uniprot-numbering", action="store_true")
+    p_build.add_argument("--template", help="Reviewed local PDB template")
+    p_build.add_argument("--sequence", help="Reviewed local UniProt FASTA")
     p_build.add_argument("--mut", default=None)
     p_build.add_argument("--list", default=None, help="File with one mutation per line")
     p_build.add_argument("--outdir", default=None)
@@ -1018,7 +1020,7 @@ def main():
         "--state", default="atp_2mg_eb2", help="State tag (default: atp_2mg_eb2)"
     )
     p_top_stage.add_argument(
-        "--example", choices=["trpcage"], help="Install a complete runnable example"
+        "--example", choices=["trpcage", "fkbp", "hras"], help="Install a complete runnable example"
     )
     p_top_stage.add_argument("--variant", default="WT", help="Variant name (default: WT)")
     p_top_stage.add_argument("--protein", default="cdkl5", help="Protein name (default: cdkl5)")
