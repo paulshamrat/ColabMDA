@@ -70,6 +70,13 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
         assert "description" in meta
         assert "potential_energy_kj_mol" in meta
 
+    # Physical time survives the 1 fs -> 2 fs and NVT -> NPT context transfers.
+    # Test mode uses ten integration steps per dynamic stage, not research durations.
+    for stage, expected_ps in [(14, 0.06), (18, 0.14), (24, 0.26)]:
+        metadata = json.loads((eq_artifacts / f"stage_{stage:02d}.json").read_text())
+        assert metadata["time_ps"] == pytest.approx(expected_ps)
+        assert metadata["test_mode"] is True
+
     # 4. QC: analyzes logs and checks 24/24 stages
     analyze_logs(str(eq_dir), strict=False, protocol="varmdyn")
     with open(eq_dir / "equilibration_qc.json") as f:

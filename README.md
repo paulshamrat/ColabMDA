@@ -28,6 +28,8 @@ ColabMDA is organized into clear, functional modules:
 *   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
 *   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
 *   `examples/{fkbp,hras,trpcage}/scripts/`: Runnable templates copied into the execution project.
+*   `examples/hpc/simulate.slurm`: Thin Slurm adapter for the shared scientific commands.
+*   `docs/{apo,atpmg}.md`: CDKL5 workflows, with setup under `docs/platforms/{colab,hpc}.md`.
 *   `tests/`: Comprehensive unit and regression test suite (`pytest`).
 
 ---
@@ -68,6 +70,10 @@ python -m pip install -e . google-colab-cli
 cmda --help
 colab sessions
 ```
+
+Finish local changes and commit the deployment snapshot before creating the GPU
+runtime, so it is ready for use. An idle runtime can expire; a replacement needs
+fresh Drive authentication even when the previous session was mounted.
 
 Then create a GPU runtime, authenticate Drive and deploy the committed tool:
 

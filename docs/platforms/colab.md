@@ -30,6 +30,10 @@ cmda --help
 colab sessions
 ```
 
+Finish local changes and commit the deployment snapshot before creating the GPU
+runtime, so it is ready for use. An idle runtime can expire; a replacement needs
+fresh Drive authentication even when the previous session was mounted.
+
 Then create a GPU runtime, authenticate Drive and deploy the committed tool:
 
 ```bash
@@ -76,7 +80,7 @@ Keep simulations in the foreground with live output. Sessions can still terminat
 Keep inputs, completed chunks and checkpoints on Drive. On a replacement runtime,
 remount Drive and restore the recorded software before attempting recovery.
 Checkpoint compatibility across different GPUs or software versions is not assumed.
-The recovery section below explains restart behavior.
+The selected scientific guide explains restart behavior.
 
 ### MODELLER License
 
@@ -91,7 +95,7 @@ cmda colab setup -s colabmda-example --local-source --modeller
 Automated setup accepts `KEY_MODELLER` or `MODELLER_LICENSE` through the process
 environment. Do not place real keys in commands saved to Git, logs or provenance.
 `--no-modeller` skips the optional remote question. MODELLER uses `modeller_env`;
-The selected scientific guide activates it and installs the same tool snapshot.
+the selected scientific guide activates it and installs the same tool snapshot.
 
 ---
 
