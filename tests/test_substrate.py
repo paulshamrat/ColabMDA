@@ -267,7 +267,7 @@ def test_position_nucleotide(tmp_path):
 
     # Receptor with CA atoms in 3D but NO ATP
     rec_lines = [
-        f"ATOM  {i:5d}  CA  ALA A{i:4d}    {float(i):8.3f}{float(i*2):8.3f}{float(i%5):8.3f}  1.00  0.00           C\n"
+        f"ATOM  {i:5d}  CA  ALA A{i:4d}    {float(i):8.3f}{float(i * 2):8.3f}{float(i % 5):8.3f}  1.00  0.00           C\n"
         for i in range(1, 30)
     ] + ["TER\n", "END\n"]
     rec_pdb = tmp_path / "rec_no_atp.pdb"
@@ -275,7 +275,7 @@ def test_position_nucleotide(tmp_path):
 
     # Template with matching CA atoms and an ATP molecule
     tmpl_lines = [
-        f"ATOM  {i:5d}  CA  ALA A{i:4d}    {float(i):8.3f}{float(i*2):8.3f}{float(i%5):8.3f}  1.00  0.00           C\n"
+        f"ATOM  {i:5d}  CA  ALA A{i:4d}    {float(i):8.3f}{float(i * 2):8.3f}{float(i % 5):8.3f}  1.00  0.00           C\n"
         for i in range(1, 30)
     ] + [
         "HETATM 2974  PG  ATP A 300     -23.284  -1.633  18.344  1.00  6.41           P\n",

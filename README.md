@@ -286,7 +286,11 @@ Sources: [1D6O](https://www.rcsb.org/structure/1D6O),
 [H-Ras](https://www.uniprot.org/uniprotkb/P01112/entry).
 The substitutions are workflow examples; short simulations cannot establish their
 biological effects. Structure fetch, modeling and Amber preparation have been
-checked on the CPU; GPU acceptance for these two new examples is pending.
+checked on the CPU and on Colab T4. Both WT/mutant workflows passed the short
+GPU software test (100 ps production; FKBP12 WT extended to 200 ps for actual
+interruption/resume). Numbering, finite outputs, nucleotide/ion retention,
+analysis and compact retrieval were checked. Physical QC remains separate;
+these short tests do not establish biological convergence.
 
 ### 3.1. Command Reference
 
@@ -412,7 +416,9 @@ receptor. WT and mutant outputs live under
 `data/02_simulation/<run>/apo/<variant>/`. Retain the run ID for later stages.
 
 Inspect `model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd` and `prep.json`
-in each system's preparation folder. High-level preparation uses ff19SB, OPC,
+in each system's preparation folder. The natural-protein scripts also write
+topology_check.json with charges, actual ion LJ values and output hashes before
+PREP_DONE. High-level preparation uses ff19SB, OPC,
 14 Å padding, neutralization and nominal 0.15 M NaCl by default. The salt count is
 estimated from the padded dimensions; topology and metadata record the actual system.
 
@@ -501,16 +507,21 @@ physical convergence. Read summary.json and equilibration_qc.json separately. Se
 compact retrieval and shutdown commands for any completed run by setting its
 RUN_ID, STATE and VARIANT; heavy trajectories remain on Drive.
 
-For research, the full staged protocol below remains available. Use a fresh run
-ID and reviewed preparation when changing protocols. Set STATE, VARIANT and
-COLABMDA_RUN_ID to the prepared research system, then run explicitly:
+For research, the full staged protocol below remains available. Choose a fresh
+run ID and use direct CLI preparation for that protocol; the generated quick-test
+scripts record a quick-profile provenance. For example, after reviewing H-Ras WT:
 
 ```bash
-: "${STATE:?Set apo or gdp_1mg for the prepared system}"
-: "${VARIANT:?Set its reviewed variant}"
-: "${COLABMDA_RUN_ID:?Set its prepared research run ID}"
+export COLABMDA_RUN_ID=hras_wt_staged
+STATE=gdp_1mg
+VARIANT=WT
+cmda prep --root "$PROJECT_ROOT" --protein hras --state "$STATE" --variant "$VARIANT" \
+  --receptor "$PROJECT_ROOT/data/01_structure/hras/WT.pdb"
 cmda sim --state "$STATE" --variant "$VARIANT" --stage eq --protocol staged --root "$PROJECT_ROOT"
 ```
+
+Adapt the protein, receptor, state and variant together for another reviewed
+system. The short example tests do not validate every step of the staged profile.
 
 Restraints act on solute heavy atoms; bulk water and monovalent ions remain
 unrestrained. Strengths below are in kcal mol⁻¹ Å⁻²:
@@ -991,7 +1002,8 @@ reported separately from an actual GPU integration run.
   as the main guide illustration while retaining the full protocol reference.
 - Added explicit author-to-UniProt mapping, reviewed local modeling inputs and
   strict sequence/mutation checks. Raw archives and historical Trp-cage results
-  remain unchanged. CPU modeling/preparation passed; new GPU tests are pending.
+  remain unchanged. CPU modeling/preparation and all four short T4 workflows
+  passed, including actual WT interruption/resume and reviewed analysis plots.
 
 - Fixed ion preparation to retain the complete water-matched 12–6 potential;
   earlier diagnostic runs that overrode it with 12–6–4 LJ values have no C4 term.
