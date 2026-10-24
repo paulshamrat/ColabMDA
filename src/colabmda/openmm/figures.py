@@ -7,21 +7,34 @@ import sys
 from pathlib import Path
 
 
+def _publication_style():
+    import matplotlib.pyplot as plt
+    from cycler import cycler
+
+    plt.rcParams.update(
+        {
+            "font.size": 9,
+            "axes.titlesize": 9,
+            "axes.labelsize": 8.5,
+            "xtick.labelsize": 7.5,
+            "ytick.labelsize": 7.5,
+            "legend.fontsize": 7.5,
+            "axes.prop_cycle": cycler(
+                color=["#0072B2", "#D55E00", "#CC79A7", "#000000", "#E69F00", "#56B4E9"]
+            )
+            + cycler(linestyle=["-", "--", "-.", ":", "-", "--"]),
+        }
+    )
+
+
 def openmm_compare(series_list, outdir):
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    outpath = Path(outdir)
+    outpath = Path(outdir) / "figures"
     outpath.mkdir(parents=True, exist_ok=True)
 
-    try:
-        plt.style.use("seaborn-v0_8-muted")
-    except Exception:
-        try:
-            plt.style.use("seaborn-muted")
-        except Exception:
-            plt.style.use("ggplot")
-    plt.rcParams.update({"font.size": 12, "axes.grid": True, "grid.alpha": 0.3})
+    _publication_style()
 
     metrics = {
         "rmsd.csv": ("Time (ps)", "RMSD (Å)", "System Stability (RMSD)"),
@@ -45,7 +58,7 @@ def openmm_compare(series_list, outdir):
         return mean.index, mean.values, std.values
 
     for filename, (xlabel, ylabel, title) in metrics.items():
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(7, 3))
         found_any = False
         for item in series_list:
             if "=" not in item:
@@ -68,7 +81,7 @@ def openmm_compare(series_list, outdir):
             plt.tight_layout()
             plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
         plt.close()
-    print(f"✅ Aggregate plots saved in {outdir}")
+    print(f"Aggregate plots saved in {outpath}")
 
 
 def openmm_view(pdb_dir: str | None, topology: str | None, trajectory: str | None, resi: int = 12):
@@ -532,15 +545,7 @@ def plot_analysis(outdir):
     import pandas as pd
 
     root = Path(outdir)
-    plt.rcParams.update(
-        {
-            "font.size": 9,
-            "axes.titlesize": 9,
-            "axes.labelsize": 8.5,
-            "xtick.labelsize": 7.5,
-            "ytick.labelsize": 7.5,
-        }
-    )
+    _publication_style()
     names = {
         "rmsd": ("RMSD (Å)", "rmsd_vs_time.png"),
         "rg": ("Rg (Å)", "rg_vs_time.png"),
@@ -585,6 +590,7 @@ def plot_equilibration(workdir):
     import matplotlib.pyplot as plt
     import pandas as pd
 
+    _publication_style()
     root = Path(workdir)
     if not (root / "equilibration_qc.json").exists():
         return

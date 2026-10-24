@@ -589,3 +589,10 @@ sessions and `colab stop -s SESSION` after validation.
 The Colab GPU bootstrap uses Python 3.12, CUDA 13.0 and OpenMM 8.5 or newer.
 Remote execution requires a completion sentinel so an installation or kernel
 error cannot be mistaken for success merely because the Colab CLI exited zero.
+
+### Figure outputs
+
+Analysis, QC and comparison figures use a 7-inch width, 300 DPI PNGs and
+publication typography. Comparison figures are written under the requested
+output directory's `figures/` subfolder. Numerical analysis and simulation
+modules do not import plotting libraries.
