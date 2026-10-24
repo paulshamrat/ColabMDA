@@ -164,7 +164,8 @@ chunk hashes, resume, analysis and final checks using these same generated scrip
 
 Each run contains `provenance.json`, production request history and
 `apo/WT/{01_prep,02_eq,03_md/r1,04_analysis}`. Provenance records the input,
-installed template revision, executed scripts and runtime tool revision.
+installed template revision, executed scripts, runtime package versions and GPU
+identity.
 
 `04_analysis/` contains RMSD, Rg and RMSF CSVs plus `figures/` PNGs. Native author
 residue labels are verified against the model; direct Amber analysis through

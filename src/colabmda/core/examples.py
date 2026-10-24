@@ -2,8 +2,10 @@
 
 import hashlib
 import json
+import shutil
 import subprocess
-from importlib.metadata import distribution, version
+import sys
+from importlib.metadata import PackageNotFoundError, distribution, version
 from pathlib import Path
 
 
@@ -90,7 +92,21 @@ def record_run(root, run_id):
     coordinates = root / input_record["input"]
     if hashlib.sha256(coordinates.read_bytes()).hexdigest() != input_record["input_sha256"]:
         raise ValueError("Structure input changed")
-    runtime = {"version": version("colabmda")}
+    runtime = {"version": version("colabmda"), "python": sys.version, "packages": {}}
+    for package in ["openmm", "numpy", "pandas", "MDAnalysis", "mdtraj", "biopython"]:
+        try:
+            runtime["packages"][package] = version(package)
+        except PackageNotFoundError:
+            runtime["packages"][package] = None
+    if shutil.which("nvidia-smi"):
+        gpu = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,uuid,driver_version", "--format=csv,noheader"],
+            capture_output=True,
+            text=True,
+        )
+        runtime["gpu"] = gpu.stdout.strip() if gpu.returncode == 0 else None
+    else:
+        runtime["gpu"] = None
     repo = Path(__file__).resolve().parents[3]
     if (repo / "SNAPSHOT.json").exists():
         runtime["snapshot"] = json.loads((repo / "SNAPSHOT.json").read_text())
