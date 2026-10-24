@@ -240,7 +240,7 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
                 "unzip -oq /content/ColabMDA-upload.zip -d /content/ColabMDA; "
                 "fi; "
                 "chmod +x /content/setup.sh; "
-                "COLABMDA_SOURCE=/content/ColabMDA /content/setup.sh"
+                "COLABMDA_SOURCE=/content/ColabMDA /content/setup.sh </dev/null"
             )
             session_desc = args.session if args.session else "active"
             print(f"[INFO] Executing setup on {session_desc} session...")

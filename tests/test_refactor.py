@@ -75,3 +75,19 @@ def test_remote_kernel_error_is_not_reported_as_success(monkeypatch):
     fake.wait.return_value = 0
     monkeypatch.setattr(colab.subprocess, "Popen", lambda *a, **k: fake)
     assert colab._execute_remote("test", "raise RuntimeError('failed')", 10) == 1
+
+
+def test_setup_does_not_wait_for_optional_interactive_installs(tmp_path, monkeypatch):
+    from colabmda.remote import colab
+
+    archive = tmp_path / "source.zip"
+    archive.write_bytes(b"test")
+    seen = []
+    monkeypatch.setattr(colab, "_make_source_zip", lambda root: archive)
+    monkeypatch.setattr(colab.subprocess, "check_call", lambda args: 0)
+    monkeypatch.setattr(
+        colab, "_execute_remote", lambda session, code, timeout: seen.append(code) or 0
+    )
+    assert colab.colab_manager_cli(["setup", "-s", "test"]) == 0
+    assert "setup.sh </dev/null" in seen[0]
+    assert not archive.exists()
