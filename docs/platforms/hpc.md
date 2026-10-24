@@ -44,8 +44,9 @@ compact structure/mapping/model inputs needed for the selected workflow, using
 ## Software and project setup
 
 Inside a terminal opened through the configured `hpc` CLI, set these paths for
-your account. Use an existing **writable** conda installation or install Miniforge
-under your account. Do not modify the system conda root or use sudo.
+your account. Use an existing conda installation to activate user environments, or install
+Miniforge under your account. A shared read-only base can activate a writable
+user environment. Do not modify the system conda root or use sudo.
 
 ```bash
 export COLABMDA_CONDA_ROOT=/path/to/your/miniforge3
@@ -55,7 +56,7 @@ export PROJECT_ROOT=/scratch/shamrap/research/projects/colabmda-example
 export COLABMDA_RUN_ID=cdkl5_reviewed_v1
 cd "$COLABMDA_TOOL"
 conda env create -f environment.yml
-conda activate colabmda
+conda activate "${COLABMDA_ENV:-colabmda}"
 python -m pip install -e .
 cmda --help
 mkdir -p "$PROJECT_ROOT"
@@ -79,6 +80,13 @@ Follow the scientific guide for input/model checks and `cmda stage`/`cmda prep`,
 using this scratch `PROJECT_ROOT`. MODELLER/Amber preparation must complete and
 produce `PREP_DONE` before GPU submission. A substantial CPU preparation job
 belongs in a CPU allocation rather than a login node.
+
+The inspected Palmetto environment `/home/shamrap/.conda/envs/openmm_env` has
+OpenMM 8.5.2, Python 3.11.15, AmberTools and the analysis dependencies. Selecting
+it uses `COLABMDA_ENV=openmm_env`; a fresh installation defaults to `colabmda`.
+A CPU-only login-node plugin listing does not establish GPU support. Test an
+actual CUDA Context in an allocated GPU job before selecting the environment.
+The worker enforces `COLABMDA_REQUIRE_GPU=1` and refuses CPU fallback.
 
 ## A single WT pilot
 
@@ -128,6 +136,16 @@ Production reruns strict equilibration QC. Wall-time termination does not imply
 completion: inspect job exit status and validated output records, then resubmit
 the same command to recover a compatible run from complete stages/chunks.
 Do not promise automatic indefinite continuation from this single-job adapter.
+
+### Small molecular software check
+
+Before full equilibration, the adapter supports a separate `smoke` stage. Give
+it its own run ID and verified preparation. It performs full initial minimization,
+then 50-step quick NVT/NPT and a five-frame production check, using explicit
+`--software-test`. `SMOKE_DONE` requires finite coordinates and a nonempty
+checkpoint. This checks the GPU/software route; it is not the 24-stage protocol.
+Use a fresh run ID for research `eq` and `md`, retaining the same reviewed inputs.
+Never relabel the smoke output as research equilibration.
 
 ## Monitoring, analysis and retrieval
 

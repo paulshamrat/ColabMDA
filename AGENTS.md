@@ -125,3 +125,10 @@ modify or interrupt the active docking campaign while checking ColabMDA support.
 
 Remote multiline shell blocks must run in one Bash cell, preserving cd/export and
 propagating nonzero exits. Independent exec calls do not share shell state.
+
+HPC adapters may select an existing user environment with COLABMDA_ENV; never
+assume login-node CUDA plugin visibility proves allocated-GPU compatibility.
+Require a real device Context probe and a separately named software smoke before
+full molecular HPC validation. Enforce COLABMDA_REQUIRE_GPU=1. Never reuse quick
+smoke outputs as research equilibration. Code remains a committed runtime snapshot
+under scratch tools/, with the execution project separate under scratch projects/.

@@ -250,7 +250,8 @@ Only processing steps are numbered. Use a fresh `COLABMDA_RUN_ID` for changed
 inputs or protocol. `cmda stage --state apo --variant WT --root "$PROJECT_ROOT"`
 creates the directories and no runner scripts by default. Colab runs direct
 commands; the [HPC adapter](examples/hpc/simulate.slurm) runs those same commands
-inside Slurm. Platform setup is in [Colab](docs/platforms/colab.md) and
+inside Slurm. The adapter supports a separately named `smoke` software check and
+requires a GPU; it can select an existing conda environment. Platform setup is in [Colab](docs/platforms/colab.md) and
 [HPC](docs/platforms/hpc.md); the state guides hold the scientific workflow.
 
 The numbered example architecture below remains supported for existing runs.
