@@ -99,3 +99,28 @@ def test_installed_package_exposes_its_declared_version():
     import colabmda
 
     assert colabmda.__version__ == version("colabmda")
+
+
+def test_rmsf_uses_native_author_numbers_and_identity_gate(tmp_path):
+    from types import SimpleNamespace
+
+    from colabmda.openmm.analysis import _residue_labels
+
+    reference = tmp_path / "native.pdb"
+    names = ["ASN", "LEU", "SER"]
+    labels = [(10, " "), (12, "A"), (20, " ")]
+    lines = []
+    for i, (name, (number, insertion)) in enumerate(zip(names, labels), 1):
+        lines.append(
+            f"ATOM  {i:5d}  CA  {name} A{number:4d}{insertion}   {float(i):8.3f}{0.0:8.3f}{0.0:8.3f}  1.00  0.00           C  "
+        )
+    reference.write_text("\n".join(lines) + "\nEND\n")
+    atoms = [
+        SimpleNamespace(residue=SimpleNamespace(name=name, resSeq=i))
+        for i, name in enumerate(names)
+    ]
+    topology = SimpleNamespace(atom=lambda i: atoms[i])
+    assert _residue_labels(topology, [0, 1, 2], reference) == [10, "12A", 20]
+    atoms[1].residue.name = "ARG"
+    with pytest.raises(ValueError, match="identity mismatch"):
+        _residue_labels(topology, [0, 1, 2], reference)

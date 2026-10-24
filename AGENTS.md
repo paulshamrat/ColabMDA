@@ -196,3 +196,9 @@ The developer workstation is pre-authenticated with Google OAuth2 (`colab sessio
 - Include committed examples in local-source snapshots so documented remote paths
   exist. Validate shell syntax and argument forwarding locally; protein execution
   remains a GPU integration check. Do not label examples GPU-verified prematurely.
+
+- RMSF residue labels must come from the native-numbered reference structure,
+  with matching C-alpha residue identities and counts. Never display Amber
+  topology indices as author numbers. Preserve insertion codes and distinguish
+  duplicate numbers across chains. High-level analyze supplies model.pdb; direct
+  Amber analysis requires --reference. Record analysis source/reference hashes.

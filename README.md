@@ -596,3 +596,9 @@ Analysis, QC and comparison figures use a 7-inch width, 300 DPI PNGs and
 publication typography. Comparison figures are written under the requested
 output directory's `figures/` subfolder. Numerical analysis and simulation
 modules do not import plotting libraries.
+
+RMSF labels use the native-numbered model, with a residue identity/count gate.
+The high-level `cmda analyze` supplies that reference automatically. For direct
+`cmda openmm analysis` with an Amber topology, supply `--reference model.pdb`.
+The analysis writes reference/source fingerprints in `analysis.json`; Amber
+residue indices are not treated as author numbering.

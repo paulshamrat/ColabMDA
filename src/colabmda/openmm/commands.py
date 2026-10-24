@@ -373,6 +373,7 @@ def openmm_analysis(
     trajectory: str | None,
     interval_ps: float | None,
     outdir: str | None,
+    reference: str | None = None,
 ):
     from colabmda.openmm.analysis import run_trajectory_analysis
 
@@ -382,6 +383,7 @@ def openmm_analysis(
         trajectory=trajectory,
         interval=interval_ps,
         outdir=outdir,
+        reference=reference,
     )
 
     # If outdir exists, also copy equilibration plots there for completeness

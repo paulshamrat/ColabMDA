@@ -597,6 +597,7 @@ def _dispatch_analyze(args) -> int:
             trajectory=traj,
             interval_ps=10.0,
             outdir=str(analysis_dir),
+            reference=str(paths.model_pdb(spec)),
         )
     else:
         print(f"[WARN] No suitable trajectory/topology found in {rep_dir}")
@@ -781,6 +782,9 @@ def main():
     )
     p_ana.add_argument("--topology", default=None)
     p_ana.add_argument("--trajectory", default=None)
+    p_ana.add_argument(
+        "--reference", default=None, help="Native-numbered reference structure for Amber topology"
+    )
     p_ana.add_argument(
         "--interval", type=float, default=None, help="ps per frame (if not auto-detected)"
     )
@@ -1562,7 +1566,14 @@ def main():
                 sim_dir = "."
                 out_base = Path(args.outdir) if args.outdir else Path("data/analysis/current")
 
-            openmm_analysis(sim_dir, args.topology, args.trajectory, args.interval, str(out_base))
+            openmm_analysis(
+                sim_dir,
+                args.topology,
+                args.trajectory,
+                args.interval,
+                str(out_base),
+                reference=args.reference,
+            )
 
         elif args.cmd == "compare":
             openmm_compare(args.series, args.outdir)

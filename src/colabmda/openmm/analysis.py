@@ -11,6 +11,8 @@ Usage:
 
 import argparse
 import glob
+import hashlib
+import json
 import os
 from pathlib import Path
 
@@ -46,7 +48,44 @@ def _infer_interval(sim_dir, n_frames):
     return None
 
 
-def analyze_single(sim_dir, topo_path, traj_path, interval_user=None):
+def _residue_labels(topology, ca_indices, reference=None):
+    """Map C-alpha residues back to native author labels, with an identity gate."""
+    residues = [topology.atom(i).residue for i in ca_indices]
+    if reference is None:
+        # Amber topology indices do not encode native author numbering.
+        return [r.resSeq for r in residues]
+    from Bio.PDB import MMCIFParser, PDBParser
+
+    reference = Path(reference)
+    parser = (
+        MMCIFParser(QUIET=True) if reference.suffix.lower() == ".cif" else PDBParser(QUIET=True)
+    )
+    structure = parser.get_structure("reference", str(reference))
+    native = [r for r in next(iter(structure)).get_residues() if r.id[0] == " " and "CA" in r]
+    aliases = {
+        "HID": "HIS",
+        "HIE": "HIS",
+        "HIP": "HIS",
+        "ASH": "ASP",
+        "GLH": "GLU",
+        "CYX": "CYS",
+        "LYN": "LYS",
+    }
+
+    def normalize(name):
+        return aliases.get(name, name)
+
+    if len(native) != len(residues) or any(
+        normalize(a.resname) != normalize(b.name) for a, b in zip(native, residues)
+    ):
+        raise ValueError("Reference/trajectory C-alpha residue identity mismatch")
+    labels = [r.id[1] if not r.id[2].strip() else f"{r.id[1]}{r.id[2].strip()}" for r in native]
+    if len(set(labels)) != len(labels):
+        labels = [f"{r.parent.id}:{label}" for r, label in zip(native, labels)]
+    return labels
+
+
+def analyze_single(sim_dir, topo_path, traj_path, interval_user=None, reference=None):
     u = mda.Universe(topo_path, traj_path)
     n_frames = len(u.trajectory)
     interval = interval_user or _infer_interval(sim_dir, n_frames) or 10.0
@@ -72,12 +111,16 @@ def analyze_single(sim_dir, topo_path, traj_path, interval_user=None):
     ca_idx = t.topology.select("name CA")
     t.superpose(t, 0, atom_indices=ca_idx)
     rmsf = md.rmsf(t, t, atom_indices=ca_idx) * 10.0
-    resids = [t.topology.atom(i).residue.resSeq for i in ca_idx]
+    if reference is None and str(topo_path).endswith((".prmtop", ".parm7")):
+        raise ValueError("Amber topology requires a reference structure for native residue labels")
+    resids = _residue_labels(t.topology, ca_idx, reference)
 
     return {"times": times, "rmsd": rmsd, "rg": rg, "rmsf": rmsf, "resids": resids}
 
 
-def run_trajectory_analysis(pdbid, topology=None, trajectory=None, interval=None, outdir=None):
+def run_trajectory_analysis(
+    pdbid, topology=None, trajectory=None, interval=None, outdir=None, reference=None
+):
     sim_dir = os.path.abspath(pdbid)
     outdir_path = Path(outdir or f"analysis_{os.path.basename(sim_dir)}").resolve()
     outdir_path.mkdir(parents=True, exist_ok=True)
@@ -93,7 +136,7 @@ def run_trajectory_analysis(pdbid, topology=None, trajectory=None, interval=None
         topo = topology or os.path.join(sim_dir, "solvated.pdb")
         traj = trajectory or os.path.join(sim_dir, "prod_full.dcd")
         if os.path.exists(traj):
-            results.append(analyze_single(sim_dir, topo, traj, interval))
+            results.append(analyze_single(sim_dir, topo, traj, interval, reference))
             labels.append("Sim")
             # For single mode, save directly in outdir
             res_outdirs = [outdir_path]
@@ -106,7 +149,7 @@ def run_trajectory_analysis(pdbid, topology=None, trajectory=None, interval=None
             topo = os.path.join(rd, "solvated.pdb")
             traj = os.path.join(rd, "prod_full.dcd")
             if os.path.exists(traj):
-                results.append(analyze_single(rd, topo, traj, interval))
+                results.append(analyze_single(rd, topo, traj, interval, reference))
                 rep_name = os.path.basename(rd)
                 labels.append(rep_name)
                 # Individual replica output folder
@@ -150,6 +193,14 @@ def run_trajectory_analysis(pdbid, topology=None, trajectory=None, interval=None
                     "Std": values.std(axis=0),
                 }
             ).to_csv(agg / f"{key}_avg.csv", index=False)
+    metadata = {"analysis_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    snapshot = Path(__file__).resolve().parents[3] / "SNAPSHOT.json"
+    if snapshot.exists():
+        metadata["tool"] = json.loads(snapshot.read_text())
+    if reference:
+        metadata["reference"] = str(Path(reference).resolve())
+        metadata["reference_sha256"] = hashlib.sha256(Path(reference).read_bytes()).hexdigest()
+    (outdir_path / "analysis.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print(f"Analysis tables saved in: {outdir_path}")
     return outdir_path
 
@@ -161,6 +212,9 @@ def main():
     parser.add_argument("-x", "--trajectory")
     parser.add_argument("-i", "--interval", type=float)
     parser.add_argument("-o", "--outdir")
+    parser.add_argument(
+        "--reference", help="Native-numbered reference structure for Amber topology"
+    )
     args = parser.parse_args()
 
     run_trajectory_analysis(
@@ -169,6 +223,7 @@ def main():
         trajectory=args.trajectory,
         interval=args.interval,
         outdir=args.outdir,
+        reference=args.reference,
     )
 
 
