@@ -483,7 +483,9 @@ run hras_wt/variant WT or run hras_g12v/variant G12V. These scripts explicitly
 use quick 100 ps NVT/NPT and default 100 ps production; extend to 1 ns by setting
 COLABMDA_EXAMPLE_NS=1 with the same run ID and compatible inputs. Rerun analysis
 and the final check after extension. This short profile tests software, not
-physical convergence. Read summary.json and equilibration_qc.json separately.
+physical convergence. Read summary.json and equilibration_qc.json separately. Section 4.4 provides
+compact retrieval and shutdown commands for any completed run by setting its
+RUN_ID, STATE and VARIANT; heavy trajectories remain on Drive.
 
 For research, the full staged protocol below remains available. Use a fresh run
 ID and reviewed preparation when changing protocols. Set STATE, VARIANT and
@@ -910,21 +912,27 @@ production study, a mutant/cofactor validation or a full staged-protocol test.
 Keep heavy trajectories and checkpoints on Drive. To return from the interactive
 console to your local terminal, detach with **Ctrl-B, then D**. This does not stop
 the runtime. With the local ColabMDA environment active, download and verify the
-compact reports below. Set RUN_ID to the run you just completed:
+compact reports below. Set RUN_ID, STATE and VARIANT to the completed system.
+For example, FKBP12 F37V uses fkbp_f37v, apo and F37V; H-Ras G12V uses hras_g12v,
+gdp_1mg and G12V. The defaults below retrieve the Trp-cage run:
 
 ```bash
 RUN_ID=run01
+STATE=apo
+VARIANT=WT
+SYSTEM="$STATE/$VARIANT"
 REMOTE_RUN="/content/drive/MyDrive/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
 LOCAL_RUN="$HOME/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
 files=(
   summary.json provenance.json production.json RUN_DONE
-  apo/WT/02_eq/equilibration_qc.json apo/WT/02_eq/figures/equilibration_qc.png
-  apo/WT/02_eq/nvt.log apo/WT/02_eq/npt.log apo/WT/03_md/r1/prod_full.log
-  apo/WT/04_analysis/analysis.json
-  apo/WT/04_analysis/rmsd.csv apo/WT/04_analysis/rg.csv apo/WT/04_analysis/rmsf.csv
-  apo/WT/04_analysis/figures/rmsd_vs_time.png
-  apo/WT/04_analysis/figures/rg_vs_time.png
-  apo/WT/04_analysis/figures/rmsf_per_residue.png
+  "$SYSTEM/01_prep/prep.json"
+  "$SYSTEM/02_eq/equilibration_qc.json" "$SYSTEM/02_eq/figures/equilibration_qc.png"
+  "$SYSTEM/02_eq/nvt.log" "$SYSTEM/02_eq/npt.log" "$SYSTEM/03_md/r1/prod_full.log"
+  "$SYSTEM/04_analysis/analysis.json"
+  "$SYSTEM/04_analysis/rmsd.csv" "$SYSTEM/04_analysis/rg.csv" "$SYSTEM/04_analysis/rmsf.csv"
+  "$SYSTEM/04_analysis/figures/rmsd_vs_time.png"
+  "$SYSTEM/04_analysis/figures/rg_vs_time.png"
+  "$SYSTEM/04_analysis/figures/rmsf_per_residue.png"
 )
 cmda colab exec -s colabmda-example --timeout 120 \
   "cd '$REMOTE_RUN' && sha256sum ${files[*]} > reports.sha256"
