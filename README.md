@@ -1,89 +1,227 @@
 # ColabMDA
 
-ColabMDA prepares protein systems, runs checkpointed OpenMM simulations, processes
-trajectories with AmberTools, and produces numerical analysis and figures.
-MODELLER is optional for modeling and mutation workflows.
+**ColabMDA** supports protein modeling, parameterization, checkpointed OpenMM simulations, trajectory processing and analysis on Google Colab, HPC clusters and Linux workstations. This README is the user guide, from platform setup through apo/holo workflows and visualization.
 
-## Repository layout
 
-```text
-ColabMDA/
-├── README.md                      # Installation and complete example guide
-├── AGENTS.md                      # Development rules
-├── pyproject.toml                 # Python package
-├── environment.yml                # Core simulation dependencies
-├── scripts/setup.sh               # Single installer
-├── src/colabmda/
-│   ├── cli.py
-│   ├── core/                      # project.py, examples.py, taxonomy.py, ions.py
-│   ├── modeller/                  # engine.py, substrate.py
-│   ├── amber/                     # leap.py, cpptraj.py, params/
-│   ├── openmm/
-│   │   ├── commands.py
-│   │   ├── prepare.py
-│   │   ├── em.py
-│   │   ├── nvt.py
-│   │   ├── npt.py
-│   │   ├── md.py
-│   │   ├── qc.py
-│   │   ├── merge.py
-│   │   ├── analysis.py
-│   │   ├── figures.py
-│   │   ├── common.py
-│   │   └── run.py
-│   └── remote/colab.py
-├── examples/trpcage/scripts/       # Runnable templates, no data or extra guides
-├── tests/
-└── docs/                          # Detailed scientific/API reference
-```
+---
 
-`src/` implements the tool. `examples/` contains workflows copied into a user's
-project. Project `data/` and `logs/` hold runtime products and stay outside Git.
-The working example project is consistently called **colabmda-example** locally
-and on Drive. Existing research projects retain their own names.
+## 🛠 Project Information
+| Category | Details |
+| :--- | :--- |
+| **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
+| **Availability** | [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) |
+| **Workflows** | [![Python CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) |
+| **Issues** | [![GitHub issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) |
+| **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
+| **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
+| **Dependencies** | `OpenMM`, `AmberTools (tleap, cpptraj)`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA` |
+| **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
+| **Structure** | [Source Layout](#project-structure) |
 
-## Install
+### 📂 Project Structure <a id="project-structure"></a>
+ColabMDA is organized into clear, functional modules:
+*   `src/colabmda/cli.py`: Central unified CLI (`cmda` and `colabmda`).
+*   `src/colabmda/core/`: Project paths, safe example installation, state taxonomy and ion definitions.
+*   `src/colabmda/amber/`: AmberTools parameterization (`tleap`, Hu 2024 quantum nucleotide parameters, `cpptraj` autoimaging & solvent stripping).
+*   `src/colabmda/modeller/`: Homology modeling engine (UniProt biological numbering, mutagenesis, geometric substrate docking).
+*   `src/colabmda/openmm/`: Flat operation modules: `prepare.py`, `em.py`, `nvt.py`, `npt.py`, `md.py`, `qc.py`, `merge.py`, `analysis.py`, `figures.py`, `common.py`, `commands.py` and the compatibility adapter `run.py`.
+*   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
+*   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
+*   `examples/trpcage/scripts/`: Runnable templates copied into the execution project.
+*   `tests/`: Comprehensive unit and regression test suite (`pytest`).
 
-On a Linux workstation with a supported NVIDIA GPU:
+---
+
+
+## 1. Platform Setup
+
+Use the checkout whose instructions you are reading. This development guide includes
+unreleased changes on `dev1`; the public `main` branch may contain an older release.
+The tool stays separate from the project where simulations run.
+
+### 1.1. Google Colab
+
+#### 1.1.1. Terminal Runner (Recommended)
+
+**On your local computer**, enter the ColabMDA checkout. In our workspace this is
+`~/research/tools/ColabMDA`. A GPU is not required on the local computer:
 
 ```bash
-git clone https://github.com/paulshamrat/ColabMDA.git
-cd ColabMDA
-bash scripts/setup.sh
+cd ~/research/tools/ColabMDA
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e . google-colab-cli
+cmda --help
+colab sessions
+```
+
+Prerequisites are Linux/Bash, Git, Python 3.10 or newer, internet access and a Colab
+account. Complete the CLI authentication when requested. Existing installations
+can activate their environment instead of creating another one.
+
+Then create a GPU runtime, authenticate Drive and deploy the committed tool:
+
+```bash
+colab new -s colabmda-example --gpu T4
+colab drivemount --session colabmda-example
+cmda colab setup -s colabmda-example --local-source
+colab console -s colabmda-example
+```
+
+Local-source deployment currently requires a clean, committed `dev1` checkout.
+It sends runtime files and example templates with `SNAPSHOT.json` hashes. Run
+these commands serially and wait for setup to finish before entering the console.
+Setup asks whether to install MODELLER; the small example does not require it.
+
+**Inside the Colab console**, activate the installed environment:
+
+```bash
+source /root/miniforge3/etc/profile.d/conda.sh
+conda activate colabmda
+cmda --help
+```
+
+The installed snapshot is `/content/ColabMDA`; persistent project data belongs under
+`/content/drive/MyDrive/research/projects/`. Section 4 creates and runs the complete
+small example there. You can also dispatch foreground shell commands from the local
+terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
+
+#### 1.1.2. Web Notebook
+
+With a GPU runtime selected in Colab, mount Drive in a notebook cell:
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+```
+
+For a published release, the notebook terminal can download and run that release's
+`scripts/setup.sh`. For this private development checkout, use the terminal-runner
+local-source deployment above so the installed code matches this guide. Downloading
+public `main` does not deploy unpublished local changes.
+
+#### 1.1.3. Crash Recovery & Checkpointing
+
+Keep simulations in the foreground with live output. Sessions can still terminate.
+Keep inputs, completed chunks and checkpoints on Drive. On a replacement runtime,
+remount Drive and restore the recorded software before attempting recovery.
+Checkpoint compatibility across different GPUs or software versions is not assumed.
+Section 3.5 explains restart behavior; section 4 provides a short test.
+
+#### 1.1.4. MODELLER License
+
+Model building and mutation require MODELLER and a valid key. Its registration page
+is [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
+The installer preserves the optional question and hidden key prompt.
+
+```bash
+cmda colab setup -s colabmda-example --local-source --modeller
+```
+
+Automated setup accepts `KEY_MODELLER` or `MODELLER_LICENSE` through the process
+environment. Do not place real keys in commands saved to Git, logs or provenance.
+`--no-modeller` skips the optional remote question. MODELLER uses `modeller_env`;
+section 3.2 explains activating it and installing the same tool checkout there.
+
+---
+
+### 1.2. HPC Clusters (SLURM)
+
+#### 1.2.1. Scratch Storage
+
+Install the tool and its Conda dependencies on the cluster according to its software
+policy. Put active simulation outputs in scratch, not the software checkout.
+Activate `colabmda` on the allocated compute node, then use the same example scripts
+or state-based commands below with an explicit project root.
+
+For Palmetto access from Divergent, use the workspace's `hpc` CLI for inspection,
+code deployment and submission. Do not use direct SSH/SCP for Palmetto. Transfer
+computational code and inputs only; manuscripts and private editorial material stay local.
+
+#### 1.2.2. Interactive GPU Allocation
+
+On a generic Slurm cluster, a small interactive request might be:
+
+```bash
+salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --mem=32G --time=01:00:00
+```
+
+Partition, account, GPU flags and environment activation are cluster-specific.
+For Palmetto, obtain the allocation through the approved `hpc` workflow. Validate
+the small example before designing a production campaign.
+
+#### 1.2.3. Batch Submission
+
+State-based `cmda stage` generates `eq.slurm`, `prod.slurm` and `chain.sh`. These are
+starting templates for an existing research system, not a scheduler configuration
+for every cluster. Review resources, environment, scratch paths, state, variant,
+replica bounds, scientific settings and QC before submission.
+
+Stage one state/variant at a time when using those shared script names: later stage
+calls replace the shared runner files. The Trp-cage `--example` mode instead copies
+the numbered workflow scripts shown in section 2; it does not generate Slurm jobs.
+
+---
+
+### 1.3. Local Workstation
+
+#### 1.3.1. Installation
+
+**On a Linux workstation with an NVIDIA GPU**, enter the tool checkout and run its
+single installer with local paths. This ensures it installs the current checkout
+and does not try to create a Colab-only `/content` directory:
+
+```bash
+cd ~/research/tools/ColabMDA
+export COLABMDA_TOOL="$PWD"
+COLABMDA_SOURCE="$COLABMDA_TOOL" \
+  INSTALL_DIR="$HOME/.local/share/colabmda" \
+  WORK_DIR="$HOME/research" \
+  bash scripts/setup.sh
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate colabmda
+cmda --help
 ```
 
-The installer reads `environment.yml`, installs the package and checks the runtime.
-It asks whether to install MODELLER and, if selected, prompts for a license key
-without displaying it. The key is configured in its separate `modeller_env`,
-not written to repository files or the user's global shell startup file.
-MODELLER is not required for the Trp-cage example.
+With an existing Conda installation, the core environment can also be created
+from `environment.yml`, followed by `python -m pip install -e .` in the checkout.
+The installer can optionally configure MODELLER and its hidden license prompt.
+Divergent has no GPU; use section 1.1 for its control-plane installation and Colab
+execution rather than running a protein pilot locally.
 
-For an existing Conda installation, the core environment can also be created
-with `mamba env create -f environment.yml`, followed by `conda activate colabmda`
-and `python -m pip install -e .`. Optional modeling installation still uses the
-single installer: `WITH_MODELLER=1 bash scripts/setup.sh`.
+#### 1.3.2. Test Suite
 
-For automated setup, supply the key through `KEY_MODELLER` or `MODELLER_LICENSE`
-in the process environment. Do not put a real key in command examples, logs or
-Git. Use `cmda colab setup --modeller` to request it remotely; the CLI prompts
-locally if needed and transfers it through a temporary credential file rather
-than embedding the key in remote command text. `--no-modeller` skips that question.
-
-## Create the complete example
-
-Run this where ColabMDA is installed:
+Standard tests run on the developer workstation in an environment containing the
+scientific dependencies and `pytest`:
 
 ```bash
-cmda stage --example trpcage --root ~/research/projects/colabmda-example
-cd ~/research/projects/colabmda-example
+python -m pip install pytest
+python -m pytest tests/ -q
 ```
 
-The command copies seven small scripts, records their hashes and tool version,
-and refuses to overwrite different existing files. Repeating it with identical
-scripts is safe. It does not download structures, install software or run MD.
-No project configuration YAML is created. Settings are explicit in the scripts.
+These CPU tests check software behavior. They do not establish physical convergence
+or replace GPU integration testing. Development rules are in [CONTRIBUTING.md](CONTRIBUTING.md)
+and [AGENTS.md](AGENTS.md).
+
+---
+
+## 2. Project Architecture
+
+The tool repository contains the implementation and reusable workflow templates.
+Each execution project contains its own scripts, inputs, outputs and logs. No
+project configuration YAML is required.
+
+To create the complete Trp-cage example on the machine where it will run:
+
+```bash
+cmda stage --example trpcage --root "$HOME/research/projects/colabmda-example"
+```
+
+On Colab, use `/content/drive/MyDrive/research/projects/colabmda-example` instead.
+Staging copies seven small scripts and records their tool version and hashes. It
+does not fetch structures, install software or start a simulation. Identical files
+are safe to stage again; different existing files stop staging and are preserved.
 
 ```text
 colabmda-example/
@@ -98,18 +236,542 @@ colabmda-example/
 │       └── 05_check.py
 ├── data/
 │   ├── 00_setup/example.json
-│   ├── 01_structure/trpcage/       # Created by fetch
-│   └── 02_simulation/<run>/        # Created during execution
+│   ├── 01_structure/trpcage/           # Raw archive, selected model, input hashes
+│   └── 02_simulation/<run>/
+│       ├── provenance.json
+│       ├── production.json
+│       └── apo/WT/
+│           ├── 01_prep/
+│           ├── 02_eq/
+│           ├── 03_md/r1/
+│           └── 04_analysis/figures/
 └── logs/02_simulation/<run>/
 ```
 
-## Run the example
+Scientific projects can use their existing state/variant layout. `ProjectPaths`
+resolves the existing layout; do not create parallel compatibility trees. The
+numbered example layout above is the default for newly staged examples. Keep
+runtime data and logs outside Git and preserve native raw coordinates and provenance.
 
-Use a CUDA GPU machine. Divergent runs standard tests, not protein GPU pilots.
-Activate the environment, enter the generated project and run the scripts in order:
+Independent replicas may share an equilibration endpoint, while each production
+replica receives its own velocities, stochastic streams and checkpoint. They are
+independent simulation realizations, not proof of converged or uncorrelated sampling.
+
+---
+
+## 3. Simulation Protocol (cmda)
+
+The following subsections retain the full modeling and apo/holo workflow. CDKL5
+is the representative research system from the original guide; it is separate
+from the small software example in section 4. Its structure selections, mutations
+and cofactor placements require scientific review.
+
+### 3.1. Command Reference
+
+| Command | Purpose |
+| :--- | :--- |
+| `cmda modeller build` / `mutate` | Model a selected sequence or mutate a supplied structure using MODELLER. |
+| `cmda stage --example trpcage --root PROJECT` | Copy the complete small example safely. |
+| `cmda stage --state TAG --variant NAME --root PROJECT` | Stage an existing research state and generate compatibility runners. |
+| `cmda prep --state TAG --variant NAME --root PROJECT` | Assemble reviewed coordinates and parameterize them with AmberTools. |
+| `cmda sim --state TAG --variant NAME --stage STAGES --root PROJECT` | Run EM, NVT, NPT, QC or production MD. |
+| `cmda merge --state TAG --variant NAME --replicas r1 --root PROJECT` | Autoimage trajectories and write matching stripped topologies. |
+| `cmda analyze --state TAG --variant NAME --root PROJECT` | Calculate RMSD, geometric heavy-atom Rg and C-alpha RMSF, then plot the tables. |
+| `cmda openmm compare --series LABEL=DIR1,DIR2 --outdir OUT` | Plot comparisons from existing analysis tables. |
+| `cmda view --topology FILE --trajectory FILE --resi NUMBER` | Generate a PyMOL view from a matching topology/trajectory pair. |
+| `cmda snapshots --config FILE --output FILE` | Render a custom snapshot description through the existing PyMOL helper. |
+| `cmda colab setup` / `exec` / `stop` | Set up and control a remote Colab session. |
+
+Use `--help` for each command's arguments. Standard analysis does not calculate
+PCA or contact maps. Top-level `cmda compare` currently reports the request but
+produces no plots; the implemented plotting command is `cmda openmm compare`.
+
+### 3.2. Homology Modeling & Mutagenesis
+
+#### Biological Numbering
+
+The original research illustration uses CDKL5, UniProt `O76039`, residues 1–303,
+with template `4BGQ`, chain A, and mutation `L119R`. Review the template/sequence
+alignment and coordinate presence before using a model. A requested mutation must
+match the reference amino acid and mapped coordinate residue.
+
+MODELLER's `--uniprot-numbering` maps the modeled output to the target sequence.
+Retain raw experimental coordinates unchanged. Do not treat a scoring result as
+proof of a correct biological model.
+
+**In the MODELLER environment**, install the same tool checkout if needed:
 
 ```bash
+conda activate modeller_env
+python -m pip install -e /content/ColabMDA
+```
+
+The path above is for Colab; on a workstation use your local tool checkout. Set
+`PROJECT_ROOT` to the actual CDKL5 simulation project, not the Trp-cage example.
+The commands below deliberately stop if that project choice is missing:
+
+```bash
+: "${PROJECT_ROOT:?Set PROJECT_ROOT to your existing CDKL5 simulation project}"
+mkdir -p "$PROJECT_ROOT/data/structure"
+cmda modeller build --pdb-id 4bgq --uniprot-id O76039 --chain A \
+  --range 1 303 --uniprot-numbering \
+  --outdir "$PROJECT_ROOT/data/structure/cdkl5_wt"
+cmda modeller mutate \
+  --pdb-in "$PROJECT_ROOT/data/structure/cdkl5_wt/cdkl5_wt.pdb" \
+  --chain A --mut L119R \
+  --outdir-mut "$PROJECT_ROOT/data/structure/cdkl5_l119r"
+```
+
+#### Quality Control (QC)
+
+Inspect alignment, resolved/modeled regions, mutation identity, stereochemistry
+and model scores. The builder records outputs and scores; this guide does not
+claim a universal 100% identity or an automatic biological validation gate.
+Review protonation, cofactors and missing residues before parameterization.
+
+### 3.3. Track 1: Apo Dynamics
+
+#### 3.3.1. Scope & Inputs
+
+Apo simulations omit the nucleotide/cofactor complex and provide a baseline for
+comparing the reviewed WT and mutant models. Keep the same preparation protocol
+when comparing variants. Return to the `colabmda` environment for the MD commands.
+
+#### 3.3.2. Directory Staging
+
+Unset the example run ID before working on an existing state-based research project.
+The following commands use its `data/structure` inputs and `data/simulation` outputs:
+
+```bash
+conda activate colabmda
+unset COLABMDA_RUN_ID
+: "${PROJECT_ROOT:?Set the actual CDKL5 project root}"
+mkdir -p "$PROJECT_ROOT/data/simulation" "$PROJECT_ROOT/data/analysis"
+cmda stage --state apo --variant WT --root "$PROJECT_ROOT"
+cmda stage --state apo --variant L119R --root "$PROJECT_ROOT"
+```
+
+State-based staging generates shared runner filenames. Review or restage the
+specific state/variant before using generated batch scripts; the commands below
+pass the desired system explicitly instead.
+
+#### 3.3.3. Preparation & Titration (cmda prep)
+
+```bash
+cmda prep --state apo --variant WT --root "$PROJECT_ROOT" \
+  --receptor "$PROJECT_ROOT/data/structure/cdkl5_wt/cdkl5_wt.pdb"
+cmda prep --state apo --variant L119R --root "$PROJECT_ROOT" \
+  --receptor "$PROJECT_ROOT/data/structure/cdkl5_l119r/cdkl5_l119r.pdb"
+```
+
+Inspect `model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd` and `prep.json`
+in each system's preparation folder. High-level preparation uses ff19SB, OPC,
+14 Å padding, neutralization and nominal 0.15 M NaCl by default. The salt count is
+estimated from the padded dimensions; topology and metadata record the actual system.
+
+The separate lower-level `cmda openmm prep` supports PDBFixer/PDB2PQR/PROPKA
+preparation at the selected pH. High-level assembly does not imply that the same
+protonation calculation ran. Review explicit AMBER forms such as HID/HIE/HIP
+and ASH/GLH and retain any protonation audit output.
+
+### 3.4. Track 2: Holo Dynamics (ATP + Mg²⁺)
+
+#### 3.4.1. Scope & Chemistry
+
+Holo simulations add the reviewed nucleotide and divalent-ion configuration.
+Choose the number and placement of ions from the scientific model; a state tag
+alone does not establish catalytic geometry or a mechanistic conclusion.
+
+#### 3.4.2. ATP & Mg²⁺ Placement
+
+Use a reviewed cofactor-bearing receptor in the same coordinate frame as the
+protein. Do not copy ATP/Mg coordinates from another protein by matching residue
+numbers alone. The old 8FP5/CDK2 transfer example is not a validated automatic
+placement workflow for CDKL5. Check cofactor identities, clashes and coordination.
+
+#### 3.4.3. Directory Staging & Holo Parameterization
+
+Set `HOLO_WT` and `HOLO_L119R` to the reviewed holo PDB files. `atp_mg` represents
+one ATP and one Mg in this state convention:
+
+```bash
+: "${HOLO_WT:?Set the reviewed holo WT PDB path}"
+: "${HOLO_L119R:?Set the reviewed holo L119R PDB path}"
+cmda stage --state atp_mg --variant WT --root "$PROJECT_ROOT"
+cmda stage --state atp_mg --variant L119R --root "$PROJECT_ROOT"
+cmda prep --state atp_mg --variant WT --root "$PROJECT_ROOT" --receptor "$HOLO_WT"
+cmda prep --state atp_mg --variant L119R --root "$PROJECT_ROOT" --receptor "$HOLO_L119R"
+```
+
+The nucleotide route loads the available ATP PREPI/FRCMOD resources and compatible
+water/ion parameters. Review `prep.json`, the actual loaded resources and topology.
+Generic GAFF ligand parameters are not equivalent to specialized nucleotide
+parameters. Preserve a matching external Amber topology/coordinate pair when
+reproducing a separately parameterized system.
+
+#### 3.4.4. Additional State Conventions
+
+The original activation roadmap also includes these composition tags:
+
+| State tag | Requested composition |
+| :--- | :--- |
+| `adp_2mg_py171` | ADP, two Mg ions and phosphorylated Tyr171. |
+| `atp_2mg_py171_peb2` | ATP, two Mg ions, phosphorylated Tyr171 and the EB2 peptide preset. |
+
+These are supported construction conventions, not evidence that the resulting
+complex has a validated activation state. Review residue identity, phosphorylation
+parameters, peptide placement, ion coordination and the actual assembled topology.
+The small Trp-cage test does not validate these advanced systems.
+
+### 3.5. Equilibration, QC & Production
+
+#### 3.5.1. Staged Equilibration
+
+After preparation, run the staged protocol for each system that will be studied:
+
+```bash
+cmda sim --state apo --variant WT --stage eq --protocol staged --root "$PROJECT_ROOT"
+cmda sim --state apo --variant L119R --stage eq --protocol staged --root "$PROJECT_ROOT"
+cmda sim --state atp_mg --variant WT --stage eq --protocol staged --root "$PROJECT_ROOT"
+cmda sim --state atp_mg --variant L119R --stage eq --protocol staged --root "$PROJECT_ROOT"
+```
+
+Restraints act on solute heavy atoms; bulk water and monovalent ions remain
+unrestrained. Strengths below are in kcal mol⁻¹ Å⁻²:
+
+| Stage | Operation | Conditions | Restraint |
+| :--- | :--- | :--- | :--- |
+| EM | Initial minimization | No physical time | None |
+| 01–03 | Minimization ladder | Constant box | 100, 50, 25 |
+| 04–09 | Heating ladder | Six 10 ps NVT intervals, 50–300 K, 1 fs | 25 |
+| 10–14 | Minimization ladder | Constant box | 25, 10, 5, 2, 1 |
+| 15–18 | NVT release ladder | Four 100 ps intervals, 300 K, 2 fs | 10, 5, 2, 1 |
+| 19–22 | NPT release ladder | Four 100 ps intervals, 300 K, 1 bar, 2 fs | 10, 5, 2, 1 |
+| 23 | Unrestrained NPT | 100 ps, 300 K, 1 bar, 2 fs | None |
+| 24 | Final unrestrained NPT | 1000 ps, 300 K, 1 bar, 2 fs | None |
+
+Numbered state/JSON records support recovery from completed stages. The quick
+profile in section 4 instead uses one short NVT and NPT interval; it is not this
+full protocol. The legacy combined `openmm run` adapter retains ff14SB/TIP3P defaults
+and delegates to quick equilibration; it should not be confused with the staged route.
+
+#### 3.5.2. Physical Settings & QC
+
+Shared dynamics use PME with a 1.0 nm cutoff, switching from 0.8 nm, hydrogen-bond
+constraints and rigid water. LangevinMiddle friction is 1/ps. The isotropic NPT
+barostat targets 1 bar and attempts a move every 25 steps. Inspect the saved
+parameterization record rather than assuming every preparation route is identical.
+
+The native OpenMM construction route offers ff19SB/ff14SB and installed OPC,
+TIP3P, TIP3P-FB or TIP4P-Ew XML files. Auto padding selects 1.0, 1.2 or 1.4 nm based
+on solute extent; it does not replace a supplied Amber topology or the high-level
+LEaP defaults. That native route neutralizes without extra bulk salt by default.
+Its four-site OPC construction uses TIP4P-Ew starting geometry with OPC parameters.
+Retain `prep.json`, `parameterization.json`, the topology, `system.xml`,
+`npt.state.xml` and the run/input/runtime records with the production outputs.
+
+Read `equilibration_qc.json` and the downstream PNGs under `figures/`. High-level
+`cmda sim` reports QC without enforcing a production gate. A successful exit or
+an output marker does not certify physical equilibration. The separate
+`cmda openmm qc` command fails on QC failure unless `--warn-only` is selected.
+No QC PDF is produced.
+
+#### 3.5.3. Production MD (r1, r2, r3)
+
+Only choose production duration and replica count after the small test and physical
+QC review. The following illustrates three 100 ns targets; it is not the software
+example or an instruction to launch an unreviewed full campaign:
+
+```bash
+cmda sim --state apo --variant WT --stage md --replica r1,r2,r3 \
+  --total-ns 100 --checkpoint-ps 1000 --traj-interval 10 --root "$PROJECT_ROOT"
+cmda sim --state atp_mg --variant WT --stage md --replica r1,r2,r3 \
+  --total-ns 100 --checkpoint-ps 1000 --traj-interval 10 --root "$PROJECT_ROOT"
+```
+
+Repeat for the reviewed mutant using `--variant L119R`. Targets are per replica.
+The high-level route processes the listed replicas sequentially; parallel batch
+execution needs an appropriate scheduler design.
+
+#### 3.5.4. Timestep, Steps & Saved Output
+
+The **integration timestep**, **frame-saving interval** and **checkpoint interval**
+are different settings:
+
+| Quantity | Current implementation | Meaning |
+| :--- | :--- | :--- |
+| Integration timestep | 1 fs during staged heating; 2 fs during subsequent dynamics, quick equilibration and production | Physical time advanced by one integration step. |
+| Frame interval | `--traj-interval`, in ps; example uses 10 ps | How often coordinates and production measurements are saved. |
+| Checkpoint/chunk interval | `--checkpoint-ps`, in ps; example uses 100 ps | Completed interval published before the production checkpoint advances. |
+| Production target | `--total-ns`, in ns, per replica | Total requested production time, excluding equilibration. |
+
+Unit conversions are **1 ps = 1,000 fs** and **1 ns = 1,000 ps = 1,000,000 fs**.
+At the production timestep of 2 fs = 0.002 ps:
+
+$$N_\mathrm{steps} = \frac{T_\mathrm{ns}\times 10^6}{\Delta t_\mathrm{fs}}$$
+
+$$N_\mathrm{steps/frame} = \frac{\Delta t_\mathrm{frame,ps}\times 10^3}{\Delta t_\mathrm{fs}},\qquad
+N_\mathrm{steps/chunk} = \frac{\Delta t_\mathrm{chunk,ps}\times 10^3}{\Delta t_\mathrm{fs}}$$
+
+| Duration or interval | Calculation at 2 fs | Integration steps |
+| :--- | :--- | ---: |
+| 1 ps | 1,000 / 2 | 500 |
+| 10 ps frame interval | 10,000 / 2 | 5,000 |
+| 100 ps equilibration interval or chunk | 100,000 / 2 | 50,000 |
+| 1 ns production | 1,000,000 / 2 | 500,000 |
+| 100 ns production | 100,000,000 / 2 | 50,000,000 |
+
+A 1 ns run with 10 ps frames and 100 ps chunks therefore has **100 frames**,
+**10 completed chunks** and **10 frames per chunk**. Its first saved production
+frame is at 10 ps, not at 0 ps. A 10 ps heating interval at 1 fs instead requires
+10,000 steps. Minimization iterations do not represent physical simulation time.
+
+The normal staged schedule integrates 60 ps heating + 400 ps NVT + 1,500 ps NPT
+= **1,960 ps (1.96 ns)** before production. The quick example uses 100 ps NVT +
+100 ps NPT = **200 ps (0.2 ns)** before its 1 ns production. Equilibration is not
+part of the production target. Three 100 ns replicas provide 300 ns aggregate
+production, not one continuous 300 ns trajectory.
+
+Production currently fixes the timestep at 2 fs; there is no production timestep
+CLI option. Changing `--traj-interval` changes saved output, not the integrator.
+The high-level `--steps` testing override applies to quick equilibration, not to
+the production target. Use intervals corresponding to whole integration steps;
+the implementation converts requested intervals to integer step counts.
+
+#### 3.5.5. Interruption & Checkpoint Recovery
+
+`--total-ns` is an absolute production target, excluding equilibration. Extending
+0.1 ns to 1 ns requests 1 ns total, not another 1 ns. New replicas start from the
+portable NPT state with fresh velocities and stochastic streams, resetting time
+to zero. They do not branch from a sibling's binary checkpoint.
+
+A complete trajectory/log chunk is published before advancing `prod.chk`.
+After Ctrl+C or a disconnection, rerun the same command with compatible inputs,
+settings, hardware and software. The unfinished chunk is replayed from the last
+committed checkpoint. Verify unchanged committed chunks and continuous times.
+Portable `*.state.xml` states transfer physical data between ensembles; binary
+checkpoints contain Context/RNG internals and are not assumed portable.
+
+### 3.6. Autoimaging & Solvent Stripping (cmda merge)
+
+#### 3.6.1. PBC Autoimaging
+
+```bash
+cmda merge --state apo --variant WT --replicas r1,r2,r3 --root "$PROJECT_ROOT"
+cmda merge --state atp_mg --variant WT --replicas r1,r2,r3 --root "$PROJECT_ROOT"
+```
+
+Repeat for each simulated variant. `cpptraj` autoimages the completed chunks and
+writes both a solute stream and a C-alpha stream. Storage savings depend on system
+composition; inspect the results rather than assuming a fixed reduction.
+
+#### 3.6.2. Reference Topologies
+
+| Output | Matching topology | Use |
+| :--- | :--- | :--- |
+| `prod_*to*ps.dcd` | Original solvated topology | Raw chunk outputs, including solvent. |
+| `prod_keep_ligand.dcd` | `stripped.prmtop` | Solute and retained cofactors/ions. |
+| `prod_ca.dcd` | `ca.prmtop` | C-alpha-only trajectory. |
+| `prod_full.log` | Not a topology | Merged production times and thermodynamic measurements. |
+
+Never pair a stripped trajectory with the unstripped solvated PDB. Confirm atom
+counts and ordering. A viewer requiring PDB needs an exported, matching topology;
+verify its residue-label mapping rather than treating Amber indices as author numbers.
+
+### 3.7. Trajectory Analysis & Comparison
+
+#### 3.7.1. System Metrics (cmda analyze)
+
+```bash
+cmda analyze --state apo --variant WT --root "$PROJECT_ROOT"
+cmda analyze --state apo --variant L119R --root "$PROJECT_ROOT"
+cmda analyze --state atp_mg --variant WT --root "$PROJECT_ROOT"
+cmda analyze --state atp_mg --variant L119R --root "$PROJECT_ROOT"
+```
+
+The high-level route currently analyzes r1. RMSD uses backbone fitting to the first
+frame. Reported Rg is the unweighted geometric radius of protein heavy atoms.
+RMSF uses aligned C-alpha coordinates, with reference identity/count gates to retain
+native author labels and insertion codes. `analysis.json` records the reference
+and implementation fingerprints. Numerical tables and figure rendering are separate
+modules; figures use 7-inch width, 300 DPI and the publication typography defaults.
+
+Direct `cmda openmm analysis` with an Amber topology requires `--reference` pointing
+to the native-numbered model. Its `--interval` argument supports an explicit frame
+interval. The high-level route currently uses 10 ps; do not silently use it for a
+trajectory sampled at another interval. PCA and contact maps are not calculated by
+the standard analysis route.
+
+#### 3.7.2. Comparative Overlays
+
+Use directories containing already calculated `rmsd.csv`, `rg.csv` and `rmsf.csv`:
+
+```bash
+: "${WT_ANALYSIS:?Set the WT analysis directory}"
+: "${MUTANT_ANALYSIS:?Set the mutant analysis directory}"
+cmda openmm compare --series "WT=$WT_ANALYSIS" --series "L119R=$MUTANT_ANALYSIS" \
+  --outdir "$PROJECT_ROOT/data/analysis/apo/compare"
+```
+
+The output PNGs are under the requested directory's `figures/`. Comma-separated
+analysis directories within one series group compatible replicas. Check protocol,
+residue identity and time axes before aggregation. Top-level `cmda compare` currently
+reports a request without plotting, so it is not substituted here.
+
+#### 3.7.3. Frame Counts, Sampling & Stride
+
+With regular sampling and no extra initial frame:
+
+$$N_\mathrm{frames}=\left\lfloor\frac{1000\,T_\mathrm{ns}}{\Delta t_\mathrm{frame,ps}}\right\rfloor$$
+
+For durations divisible by the frame interval, 1 ns at 10 ps gives 100 frames;
+100 ns at 10 ps gives 10,000. Saved frame index 0 corresponds to the first saved
+frame, not necessarily physical time zero:
+
+$$t_k=t_\mathrm{first}+k\,\Delta t_\mathrm{frame},\qquad k=0,1,\ldots,N-1$$
+
+The lower-level `cmda openmm merge --stride s` can retain every s-th frame. Its
+current implementation retains the first frame, giving:
+
+$$N_\mathrm{kept}=\left\lceil\frac{N_\mathrm{frames}}{s}\right\rceil,\qquad
+\Delta t_\mathrm{kept}=s\,\Delta t_\mathrm{frame}$$
+
+Thus 10,000 frames with stride 10 give 1,000 frames. If the original sampling is
+10 ps, the retained spacing is 100 ps. For a 1 ns trajectory starting at 10 ps,
+stride 10 keeps times 10, 110, …, 910 ps; it does not reset the first frame to 0
+or guarantee that the last retained frame reaches the original endpoint.
+
+Keep the full-rate trajectory for the standard analysis and use a separately
+strided copy for lighter viewing. High-level `cmda analyze` currently assumes
+10 ps sampling, and lower-level analysis reconstructs time from an interval.
+Before quantitative analysis of strided data, check the actual logged first-frame
+time and spacing; changing an interval alone does not restore a lost time origin.
+Striding reduces saved observations, not the integration time already simulated.
+
+#### 3.7.4. Storage Calculation
+
+For a DCD containing three 32-bit coordinate values per atom, the coordinate-data
+size is approximately:
+
+$$S_\mathrm{bytes}\approx 12\,N_\mathrm{atoms}\,N_\mathrm{frames}$$
+
+For 35,000 atoms and 100 ns production:
+
+| Saving interval | Frames | Approximate coordinate data per replica |
+| :--- | ---: | ---: |
+| 1 ps | 100,000 | 42 GB |
+| 10 ps | 10,000 | 4.2 GB |
+
+These are decimal GB estimates before file headers, box records, checkpoints,
+logs or merged/stripped copies. Three replicas at 10 ps need about 12.6 GB for
+these raw coordinates alone. Multiply by the number of states and variants as
+well, and use the actual solvated atom count; proteins of similar residue count
+can have very different solvent boxes. Coarser saving does not guarantee that
+all dynamics of interest remain resolved.
+
+#### 3.7.5. Frame & Coordinate Verification
+
+Run this in the MD environment after merging a selected research system. It uses
+the matching stripped topology, reports the saved log times, and checks frame
+counts and finite coordinates without assuming that a filename proves completion:
+
+```bash
+python - <<'PY'
+import os
+import MDAnalysis as mda
+import numpy as np
+import pandas as pd
+from colabmda.core.project import ProjectPaths
+from colabmda.core.taxonomy import SystemSpec
+
+paths = ProjectPaths(os.environ['PROJECT_ROOT'])
+prod = paths.replica_dir(SystemSpec.from_tag('apo', variant='WT'), 'r1')
+u = mda.Universe(str(prod / 'stripped.prmtop'), str(prod / 'prod_keep_ligand.dcd'))
+log = pd.read_csv(prod / 'prod_full.log')
+assert len(u.trajectory) == len(log) > 0
+assert all(np.isfinite(ts.positions).all() for ts in u.trajectory)
+print('Atoms:', u.atoms.n_atoms, 'Frames:', len(u.trajectory))
+print('First/last saved time (ps):', log['Time (ps)'].iloc[[0, -1]].tolist())
+PY
+```
+
+Choose the state/variant/replica you actually ran. Check expected times, sampling
+and native residue labels against the run settings. The final small-example check
+also enforces time continuity and its expected 20 C-alpha atoms.
+
+### 3.8. PyMOL Visualization
+
+#### 3.8.1. Workstation Setup
+
+Use a separate PyMOL environment and install the same tool checkout there. Enter
+the checkout first, then run locally:
+
+```bash
+conda create -y -n pymol_env -c conda-forge python=3.11 pymol-open-source pillow numpy
+conda activate pymol_env
+python -m pip install -e .
+```
+
+#### 3.8.2. Launching Visualization
+
+Supply a reviewed topology/trajectory pair with matching atom order and residue
+labels. The helper accepts explicit files instead of relying on old filename guesses:
+
+```bash
+: "${VIEW_TOPOLOGY:?Set the matching viewer topology path}"
+: "${VIEW_TRAJECTORY:?Set the matching trajectory path}"
+cmda view --topology "$VIEW_TOPOLOGY" --trajectory "$VIEW_TRAJECTORY" --resi 119
+```
+
+Inspect the generated PyMOL selection and camera. The helper retains KRAS-oriented
+styling; do not assume its default residue selections annotate CDKL5 or another
+protein correctly. Keep native numbering consistent when highlighting a mutation.
+
+#### 3.8.3. Snapshot Grids
+
+```bash
+: "${SNAPSHOT_CONFIG:?Set the reviewed snapshot JSON path}"
+cmda snapshots --config "$SNAPSHOT_CONFIG" \
+  --output "$PROJECT_ROOT/data/analysis/figures/comparison_grid.png" \
+  --temp-dir "$PROJECT_ROOT/data/analysis/rendering"
+```
+
+This optional rendering description is not a project configuration required for
+simulation. It contains an 18-value PyMOL `camera_view`, optional `align_ref_pdb`,
+`stable_core_sel`, and a `systems` mapping. Each system supplies matching `pdb`/`dcd`
+paths, `states`, `times` and optional `mut_residue`. Frame indices and physical time
+are different; derive labels from the actual sampling. Use the same reviewed camera
+and homologous alignment selection for comparative panels. The existing renderer
+still contains KRAS-specific styling, including residues 57–75; review it before
+using it for another protein.
+
+---
+
+## 4. Small Example & Validation
+
+### 4.1. Create and Fetch Trp-cage
+
+The 20-residue Trp-cage example tests software behavior quickly without replacing
+the full research workflows above. **On Colab after section 1.1 setup**, run:
+
+```bash
+cmda stage --example trpcage \
+  --root /content/drive/MyDrive/research/projects/colabmda-example
+cd /content/drive/MyDrive/research/projects/colabmda-example
 python scripts/01_structure/01_fetch.py
+```
+
+On a local GPU workstation use `~/research/projects/colabmda-example` instead.
+Fetch prefers mmCIF, with PDB fallback, selecting NMR model 1, author chain A of
+1L2Y. It verifies the deposited sequence, all 20 C-alpha atoms and native numbering,
+then records the archive/selection hashes. As a designed peptide, it has no canonical
+UniProt mutation annotation. No MODELLER key or cofactor template is needed.
+
+### 4.2. Run the Scripts in Order
+
+With `colabmda` active in the generated project:
+
+```bash
 export COLABMDA_RUN_ID=run01
 bash scripts/02_simulation/01_prepare.sh
 bash scripts/02_simulation/02_equilibrate.sh
@@ -118,105 +780,117 @@ bash scripts/02_simulation/04_analysis.sh
 python scripts/02_simulation/05_check.py
 ```
 
-Fetch retrieves [Trp-cage, PDB 1L2Y](https://www.rcsb.org/structure/1L2Y), preferring
-mmCIF with a PDB fallback. It selects NMR model 1, author chain A, checks all 20
-residues against the deposited sequence, verifies C-alpha atoms and preserves
-native numbering. The raw archive and source/input hashes remain in project data.
-This designed miniprotein has no canonical UniProt mutation annotation.
+The defaults are 100 ps NVT, 100 ps NPT, 1 ns production, 2 fs steps, 10 ps sampling
+and 100 ps checkpoint chunks. To choose another duration without editing scripts,
+set `COLABMDA_EXAMPLE_NS` for production; the final check reads the saved request.
+Use positive multiples of 0.1 ns. Choose a fresh run ID for changed inputs,
+executed scripts or runtime revisions.
 
-The default uses Amber ff19SB/OPC preparation, quick 100 ps NVT and 100 ps NPT,
-then 1 ns production at 2 fs. Frames are saved every 10 ps in 100 ps checkpoint
-chunks. This is a software example, not a production equilibration recommendation.
-Our earlier T4 test took about 7.5 minutes for production plus the restart test;
-measure performance on your own runtime. A quick density QC warning remains a
-warning even if the software checks pass.
-
-To change duration, edit the visible setting in `03_production.sh`, or set
-`COLABMDA_EXAMPLE_NS` for both production and check. Use a positive duration
-in multiples of 0.1 ns. Use a new run ID for changed inputs or protocols.
-
-Keep execution logs, for example:
-
-```bash
-set -o pipefail
-bash scripts/02_simulation/03_production.sh 2>&1 | tee "logs/02_simulation/$COLABMDA_RUN_ID/production.log"
-```
-
-## Interrupt and resume
-
-Press Ctrl+C during production, then rerun the same production command with the
-same project, run ID, inputs, software and settings. An interrupted command must
-report failure; it resumes the last committed chunk checkpoint and replays the
-unfinished chunk. Do not delete chunks to force recovery or assume binary
-checkpoints are portable between different GPUs or software versions.
-
-A short smoke test can be extended without changing the underlying protocol:
+To test extension from a smoke run, after preparation/equilibration run:
 
 ```bash
 COLABMDA_EXAMPLE_NS=0.1 bash scripts/02_simulation/03_production.sh
 COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
 ```
 
-The private working project's `tests/gpu.py` automates actual SIGINT, unchanged
-chunk hashes, resume, analysis and final checks using these same generated scripts.
+Then perform analysis and the final check. For actual interruption, press Ctrl+C
+while a later chunk is running and repeat the same production command. The
+interrupted command must fail and the committed chunk must remain unchanged.
+The private working project's `tests/gpu.py` automates that acceptance test using
+these same generated scripts; it is not an extra file installed for every user.
 
-## Results and checks
+### 4.3. Expected Outputs & Checks
 
-Each run contains `provenance.json`, production request history and
-`apo/WT/{01_prep,02_eq,03_md/r1,04_analysis}`. Provenance records the input,
-installed template revision, executed scripts, runtime package versions and GPU
-identity.
+After success, `data/02_simulation/run01/` contains the input/tool/script/runtime
+provenance, production requests, analysis results, `summary.json` and `RUN_DONE`.
+The default run has ten chunks and 100 merged frames, with times 10–1000 ps.
+The final check requires finite coordinates/logs/tables, 20 C-alpha atoms, native
+RMSF labels 1–20 and nonempty PNGs. Physical equilibration QC is reported separately.
 
-`04_analysis/` contains RMSD, Rg and RMSF CSVs plus `figures/` PNGs. Native author
-residue labels are verified against the model; direct Amber analysis through
-`cmda openmm analysis` requires `--reference model.pdb`. `analysis.json` records
-its reference and implementation fingerprints. Computation and figure rendering
-are separate modules. Figures use 7-inch width, 300 DPI and publication typography.
-
-The final check requires continuous frame times, finite coordinates/logs/tables,
-20 C-alpha atoms, RMSF author labels 1–20 and nonempty figures. Only then does it
-write `summary.json` and `RUN_DONE`. Physical equilibration QC is reported
-separately. The default complete run has ten chunks and 100 merged frames.
-
-To rerender from saved numerical outputs without MD, use the public figure API:
+Scripts create the log directory; save terminal output when desired. For example,
+from the generated project after preparation/equilibration:
 
 ```bash
-python -c 'import os; from pathlib import Path; from colabmda.openmm.figures import plot_analysis; plot_analysis(Path("data/02_simulation")/os.environ["COLABMDA_RUN_ID"]/"apo/WT/04_analysis")'
+set -o pipefail
+bash scripts/02_simulation/03_production.sh 2>&1 \
+  | tee "logs/02_simulation/$COLABMDA_RUN_ID/production.log"
 ```
 
-## Google Colab
-
-From Divergent, create a dedicated GPU session and authenticate Drive:
+To rerender analysis figures from saved tables without rerunning MD:
 
 ```bash
-colab new -s colabmda-example --gpu T4
-colab drivemount --session colabmda-example
-cmda colab setup -s colabmda-example --local-source
-colab console -s colabmda-example
+python - <<'PY'
+import os
+from pathlib import Path
+from colabmda.openmm.figures import plot_analysis
+run = Path('data/02_simulation') / os.environ['COLABMDA_RUN_ID']
+plot_analysis(run / 'apo/WT/04_analysis')
+PY
 ```
 
-For private development, local-source setup exports committed `dev1` runtime
-files and hashes them in `SNAPSHOT.json`; commit changes before deployment.
-Inside Colab, activate `colabmda`, then create the example directly on Drive:
+### 4.4. Runtime, Limits & Cleanup
+
+Our earlier T4 test took approximately 7.5 minutes for production plus its restart
+test. That is an observed runtime, not a guarantee. Quick equilibration can fail
+the density-slope criterion; retain the warning and do not call this a converged
+production study, a mutant/cofactor validation or a full staged-protocol test.
+
+Keep heavy trajectories and checkpoints on Drive. Retrieve and verify compact
+reports and plots before stopping the dedicated session. **From the local terminal:**
 
 ```bash
-source /root/miniforge3/etc/profile.d/conda.sh
-conda activate colabmda
-cmda stage --example trpcage --root /content/drive/MyDrive/research/projects/colabmda-example
-cd /content/drive/MyDrive/research/projects/colabmda-example
+colab stop -s colabmda-example
 ```
 
-Follow the same Run section above. Keep jobs in the foreground with live output.
-Alternatively, dispatch foreground commands from Divergent through
-`cmda colab exec -s colabmda-example --timeout 21600 'YOUR_COMMAND'`.
-Sessions can terminate; retain checkpoints on Drive for recovery. Retrieve and
-verify compact reports and plots, leaving trajectories on Drive, then stop the
-session with `colab stop -s colabmda-example`.
+A restarted session requires Drive authentication and the recorded software again.
+Historical run records remain in the working project's README; user instructions
+stay here. CPU unit tests, script/CLI checks and a successful installation are
+reported separately from an actual GPU integration run.
 
-## Development checks
+---
 
-Use `dev1` for private work. Public `main` contains only approved releases.
-Run CPU unit/regression tests on Divergent using `pytest tests/`, plus Black,
-Ruff, Python compilation and `bash -n` for changed scripts. GPU integration tests
-are separate. Use `cmda --help` for modeling and other simulation commands and
-[the protocol](docs/protocol.md) and [advanced reference](docs/reference.md) for details.
+## Acknowledgements
+- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer); [OpenMM 8 methods paper](https://doi.org/10.1021/acs.jpcb.3c06662)
+- [Modeller](https://salilab.org/modeller/)
+- [AmberTools](https://ambermd.org/AmberTools.php) (`tleap`, `cpptraj`)
+- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
+- [PDB2PQR & PROPKA](https://server.poissonboltzmann.org/)
+- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
+- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
+
+---
+
+## Changelog
+
+### Unreleased Development
+
+* Flat OpenMM modules and one checkpointed production implementation.
+* Complete, safely staged Trp-cage example and a single installer with optional MODELLER prompting.
+* Native residue-label checks, runtime/input fingerprints and separate numerical/figure modules.
+* One example project name, with preserved historical results and migration records.
+* Restored full user-guide organization; README is the maintained guide without ReadTheDocs.
+
+Released history is in [CHANGELOG.md](CHANGELOG.md). Development features are not
+an announced v0.3.0 release.
+
+---
+
+## Citation
+
+Initially, this repository was based on a GROMACS-on-Colab workflow, but we transformed it to utilize OpenMM to improve feasibility, performance, and stability for automated simulation recovery on cloud platforms.
+
+If you use this tool, please consider citing the underlying studies:
+
+> Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2022.e11232&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2022.e11232)
+>
+> Paul SK, Saddam M, Tabassum N, Hasan M. **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis.** *Heliyon*. 2024 Dec 15;11(1):e41166. doi: [10.1016/j.heliyon.2024.e41166](https://doi.org/10.1016/j.heliyon.2024.e41166). PMID: 39802026; PMCID: PMC11719297.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2024.e41166&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2024.e41166)
+
+---
+
+<p align="center">
+  <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Visitors&color=blue&style=flat-square" alt="Visitors" />
+</p>

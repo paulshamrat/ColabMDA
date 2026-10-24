@@ -70,10 +70,17 @@ Do not claim a new GPU run when only CPU/template tests were performed.
 
 ## Documentation upkeep
 
-Keep CONTRIBUTING and the two reference pages consistent with the flat source
-layout and main README. docs/ contains only index.rst, conf.py, requirements.txt,
-protocol.md and reference.md. Installation and the worked example belong in the
-README; developer rules belong in CONTRIBUTING/AGENTS. Do not recreate duplicate
-workflow guides, obsolete docking pages or a docs/development folder. Document
-implemented behavior and distinguish compatibility support from new workflows.
-Build Sphinx with warnings treated as errors after documentation changes.
+README.md is the complete maintained user guide. Preserve its established project
+information, numbered platform setup, project architecture, full modeling/apo/holo
+simulation protocol, small example, acknowledgements, changelog and citation
+sections. Make focused updates; do not replace the full guide with a quickstart
+or reorganize it without an explicit user request.
+
+Developer rules belong in CONTRIBUTING.md and AGENTS.md. Do not recreate docs/,
+ReadTheDocs configuration, Sphinx dependencies or competing installation guides.
+Keep commands accurate, label compatibility limits, state which machine runs each
+step, and check shell syntax, CLI arguments and local links after guide changes.
+Preserve the timestep/unit conversions, integration-step, frame/chunk, stride and
+storage calculations and per-replica time semantics when editing the guide.
+Validate their examples against implementation settings and explicit arithmetic.
+Distinguish completed CPU/script checks from actual GPU integration testing.

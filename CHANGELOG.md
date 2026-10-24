@@ -15,10 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with an identity gate, and separated numerical processing from figure modules.
 - Consolidated the working project as colabmda-example while preserving historical
   inputs/results and verified migration records.
-- Reduced docs/ to scientific protocol and advanced reference pages, retaining
-  the ReadTheDocs configuration and one main README for user instructions.
-- Centralized user instructions in README and corrected outdated developer and
-  compatibility references. These development changes are not a public release.
+- Removed the documentation-site configuration and dependencies; README is the
+  complete user guide with the original platform and full workflow organization.
+- Restored the established README sections and preserved acknowledgements and
+  citations while correcting current paths, command scope and validation claims.
+- Restored timestep/step/frame/checkpoint calculations, equilibration totals,
+  stride and storage estimates, coordinate checks and advanced state conventions.
+  These development changes are not a public release.
 
 ## [v0.2.0] - 2026-10-14 (Modular Architecture & Resilience)
 

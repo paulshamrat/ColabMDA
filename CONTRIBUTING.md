@@ -47,10 +47,12 @@ foreground, inspect physical QC separately, retrieve verified compact reports,
 and stop the dedicated session. Never include license keys or credentials in
 source, test fixtures using real secrets, logs or provenance.
 
-Update README/AGENTS.md and affected reference pages when behavior changes.
-Keep user instructions in the main README. Scientific protocol and advanced
-CLI/visualization reference belong in docs/protocol.md and docs/reference.md;
-do not recreate duplicate installation or workflow pages. Build Sphinx with
-warnings treated as errors after documentation changes. Document only implemented commands;
-identify compatibility-only commands and limits explicitly. Record changes in
-the unreleased changelog without inventing a public release.
+Update README/AGENTS.md when behavior changes. Keep the established README
+organization: platform setup, project architecture, full simulation workflow and
+the small validation example. Scientific explanations and advanced command
+reference belong in the appropriate README sections. Do not replace it with an
+example-only quickstart or recreate a separate documentation site.
+
+Validate guide code blocks and command arguments against the current CLI. State
+which checks were executed and which GPU or cluster steps remain unexecuted.
+Record changes in the unreleased changelog without inventing a public release.
