@@ -55,7 +55,7 @@ def generate_tleap_script(
     Supports:
         - ff19SB / ff14SB protein force fields
         - phosaa19SB for phosphorylated residues (pY171 / PTR)
-        - OPC / TIP3P water models with Li-Merz 12-6/12-6-4 ions
+        - OPC / TIP3P water models with water-matched Li-Merz 12-6 ions
         - Hu et al. 2024 quantum parameters for ATP, ADP, GDP, GTP
     """
     lines: list[str] = [
@@ -94,7 +94,6 @@ def generate_tleap_script(
             f"source leaprc.water.{water_lower}",
             f"loadamberparams frcmod.{water_lower}",
             f"loadamberparams frcmod.ionslm_126_{water_lower}",
-            f"loadamberparams frcmod.ionslm_1264_{water_lower}",
             "",
         ]
     )
@@ -253,6 +252,8 @@ def write_prep_provenance(
             "padding_angstroms": padding_angstroms,
             "salt_concentration_molar": salt_conc_molar,
             "salt_type": salt_type,
+            "ion_model": "Li-Merz 12-6",
+            "ion_resource": f"frcmod.ionslm_126_{water_model.lower()}",
         },
         "provenance": {
             "created_at": datetime.now(timezone.utc).isoformat(),

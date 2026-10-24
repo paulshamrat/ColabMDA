@@ -21,13 +21,13 @@
 ### 📂 Project Structure <a id="project-structure"></a>
 ColabMDA is organized into clear, functional modules:
 *   `src/colabmda/cli.py`: Central unified CLI (`cmda` and `colabmda`).
-*   `src/colabmda/core/`: Project paths, safe example installation, state taxonomy and ion definitions.
+*   `src/colabmda/core/`: Project paths, safe example installation, small-protein workflows, state taxonomy and ion definitions.
 *   `src/colabmda/amber/`: AmberTools parameterization (`tleap`, Hu 2024 quantum nucleotide parameters, `cpptraj` autoimaging & solvent stripping).
 *   `src/colabmda/modeller/`: Homology modeling engine (UniProt biological numbering, mutagenesis, geometric substrate docking).
 *   `src/colabmda/openmm/`: Flat operation modules: `prepare.py`, `em.py`, `nvt.py`, `npt.py`, `md.py`, `qc.py`, `merge.py`, `analysis.py`, `figures.py`, `common.py`, `commands.py` and the compatibility adapter `run.py`.
 *   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
 *   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
-*   `examples/trpcage/scripts/`: Runnable templates copied into the execution project.
+*   `examples/{fkbp,hras,trpcage}/scripts/`: Runnable templates copied into the execution project.
 *   `tests/`: Comprehensive unit and regression test suite (`pytest`).
 
 ---
@@ -426,9 +426,10 @@ and ASH/GLH and retain any protonation audit output.
 #### 3.4.1. Scope & Chemistry
 
 The holo example uses H-Ras residues 1–166 from 4Q21 with one GDP and one Mg.
-The resolved 1–166 region is modeled against the matching UniProt region; the
-unresolved C-terminal tail is not added. This is a soluble-domain software test,
-not a membrane-associated full-length Ras model or a nucleotide-hydrolysis study.
+The selected 1–166 region is modeled against the matching UniProt region;
+C-terminal residues 167–189, including the unresolved tail, are omitted. This is
+a soluble-domain software test. Full-length membrane-associated Ras and
+nucleotide hydrolysis require separate scientific models.
 
 #### 3.4.2. GDP & Mg²⁺ Placement
 
@@ -449,10 +450,14 @@ python scripts/02_simulation/hras/01_prepare.py --variant G12V
 ```
 
 Outputs live under `data/02_simulation/<run>/gdp_1mg/<variant>/`. The nucleotide
-route loads GDP-B3.prepi and the shared ATP-B3.frcmod with ff19SB/OPC and compatible
-ion resources. CPU preparation retained a 40-atom GDP with charge −3 and one Mg
+route loads GDP-B3.prepi and the shared ATP-B3.frcmod with ff19SB/OPC and the
+water-matched Li–Merz 12–6 ion set. CPU preparation retained a 40-atom GDP with charge −3 and one Mg
 with charge +2. Inspect prep.json, the loaded resource hashes and generated
 topology; parameter files being present alone does not validate a simulation.
+The example also checks Na/Cl/Mg Lennard-Jones values in the actual topology.
+Loading the 12–6–4 frcmod without its additional C4 term is incomplete, so this
+route uses the complete 12–6 potential. See the
+[ParmEd C4-term documentation](https://parmed.github.io/ParmEd/html/parmed.html#add12-6-4).
 
 #### 3.4.4. Additional State Conventions
 
@@ -460,6 +465,15 @@ ATP, ADP and GTP resources remain available for appropriate structures. Choose
 state tags and ion counts for the actual experimental/model composition. Existing
 phosphorylation and substrate-peptide conventions remain advanced capabilities;
 they are not required by the small tutorials or validated by their acceptance tests.
+For kinase projects, the previously documented composition tags remain available:
+
+| State tag | Requested composition |
+| :--- | :--- |
+| `adp_2mg_py171` | ADP, two Mg ions and phosphorylated Tyr171. |
+| `atp_2mg_py171_peb2` | ATP, two Mg ions, phosphorylated Tyr171 and the EB2 peptide preset. |
+
+These tags request components; review phosphorylation parameters, peptide
+placement and coordination before interpreting an activation state.
 Generic GAFF parameters are not equivalent to the specialized nucleotide route.
 Preserve a matching Amber topology/coordinate pair for independently parameterized
 systems, and review protonation, charge, ligand atom names and coordination.
@@ -648,12 +662,13 @@ cmda analyze --state "$STATE" --variant "$VARIANT" --root "$PROJECT_ROOT"
 The high-level route currently analyzes r1. RMSD uses backbone fitting to the first
 frame. Reported Rg is the unweighted geometric radius of protein heavy atoms.
 RMSF uses aligned C-alpha coordinates, with reference identity/count gates to retain
-native author labels and insertion codes. `analysis.json` records the reference
+verified reference labels and insertion codes. These natural-protein models use
+UniProt numbering; mapping.json links it to the original author numbering. `analysis.json` records the reference
 and implementation fingerprints. Numerical tables and figure rendering are separate
 modules; figures use 7-inch width, 300 DPI and the publication typography defaults.
 
 Direct `cmda openmm analysis` with an Amber topology requires `--reference` pointing
-to the native-numbered model. Its `--interval` argument supports an explicit frame
+to the reviewed, numbered model. Its `--interval` argument supports an explicit frame
 interval. The high-level route currently uses 10 ps; do not silently use it for a
 trajectory sampled at another interval. PCA and contact maps are not calculated by
 the standard analysis route.
@@ -977,6 +992,10 @@ reported separately from an actual GPU integration run.
 - Added explicit author-to-UniProt mapping, reviewed local modeling inputs and
   strict sequence/mutation checks. Raw archives and historical Trp-cage results
   remain unchanged. CPU modeling/preparation passed; new GPU tests are pending.
+
+- Fixed ion preparation to retain the complete water-matched 12–6 potential;
+  earlier diagnostic runs that overrode it with 12–6–4 LJ values have no C4 term.
+  Preserve those original records and use new run IDs after the correction.
 
 * Flat OpenMM modules and one checkpointed production implementation.
 * Complete, safely staged Trp-cage example and a single installer with optional MODELLER prompting.

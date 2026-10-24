@@ -118,3 +118,13 @@ def test_stripped_topology_is_written_by_strip_action(tmp_path):
     )
     assert 'parmout "' in script
     assert "parmwrite" not in script
+
+
+def test_opc_preparation_uses_one_complete_ion_potential(tmp_path):
+    # A 12-6-4 frcmod alone supplies different LJ values, not the required C4 term.
+    spec = SystemSpec.from_tag("gdp_1mg")
+    text = generate_tleap_script(
+        spec, tmp_path / "model.pdb", tmp_path / "a.prmtop", tmp_path / "a.inpcrd"
+    )
+    assert "frcmod.ionslm_126_opc" in text
+    assert "1264" not in text

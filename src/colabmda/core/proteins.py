@@ -505,12 +505,33 @@ def check_topology(folder, name):
                 raise ValueError("Wrong nucleotide/ion topology atoms or charge")
     elif components:
         raise ValueError("Unexpected nucleotide/ion in apo tutorial")
+    # Defaults are OPC with its complete 12-6 ion set. Loading the 12-6-4 LJ
+    # values without adding the separate C4 term is a different, incomplete model.
+    expected_ions = {
+        "Na+": (1.467, 0.02960343),
+        "Cl-": (2.360, 0.67878870),
+        "MG": (1.330, 0.00716930),
+    }
+    ion_lj = {}
+    for residue in topology.topology.residues():
+        if residue.name not in expected_ions:
+            continue
+        atom = next(residue.atoms())
+        _, sigma, epsilon = force.getParticleParameters(atom.index)
+        rmin_half = sigma.value_in_unit(unit.angstrom) * 2 ** (1 / 6) / 2
+        eps = epsilon.value_in_unit(unit.kilocalorie_per_mole)
+        expected_rmin, expected_epsilon = expected_ions[residue.name]
+        if abs(rmin_half - expected_rmin) > 1e-5 or abs(eps - expected_epsilon) > 1e-7:
+            raise ValueError(f"Incomplete or mismatched OPC ion model for {residue.name}")
+        ion_lj[residue.name] = {"rmin_half_angstrom": rmin_half, "epsilon_kcal_mol": eps}
     save_json(
         folder / "topology_check.json",
         {
             "atoms": system.getNumParticles(),
             "total_charge": total,
             "components": components,
+            "ion_model": "OPC Li-Merz 12-6",
+            "ion_lj": ion_lj,
             "files": {
                 n: digest(folder / n)
                 for n in [

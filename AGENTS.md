@@ -39,6 +39,10 @@
   data/00_setup/<name>.json receipts so they coexist with historical Trp-cage.
   Use one run ID per protein/variant. Changing code/protocol requires a new run.
   Confirm actual nucleotide/ion topology composition and charges, not just files.
+- The default Amber route uses water-matched Li–Merz 12–6 ions. Never load a
+  12–6–4 ion frcmod without implementing and verifying the separate C4 term.
+  Natural-protein acceptance checks actual OPC Na/Cl/Mg LJ values. Changing ion
+  parameters requires fresh preparation/equilibration and new run IDs.
 - RMSF author labels require a reference identity/count gate, including insertion
   codes and chain disambiguation. Never use Amber indices as author numbers.
 - Numerical calculation modules never import plotting libraries. Plot only saved
