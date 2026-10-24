@@ -156,7 +156,7 @@ section 3.2 explains activating it and installing the same tool checkout there.
 
 Install the tool and its Conda dependencies on the cluster according to its software
 policy. Put active simulation outputs in scratch, not the software checkout.
-Activate `colabmda` on the allocated compute node, then use the same example scripts
+Activate the selected MD environment on the allocated compute node, then use the same example scripts
 or state-based commands below with an explicit project root.
 
 For Palmetto access from Divergent, use the workspace's `hpc` CLI for inspection,

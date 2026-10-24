@@ -43,25 +43,32 @@ compact structure/mapping/model inputs needed for the selected workflow, using
 
 ## Software and project setup
 
-Inside a terminal opened through the configured `hpc` CLI, set these paths for
-your account. Use an existing conda installation to activate user environments, or install
-Miniforge under your account. A shared read-only base can activate a writable
-user environment. Do not modify the system conda root or use sudo.
+Run setup from **Divergent** through `hpc exec`. The checked account already has
+a suitable `openmm_env`; activate it through the shared conda base and install
+only the tool, leaving its scientific libraries unchanged:
 
 ```bash
-export COLABMDA_CONDA_ROOT=/path/to/your/miniforge3
-source "$COLABMDA_CONDA_ROOT/etc/profile.d/conda.sh"
-export COLABMDA_TOOL=/scratch/shamrap/research/tools/ColabMDA
-export PROJECT_ROOT=/scratch/shamrap/research/projects/colabmda-example
-export COLABMDA_RUN_ID=cdkl5_reviewed_v1
-cd "$COLABMDA_TOOL"
-conda env create -f environment.yml
-conda activate "${COLABMDA_ENV:-colabmda}"
-python -m pip install -e .
-cmda --help
-mkdir -p "$PROJECT_ROOT"
-cd "$PROJECT_ROOT"
+hpc exec -s hpc -- bash -lc '
+  set -e
+  export COLABMDA_CONDA_ROOT=$(conda info --base)
+  source "$COLABMDA_CONDA_ROOT/etc/profile.d/conda.sh"
+  export COLABMDA_ENV=openmm_env
+  conda activate "$COLABMDA_ENV"
+  export COLABMDA_TOOL=/scratch/shamrap/research/tools/ColabMDA
+  export PROJECT_ROOT=/scratch/shamrap/research/projects/colabmda-example
+  cd "$COLABMDA_TOOL"
+  python -m pip install --no-deps -e .
+  cmda --help
+  mkdir -p "$PROJECT_ROOT"
+  cd "$PROJECT_ROOT"
+'
 ```
+
+On a fresh account, create `colabmda` from the tool's `environment.yml` once and
+set `COLABMDA_ENV=colabmda` consistently in setup and submission commands. A shared
+read-only conda base can activate a writable user environment. Do not modify the
+system base or use sudo. Each `hpc exec` starts a new shell; include activation,
+paths and `cd` in each operation rather than assuming variables persist.
 
 Do not recreate an existing environment to resume a run. Check the pinned CUDA
 runtime against the allocated GPU driver in a small allocation before dynamics.
@@ -103,13 +110,16 @@ mkdir -p logs/apo/$COLABMDA_RUN_ID/WT
 ```
 
 Submit through `hpc` from Divergent. The following commands set their complete
-remote environment; change the conda path to the verified user installation.
+remote environment. These examples select the inspected `openmm_env`; select
+`colabmda` instead if that is the environment you installed.
 First run equilibration, inspect its JSON/PNG and job result, then submit a
 100 ps production validation. Do not start the full panel before this succeeds.
 
 ```bash
 hpc exec -s hpc -- bash -lc '
-  export COLABMDA_CONDA_ROOT=/path/to/your/miniforge3
+  export COLABMDA_CONDA_ROOT=$(conda info --base)
+  export COLABMDA_ENV=openmm_env
+  export PYTHONUNBUFFERED=1
   project=/scratch/shamrap/research/projects/colabmda-example
   run=cdkl5_reviewed_v1
   cd "$project"
@@ -122,7 +132,9 @@ After successful equilibration and physical review:
 
 ```bash
 hpc exec -s hpc -- bash -lc '
-  export COLABMDA_CONDA_ROOT=/path/to/your/miniforge3
+  export COLABMDA_CONDA_ROOT=$(conda info --base)
+  export COLABMDA_ENV=openmm_env
+  export PYTHONUNBUFFERED=1
   project=/scratch/shamrap/research/projects/colabmda-example
   run=cdkl5_reviewed_v1
   cd "$project"
@@ -167,7 +179,9 @@ this adapter deliberately submits no arrays or full-library campaign.
 
 ## Validation status
 
-Palmetto bridge, scheduler, scratch root and A100 resource availability have been
-inspected. Shell syntax and wrapper arguments are checked locally. A new HPC GPU
-pilot, environment installation and cross-platform numerical acceptance have not
-yet been completed. Keep this distinct from the Colab run record.
+Palmetto bridge, scheduler, scratch layout and existing scientific libraries have
+been inspected. Committed tool/project snapshots and reviewed inputs are deployed
+and hash-verified. The tool is installed without changing the scientific libraries.
+Hardware probe18086549 and dependent molecular smoke18087575 are queued; full
+molecular GPU acceptance remains pending. Record their actual outcomes separately
+from Colab results and from successful syntax/deployment checks.
