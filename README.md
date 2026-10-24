@@ -26,7 +26,7 @@ ColabMDA is organized into clear, functional modules:
 *   `src/colabmda/core/`: System taxonomy (`SystemSpec`), project layout (`ProjectPaths`), and divalent ion parameters.
 *   `src/colabmda/amber/`: AmberTools parameterization (`tleap`, Hu 2024 quantum nucleotide parameters, `cpptraj` autoimaging & solvent stripping).
 *   `src/colabmda/modeller/`: Homology modeling engine (UniProt biological numbering, mutagenesis, geometric substrate docking).
-*   `src/colabmda/openmm/`: OpenMM simulation engines (Modular prep, EM, NVT, NPT, QC gating, chunked MD, analysis).
+*   `src/colabmda/openmm/`: Flat OpenMM modules for preparation, EM, NVT, NPT, QC, chunked MD, analysis, and figures.
 *   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
 *   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
 *   `tests/`: Comprehensive unit and regression test suite (`pytest`).
@@ -74,7 +74,7 @@ If you prefer using the Google Colab web browser interface:
    ```
 
 #### 1.1.3. Crash Recovery & Checkpointing
-* **Timeout-Proof Execution:** Running simulations via `cmda colab exec` keeps the remote kernel in a `BUSY` execution state, permanently preventing Colab's 30-minute idle VM reaper from shutting down your run.
+* **Foreground Execution:** Run simulations through `cmda colab exec` with live output. Session termination can still occur; committed chunks and checkpoints support recovery.
 * **Granular Checkpoint Recovery:** If a Colab session expires at its 12-hour platform limit, simply restart the command. ColabMDA automatically detects saved `stage_*.state.xml` checkpoints on Google Drive and fast-forwards directly to the unfinished step.
 
 #### 1.1.4. Modeller License
@@ -137,7 +137,7 @@ Verify force field parameters, peptide docking, Amber leap parameterization, and
 ```bash
 pytest tests/ -v
 ```
-*(All 51 unit and regression tests pass cleanly).*
+Run the suite against the installed environment; GPU integration checks are separate.
 
 ---
 

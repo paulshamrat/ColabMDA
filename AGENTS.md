@@ -74,8 +74,8 @@ tools/ColabMDA/
      `03_md/r1` and `04_check`. Validate run identifiers before constructing paths.
    - **Simulation Pipeline:** Strictly numbered chronological sub-stages inside `<state>/<variant>/`:
      - `01_prep/`: Parameterization & solvation deliverables (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `prep.json`).
-     - `02_eq/`: 24-Stage VarMDyn equilibration (`eq.pdb`, `qc.png`, `qc.json`, `stages/`).
-     - `03_prod/`: Production replicas (`r1/`, `r2/`, `r3/`).
+     - `02_eq/`: Equilibration states, numerical QC (`equilibration_qc.json`), and downstream PNGs under `figures/`; staged and quick protocols remain distinct.
+     - `03_md/` in isolated pilots: production replicas (`r1/`, `r2/`, `r3/`); resolve existing normal project layouts through `ProjectPaths`.
 
 4. **Strict Single-Keyword File Naming Standard:**
    - Primary deliverables and coordinates must use clean, single-word keywords:
