@@ -32,6 +32,14 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
 
     print(f"[DEBUG] Checking for NPT files in: {workdir}")
     if os.path.exists(state_out):
+        if protocol == "varmdyn":
+            completed, _ = find_highest_completed_stage(workdir, 19, 24)
+            if completed != 24:
+                raise RuntimeError(
+                    "Final NPT state lacks complete staged artifacts; inspect before recovery"
+                )
+        if not os.path.exists(protocol_file):
+            raise RuntimeError("Final NPT state lacks protocol provenance; inspect before recovery")
         if os.path.exists(protocol_file):
             with open(protocol_file) as handle:
                 recorded = json.load(handle)
@@ -47,10 +55,6 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     highest_stage, latest_state_path = find_highest_completed_stage(
         workdir, start_stage=19, end_stage=24
     )
-    if highest_stage == 24 and os.path.exists(state_out):
-        print(f"✔ NPT already complete ({state_out} and stage 24 found). Skipping...")
-        return True
-
     # Ensure required input files exist
     if highest_stage >= 19 and latest_state_path:
         start_stage = highest_stage + 1

@@ -1,7 +1,8 @@
 # Contributing to ColabMDA
 
-Read the [main README](README.md) for installation, FKBP12/H-Ras workflows, Trp-cage
-and the repository layout. Follow [AGENTS.md](AGENTS.md) for development rules.
+Read the [main README](README.md) for the preserved complete baseline and repository
+layout. Shared CDKL5 guides are [apo](docs/apo.md) and [ATP/Mg](docs/atpmg.md),
+with [Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md) setup. Follow [AGENTS.md](AGENTS.md) for development rules.
 
 ## Development
 
@@ -24,7 +25,7 @@ use the single `scripts/setup.sh` installer and its key prompt when needed.
 - `remote/colab.py` owns committed snapshot deployment and Colab execution.
 - `examples/<name>/scripts/` contains thin user workflows calling the public
   CLI/API. Install fkbp, hras or trpcage with `cmda stage --example NAME --root ...`.
-  Do not duplicate scientific implementations or add extra example guide files.
+  Do not duplicate scientific implementations across platform adapters.
 
 Keep calculations separate from plotting. Preserve native author numbering and
 validate coordinate identities. Write runtime outputs into ignored project data
@@ -61,3 +62,17 @@ example-only quickstart or recreate a separate documentation site.
 Validate guide code blocks and command arguments against the current CLI. State
 which checks were executed and which GPU or cluster steps remain unexecuted.
 Record changes in the unreleased changelog without inventing a public release.
+
+## CDKL5 guides and platforms
+
+Maintain the complete root README alongside docs/apo.md and docs/atpmg.md. Platform
+setup belongs in docs/platforms/{colab,hpc}.md; common scientific commands stay in
+the state guides. Use explicit cd, environment activation and direct cmda commands.
+HPC alone needs the thin examples/hpc/simulate.slurm scheduler adapter.
+
+New runs use unnumbered state/structure/simulation folders and numbered variant
+processing steps. Preserve existing numbered example paths. Require canonical
+identity/density gates, frozen preparation inputs, real topology charges and
+noncovalent boundaries. Research production requires complete 24-stage timing and
+physical QC. Separate software tests, Colab GPU results and HPC pilot status.
+Update AGENTS.md and the local ignored PLAN.md with material design/status changes.

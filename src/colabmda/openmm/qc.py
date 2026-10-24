@@ -87,7 +87,38 @@ def analyze_logs(workdir, strict=False, protocol=None):
             passed = False
             reasons.append("absolute final density slope exceeds 1e-4 g/mL/ps")
 
+        invalid_stage_timing = []
         if effective_protocol == "varmdyn":
+            for stage in varmdyn_stages_found:
+                expected = 0
+                if 4 <= stage <= 9:
+                    expected = (stage - 3) * 10
+                elif 10 <= stage <= 14:
+                    expected = 60
+                elif 15 <= stage <= 23:
+                    expected = 60 + (stage - 14) * 100
+                elif stage == 24:
+                    expected = 1960
+                try:
+                    import xml.etree.ElementTree as ET
+
+                    stem = os.path.join(workdir, "equilibration", f"stage_{stage:02d}")
+                    with open(stem + ".json") as handle:
+                        metadata = json.load(handle)
+                    xml_time = float(ET.parse(stem + ".state.xml").getroot().attrib["time"])
+                    valid = (
+                        not metadata.get("test_mode", False)
+                        and math.isfinite(metadata["potential_energy_kj_mol"])
+                        and abs(metadata["time_ps"] - expected) < 0.001
+                        and abs(xml_time - expected) < 0.001
+                    )
+                except (KeyError, ValueError, OSError, ET.ParseError):
+                    valid = False
+                if not valid:
+                    invalid_stage_timing.append(stage)
+            if strict and invalid_stage_timing:
+                passed = False
+                reasons.append(f"staged timing/energy evidence invalid: {invalid_stage_timing}")
             if varmdyn_stages_missing:
                 print(
                     f"⚠ WARNING: Missing {len(varmdyn_stages_missing)}/24 VarMDyn stages: {varmdyn_stages_missing}"
@@ -109,6 +140,10 @@ def analyze_logs(workdir, strict=False, protocol=None):
             "reasons": reasons,
         }
         if effective_protocol == "varmdyn":
+            qc_data["varmdyn_timing_verified"] = (
+                not invalid_stage_timing and not varmdyn_stages_missing
+            )
+            qc_data["varmdyn_invalid_timing_stages"] = invalid_stage_timing
             qc_data["varmdyn_stages_total"] = 24
             qc_data["varmdyn_stages_verified"] = len(varmdyn_stages_found)
             qc_data["varmdyn_stages_complete"] = len(varmdyn_stages_missing) == 0

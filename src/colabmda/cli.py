@@ -126,7 +126,7 @@ def _dispatch_prep(args) -> int:
     from colabmda.modeller.substrate import assemble_system_model, fetch_rcsb_pdb
 
     root = resolve_project_root(args.root)
-    paths = ProjectPaths(root)
+    paths = ProjectPaths(root, state=getattr(args, "state", None))
     paths.init_layout()
 
     if args.state:
@@ -207,7 +207,14 @@ def _dispatch_prep(args) -> int:
         ):
             tmpl_path = fetch_rcsb_pdb("3X2V", paths.template_dir)
 
-    out_model = paths.model_pdb(spec)
+    if paths.state_dir is not None:
+        if not rec_path or not rec_path.exists():
+            raise FileNotFoundError("Provide a reviewed --receptor")
+        from colabmda.core.workflow import preparation_request
+
+        if preparation_request(paths, spec, rec_path, tmpl_path):
+            return 0
+    out_model = paths.prep_dir(spec) / "model.pdb"
     out_model.parent.mkdir(parents=True, exist_ok=True)
 
     if rec_path and rec_path.exists():
@@ -239,6 +246,13 @@ def _dispatch_prep(args) -> int:
                 if solvated_out.exists():
                     print(f"[OK] Built solvated model: {solvated_out}")
                 print(f"[OK] Generated provenance metadata: {paths.prep_json(spec)}")
+                if paths.state_dir is not None:
+                    from colabmda.core.proteins import check_topology
+
+                    check_topology(paths.prep_dir(spec), spec=spec)
+                    (paths.prep_dir(spec) / "PREP_DONE").write_text(
+                        "Verified canonical coordinates, topology composition, charges and outputs\n"
+                    )
             else:
                 (paths.prep_dir(spec) / "build_error.log").write_text(log_out)
                 raise RuntimeError(
@@ -262,10 +276,11 @@ def _dispatch_stage(args) -> int:
     from colabmda.core.taxonomy import SystemSpec
 
     root = resolve_project_root(args.root)
-    paths = ProjectPaths(root)
+    paths = ProjectPaths(root, state=getattr(args, "state", None))
     paths.init_layout()
 
     spec = SystemSpec.from_tag(args.state, variant=args.variant, protein=args.protein)
+    paths.log_dir(spec).mkdir(parents=True, exist_ok=True)
     paths.prep_dir(spec).mkdir(parents=True, exist_ok=True)
     paths.eq_dir(spec).mkdir(parents=True, exist_ok=True)
     paths.analysis_dir(spec).mkdir(parents=True, exist_ok=True)
@@ -273,6 +288,10 @@ def _dispatch_stage(args) -> int:
     replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
     for rep in replicas:
         paths.replica_dir(spec, rep).mkdir(parents=True, exist_ok=True)
+
+    if not getattr(args, "scripts", False):
+        print(f"[OK] Staged {paths.variant_dir(spec)}; use direct cmda commands")
+        return 0
 
     run_sh = paths.scripts_dir / "run.sh"
     run_reps = " ".join(f"r{r}" if r.isdigit() else r for r in replicas)
@@ -437,7 +456,7 @@ def _dispatch_sim(args) -> int:
     )
 
     root = resolve_project_root(args.root)
-    paths = ProjectPaths(root)
+    paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
 
     raw_stages = [s.strip().lower() for s in args.stage.split(",") if s.strip()]
@@ -460,6 +479,18 @@ def _dispatch_sim(args) -> int:
     inpcrd = str(paths.prepared_inpcrd(spec)) if paths.prepared_inpcrd(spec).exists() else None
 
     protocol = _normalize_equil_protocol(getattr(args, "protocol", "staged"))
+    software_test = getattr(args, "software_test", False)
+    if os.environ.get("COLABMDA_TEST_1_24", "").lower() in {"1", "true"} and not software_test:
+        raise SystemExit("Reduced 1-24 test steps require --software-test")
+    if protocol == "quick" and not software_test:
+        raise SystemExit(
+            "Quick equilibration requires --software-test; research uses --protocol staged"
+        )
+
+    if paths.state_dir is not None and not software_test:
+        from colabmda.core.workflow import verify_prepared
+
+        verify_prepared(paths.prep_dir(spec))
 
     for stage in stages:
         print(f"\n[SIM] Executing stage: {stage.upper()} for {spec.state_tag}/{spec.variant}")
@@ -493,8 +524,18 @@ def _dispatch_sim(args) -> int:
                 protocol=protocol,
             )
         elif stage in ["qc", "check-equil"]:
-            openmm_qc(eq_dir, strict=False, protocol=protocol)
+            openmm_qc(eq_dir, strict=not software_test, protocol=protocol)
         elif stage == "md":
+            if not software_test:
+                import json
+
+                recorded = Path(eq_dir) / "npt_protocol.json"
+                if (
+                    not recorded.exists()
+                    or json.loads(recorded.read_text()).get("protocol") != "varmdyn"
+                ):
+                    raise SystemExit("Research production requires completed staged equilibration")
+                openmm_qc(eq_dir, strict=True, protocol="varmdyn")
             replicas = [r.strip() for r in args.replica.split(",") if r.strip()]
             for rep in replicas:
                 rep_dir = str(paths.replica_dir(spec, rep))
@@ -531,7 +572,7 @@ def _dispatch_merge(args) -> int:
     from colabmda.core.taxonomy import SystemSpec
     from colabmda.openmm.merge import merge_logs
 
-    paths = ProjectPaths(resolve_project_root(args.root))
+    paths = ProjectPaths(resolve_project_root(args.root), state=args.state)
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
     for rep in [r.strip() for r in args.replicas.split(",") if r.strip()]:
         directory = paths.replica_dir(spec, rep)
@@ -575,7 +616,7 @@ def _dispatch_analyze(args) -> int:
     from colabmda.openmm.commands import openmm_analysis
 
     root = resolve_project_root(args.root)
-    paths = ProjectPaths(root)
+    paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
     name = f"{spec.state_tag}_{spec.variant}"
     analysis_dir = paths.analysis_dir(spec)
@@ -607,7 +648,7 @@ def _dispatch_analyze(args) -> int:
             reference=str(paths.model_pdb(spec)),
         )
     else:
-        print(f"[WARN] No suitable trajectory/topology found in {rep_dir}")
+        raise FileNotFoundError(f"No suitable trajectory/topology found in {rep_dir}")
     return 0
 
 
@@ -615,7 +656,7 @@ def _dispatch_compare(args) -> int:
     from colabmda.core.project import ProjectPaths, resolve_project_root
 
     root = resolve_project_root(args.root)
-    paths = ProjectPaths(root)
+    paths = ProjectPaths(root, state=getattr(args, "state", None))
     variants = [v.strip() for v in args.variants.split(",") if v.strip()]
     print(f"[OK] Comparing variants {variants} for state {args.state} under {paths.root}")
     return 0
@@ -624,6 +665,37 @@ def _dispatch_compare(args) -> int:
 def main():
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
+
+    fetch = sub.add_parser(
+        "fetch", help="Retrieve an archive and verify author/UniProt residue mapping"
+    )
+    fetch.add_argument("--pdb-id", required=True)
+    fetch.add_argument("--uniprot-id", required=True)
+    fetch.add_argument("--chain", default="A")
+    fetch.add_argument("--range", nargs=2, type=int, required=True)
+    fetch.add_argument(
+        "--mutations", default="", help="Comma-separated WT mutation identities to verify"
+    )
+    fetch.add_argument("--state", required=True)
+    fetch.add_argument("--root", default=None, help=ROOT_HELP)
+
+    check = sub.add_parser(
+        "check", help="Verify a canonical WT/mutant model against frozen structure inputs"
+    )
+    check.add_argument("--state", required=True)
+    check.add_argument("--variant", default="WT")
+    check.add_argument("--model", default=None)
+    check.add_argument("--root", default=None, help=ROOT_HELP)
+
+    assemble = sub.add_parser(
+        "assemble", help="Transfer a reviewed ATP/Mg pose to a verified receptor frame"
+    )
+    for name in ["receptor", "reference", "ligand", "ions", "mapping", "out"]:
+        assemble.add_argument("--" + name, required=True)
+    assemble.add_argument("--chain", default="A")
+    assemble.add_argument("--variant", default="WT")
+    assemble.add_argument("--core", nargs=2, type=int, default=[30, 220])
+    assemble.add_argument("--max-rmsd", type=float, default=1.0)
 
     # ---------------- OpenMM ----------------
     p_openmm = sub.add_parser("openmm", help="OpenMM protein-water workflow")
@@ -1022,6 +1094,9 @@ def main():
     p_top_stage.add_argument(
         "--example", choices=["trpcage", "fkbp", "hras"], help="Install a complete runnable example"
     )
+    p_top_stage.add_argument(
+        "--scripts", action="store_true", help="Optionally generate legacy batch wrappers"
+    )
     p_top_stage.add_argument("--variant", default="WT", help="Variant name (default: WT)")
     p_top_stage.add_argument("--protein", default="cdkl5", help="Protein name (default: cdkl5)")
     p_top_stage.add_argument(
@@ -1072,6 +1147,11 @@ def main():
         choices=["staged", "quick", "default", "varmdyn"],
         default="staged",
         help="Equilibration protocol: staged (rigorous 24-stage; default) or quick (smoke-test)",
+    )
+    p_top_sim.add_argument(
+        "--software-test",
+        action="store_true",
+        help="Explicit short test; permits quick protocol and reports physical QC without a research gate",
     )
     p_top_sim.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
 
@@ -1148,6 +1228,11 @@ def main():
     p_top_snap.add_argument("--font-path", default=None, help="Custom TrueType font path")
 
     args = p.parse_args()
+
+    if args.tool in {"fetch", "check", "assemble"}:
+        from colabmda.core import workflow
+
+        raise SystemExit(getattr(workflow, args.tool)(args))
 
     if args.tool == "colab":
         from colabmda.remote.colab import colab_manager_cli

@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased development
 
+- Add shared CDKL5 apo and ATP/one-Mg guides, nested platform instructions,
+  a thin HPC Slurm adapter, and state-first paths for new direct runs.
+- Verify archive reference mapping, model identity, reviewed cofactor transfer,
+  actual topology composition/charges and immutable preparation inputs.
+- Correct Amber monovalent-ion restraint selection and noncovalent PDB boundaries;
+  retain ensemble time/step count and gate research production on full-stage QC.
+
 - Flattened OpenMM operation modules and consolidated checkpointed production.
 - Added the complete Trp-cage example and safe `cmda stage --example trpcage`
   installation, including example resources in wheels and source snapshots.

@@ -129,7 +129,8 @@ def test_top_level_single_keyword_help():
         assert cmd in res.stdout
 
 
-def test_top_level_stage_command(tmp_path):
+def test_top_level_stage_command(tmp_path, monkeypatch):
+    monkeypatch.setenv("COLABMDA_RUN_ID", "cdkl5_staged_v1")
     res = subprocess.run(
         [
             sys.executable,
@@ -149,41 +150,11 @@ def test_top_level_stage_command(tmp_path):
         text=True,
     )
     assert res.returncode == 0
-    variant_base = tmp_path / "simulation" / "atp_2mg_eb2" / "WT"
-    assert (variant_base / "prep").is_dir()
-    assert (variant_base / "eq").is_dir()
-    assert (variant_base / "r1").is_dir()
-    assert (variant_base / "r2").is_dir()
-    assert (variant_base / "r3").is_dir()
-    assert (tmp_path / "analysis" / "atp_2mg_eb2" / "WT").is_dir() or (
-        variant_base / "analysis"
-    ).is_dir()
-
-    # Verify decoupled scripts
-    run_sh = tmp_path / "scripts" / "run.sh"
-    eq_slurm = tmp_path / "scripts" / "eq.slurm"
-    prod_slurm = tmp_path / "scripts" / "prod.slurm"
-    chain_sh = tmp_path / "scripts" / "chain.sh"
-    submit_slurm = tmp_path / "scripts" / "submit.slurm"
-    submit_eq = tmp_path / "scripts" / "submit_eq.slurm"
-    submit_prod = tmp_path / "scripts" / "submit_prod.slurm"
-    submit_chain = tmp_path / "scripts" / "submit_chain.sh"
-
-    assert run_sh.exists()
-    assert eq_slurm.exists()
-    assert prod_slurm.exists()
-    assert chain_sh.exists()
-    assert submit_slurm.exists()
-    assert submit_eq.exists()
-    assert submit_prod.exists()
-    assert submit_chain.exists()
-
-    assert "#SBATCH --array=1-3" in prod_slurm.read_text()
-    assert "cmda sim" in run_sh.read_text()
-    assert "--stage eq" in eq_slurm.read_text()
-    assert "PROJECT_ROOT" in eq_slurm.read_text()
-    assert "PROJECT_ROOT" in prod_slurm.read_text()
-    assert "--dependency=afterok:" in chain_sh.read_text()
+    variant_base = tmp_path / "data/atp_2mg_eb2/simulation/cdkl5_staged_v1/WT"
+    for folder in ["01_prep", "02_eq", "03_md/r1", "03_md/r2", "03_md/r3", "04_analysis"]:
+        assert (variant_base / folder).is_dir()
+    assert (tmp_path / "logs/atp_2mg_eb2/cdkl5_staged_v1/WT").is_dir()
+    assert not (tmp_path / "scripts").exists()
 
 
 def test_top_level_subcommands_help():

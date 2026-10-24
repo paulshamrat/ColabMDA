@@ -100,6 +100,8 @@ def load_stage_state(simulation, path, load_velocities=True):
         state = XmlSerializer.deserialize(handle.read())
     simulation.context.setPeriodicBoxVectors(*state.getPeriodicBoxVectors())
     simulation.context.setPositions(state.getPositions())
+    simulation.context.setTime(state.getTime())
+    simulation.context.setStepCount(state.getStepCount())
     if load_velocities:
         simulation.context.setVelocities(state.getVelocities())
 
@@ -116,7 +118,8 @@ def add_solute_heavy_atom_restraints(system, topology, positions, parameter_name
     solvent_or_bulk_ions = {"HOH", "WAT", "OPC", "NA", "CL", "K"}
     count = 0
     for atom, position in zip(topology.atoms(), positions):
-        if atom.residue.name.upper() in solvent_or_bulk_ions:
+        residue_name = atom.residue.name.upper().rstrip("+-0123456789")
+        if residue_name in solvent_or_bulk_ions:
             continue
         if atom.element is not None and atom.element.symbol == "H":
             continue
@@ -142,6 +145,7 @@ def save_stage_artifacts(simulation, workdir, stage, description):
     state = simulation.context.getState(getEnergy=True)
     record = {
         "stage": int(stage),
+        "test_mode": os.environ.get("COLABMDA_TEST_1_24", "").lower() in {"1", "true"},
         "description": description,
         "step": int(state.getStepCount()),
         "time_ps": state.getTime().value_in_unit(unit.picoseconds),
@@ -183,17 +187,24 @@ def find_highest_completed_stage(
     if not os.path.exists(eq_dir):
         return 0, None
 
-    for stage_num in range(end_stage, start_stage - 1, -1):
+    highest, latest = 0, None
+    gap = False
+    for stage_num in range(start_stage, end_stage + 1):
         state_file = os.path.join(eq_dir, f"stage_{stage_num:02d}.state.xml")
         json_file = os.path.join(eq_dir, f"stage_{stage_num:02d}.json")
-        if (
-            os.path.exists(state_file)
-            and os.path.exists(json_file)
-            and os.path.getsize(state_file) > 0
-        ):
-            return stage_num, state_file
-
-    return 0, None
+        complete = all(os.path.isfile(p) and os.path.getsize(p) for p in [state_file, json_file])
+        if not complete:
+            gap = True
+            continue
+        if gap:
+            raise RuntimeError(
+                "Non-contiguous equilibration stages; inspect artifacts before recovery"
+            )
+        with open(json_file) as handle:
+            if json.load(handle).get("stage") != stage_num:
+                raise RuntimeError(f"Incorrect equilibration stage metadata: {json_file}")
+        highest, latest = stage_num, state_file
+    return highest, latest
 
 
 def sync_outputs(workdir, sync_dir, extra_files=None):

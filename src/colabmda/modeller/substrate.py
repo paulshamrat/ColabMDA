@@ -992,4 +992,30 @@ def assemble_system_model(
         current_pdb = dock_pdb
 
     shutil.copy2(current_pdb, out_path)
+    terminate_components(out_path)
     return out_path
+
+
+def terminate_components(path):
+    """Separate noncovalent PDB components so LEaP cannot join protein to ligand."""
+    path = Path(path)
+    output = []
+    previous = None
+    for line in path.read_text().splitlines(keepends=True):
+        if line.startswith("TER"):
+            previous = None
+        if line.startswith(("ATOM  ", "HETATM")):
+            protein = line[17:20].strip() in AA3_TO_1 or line[17:20].strip() in {
+                "HID",
+                "HIE",
+                "HIP",
+                "ASH",
+                "GLH",
+                "CYX",
+            }
+            component = ("protein", line[21]) if protein else ("other", line[21:27])
+            if previous is not None and component != previous:
+                output.append("TER\n")
+            previous = component
+        output.append(line)
+    path.write_text("".join(output))

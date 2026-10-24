@@ -33,6 +33,13 @@ ColabMDA is organized into clear, functional modules:
 ---
 
 
+CDKL5 command-based workflows are in [Protein in water](docs/apo.md) and
+[ATP with one Mg](docs/atpmg.md). Platform instructions are separate:
+[Google Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
+These guides use `data/{apo,atpmg}/{structure,simulation}` for new runs;
+existing numbered examples below retain their historical paths. The full README
+baseline remains here while the shared guides are validated.
+
 ## 1. Platform Setup
 
 Use the checkout whose instructions you are reading. This development guide includes
@@ -209,6 +216,30 @@ and [AGENTS.md](AGENTS.md).
 ---
 
 ## 2. Project Architecture
+
+For the new direct CDKL5 workflow, use this shared layout on Colab and HPC:
+
+```text
+colabmda-example/
+├── data/{apo,atpmg}/
+│   ├── structure/{raw,mapping,models}/
+│   └── simulation/<run>/<variant>/
+│       ├── 01_prep/
+│       ├── 02_eq/
+│       ├── 03_md/{r1,r2,r3}/
+│       └── 04_analysis/
+└── logs/{apo,atpmg}/<run>/<variant>/
+```
+
+Only processing steps are numbered. Use a fresh `COLABMDA_RUN_ID` for changed
+inputs or protocol. `cmda stage --state apo --variant WT --root "$PROJECT_ROOT"`
+creates the directories and no runner scripts by default. Colab runs direct
+commands; the [HPC adapter](examples/hpc/simulate.slurm) runs those same commands
+inside Slurm. Platform setup is in [Colab](docs/platforms/colab.md) and
+[HPC](docs/platforms/hpc.md); the state guides hold the scientific workflow.
+
+The numbered example architecture below remains supported for existing runs.
+
 
 The tool repository contains the implementation and reusable workflow templates.
 Each execution project contains its own scripts, inputs, outputs and logs. No
@@ -557,8 +588,8 @@ Its four-site OPC construction uses TIP4P-Ew starting geometry with OPC paramete
 Retain `prep.json`, `parameterization.json`, the topology, `system.xml`,
 `npt.state.xml` and the run/input/runtime records with the production outputs.
 
-Read `equilibration_qc.json` and the downstream PNGs under `figures/`. High-level
-`cmda sim` reports QC without enforcing a production gate. A successful exit or
+Read `equilibration_qc.json` and the downstream PNGs under `figures/`. Research `cmda sim` enforces staged timing and physical QC before production.
+Explicit `--software-test` runs report physical QC without a research gate. A successful exit or
 an output marker does not certify physical equilibration. The separate
 `cmda openmm qc` command fails on QC failure unless `--warn-only` is selected.
 No QC PDF is produced.
@@ -619,8 +650,8 @@ production, not one continuous 300 ns trajectory.
 
 Production currently fixes the timestep at 2 fs; there is no production timestep
 CLI option. Changing `--traj-interval` changes saved output, not the integrator.
-The high-level `--steps` testing override applies to quick equilibration, not to
-the production target. Use intervals corresponding to whole integration steps;
+The high-level `--steps` testing override changes the requested production step
+count as well as quick equilibration. Use `--total-ns` for research duration. Use intervals corresponding to whole integration steps;
 the implementation converts requested intervals to integer step counts.
 
 #### 3.5.5. Interruption & Checkpoint Recovery
@@ -997,6 +1028,13 @@ reported separately from an actual GPU integration run.
 ## Changelog
 
 ### Unreleased Development
+
+- Add CDKL5 apo and ATP/one-Mg command guides with shared Colab/HPC platform setup
+  and unnumbered state/structure/simulation folders for new runs.
+- Check archive-to-UniProt mapping, model identities, reviewed cofactor transfer,
+  topology composition/charges and preparation reuse before simulation.
+- Exclude Amber bulk monovalent ions from solute restraints, preserve cumulative
+  stage time on ensemble transfer/recovery, and enforce research QC before MD.
 
 - Added small FKBP12 WT/F37V and H-Ras–GDP/Mg WT/G12V workflows, replacing CDKL5
   as the main guide illustration while retaining the full protocol reference.

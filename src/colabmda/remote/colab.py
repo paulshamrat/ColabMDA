@@ -63,6 +63,10 @@ def _make_source_zip(repo_root: Path) -> Path:
         "scripts/setup.sh",
         "pyproject.toml",
         "README.md",
+        "docs/apo.md",
+        "docs/atpmg.md",
+        "docs/platforms/colab.md",
+        "docs/platforms/hpc.md",
         "LICENSE",
         "environment.yml",
     ]

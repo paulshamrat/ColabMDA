@@ -19,6 +19,6 @@ if not history or history[-1]!=record: history.append(record)
 p.write_text(json.dumps(history,indent=2)+"\n")
 PYTHON
 verify_run
-cmda sim --root "$PROJECT_ROOT" --state apo --variant WT --stage md --replica r1 --total-ns "$PRODUCTION_NS" --checkpoint-ps "$CHECKPOINT_PS" --traj-interval "$FRAME_PS"
+cmda sim --software-test --root "$PROJECT_ROOT" --state apo --variant WT --stage md --replica r1 --total-ns "$PRODUCTION_NS" --checkpoint-ps "$CHECKPOINT_PS" --traj-interval "$FRAME_PS"
 test -s "$SYSTEM_DIR/03_md/r1/prod.chk"
 printf 'Production command completed for %s ns; frame validation follows\n' "$PRODUCTION_NS" > "$SYSTEM_DIR/03_md/r1/MD_DONE"

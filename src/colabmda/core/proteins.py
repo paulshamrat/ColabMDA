@@ -369,7 +369,17 @@ def simulate(root, name, step, variant="WT"):
     elif step == "equilibrate":
         if not (system / "01_prep/PREP_DONE").exists():
             raise ValueError("Preparation incomplete")
-        cli("sim", *args, "--stage", "eq", "--protocol", "quick", "--equil-time", "100")
+        cli(
+            "sim",
+            *args,
+            "--stage",
+            "eq",
+            "--protocol",
+            "quick",
+            "--equil-time",
+            "100",
+            "--software-test",
+        )
         for filename in ["system.xml", "npt.state.xml", "equilibration_qc.json"]:
             if not (system / "02_eq" / filename).stat().st_size:
                 raise ValueError("Incomplete equilibration")
@@ -392,6 +402,7 @@ def simulate(root, name, step, variant="WT"):
         cli(
             "sim",
             *args,
+            "--software-test",
             "--stage",
             "md",
             "--replica",
@@ -471,7 +482,7 @@ def check_run(run, system, name, variant, sequence):
     print(f"RUN_DONE: {name} {variant}, {ns} ns; physical QC: {qc['passed']}")
 
 
-def check_topology(folder, name):
+def check_topology(folder, name=None, *, spec=None):
     """Check the actual Amber charges/composition without running dynamics."""
     from openmm import NonbondedForce, unit
     from openmm.app import AmberPrmtopFile
@@ -494,17 +505,29 @@ def check_topology(folder, name):
             "charge": sum(charges[a.index] for a in r.atoms()),
         }
         for r in topology.topology.residues()
-        if r.name in {"GDP", "MG"}
+        if r.name in {"ATP", "ADP", "GTP", "GDP", "MG", "MN"}
     ]
-    if name == "hras":
-        if sorted(r["residue"] for r in components) != ["GDP", "MG"]:
-            raise ValueError("Wrong prepared GDP/Mg composition")
-        for r in components:
-            count, charge = (40, -3) if r["residue"] == "GDP" else (1, 2)
-            if r["atoms"] != count or abs(r["charge"] - charge) > 0.0001:
-                raise ValueError("Wrong nucleotide/ion topology atoms or charge")
-    elif components:
-        raise ValueError("Unexpected nucleotide/ion in apo tutorial")
+    expected = {"GDP": (40, -3), "MG": (1, 2)} if name == "hras" else {}
+    composition = {key: 1 for key in expected}
+    if spec is not None:
+        if spec.ligand:
+            counts = {"ATP": (43, -4), "ADP": (39, -3), "GTP": (44, -4), "GDP": (40, -3)}
+            if spec.ligand not in counts:
+                raise ValueError("Topology validation requires a supported nucleotide")
+            expected[spec.ligand] = counts[spec.ligand]
+            composition[spec.ligand] = 1
+        for ion, count in spec.ions.items():
+            if ion != "MG":
+                raise ValueError("This validation route currently supports Mg only")
+            expected[ion] = (1, 2)
+            composition[ion] = count
+    actual = {key: sum(r["residue"] == key for r in components) for key in expected}
+    if actual != composition or any(r["residue"] not in expected for r in components):
+        raise ValueError("Wrong prepared nucleotide/ion composition")
+    for residue in components:
+        count, charge = expected[residue["residue"]]
+        if residue["atoms"] != count or abs(residue["charge"] - charge) > 0.0001:
+            raise ValueError("Wrong nucleotide/ion topology atoms or charge")
     # Defaults are OPC with its complete 12-6 ion set. Loading the 12-6-4 LJ
     # values without adding the separate C4 term is a different, incomplete model.
     expected_ions = {

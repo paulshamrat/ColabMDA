@@ -62,32 +62,43 @@ def resolve_project_root(
 class ProjectPaths:
     """Standardized, decoupled directory hierarchy for ColabMDA simulation projects.
 
-    Layout:
-        <project_root>/
-        ├── 01_structure/ (or legacy structure/)
-        │   ├── protein/
-        │   ├── template/
-        │   ├── ligand/
-        │   ├── peptide/
-        │   └── variants/
-        ├── 02_simulation/ (or legacy simulation/)
-        │   └── <state>/<variant>/
-        │       ├── 01_prep/ (or prep/)
-        │       ├── 02_eq/   (or eq/)
-        │       └── 03_prod/ (or r1/, r2/...)
-        └── 03_analysis/ (or legacy analysis/)
-            └── <state>/
-                ├── <variant>/ (r1/, r2/, aggregate/)
-                └── compare/
+    New state-aware CLI runs use data/<state>/structure and
+    data/<state>/simulation/<run>/<variant>/{01_prep,02_eq,03_md,04_analysis}.
+    Existing numbered and legacy runs remain readable in their original locations.
     """
 
     root: Path
+    state: str | None = None
 
     def __post_init__(self):
         self.root = Path(self.root).resolve()
+        if self.state and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.state):
+            raise ValueError("Invalid state")
         self.run_id = os.environ.get("COLABMDA_RUN_ID", "")
         if self.run_id and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.run_id):
             raise ValueError("Invalid COLABMDA_RUN_ID")
+
+    @property
+    def state_dir(self) -> Path | None:
+        """Use state-first paths for new CLI runs; preserve existing run locations."""
+        if self.state is None:
+            return None
+        if self.run_id and any(
+            (self.root / "data" / folder / self.run_id).exists()
+            for folder in ["02_simulation", "02_pilot"]
+        ):
+            return None
+        if not self.run_id and any(
+            (base / self.state).exists()
+            for base in [
+                self.root / "data/simulation",
+                self.root / "simulation",
+                self.root / "02_simulation",
+            ]
+        ):
+            return None
+        name = "atpmg" if self.state in {"atp_mg", "atpmg", "atp_1mg"} else self.state
+        return self.root / "data" / name
 
     @property
     def config_yaml(self) -> Path:
@@ -100,6 +111,8 @@ class ProjectPaths:
     @property
     def structure_dir(self) -> Path:
         """Resolve data/structure, 01_structure, or structure."""
+        if self.state_dir is not None:
+            return self.state_dir / "structure"
         numbered = self.root / "data/01_structure"
         if self.run_id or numbered.exists():
             return numbered
@@ -120,11 +133,11 @@ class ProjectPaths:
 
     @property
     def protein_dir(self) -> Path:
-        return self.structure_dir / "protein"
+        return self.structure_dir / ("models/WT" if self.state_dir is not None else "protein")
 
     @property
     def template_dir(self) -> Path:
-        return self.structure_dir / "template"
+        return self.structure_dir / ("raw" if self.state_dir is not None else "template")
 
     @property
     def ligand_dir(self) -> Path:
@@ -136,11 +149,14 @@ class ProjectPaths:
 
     @property
     def variants_dir(self) -> Path:
-        return self.structure_dir / "variants"
+        return self.structure_dir / ("models" if self.state_dir is not None else "variants")
 
     @property
     def simulation_base(self) -> Path:
         """Resolve data/simulation, 02_simulation, or simulation."""
+        if self.state_dir is not None:
+            base = self.state_dir / "simulation"
+            return base / self.run_id if self.run_id else base
         if self.run_id:
             numbered = self.root / "data/02_simulation" / self.run_id
             if numbered.exists() or (self.root / "data/00_setup/example.json").exists():
@@ -164,6 +180,8 @@ class ProjectPaths:
     @property
     def analysis_base(self) -> Path:
         """Resolve data/analysis, 03_analysis, or analysis."""
+        if self.state_dir is not None:
+            return self.simulation_base / "compare"
         p_data = self.root / "data" / "analysis"
         p03 = self.root / "03_analysis"
         p_legacy = self.root / "analysis"
@@ -181,12 +199,18 @@ class ProjectPaths:
 
     def variant_dir(self, spec: SystemSpec) -> Path:
         """Root directory for a specific state and variant."""
+        if self.state_dir is not None:
+            if not self.run_id:
+                raise ValueError(
+                    "Set COLABMDA_RUN_ID to a fresh run name, or its original name to resume"
+                )
+            return self.simulation_base / spec.variant
         return self.simulation_base / spec.state_tag / spec.variant
 
     def prep_dir(self, spec: SystemSpec) -> Path:
         """Preparation folder containing model coordinates and Amber topologies."""
         v_dir = self.variant_dir(spec)
-        if self.run_id:
+        if self.run_id or self.state_dir is not None:
             return v_dir / "01_prep"
         if (v_dir / "01_prep").exists():
             return v_dir / "01_prep"
@@ -233,7 +257,7 @@ class ProjectPaths:
     def eq_dir(self, spec: SystemSpec) -> Path:
         """Equilibration folder (em, nvt, npt, qc)."""
         v_dir = self.variant_dir(spec)
-        if self.run_id:
+        if self.run_id or self.state_dir is not None:
             return v_dir / "02_eq"
         if (v_dir / "02_eq").exists():
             return v_dir / "02_eq"
@@ -251,7 +275,7 @@ class ProjectPaths:
     def prod_dir(self, spec: SystemSpec) -> Path:
         """Production base folder for this variant."""
         v_dir = self.variant_dir(spec)
-        if self.run_id:
+        if self.run_id or self.state_dir is not None:
             return v_dir / "03_md"
         p03 = v_dir / "03_prod"
         return p03 if p03.exists() else v_dir
@@ -264,6 +288,8 @@ class ProjectPaths:
 
     def analysis_dir(self, spec: SystemSpec) -> Path:
         """Analysis folder for this specific state and variant."""
+        if self.state_dir is not None:
+            return self.variant_dir(spec) / "04_analysis"
         if self.run_id:
             if "02_simulation" in self.simulation_base.parts:
                 return self.variant_dir(spec) / "04_analysis"
@@ -280,13 +306,23 @@ class ProjectPaths:
             return canon
         return legacy
 
+    def log_dir(self, spec: SystemSpec) -> Path:
+        """Execution logs mirror state/run/variant, independently of scientific data."""
+        if self.state_dir is not None:
+            return self.root / "logs" / self.state_dir.name / self.run_id / spec.variant
+        return self.root / "logs" / "02_simulation" / self.run_id / spec.variant
+
     def compare_dir(self, state_tag: str) -> Path:
         """Cross-variant comparison folder for a state."""
+        if self.state_dir is not None:
+            return self.analysis_base
         return self.analysis_base / state_tag / "compare"
 
     def find_template(self, filename: str) -> Path | None:
         """Search for a template or structure file flexibly across structure subfolders."""
-        bases = [self.structure_dir, self.root / "data" / "structure", self.root / "structure"]
+        bases = [self.structure_dir]
+        if self.state_dir is None:
+            bases += [self.root / "data" / "structure", self.root / "structure"]
         candidates = []
         for b in bases:
             if not b.exists():
@@ -319,6 +355,11 @@ class ProjectPaths:
 
     def init_layout(self, numbered: bool = True) -> None:
         """Create only the resolved layout; never mirror compatibility trees."""
+        if self.state_dir is not None:
+            for folder in ["raw", "mapping", "models"]:
+                (self.structure_dir / folder).mkdir(parents=True, exist_ok=True)
+            self.simulation_base.mkdir(parents=True, exist_ok=True)
+            return
         for path in [
             self.scripts_dir,
             self.protein_dir,

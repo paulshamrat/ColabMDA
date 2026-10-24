@@ -11,15 +11,31 @@
   core dependency specification. Optional MODELLER stays separate for license
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
 - `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
-  Main README owns installation/example/Colab/restart instructions. Do not add
-  separate example Markdown guides or project configuration YAML.
+  Main README retains its complete baseline. Shared CDKL5 scientific commands live
+  in docs/apo.md and docs/atpmg.md; docs/platforms/{colab,hpc}.md owns platform
+  setup and execution. Keep one scientific workflow across platforms; no user YAML.
+  examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
 - `cmda stage --example trpcage --root ...` installs templates and records hashes
   in data/00_setup/example.json. Ship templates in wheels and source snapshots.
   Refuse symlinks and different existing files; never overwrite user settings.
 - One working project: research/projects/colabmda-example on Divergent and Drive.
   Its numbered scripts are copied templates; tests exercise those same scripts.
-  Runtime paths are data/01_structure and data/02_simulation/<run>/, with
-  logs/02_simulation/<run>/. Preserve existing historical provenance verbatim.
+  Historical runtime paths are data/01_structure and data/02_simulation/<run>/,
+  with logs/02_simulation/<run>/. Preserve their provenance verbatim.
+- New direct CDKL5 runs use data/{apo,atpmg}/structure/{raw,mapping,models} and
+  data/<state>/simulation/<run>/<variant>/{01_prep,02_eq,03_md,04_analysis}, with
+  logs/<state>/<run>/<variant>. State, structure and simulation stay unnumbered.
+  Existing numbered runs remain readable; never migrate active scientific outputs.
+- CDKL5 uses O76039, 4BGQ A, residues 1–303. Derive canonical positions from
+  archive reference mappings; distinguish observed coordinates from modeled gaps.
+  ATP/one-Mg assembly reuses the reviewed activation-study pose and receptor,
+  checks identities and clashes, and records hashes. A rebuilt apo loop is not
+  accepted for holo by sequence identity alone. Matched apo/holo studies must
+  start from the same reviewed protein backbone and modeling method.
+- Research uses full 24-stage equilibration, continuous physical time and strict
+  timing/energy/thermodynamic QC before MD. Quick/reduced profiles require explicit
+  --software-test. Check solvent/Amber salt naming so bulk ions stay unrestrained.
+  Validate noncovalent component boundaries before LEaP to prevent protein–ATP bonds.
 - Never vendor external software or put coordinates/trajectories in src/examples.
   Scientific inputs, caches, reports, checkpoints and figures stay in ignored data.
   Compiler decks run in temporary sandboxes, not scientific data folders.
@@ -30,7 +46,7 @@
   mmCIF and PDB. Check sequence identity and C-alpha coordinate presence.
 - Trp-cage is a designed peptide; verify its deposited sequence, model 1 and
   author chain A. A canonical UniProt mutation annotation is not applicable.
-- The main guide uses FKBP12 apo (1D6O A; author 1–107 maps to current P62942
+- The historical small-protein guide uses FKBP12 apo (1D6O A; author 1–107 maps to current P62942
   2–108, WT/F37V) and H-Ras GDP/Mg (4Q21 A; P01112 1–166, WT/G12V).
   Preserve raw author numbering; derived models use verified UniProt numbering.
   Check exact sequences/C-alpha presence, stop on mismatches, and retain mapping
@@ -89,11 +105,20 @@ simulation protocol, small example, acknowledgements, changelog and citation
 sections. Make focused updates; do not replace the full guide with a quickstart
 or reorganize it without an explicit user request.
 
-Developer rules belong in CONTRIBUTING.md and AGENTS.md. Do not recreate docs/,
-ReadTheDocs configuration, Sphinx dependencies or competing installation guides.
+Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary
+Markdown workflow guides under docs/ with nested platform setup, as explicitly
+requested by the user. Do not restore ReadTheDocs/Sphinx or duplicate apo/holo
+scientific procedures separately for Colab and HPC. Update the root README,
+AGENTS.md and local ignored PLAN.md together when design/status changes.
 Keep commands accurate, label compatibility limits, state which machine runs each
 step, and check shell syntax, CLI arguments and local links after guide changes.
 Preserve the timestep/unit conversions, integration-step, frame/chunk, stride and
 storage calculations and per-replica time semantics when editing the guide.
 Validate their examples against implementation settings and explicit arithmetic.
 Distinguish completed CPU/script checks from actual GPU integration testing.
+
+HPC access follows workspace hpc CLI rules. Inspect resources before selecting
+Slurm settings. Test a single WT allocation before a panel or arrays; dynamic
+manifest bounds and dependencies belong in a later verified campaign adapter.
+Record scheduler/syntax checks separately from actual GPU acceptance. Do not
+modify or interrupt the active docking campaign while checking ColabMDA support.

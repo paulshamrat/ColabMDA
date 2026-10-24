@@ -33,6 +33,14 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     print(f"[DEBUG] Checking for NVT files in: {workdir}")
     print(f"[DEBUG] xml: {xml_system}, pdb: {pdb_saved}, in: {state_in}, out: {state_out}")
     if os.path.exists(state_out):
+        if protocol == "varmdyn":
+            completed, _ = find_highest_completed_stage(workdir, 1, 18)
+            if completed != 18:
+                raise RuntimeError(
+                    "Final NVT state lacks complete staged artifacts; inspect before recovery"
+                )
+        if not os.path.exists(protocol_file):
+            raise RuntimeError("Final NVT state lacks protocol provenance; inspect before recovery")
         if os.path.exists(protocol_file):
             with open(protocol_file) as handle:
                 recorded = json.load(handle)
@@ -82,7 +90,8 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
 
     test_mode = os.environ.get("COLABMDA_TEST_1_24", "").strip() in {"1", "true", "True"}
     highest_stage, latest_state_path = find_highest_completed_stage(workdir, 1, 18)
-    if highest_stage > 0:
+    if highest_stage > 0 and latest_state_path:
+        load_stage_state(sim, latest_state_path)
         print(f"[RECOVERY] Found existing progress up to Stage {highest_stage} in NVT!")
 
     if protocol == "varmdyn":
@@ -98,6 +107,7 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
             save_stage_artifacts(
                 sim, workdir, label, f"restrained minimization; k={weight} kcal/mol/A^2"
             )
+        set_restraint_strength(sim.context, restraint_parameter, 25)
         heat_steps = 10 if test_mode else 10000
         for index, temperature in enumerate((50, 100, 150, 200, 250, 300), start=4):
             if index <= highest_stage:
