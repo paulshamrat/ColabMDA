@@ -47,7 +47,7 @@ For local-branch testing through `colab exec`:
 python scripts/colab_exec_bootstrap.py --session kras-sim --from-local --with-docking --with-ligand --timeout 7200
 ```
 
-This installs **RDKit** for molecule handling, **Meeko** for PDBQT preparation and SDF export, and **AutoDock Vina** for docking in `docking_env`. Vina is CPU-based, which is fine for small tests and batch screens; the GPU remains most important for the later MD step in `openmm_env`.
+This installs **RDKit** for molecule handling, **Meeko** for PDBQT preparation and SDF export, and **AutoDock Vina** for docking in `docking_env`. Vina is CPU-based, which is fine for small tests and batch screens; the GPU remains most important for the later MD step in `colabmda`.
 
 ---
 
@@ -297,7 +297,7 @@ colabmda dock export-top --results data/docking/4ldj_wt/merged --outdir data/str
 Then inspect the pose visually. If the chemistry and placement look sensible, run MD:
 
 ```bash
-source "$HOME/miniforge3/etc/profile.d/conda.sh" && conda activate openmm_env
+source "$HOME/miniforge3/etc/profile.d/conda.sh" && conda activate colabmda
 colabmda openmm run --name 4ldj_wt_top1 --replica r1 --ligand data/structure/4ldj/docked/4ldj_wt/01_benzene_pose.sdf --total-ns 10.0 --traj-interval 10 --checkpoint-ps 1000
 ```
 

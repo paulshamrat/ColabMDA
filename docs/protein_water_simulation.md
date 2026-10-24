@@ -26,7 +26,7 @@ The standard simulation workflow consists of:
 ## 2. Step-by-Step Execution
 
 ### 2.1. Build & Prepare Structures (Modeller + PDB2PQR / PROPKA Titration)
-**Environments:** `modeller_env` (for structure building) & `openmm_env` (for pKa titration)
+**Environments:** `modeller_env` (for structure building) & `colabmda` (for pKa titration)
 
 #### 1. Build Coordinates (Biological Numbering)
 ```bash
@@ -42,7 +42,7 @@ colabmda modeller mutate --pdb-in data/structure/4ldj/wt/target.B99990001_with_c
 
 #### 2. Protonate & Titrate Structures at pH 7.4 (PDB2PQR / PROPKA)
 ```bash
-conda activate openmm_env
+conda activate colabmda
 
 # Perform 3D pKa titration at pH 7.4 for WT and Mutant structures in data/structure/
 colabmda openmm prep --pdb-file data/structure/4ldj/wt/4ldj_wt.pdb --outdir data/structure/4ldj/wt/prep --name 4ldj_wt --ph 7.4
@@ -51,12 +51,12 @@ colabmda openmm prep --pdb-file data/structure/4ldj/mutants/4ldj_g12d/4ldj_g12d.
 *Under the Hood:* PDB2PQR and PROPKA evaluate local 3D hydrogen-bonding networks and assign explicit AMBER titration forms (`HID`, `HIE`, `HIP`, `ASH`, `GLH`, `LYN`, `CYX`). An audit log `protonation_summary.json` is generated alongside each cleaned starting PDB in `data/structure/`.
 
 ### 2.2. Stage Simulation Workspace
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Stage the WT and mutant simulation workspaces in `data/simulation/` using the PROPKA-protonated starting structures from `data/structure/`:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate openmm_env
+conda activate colabmda
 
 # Stage simulation directories under data/simulation/ (auto-initializes eq/, r1/, r2/, r3/)
 colabmda openmm stage --pdb-file data/structure/4ldj/wt/prep/4ldj_wt_cleaned.pdb --name 4ldj_wt --replica r1
@@ -70,7 +70,7 @@ colabmda openmm stage --pdb-file data/structure/4ldj/mutants/4ldj_g12d/prep/4ldj
 > ```
 
 ### 2.3. Energy Minimization (EM)
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Stages the water molecules, parameterizes the protein-water system, and minimizes potential energy in the shared `eq/` hub:
 ```bash
@@ -79,7 +79,7 @@ colabmda openmm em --name 4ldj_wt
 *Under the Hood:* Parameterizes the protein with **AMBER ff19SB** and **OPC** water, neutralizes the system, and uses PME with a 1.0 nm cutoff and 0.8-1.0 nm switching. `--padding-nm auto` normally selects 1.0 nm for KRAS; use `1.4` for conservative 14 A padding. Outputs include `solvated.pdb`, `system.xml`, `parameterization.json`, and portable `em.state.xml`.
 
 ### 2.4. NVT Equilibration
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Relaxes solvent molecules and adjusts temperature to 300 K while keeping protein heavy atoms restrained:
 ```bash
@@ -88,7 +88,7 @@ colabmda openmm nvt --name 4ldj_wt
 *Under the Hood:* Runs the default staged NVT profile: restrained minimization, gradual 50-300 K heating, post-heating minimization, and a 10/5/2/1 restraint-release ladder at 300 K. See the [stage table](simulation_protocol.md#default-staged-equilibration-profile).
 
 ### 2.5. NPT Equilibration
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Relaxes the simulation box volume and adjusts system density under pressure:
 ```bash
@@ -99,7 +99,7 @@ colabmda openmm npt --name 4ldj_wt
 > 💡 **Random Seed Note:** The `--seed` option is completely optional. If omitted, ColabMDA automatically generates a secure, cryptographically random seed (`fresh_seed`). For multi-replica runs (`r1`, `r2`, `r3`), ColabMDA automatically derives a unique random seed per replica (`derive_replica_seed`). Specify `--seed <integer>` only when you wish to force exact numerical reproducibility for a specific run.
 
 ### 2.6. Equilibration Validation & QC Check
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
 ```bash
@@ -107,7 +107,7 @@ colabmda openmm qc --name 4ldj_wt
 ```
 
 ### 2.7. Production Molecular Dynamics (MD)
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Runs the production trajectory in chunked, resume-safe segments (auto-inheriting from `eq/` into `r1/`):
 ```bash
@@ -137,7 +137,7 @@ colabmda openmm md --name 4ldj_wt --replica r1 --total-ns 10.0 --traj-interval 1
 > 💡 **Storage Tip:** For a typical system (e.g., KRAS in water, ~30,000 atoms), a 100ns run at high resolution (1ps) can produce over **36GB** of data. On a free 15GB Google Drive, we recommend using **`--traj-interval 10`** to reduce this to ~3.6GB. Always calculate your storage needs based on your specific system size before starting long runs.
 
 ### 2.8. Merge and Center
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein using the robust MDAnalysis-based engine (`--mda`):
 ```bash

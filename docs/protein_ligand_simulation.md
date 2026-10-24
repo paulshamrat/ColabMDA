@@ -42,12 +42,12 @@ colabmda modeller mutate --pdb-in data/structure/4ldj/wt/4ldj_wt.pdb --chain A -
 ```
 
 ### 2.2. Stage Simulation Workspace
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Stage the WT simulation workspace to create the directory structure (`data/simulation/<name>/eq`, `r1`, `r2`, `r3`) and copy the cleaned starting structure:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate openmm_env
+conda activate colabmda
 
 # Stage simulation directory
 colabmda openmm stage --pdb-file data/structure/4ldj/wt/4ldj_wt.pdb --name 4ldj_gdp --replica r1
@@ -61,7 +61,7 @@ colabmda openmm stage --pdb-file data/structure/4ldj/wt/4ldj_wt.pdb --name 4ldj_
 > ```
 
 ### 2.3. Energy Minimization (EM)
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Stages the ligand and cofactor, parameterizes them, solvates, and minimizes potential energy in the shared `eq/` hub to resolve steric clashes:
 ```bash
@@ -70,7 +70,7 @@ colabmda openmm em --name 4ldj_gdp --ligand data/structure/4ldj/gdp.sdf --keep-m
 *Under the Hood:* Uses **AMBER ff19SB**, **OPC**, and **GAFF 2.11** for the native OpenMM XML path. OpenFF assigns AM1-BCC only when the ligand has no supplied partial charges; supplied charges are preserved and recorded. Generic GAFF is not equivalent to specialized ATP-Mg parameters—use `--amber-prmtop` and `--amber-inpcrd` when you already have a curated Hu 2024-style AMBER topology. The system is neutralized and all choices are written to `parameterization.json`.
 
 ### 2.4. NVT Equilibration
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Relaxes solvent molecules and adjusts temperature to 300 K while keeping the protein-ligand complex restrained:
 ```bash
@@ -79,7 +79,7 @@ colabmda openmm nvt --name 4ldj_gdp --seed 42
 *Under the Hood:* Runs the restrained minimization, 50-300 K heating, and NVT restraint-release stages described in the [complete stage table](simulation_protocol.md#default-staged-equilibration-profile).
 
 ### 2.5. NPT Equilibration
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Relaxes the simulation box volume and adjusts system density under pressure:
 ```bash
@@ -88,7 +88,7 @@ colabmda openmm npt --name 4ldj_gdp --seed 43
 *Under the Hood:* Runs stages 19-24 at 300 K and **1 bar**, progressively releases solute-heavy-atom restraints, and ends with 1 ns unrestrained NPT.
 
 ### 2.6. Equilibration Validation & QC Check
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Plots and validates the stability of thermodynamic parameters (temperature, density, potential energy) before starting production MD:
 ```bash
@@ -96,7 +96,7 @@ colabmda openmm qc --name 4ldj_gdp
 ```
 
 ### 2.7. Production Molecular Dynamics (MD)
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Runs the production trajectory in chunked, resume-safe segments:
 ```bash
@@ -114,7 +114,7 @@ colabmda openmm md --name 4ldj_gdp --replica r1 --total-ns 10.0 --traj-interval 
 > This inherits portable `npt.state.xml`, not r1's binary checkpoint, and creates independent velocity, thermostat, and barostat random streams.
 
 ### 2.8. Merge and Center
-**Environment:** `openmm_env`
+**Environment:** `colabmda`
 
 Combine trajectory chunks into a single DCD, apply periodic boundary condition (PBC) correction, and center the protein-ligand complex:
 ```bash

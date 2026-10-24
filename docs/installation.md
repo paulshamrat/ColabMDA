@@ -173,7 +173,7 @@ From this point onward, use relative paths such as `data/structure/...` and `dat
 Inside the remote console:
 ```bash
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate openmm_env
+conda activate colabmda
 
 # Stage a new simulation directly on your Drive (creates eq/, r1/, r2/, r3/)
 colabmda openmm stage --pdb-file data/structure/kras_wt/kras_wt.pdb --name kras_wt --replica r1
