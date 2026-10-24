@@ -35,21 +35,19 @@ def generate_cpptraj_strip_script(
     if autoimage:
         lines.append("autoimage")
 
-    if mode == "keep_ligand":
-        # Strip solvent and neutralizing ions, keeping all solutes
-        lines.append("strip :WAT,Na+,Cl-,K+,CIO,IB+ outprefix stripped")
-    elif mode == "ca_backbone":
-        # Keep only C-alpha atoms
-        lines.append("strip !@CA outprefix ca_only")
-    elif mode == "protein_only":
-        lines.append("strip !(:1-9999 & !:WAT,Na+,Cl-,K+,ATP,ADP,GDP,MG,MN)")
-
-    abs_out_traj = Path(output_traj).resolve()
-    lines.append(f'trajout "{abs_out_traj}"')
-
+    masks = {
+        "keep_ligand": ":WAT,Na+,Cl-,K+,CIO,IB+",
+        "ca_backbone": "!@CA",
+        "protein_only": "!(:1-9999 & !:WAT,Na+,Cl-,K+,ATP,ADP,GDP,MG,MN)",
+    }
+    if mode not in masks:
+        raise ValueError(f"Unknown cpptraj strip mode: {mode}")
+    strip = "strip " + masks[mode]
     if output_top:
-        abs_out_top = Path(output_top).resolve()
-        lines.append(f'parmwrite out "{abs_out_top}"')
+        # parmout writes the topology produced by this action, not the unstripped input.
+        strip += f' parmout "{Path(output_top).resolve()}"'
+    lines.append(strip)
+    lines.append(f'trajout "{Path(output_traj).resolve()}"')
 
     lines.append("run")
     lines.append("quit")

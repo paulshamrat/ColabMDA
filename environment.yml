@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - salilab  # For modeller
 dependencies:
-  - python=3.10
+  - python=3.12
   - openmm>=8.5
   - pdbfixer
   - pdb2pqr

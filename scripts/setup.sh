@@ -29,7 +29,7 @@ MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-}"
-OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-12.4}"
+OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-12.8}"
 ENV_NAME="${ENV_NAME:-openmm_env}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 
@@ -82,9 +82,9 @@ fi
 # ------------------------------------------------------------------------------
 echo "[STEP 3/6] Setting up simulation environment: ${ENV_NAME}..."
 PACKAGES=(
-  python=3.10
+  python=3.12
   "cuda-version=${OPENMM_CUDA_VERSION}"
-  "openmm>=8.2"
+  "openmm>=8.5"
   pdbfixer
   pdb2pqr
   propka

@@ -107,3 +107,14 @@ def test_write_prep_provenance(tmp_path):
     assert data["parameters"]["protein_ff"] == "ff19SB"
     assert data["parameters"]["water_model"] == "opc"
     assert data["provenance"]["engine"] == "ColabMDA"
+
+
+def test_stripped_topology_is_written_by_strip_action(tmp_path):
+    script = generate_cpptraj_strip_script(
+        tmp_path / "input.prmtop",
+        [tmp_path / "frame.dcd"],
+        tmp_path / "stripped.dcd",
+        output_top=tmp_path / "stripped.prmtop",
+    )
+    assert 'parmout "' in script
+    assert "parmwrite" not in script
