@@ -40,7 +40,12 @@ CDKL5 command-based workflows are in [Protein in water](docs/apo.md) and
 [Google Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
 These guides use `data/{apo,atpmg}/{structure,simulation}` for new runs;
 existing numbered examples below retain their historical paths. The full README
-baseline remains here while the shared guides are validated.
+baseline remains here alongside the shared guides.
+
+Current CDKL5 checks cover archive mapping, WT/L119R modeling, reviewed ATP/Mg
+transfer and actual Amber topology checks for four systems. Full staged Colab
+validation and an HPC GPU pilot remain pending; scheduler/syntax checks alone do
+not establish GPU or scientific acceptance.
 
 ## 1. Platform Setup
 

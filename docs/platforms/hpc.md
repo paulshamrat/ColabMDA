@@ -16,8 +16,8 @@ cd ~/research/tools/ColabMDA
 hpc exec -s hpc -- bash -lc 'sinfo -h -o "%P %a %l %G" | head -12'
 ```
 
-On the checked Palmetto configuration, `work1` offers V100 GPUs and allows up to
-three days. The shipped pilot adapter requests one V100, four CPUs, 16 GB RAM and
+On the checked Palmetto configuration, `work1` offers A100 GPUs and allows up to
+three days. The shipped pilot adapter requests one A100, four CPUs, 16 GB RAM and
 four hours. Resource discovery is verified; a successful scheduler query is not
 a completed GPU pilot.
 
@@ -65,7 +65,9 @@ cd "$PROJECT_ROOT"
 Do not recreate an existing environment to resume a run. Check the pinned CUDA
 runtime against the allocated GPU driver in a small allocation before dynamics.
 The default environment currently requests CUDA 13; cluster compatibility is a
-required pilot check, not assumed from Colab success.
+required pilot check, not assumed from Colab success. The adapter requests A100
+rather than Volta/V100: CUDA 13 removed offline compilation and library support
+for pre-Turing architectures ([NVIDIA release notes](https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/)).
 
 Modeling needs the separate licensed `modeller_env`. If models are prepared on
 Divergent, upload their verified coordinates, mappings and hashes instead. A
@@ -147,7 +149,7 @@ this adapter deliberately submits no arrays or full-library campaign.
 
 ## Validation status
 
-Palmetto bridge, scheduler, scratch root and V100 resource availability have been
+Palmetto bridge, scheduler, scratch root and A100 resource availability have been
 inspected. Shell syntax and wrapper arguments are checked locally. A new HPC GPU
 pilot, environment installation and cross-platform numerical acceptance have not
 yet been completed. Keep this distinct from the Colab run record.
