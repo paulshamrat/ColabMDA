@@ -91,3 +91,11 @@ def test_setup_does_not_wait_for_optional_interactive_installs(tmp_path, monkeyp
     assert colab.colab_manager_cli(["setup", "-s", "test"]) == 0
     assert "setup.sh </dev/null" in seen[0]
     assert not archive.exists()
+
+
+def test_installed_package_exposes_its_declared_version():
+    from importlib.metadata import version
+
+    import colabmda
+
+    assert colabmda.__version__ == version("colabmda")
