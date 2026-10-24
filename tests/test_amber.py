@@ -121,10 +121,40 @@ def test_stripped_topology_is_written_by_strip_action(tmp_path):
 
 
 def test_opc_preparation_uses_one_complete_ion_potential(tmp_path):
-    # A 12-6-4 frcmod alone supplies different LJ values, not the required C4 term.
-    spec = SystemSpec.from_tag("gdp_1mg")
-    text = generate_tleap_script(
-        spec, tmp_path / "model.pdb", tmp_path / "a.prmtop", tmp_path / "a.inpcrd"
+    import shutil
+
+    import pytest
+
+    openmm = pytest.importorskip("openmm")
+    from openmm import unit
+    from openmm.app import AmberPrmtopFile
+
+    from colabmda.amber.leap import run_tleap
+
+    tleap = shutil.which("tleap")
+    if not tleap:
+        pytest.skip("AmberTools is required for the ion topology integration test")
+    pdb = tmp_path / "mg.pdb"
+    pdb.write_text(
+        "HETATM    1 MG    MG A   1       0.000   0.000   0.000  1.00  0.00          MG\nEND\n"
     )
-    assert "frcmod.ionslm_126_opc" in text
-    assert "1264" not in text
+    top = tmp_path / "system.prmtop"
+    text = generate_tleap_script(
+        SystemSpec(ions={"MG": 1}),
+        pdb,
+        top,
+        tmp_path / "system.inpcrd",
+        padding_angstroms=8,
+        salt_conc_molar=0,
+    )
+    status, log = run_tleap(text, tmp_path, tleap_binary=tleap)
+    assert status == 0 and top.exists(), log
+    amber = AmberPrmtopFile(str(top))
+    system = amber.createSystem()
+    force = next(f for f in system.getForces() if isinstance(f, openmm.NonbondedForce))
+    mg = next(a for a in amber.topology.atoms() if a.residue.name == "MG")
+    charge, sigma, epsilon = force.getParticleParameters(mg.index)
+    # Complete OPC 12-6 Mg values; the former 12-6-4 override gives 1.405/0.01652939.
+    assert charge.value_in_unit(unit.elementary_charge) == pytest.approx(2)
+    assert sigma.value_in_unit(unit.angstrom) * 2 ** (1 / 6) / 2 == pytest.approx(1.330)
+    assert epsilon.value_in_unit(unit.kilocalorie_per_mole) == pytest.approx(0.00716930)
