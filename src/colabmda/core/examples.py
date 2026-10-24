@@ -34,7 +34,16 @@ def install_example(name, root):
     root = Path(root).expanduser().resolve()
     files = {n: p.read_bytes() for n, p in templates(name).items()}
     receipt = root / "data/00_setup/example.json"
-    # Check the entire plan before writing any files. No force/overwrite mode.
+    # Check script, metadata and log destinations before writing anything.
+    destinations = [root / name for name in files] + [receipt, root / "logs/02_simulation"]
+    for target in destinations:
+        for parent in [target, *target.parents]:
+            if parent.is_symlink():
+                raise ValueError(f"Symlink destination preserved: {parent}")
+            if parent != target and parent.exists() and not parent.is_dir():
+                raise ValueError(f"Existing non-directory preserved: {parent}")
+    if (root / "logs/02_simulation").exists() and not (root / "logs/02_simulation").is_dir():
+        raise ValueError("Existing log destination preserved")
     for name_, payload in files.items():
         target = root / name_
         if any(p.is_symlink() for p in [target, *target.parents] if p != root.parent):

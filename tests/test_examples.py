@@ -47,6 +47,15 @@ def test_example_conflict_preflight_and_symlink_protection(tmp_path):
     (linked / "scripts").symlink_to(root / "scripts", target_is_directory=True)
     with pytest.raises(ValueError, match="Symlink"):
         install_example("trpcage", linked)
+    metadata_link = tmp_path / "metadata_link"
+    metadata_link.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (metadata_link / "data").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="Symlink"):
+        install_example("trpcage", metadata_link)
+    assert not (metadata_link / "scripts").exists()
+    assert not list(outside.iterdir())
 
 
 def test_generated_production_command_and_duration_record(tmp_path):
