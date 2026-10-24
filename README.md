@@ -219,4 +219,4 @@ Use `dev1` for private work. Public `main` contains only approved releases.
 Run CPU unit/regression tests on Divergent using `pytest tests/`, plus Black,
 Ruff, Python compilation and `bash -n` for changed scripts. GPU integration tests
 are separate. Use `cmda --help` for modeling and other simulation commands and
-[docs/](docs/) for detailed reference.
+[the protocol](docs/protocol.md) and [advanced reference](docs/reference.md) for details.

@@ -70,8 +70,10 @@ Do not claim a new GPU run when only CPU/template tests were performed.
 
 ## Documentation upkeep
 
-Keep CONTRIBUTING and reference pages consistent with the flat source layout and
-main README. The installation reference links to the README rather than duplicating
-a second setup workflow. Document implemented behavior: standard analysis is
-RMSD/Rg/RMSF; comparison plotting currently uses openmm compare --series. Legacy
-path handlers and historical provenance are intentional compatibility support.
+Keep CONTRIBUTING and the two reference pages consistent with the flat source
+layout and main README. docs/ contains only index.rst, conf.py, requirements.txt,
+protocol.md and reference.md. Installation and the worked example belong in the
+README; developer rules belong in CONTRIBUTING/AGENTS. Do not recreate duplicate
+workflow guides, obsolete docking pages or a docs/development folder. Document
+implemented behavior and distinguish compatibility support from new workflows.
+Build Sphinx with warnings treated as errors after documentation changes.

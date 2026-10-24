@@ -1,22 +1,13 @@
-ColabMDA Documentation
-======================
+ColabMDA reference
+==================
 
-.. include:: ../README.md
-   :parser: myst_parser.sphinx_
+Installation, project creation and the complete Trp-cage workflow are maintained
+in the repository's main README. :download:`Read the matching README <../README.md>`.
+
+These two pages provide the scientific and advanced command reference.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Google Colab Workflow
 
-   installation
-   simulation_protocol
-   protein_water_simulation
-   protein_ligand_simulation
-   pymol_visualization
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Development reference
-
-   development/pilot_benchmark
-   development/legacy_mapping
+   protocol
+   reference

@@ -1,31 +1,15 @@
-# Configuration file for the Sphinx documentation builder.
-import os
-import sys
+"""Sphinx configuration for the README and two reference pages."""
 
-sys.path.insert(0, os.path.abspath(".."))
+from importlib.metadata import metadata as package_metadata
+from importlib.metadata import version as package_version
 
 project = "ColabMDA"
-copyright = "2024, Shammit Kumar Paul"
-author = "Shammit Kumar Paul"
-release = "0.1.0"
+author = package_metadata("colabmda").get("Author", "Shamrat Kumar Paul")
+copyright = f"2026, {author}"
+release = package_version("colabmda")
 
-# -- General configuration ---------------------------------------------------
-extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.viewcode",
-    "sphinx.ext.napoleon",
-    "myst_parser",  # To support Markdown
-]
-
-templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "virtual_screening.md"]
-
-# -- Options for HTML output -------------------------------------------------
+extensions = ["myst_parser"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
-
-# -- Myst Parser configuration -----------------------------------------------
-myst_enable_extensions = [
-    "colon_fence",
-]
+myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 3

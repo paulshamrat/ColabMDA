@@ -48,6 +48,9 @@ and stop the dedicated session. Never include license keys or credentials in
 source, test fixtures using real secrets, logs or provenance.
 
 Update README/AGENTS.md and affected reference pages when behavior changes.
-Keep user instructions in the main README. Document only implemented commands;
+Keep user instructions in the main README. Scientific protocol and advanced
+CLI/visualization reference belong in docs/protocol.md and docs/reference.md;
+do not recreate duplicate installation or workflow pages. Build Sphinx with
+warnings treated as errors after documentation changes. Document only implemented commands;
 identify compatibility-only commands and limits explicitly. Record changes in
 the unreleased changelog without inventing a public release.
