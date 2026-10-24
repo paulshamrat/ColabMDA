@@ -4,9 +4,9 @@ import os
 import shutil
 
 from openmm import XmlSerializer, unit
-from openmm.app import CheckpointReporter, DCDReporter, PDBFile, StateDataReporter
+from openmm.app import DCDReporter, PDBFile, StateDataReporter
 
-from colabmda.openmm.modular.utils import (
+from colabmda.openmm.common import (
     atomic_rename,
     fresh_seed,
     load_stage_state,
@@ -21,7 +21,7 @@ def _format_ps(value):
     return f"{value:.6f}".rstrip("0").rstrip(".")
 
 
-def run_md(
+def _run_md(
     workdir,
     pdbid,
     total_ns=1.0,
@@ -94,6 +94,8 @@ def run_md(
     total_steps = int(round((total_ns * unit.nanoseconds) / dt))
     snapshot_steps = int(round((traj_interval_ps * unit.picoseconds) / dt))
     chk_steps = int(round((checkpoint_ps * unit.picoseconds) / dt))
+    if min(total_steps, snapshot_steps, chk_steps) < 1:
+        raise ValueError("Duration, trajectory interval and checkpoint interval must be positive")
 
     with open(xml_system) as f:
         system = XmlSerializer.deserializeSystem(f.read())
@@ -124,6 +126,9 @@ def run_md(
 
     print(f"  • Progress: {steps_done * dt_ps:.1f} / {total_ns * 1000:.1f} ps")
 
+    # Start checkpoint is the rollback point for an interrupted first chunk.
+    if not os.path.exists(chk_file):
+        sim.saveCheckpoint(chk_file)
     # Production loop
     while steps_done < total_steps:
         steps_to_run = min(chk_steps, total_steps - steps_done)
@@ -152,26 +157,34 @@ def run_md(
                 speed=True,
             )
         )
-        sim.reporters.append(CheckpointReporter(chk_file, chk_steps))
 
         try:
             sim.step(steps_to_run)
             interrupted = False
         except KeyboardInterrupt:
             interrupted = True
-            print("⚠ Interrupted")
-            break
+            print("Interrupted; restart from the last committed chunk checkpoint")
+            for path in (dcd_tmp, log_tmp):
+                if os.path.exists(path):
+                    os.remove(path)
+            return False
         except Exception as e:
             print(f"⚠ Step failed: {e}")
             return False
 
         # Completion handling
-        sim.saveCheckpoint(chk_file)
+        for reporter in sim.reporters:
+            stream = getattr(reporter, "_out", None)
+            if hasattr(stream, "flush"):
+                stream.flush()
+                os.fsync(stream.fileno())
         new_steps = sim.context.getState().getStepCount()
 
         if not interrupted:
             atomic_rename(dcd_tmp, dcd_fin)
             atomic_rename(log_tmp, log_fin)
+            sim.saveCheckpoint(chk_file + ".tmp")
+            atomic_rename(chk_file + ".tmp", chk_file)
             sync_outputs(workdir, sync_dir, extra_files=[dcd_fin, log_fin])
 
         steps_done = new_steps
@@ -180,6 +193,14 @@ def run_md(
     if steps_done >= total_steps:
         print("✔ Full production complete")
     return True
+
+
+def run_md(*args, **kwargs):
+    previous = os.getcwd()
+    try:
+        return _run_md(*args, **kwargs)
+    finally:
+        os.chdir(previous)
 
 
 if __name__ == "__main__":

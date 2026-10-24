@@ -143,9 +143,9 @@ class TestProjectPaths:
         assert (tmp_path / "structure" / "template").exists()
         assert (tmp_path / "structure" / "protein").exists()
         assert (tmp_path / "simulation").exists()
-        assert (tmp_path / "01_structure" / "protein").exists()
-        assert (tmp_path / "02_simulation").exists()
-        assert (tmp_path / "03_analysis").exists()
+        assert not (tmp_path / "01_structure").exists()
+        assert not (tmp_path / "02_simulation").exists()
+        assert not (tmp_path / "03_analysis").exists()
 
     def test_numbered_path_resolution(self, tmp_path):
         numbered_root = tmp_path / "numbered_project"

@@ -10,7 +10,7 @@
 * **Equilibration Duration:** 1 ns total (`--equil-time 1000` = 1,000 ps across NVT and NPT).
 * **Production Duration:** 1 ns total (`--total-ns 1.0` = 500,000 steps at 2.0 fs timestep).
 * **Trajectory Frame Interval:** `--traj-interval 10` (10 ps = 100 frames).
-* **Expected Walltime:** ~1.5–2.5 minutes per replica on modern NVIDIA GPUs (T4 / V100 / A100 / RTX).
+* **Expected wall time:** measure the first system on the allocated GPU. Protein size, water count, and equilibration protocol determine cost; no fixed minutes-per-nanosecond claim is assumed.
 
 ---
 
@@ -94,3 +94,14 @@ cmda sim --state atp_mg --variant WT --stage md --replica r1 --total-ns 1.0 --tr
 cd "${SCRATCH_PROJECT}"
 bash scripts/chain.sh
 ```
+
+## Refactored implementation
+
+The active OpenMM modules are flat under `src/colabmda/openmm/`. The isolated
+`test-colabmda` project owns the GPU integration test and exact input selection.
+Use a fresh `COLABMDA_RUN_ID`, require `COLABMDA_PLATFORM=CUDA`, and store heavy
+outputs on mounted Drive. Standard unit/regression tests run on Divergent.
+Use quick equilibration only for software smoke tests, label it explicitly, and
+inspect thermodynamic diagnostics; it is not the full 24-stage production protocol.
+Test interruption and resume before approving checkpoint handling. Check merged
+frame times and membership so successful process exit alone cannot certify a run.

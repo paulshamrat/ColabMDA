@@ -5,7 +5,7 @@ import os
 from openmm import XmlSerializer, unit
 from openmm.app import PDBFile, StateDataReporter
 
-from colabmda.openmm.modular.utils import (
+from colabmda.openmm.common import (
     add_solute_heavy_atom_restraints,
     find_highest_completed_stage,
     fresh_seed,

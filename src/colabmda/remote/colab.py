@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import subprocess
 import tempfile
 import zipfile
@@ -44,14 +46,35 @@ def _should_zip(path: Path, repo_root: Path) -> bool:
 
 
 def _make_source_zip(repo_root: Path) -> Path:
+    """Export committed runtime files, excluding private instructions and build copies."""
+
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(repo_root), *args])
+
+    if git("branch", "--show-current").decode().strip() != "dev1":
+        raise RuntimeError("Local development deployment requires dev1")
+    allowed = [
+        "src",
+        "scripts/setup.sh",
+        "pyproject.toml",
+        "README.md",
+        "LICENSE",
+        "environment.yml",
+    ]
+    if git("status", "--porcelain", "--", *allowed).strip():
+        raise RuntimeError("Commit runtime changes before deploying to Colab")
+    commit = git("rev-parse", "HEAD").decode().strip()
+    files = git("ls-tree", "-r", "--name-only", "HEAD", "--", *allowed).decode().splitlines()
     tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
     tmp.close()
-    zip_path = Path(tmp.name)
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path in repo_root.rglob("*"):
-            if path.is_file() and _should_zip(path, repo_root):
-                archive.write(path, path.relative_to(repo_root))
-    return zip_path
+    record = {"commit": commit, "files": {}}
+    with zipfile.ZipFile(tmp.name, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name in files:
+            payload = git("show", f"HEAD:{name}")
+            archive.writestr(name, payload)
+            record["files"][name] = hashlib.sha256(payload).hexdigest()
+        archive.writestr("SNAPSHOT.json", json.dumps(record, indent=2) + "\n")
+    return Path(tmp.name)
 
 
 def _session_args(session: str | None) -> list[str]:
@@ -197,15 +220,13 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             )
 
             remote_cmd = (
-                "chmod +x /content/setup.sh && "
-                "/content/setup.sh && "
+                "set -e; "
                 "if [ -f /content/ColabMDA-upload.zip ]; then "
-                "  rm -rf /content/ColabMDA && mkdir -p /content/ColabMDA && "
-                "  unzip -q /content/ColabMDA-upload.zip -d /content/ColabMDA && "
-                '  source "$HOME/miniforge3/etc/profile.d/conda.sh" && '
-                "  conda activate openmm_env && "
-                "  pip install -e /content/ColabMDA; "
-                "fi"
+                "mkdir -p /content/ColabMDA; "
+                "unzip -oq /content/ColabMDA-upload.zip -d /content/ColabMDA; "
+                "fi; "
+                "chmod +x /content/setup.sh; "
+                "COLABMDA_SOURCE=/content/ColabMDA /content/setup.sh"
             )
             session_desc = args.session if args.session else "active"
             print(f"[INFO] Executing setup on {session_desc} session...")

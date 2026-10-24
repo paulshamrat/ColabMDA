@@ -562,3 +562,25 @@ If you use this tool, please consider citing the underlying studies:
 <p align="center">
   <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Visitors&color=blue&style=flat-square" alt="Visitors" />
 </p>
+
+## Source navigation and isolated pilots
+
+OpenMM implementation files live directly under `src/colabmda/openmm/`:
+`prepare`, `em`, `nvt`, `npt`, `md`, `qc`, `merge`, `analysis`, `figures`,
+`common`, `commands`, and `run`. `run` adapts the combined protein-water command
+onto the shared stages. It retains explicit ff14SB/TIP3P defaults and uses quick
+stage equilibration; it does not reproduce historical trajectories bit for bit.
+Calculation and plotting are separate; `qc` and `analysis` write numerical outputs,
+and the CLI invokes `figures` afterward. QC PNGs are now in `figures/`; PDF QC
+exports are retired. Existing CLI command names remain available.
+
+For isolated development pilots, set `COLABMDA_RUN_ID` to a new identifier and
+pass the project root explicitly. Inputs resolve to `data/01_structure/`; outputs
+resolve to `data/02_pilot/<run>/<state>/<variant>/{01_prep,02_eq,03_md,04_check}`.
+Logs and orchestration belong to the owning project. The private `test-colabmda`
+project provides the reviewed pilot workflow; it is separate from this tool.
+
+Deploy committed development code with `cmda colab setup -s SESSION --local-source`.
+The runtime receives an allowlisted snapshot with commit and SHA-256 provenance,
+not build caches or local private instructions. Use `colab sessions` to inspect
+sessions and `colab stop -s SESSION` after validation.

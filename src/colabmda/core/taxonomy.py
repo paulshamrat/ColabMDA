@@ -186,7 +186,9 @@ class SystemSpec:
             elif token in SUBSTRATE_PRESETS:
                 peptide_val = token
                 if "Y171" not in phos_val:
-                    phos_val.append("Y171")  # Substrate complex implies active phosphorylated kinase
+                    phos_val.append(
+                        "Y171"
+                    )  # Substrate complex implies active phosphorylated kinase
             elif token.startswith("p") and token[1:] in SUBSTRATE_PRESETS:
                 peptide_val = token[1:]
                 if "Y171" not in phos_val:

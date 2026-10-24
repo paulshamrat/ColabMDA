@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from colabmda.openmm.modular.em import run_em
-from colabmda.openmm.modular.md import run_md
-from colabmda.openmm.modular.npt import run_npt
-from colabmda.openmm.modular.nvt import run_nvt
-from colabmda.openmm.modular.qc import analyze_logs
+from colabmda.openmm.em import run_em
+from colabmda.openmm.md import run_md
+from colabmda.openmm.npt import run_npt
+from colabmda.openmm.nvt import run_nvt
+from colabmda.openmm.qc import analyze_logs
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
@@ -97,7 +97,7 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
 
 def test_varmdyn_stage_resumption(tmp_path: Path, monkeypatch):
     """Test that NPT recovers from intermediate stages (e.g. stage 23) without restarting."""
-    from colabmda.openmm.modular.utils import find_highest_completed_stage
+    from colabmda.openmm.common import find_highest_completed_stage
 
     monkeypatch.setenv("COLABMDA_TEST_1_24", "1")
     eq_dir = tmp_path / "eq"

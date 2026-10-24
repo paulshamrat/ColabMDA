@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -240,9 +241,11 @@ def _dispatch_prep(args) -> int:
                 print(f"[OK] Generated provenance metadata: {paths.prep_json(spec)}")
             else:
                 (paths.prep_dir(spec) / "build_error.log").write_text(log_out)
-                print(f"[INFO] Amber tleap finished with returncode {retcode}")
+                raise RuntimeError(
+                    f"Amber tleap failed with returncode {retcode}; see build_error.log"
+                )
         except Exception as e:
-            print(f"[INFO] Amber tleap step skipped: {e}")
+            raise RuntimeError(f"Amber preparation failed: {e}") from e
 
     return 0
 
@@ -263,16 +266,6 @@ def _dispatch_stage(args) -> int:
     replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
     for rep in replicas:
         paths.replica_dir(spec, rep).mkdir(parents=True, exist_ok=True)
-
-    # Mirror layout under both data/ and project root for universal compatibility
-    for base_sim in [Path(root) / "data" / "simulation", Path(root) / "simulation"]:
-        v_base = base_sim / spec.state_tag / spec.variant
-        (v_base / "prep").mkdir(parents=True, exist_ok=True)
-        (v_base / "eq").mkdir(parents=True, exist_ok=True)
-        for rep in replicas:
-            (v_base / rep).mkdir(parents=True, exist_ok=True)
-    for base_ana in [Path(root) / "data" / "analysis", Path(root) / "analysis"]:
-        (base_ana / spec.state_tag / spec.variant).mkdir(parents=True, exist_ok=True)
 
     run_sh = paths.scripts_dir / "run.sh"
     run_reps = " ".join(f"r{r}" if r.isdigit() else r for r in replicas)
@@ -474,10 +467,7 @@ def _dispatch_sim(args) -> int:
             )
         elif stage == "nvt":
             eq_time = args.equil_time
-            if (
-                protocol == "quick"
-                and getattr(args, "steps", None) is not None
-            ):
+            if protocol == "quick" and getattr(args, "steps", None) is not None:
                 eq_time = min(args.equil_time, max(0.002, args.steps * 0.002))
             openmm_nvt(
                 eq_dir,
@@ -487,10 +477,7 @@ def _dispatch_sim(args) -> int:
             )
         elif stage == "npt":
             eq_time = args.equil_time
-            if (
-                protocol == "quick"
-                and getattr(args, "steps", None) is not None
-            ):
+            if protocol == "quick" and getattr(args, "steps", None) is not None:
                 eq_time = min(args.equil_time, max(0.002, args.steps * 0.002))
             openmm_npt(
                 eq_dir,
@@ -526,7 +513,7 @@ def _dispatch_sim(args) -> int:
                     name,
                     total_ns=total_ns,
                     traj_interval=traj_interval,
-                    checkpoint_ps=1000.0,
+                    checkpoint_ps=args.checkpoint_ps,
                 )
     return 0
 
@@ -535,54 +522,43 @@ def _dispatch_merge(args) -> int:
     from colabmda.amber.cpptraj import generate_cpptraj_strip_script, run_cpptraj
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
+    from colabmda.openmm.merge import merge_logs
 
-    root = resolve_project_root(args.root)
-    paths = ProjectPaths(root)
+    paths = ProjectPaths(resolve_project_root(args.root))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
-
-    replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
-
-    for rep in replicas:
-        rep_dir = paths.replica_dir(spec, rep)
-        prmtop = paths.prepared_prmtop(spec)
-        dcd_candidates = [f for f in sorted(rep_dir.glob("prod_*.dcd")) if f.stat().st_size > 0]
-        if not dcd_candidates:
-            dcd_candidates = [f for f in sorted(rep_dir.glob("*.dcd")) if f.stat().st_size > 0]
-        if not dcd_candidates:
-            print(f"[INFO] No non-empty DCD trajectories found in {rep_dir}")
-            continue
-
-        out_traj = rep_dir / "prod_keep_ligand.dcd"
-        out_top = rep_dir / "stripped.prmtop"
-        script_content = generate_cpptraj_strip_script(
-            topology=prmtop,
-            trajectories=dcd_candidates,
-            output_traj=out_traj,
-            output_top=out_top,
-            mode="keep_ligand",
+    for rep in [r.strip() for r in args.replicas.split(",") if r.strip()]:
+        directory = paths.replica_dir(spec, rep)
+        chunks = []
+        for path in directory.glob("prod_*to*ps.dcd"):
+            match = re.fullmatch(r"prod_([0-9.]+)to([0-9.]+)ps.dcd", path.name)
+            if match:
+                chunks.append((float(match[1]), float(match[2]), path))
+        chunks.sort()
+        if not chunks or chunks[0][0] != 0 or any(a[1] != b[0] for a, b in zip(chunks, chunks[1:])):
+            raise RuntimeError(
+                f"Missing, overlapping or non-contiguous trajectory chunks: {directory}"
+            )
+        for start, end, path in chunks:
+            if end <= start or path.stat().st_size == 0:
+                raise RuntimeError(f"Invalid trajectory chunk: {path}")
+        for mode, filename, top in [
+            ("keep_ligand", "prod_keep_ligand.dcd", "stripped.prmtop"),
+            ("ca_backbone", "prod_ca.dcd", "ca.prmtop"),
+        ]:
+            script = generate_cpptraj_strip_script(
+                paths.prepared_prmtop(spec),
+                [c[2] for c in chunks],
+                directory / filename,
+                output_top=directory / top,
+                mode=mode,
+            )
+            rc, output = run_cpptraj(script, directory)
+            if rc or not (directory / filename).is_file() or not (directory / top).is_file():
+                raise RuntimeError(f"cpptraj {mode} failed: {output[-3000:]}")
+        merge_logs(str(directory), str(directory / "prod_full.log"))
+        (directory / "MERGE_DONE").write_text(
+            "Verified trajectory inputs and both stripped outputs\n"
         )
-        script_path = rep_dir / "strip.cpptraj.in"
-        script_path.write_text(script_content, encoding="utf-8")
-        print(f"[OK] Generated cpptraj stripping script: {script_path}")
-
-        ca_out_traj = rep_dir / "prod_ca.dcd"
-        ca_script = generate_cpptraj_strip_script(
-            topology=prmtop,
-            trajectories=dcd_candidates,
-            output_traj=ca_out_traj,
-            mode="ca_backbone",
-        )
-        (rep_dir / "strip_ca.cpptraj.in").write_text(ca_script, encoding="utf-8")
-
-        try:
-            rc, out = run_cpptraj(script_content, rep_dir)
-            if rc == 0:
-                print(f"[OK] Successfully executed cpptraj stripping for {rep}: {out_traj}")
-            else:
-                print(f"[WARN] cpptraj returned code {rc}")
-        except Exception as e:
-            print(f"[INFO] cpptraj execution deferred ({e}); script saved to {script_path}")
-
     return 0
 
 
@@ -610,8 +586,8 @@ def _dispatch_analyze(args) -> int:
         if (rep_dir / cand_top).exists():
             top = str(rep_dir / cand_top)
             break
-        elif (paths.prepared_dir(spec) / cand_top).exists():
-            top = str(paths.prepared_dir(spec) / cand_top)
+        elif (paths.prep_dir(spec) / cand_top).exists():
+            top = str(paths.prep_dir(spec) / cand_top)
             break
 
     if traj and top:
@@ -994,7 +970,9 @@ def main():
     # ---------------- Top-level Modern Commands (cmda / colabmda) ----------------
     # 1. colab
     p_colab = sub.add_parser("colab", help="Remote Google Colab VM provisioning & session manager")
-    p_colab.add_argument("colab_args", nargs="*", help="Arguments passed to colab manager")
+    p_colab.add_argument(
+        "colab_args", nargs=argparse.REMAINDER, help="Arguments passed to colab manager"
+    )
 
     # 2. prep
     p_top_prep = sub.add_parser("prep", help="Unified model assembly & parameterization")
@@ -1069,6 +1047,7 @@ def main():
     p_top_sim.add_argument(
         "--steps", type=int, default=None, help="Override step count for testing"
     )
+    p_top_sim.add_argument("--checkpoint-ps", type=float, default=1000.0)
     p_top_sim.add_argument(
         "--equil-time", type=float, default=100.0, help="Equilibration duration in ps"
     )
@@ -1174,7 +1153,9 @@ def main():
     elif args.tool == "view":
         from colabmda.openmm.commands import openmm_view
 
-        raise SystemExit(openmm_view(args.pdb_dir, args.topology, args.trajectory, resi=args.resi) or 0)
+        raise SystemExit(
+            openmm_view(args.pdb_dir, args.topology, args.trajectory, resi=args.resi) or 0
+        )
 
     elif args.tool == "snapshots":
         from colabmda.openmm.commands import openmm_snapshots
@@ -1185,7 +1166,8 @@ def main():
                 output=args.output,
                 temp_dir=args.temp_dir,
                 font_path=args.font_path,
-            ) or 0
+            )
+            or 0
         )
 
     if args.tool == "openmm":
@@ -1426,7 +1408,7 @@ def main():
                 args.ligand = str(local_ligand.resolve())
 
             # MODULAR RUN: EM -> NVT -> NPT -> Check -> MD
-            from colabmda.openmm.modular.utils import derive_replica_seed
+            from colabmda.openmm.common import derive_replica_seed
 
             replica_seed = derive_replica_seed(args.seed, args.replica)
 

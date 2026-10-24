@@ -5,7 +5,7 @@ import os
 from openmm import XmlSerializer, unit
 from openmm.app import PDBFile, StateDataReporter
 
-from colabmda.openmm.modular.utils import (
+from colabmda.openmm.common import (
     add_solute_heavy_atom_restraints,
     find_highest_completed_stage,
     fresh_seed,
@@ -156,7 +156,7 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
 
     # Generate automated QC report if possible
     try:
-        from colabmda.openmm.modular.qc import analyze_logs
+        from colabmda.openmm.qc import analyze_logs
 
         analyze_logs(workdir, strict=False, protocol=protocol)
     except Exception:

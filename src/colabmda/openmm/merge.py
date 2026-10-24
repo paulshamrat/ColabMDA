@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-openmm_trajmerge.py
+merge.py
 
-Merge non-overlapping chunk files produced by openmm_proteinwater_chunked* scripts
+Merge non-overlapping chunk files produced by the checkpointed production stage
 into one continuous trajectory and one log. Skips any missing or empty chunks.
 
 Usage:
-    python3 openmm_trajmerge.py <pdbid> [options]
+    python3 merge.py <pdbid> [options]
 
 Positional arguments:
   pdbid                  4-letter PDB ID directory (e.g. 4ldj)
@@ -54,8 +54,8 @@ def parse_args():
 
 
 def extract_start_ps(filename):
-    m = re.search(r"prod_(\d+)to\d+ps\.dcd$", filename)
-    return int(m.group(1)) if m else float("inf")
+    m = re.search(r"prod_([0-9.]+)to[0-9.]+ps\.dcd$", filename)
+    return float(m.group(1)) if m else float("inf")
 
 
 def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=False):

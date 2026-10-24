@@ -14,7 +14,7 @@ from openmm.app import (
 )
 from pdbfixer import PDBFixer
 
-from colabmda.openmm.modular.utils import configure_system, make_sim, save_stage_state
+from colabmda.openmm.common import configure_system, make_sim, save_stage_state
 
 FORCE_FIELD_CHOICES = {
     ("ff19SB", "opc"): ("amber19-all.xml", "amber19/opc.xml", "AMBER ff19SB", "OPC", "tip4pew"),

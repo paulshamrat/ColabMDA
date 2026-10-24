@@ -34,17 +34,18 @@ tools/ColabMDA/
 │   │   └── substrate.py           # Mathematical PTR builder & peptide docking
 │   ├── openmm/                    # Core OpenMM simulation engine
 │   │   ├── commands.py            # High-level subcommands (prep, stage, run, merge, analysis)
-│   │   ├── modular/               # Sequentially numbered simulation stages
-│   │   │   ├── em.py              # Energy Minimization & forcefield selection
-│   │   │   ├── nvt.py             # NVT thermalization
-│   │   │   ├── npt.py             # NPT density equilibration
-│   │   │   ├── qc.py              # Quality control & headless stability verification
-│   │   │   ├── md.py              # Production MD & chunked checkpointing
-│   │   │   └── utils.py           # Shared OpenMM helpers
-│   │   └── engine/                # Trajectory merge, analysis & PDBFixer cleaning
+│   │   ├── prepare.py            # PDBFixer preparation, local or downloaded input
+│   │   ├── em.py, nvt.py, npt.py  # Individual simulation stages
+│   │   ├── md.py                 # One checkpointed production implementation
+│   │   ├── qc.py                 # Numerical equilibration checks
+│   │   ├── merge.py              # Trajectory/log merging
+│   │   ├── analysis.py           # Numerical measurements and tables
+│   │   ├── figures.py            # Downstream plots and structure views
+│   │   ├── common.py             # Shared simulation helpers
+│   │   └── run.py                # Combined-command compatibility adapter
 │   └── remote/                    # Google Colab VM remote session manager
 │       └── colab.py               # colab CLI wrapper & upload orchestrator
-├── tests/                         # Unit and regression test suite (50 passing tests)
+├── tests/                         # Unit and regression test suite
 ├── docs/                          # Sphinx / Markdown documentation
 ├── scripts/                       # Exactly one standalone bootstrap script: setup.sh
 └── AGENTS.md                      # Developer and agent rules
@@ -67,7 +68,10 @@ tools/ColabMDA/
    - Scientific parameters and audit trails are recorded strictly as structured JSON metadata (`prep.json`, `qc.json`).
 
 3. **Standardized Directory Layout:**
-   - **Top-Level Root:** Clean, unnumbered semantic nouns (`structure/`, `simulation/`, `analysis/`).
+   - Resolve one existing project layout; never create parallel compatibility trees.
+   - `COLABMDA_RUN_ID` selects an isolated pilot under `data/02_pilot/<run>/`,
+     with inputs in `data/01_structure/`, per-system `01_prep`, `02_eq`,
+     `03_md/r1` and `04_check`. Validate run identifiers before constructing paths.
    - **Simulation Pipeline:** Strictly numbered chronological sub-stages inside `<state>/<variant>/`:
      - `01_prep/`: Parameterization & solvation deliverables (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `prep.json`).
      - `02_eq/`: 24-Stage VarMDyn equilibration (`eq.pdb`, `qc.png`, `qc.json`, `stages/`).
@@ -110,7 +114,9 @@ tools/ColabMDA/
    - All operations must strictly go through the official `cmda` CLI or official Python API.
 
 10. **Colab VM Deployment & Idle Reaper Protection:**
-    - To deploy local development code to remote VMs, always use the standard command `cmda colab setup -s <session> --local-source`.
+    - Deploy only committed `dev1` runtime files, record commit/file hashes in SNAPSHOT.json,
+     and exclude Git metadata, private instructions and stale build/dist trees.
+   - To deploy local development code to remote VMs, always use the standard command `cmda colab setup -s <session> --local-source`.
     - Never execute simulations with background `nohup ... &` on Colab; run them in the foreground with live streaming output to prevent Google Colab's 30-minute idle reaper from terminating the VM.
 
 11. **Post-Verification Compute Cleanup:**
@@ -141,11 +147,11 @@ Before committing any changes to `dev1`:
 
 ## 6. Google Colab CLI & Remote Cloud Testing
 
-The developer workstation is pre-authenticated with Google OAuth2 (`colab whoami`). When testing cloud bootstrapping or remote GPU execution:
+The developer workstation is pre-authenticated with Google OAuth2 (`colab sessions`). When testing cloud bootstrapping or remote GPU execution:
 
 1. **Check Authentication & Identity:**
    ```bash
-   colab whoami
+   colab sessions
    ```
 2. **Launch a Cloud GPU Test Instance:**
    ```bash
@@ -157,7 +163,7 @@ The developer workstation is pre-authenticated with Google OAuth2 (`colab whoami
    ```
 4. **List Active Sessions:**
    ```bash
-   colab ls
+   colab sessions
    ```
 5. **Terminate Sessions Promptly (Conserves Compute Units):**
    ```bash
@@ -166,3 +172,16 @@ The developer workstation is pre-authenticated with Google OAuth2 (`colab whoami
 
 
 
+
+## Refactor invariants
+
+- Keep the OpenMM source package flat with one-word operation names. Never recreate
+  `engine/` or `modular/` or duplicate production integrators in the combined adapter.
+- Calculation modules do not import plotting libraries. CLI routing calls downstream
+  figure functions after numerical outputs exist; figures use 7-inch, 300-DPI PNGs.
+- Keep the legacy combined command's ff14SB/TIP3P defaults explicit. It now delegates
+  to shared quick equilibration stages; historical trajectories are not bitwise targets.
+- Checkpoints advance only after complete trajectory/log chunks are published. An
+  interrupted chunk is replayed from its previous checkpoint; it must not create gaps.
+- Divergent runs standard tests without a GPU. GPU integration pilots execute on
+  Colab through the CLI; heavy outputs stay on Drive. Stop the GPU session afterward.

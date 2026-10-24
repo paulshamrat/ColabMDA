@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -78,13 +79,10 @@ def run_cpptraj(
     if not exe:
         raise RuntimeError("cpptraj executable not found in PATH or environment.")
 
-    script_file = workdir / "cpptraj.in"
-    script_file.write_text(script_content, encoding="utf-8")
-
-    proc = subprocess.run(
-        [exe, "-i", "cpptraj.in"],
-        cwd=workdir,
-        capture_output=True,
-        text=True,
-    )
+    with tempfile.TemporaryDirectory(prefix="colabmda-cpptraj-") as sandbox:
+        script_file = Path(sandbox) / "cpptraj.in"
+        script_file.write_text(script_content, encoding="utf-8")
+        proc = subprocess.run(
+            [exe, "-i", str(script_file)], cwd=sandbox, capture_output=True, text=True
+        )
     return proc.returncode, proc.stdout + "\n" + proc.stderr

@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from colabmda.openmm.modular.qc import analyze_logs, parse_em_log
+from colabmda.openmm.figures import plot_equilibration
+from colabmda.openmm.qc import analyze_logs, parse_em_log
 
 
 def test_parse_em_log(tmp_path: Path):
@@ -42,9 +43,9 @@ def test_analyze_logs_passing(tmp_path: Path):
     passed = analyze_logs(str(tmp_path))
     assert passed is True
 
+    plot_equilibration(str(tmp_path))
     # Check generated artifacts
-    assert (tmp_path / "equilibration_qc.png").exists()
-    assert (tmp_path / "equilibration_qc.pdf").exists()
+    assert (tmp_path / "figures/equilibration_qc.png").exists()
     assert (tmp_path / "equilibration_qc.json").exists()
 
     with open(tmp_path / "equilibration_qc.json") as f:

@@ -6,10 +6,10 @@ set -euo pipefail
 # ==============================================================================
 #
 # Usage:
-#   bash scripts/colab.sh
-#   bash scripts/colab.sh <release_tag>
-#   WITH_MODELLER=1 bash scripts/colab.sh
-#   WITH_MODELLER=1 KEY_MODELLER="YOUR_LICENSE_KEY" bash scripts/colab.sh
+#   bash scripts/setup.sh
+#   bash scripts/setup.sh <release_tag>
+#   WITH_MODELLER=1 bash scripts/setup.sh
+#   WITH_MODELLER=1 KEY_MODELLER="YOUR_LICENSE_KEY" bash scripts/setup.sh
 #
 # What this script does:
 #   1. Checks NVIDIA GPU presence (Tesla T4 / A100 / L4)
@@ -28,8 +28,8 @@ WITH_AMBERTOOLS="${WITH_AMBERTOOLS:-1}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
-DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-/content/drive/MyDrive/ColabMDA}"
-OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
+DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-}"
+OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-12.4}"
 ENV_NAME="${ENV_NAME:-openmm_env}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 
@@ -173,47 +173,9 @@ echo "[STEP 5/6] Installing ColabMDA (${TAG})..."
 mkdir -p "${INSTALL_DIR}"
 cd "${INSTALL_DIR}"
 
-WHEEL_URL="$(
-python - "${REPO}" "${TAG}" <<'PY'
-import json
-import sys
-import urllib.request
-
-repo = sys.argv[1]
-tag = sys.argv[2]
-api = (
-    f"https://api.github.com/repos/{repo}/releases/latest"
-    if tag == "latest"
-    else f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
-)
-try:
-    with urllib.request.urlopen(api, timeout=15) as r:
-        data = json.load(r)
-    wheels = [
-        a["browser_download_url"]
-        for a in data.get("assets", [])
-        if a.get("name", "").endswith(".whl")
-    ]
-    print(wheels[0] if wheels else "")
-except Exception:
-    print("")
-PY
-)"
-
-local_wheel=$(find "${INSTALL_DIR}" -maxdepth 1 -name "*.whl" 2>/dev/null | head -n 1 || true)
-if [[ -n "${local_wheel}" ]]; then
-  echo "[INFO] Installing local wheel: ${local_wheel}"
-  python -m pip install --upgrade "${local_wheel}"
-elif [[ -n "${WHEEL_URL}" ]]; then
-  echo "[INFO] Downloading release wheel: ${WHEEL_URL}"
-  WHEEL_NAME=$(basename "${WHEEL_URL}")
-  if curl -fsSL "${WHEEL_URL}" -o "${INSTALL_DIR}/${WHEEL_NAME}"; then
-    python -m pip install --upgrade "${INSTALL_DIR}/${WHEEL_NAME}"
-  fi
-fi
-
-if ! command -v colabmda >/dev/null 2>&1; then
-  echo "[INFO] Installing from source repository (${INSTALL_REF})..."
+if [[ -n "${COLABMDA_SOURCE:-}" ]]; then
+  python -m pip install -e "$COLABMDA_SOURCE"
+else
   python -m pip install --upgrade "git+https://github.com/${REPO}.git@${INSTALL_REF}"
 fi
 
@@ -252,7 +214,9 @@ if command -v tleap >/dev/null 2>&1; then
   echo "[HEALTH] AmberTools tleap: $(which tleap)"
 fi
 
-mkdir -p "${WORK_DIR}" "${DRIVE_RUNS_DIR}"
+mkdir -p "${WORK_DIR}"
+[[ -z "$DRIVE_RUNS_DIR" ]] || mkdir -p "$DRIVE_RUNS_DIR"
+true
 
 echo "=============================================================================="
 echo " [OK] ColabMDA GPU Environment Successfully Installed!"

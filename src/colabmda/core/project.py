@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -85,6 +86,9 @@ class ProjectPaths:
 
     def __post_init__(self):
         self.root = Path(self.root).resolve()
+        self.run_id = os.environ.get("COLABMDA_RUN_ID", "")
+        if self.run_id and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.run_id):
+            raise ValueError("Invalid COLABMDA_RUN_ID")
 
     @property
     def config_yaml(self) -> Path:
@@ -97,6 +101,9 @@ class ProjectPaths:
     @property
     def structure_dir(self) -> Path:
         """Resolve data/structure, 01_structure, or structure."""
+        numbered = self.root / "data/01_structure"
+        if self.run_id or numbered.exists():
+            return numbered
         p_data = self.root / "data" / "structure"
         p01 = self.root / "01_structure"
         p_legacy = self.root / "structure"
@@ -135,6 +142,8 @@ class ProjectPaths:
     @property
     def simulation_base(self) -> Path:
         """Resolve data/simulation, 02_simulation, or simulation."""
+        if self.run_id:
+            return self.root / "data/02_pilot" / self.run_id
         p_data = self.root / "data" / "simulation"
         p02 = self.root / "02_simulation"
         p_legacy = self.root / "simulation"
@@ -175,6 +184,8 @@ class ProjectPaths:
     def prep_dir(self, spec: SystemSpec) -> Path:
         """Preparation folder containing model coordinates and Amber topologies."""
         v_dir = self.variant_dir(spec)
+        if self.run_id:
+            return v_dir / "01_prep"
         if (v_dir / "01_prep").exists():
             return v_dir / "01_prep"
         if (v_dir / "prep").exists():
@@ -220,6 +231,8 @@ class ProjectPaths:
     def eq_dir(self, spec: SystemSpec) -> Path:
         """Equilibration folder (em, nvt, npt, qc)."""
         v_dir = self.variant_dir(spec)
+        if self.run_id:
+            return v_dir / "02_eq"
         if (v_dir / "02_eq").exists():
             return v_dir / "02_eq"
         if (v_dir / "eq").exists():
@@ -236,20 +249,21 @@ class ProjectPaths:
     def prod_dir(self, spec: SystemSpec) -> Path:
         """Production base folder for this variant."""
         v_dir = self.variant_dir(spec)
+        if self.run_id:
+            return v_dir / "03_md"
         p03 = v_dir / "03_prod"
         return p03 if p03.exists() else v_dir
 
     def replica_dir(self, spec: SystemSpec, replica: str = "r1") -> Path:
-        """Production replica folder (pure data: chk, dcd)."""
         norm_rep = f"r{replica}" if str(replica).isdigit() else str(replica).lower()
-        v_dir = self.variant_dir(spec)
-        p03 = v_dir / "03_prod"
-        if p03.exists():
-            return p03 / norm_rep
-        return v_dir / norm_rep
+        if not re.fullmatch(r"r[0-9]+", norm_rep):
+            raise ValueError("Replica must be r followed by an integer")
+        return self.prod_dir(spec) / norm_rep
 
     def analysis_dir(self, spec: SystemSpec) -> Path:
         """Analysis folder for this specific state and variant."""
+        if self.run_id:
+            return self.variant_dir(spec) / "04_check"
         canon = self.analysis_base / spec.state_tag / spec.variant
         if canon.exists():
             return canon
@@ -300,27 +314,16 @@ class ProjectPaths:
         return None
 
     def init_layout(self, numbered: bool = True) -> None:
-        """Create standard top-level project folders."""
-        for p in [
+        """Create only the resolved layout; never mirror compatibility trees."""
+        for path in [
             self.scripts_dir,
-            self.root / "structure" / "protein",
-            self.root / "structure" / "template",
-            self.root / "structure" / "ligand",
-            self.root / "structure" / "peptide",
-            self.root / "structure" / "variants",
-            self.root / "simulation",
-            self.root / "analysis",
+            self.protein_dir,
+            self.template_dir,
+            self.ligand_dir,
+            self.peptide_dir,
+            self.variants_dir,
+            self.simulation_base,
         ]:
-            p.mkdir(parents=True, exist_ok=True)
-
-        if numbered:
-            for p in [
-                self.root / "01_structure" / "protein",
-                self.root / "01_structure" / "template",
-                self.root / "01_structure" / "ligand",
-                self.root / "01_structure" / "peptide",
-                self.root / "01_structure" / "variants",
-                self.root / "02_simulation",
-                self.root / "03_analysis",
-            ]:
-                p.mkdir(parents=True, exist_ok=True)
+            path.mkdir(parents=True, exist_ok=True)
+        if not self.run_id:
+            self.analysis_base.mkdir(parents=True, exist_ok=True)
