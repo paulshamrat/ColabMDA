@@ -63,3 +63,15 @@ def test_colab_flags_reach_manager(monkeypatch):
         main()
     assert result.value.code == 0
     assert seen == ["setup", "-s", "pilot", "--local-source"]
+
+
+def test_remote_kernel_error_is_not_reported_as_success(monkeypatch):
+    from unittest.mock import MagicMock
+
+    from colabmda.remote import colab
+
+    fake = MagicMock()
+    fake.stdout = iter(["RuntimeError: installation failed\n"])
+    fake.wait.return_value = 0
+    monkeypatch.setattr(colab.subprocess, "Popen", lambda *a, **k: fake)
+    assert colab._execute_remote("test", "raise RuntimeError('failed')", 10) == 1

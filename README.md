@@ -584,3 +584,7 @@ Deploy committed development code with `cmda colab setup -s SESSION --local-sour
 The runtime receives an allowlisted snapshot with commit and SHA-256 provenance,
 not build caches or local private instructions. Use `colab sessions` to inspect
 sessions and `colab stop -s SESSION` after validation.
+
+The Colab GPU bootstrap uses Python 3.12, CUDA 13.0 and OpenMM 8.5 or newer.
+Remote execution requires a completion sentinel so an installation or kernel
+error cannot be mistaken for success merely because the Colab CLI exited zero.

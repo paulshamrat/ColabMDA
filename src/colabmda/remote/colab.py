@@ -5,6 +5,7 @@ import hashlib
 import json
 import subprocess
 import tempfile
+import uuid
 import zipfile
 from pathlib import Path
 
@@ -79,6 +80,24 @@ def _make_source_zip(repo_root: Path) -> Path:
 
 def _session_args(session: str | None) -> list[str]:
     return ["-s", session] if session else []
+
+
+def _execute_remote(session, code, timeout):
+    """Stream output and require a success sentinel; kernel errors can exit CLI zero."""
+    marker = "COLABMDA_REMOTE_OK_" + uuid.uuid4().hex
+    command = ["colab", "exec", *_session_args(session), "--timeout", str(timeout)]
+    process = subprocess.Popen(
+        command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    process.stdin.write(code + f"\nprint({marker!r})\n")
+    process.stdin.close()
+    succeeded = False
+    for line in process.stdout:
+        print(line, end="", flush=True)
+        if line.strip() == marker:
+            succeeded = True
+    status = process.wait()
+    return status if status else (0 if succeeded else 1)
 
 
 def colab_manager_cli(argv: list[str] | None = None) -> int:
@@ -180,14 +199,9 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             and not full_cmd.startswith("print")
         ):
             full_cmd = f"!{full_cmd}"
-        exec_cmd = ["colab", "exec"] + _session_args(args.session)
-        if args.timeout:
-            exec_cmd.extend(["--timeout", str(args.timeout)])
-        return subprocess.run(
-            exec_cmd,
-            input=full_cmd,
-            text=True,
-        ).returncode
+        if full_cmd.startswith(("!", "%")):
+            full_cmd += "\nif get_ipython().user_ns.get('_exit_code', 0) != 0: raise RuntimeError('Remote command failed')"
+        return _execute_remote(args.session, full_cmd, args.timeout)
 
     if args.colab_action == "setup":
         setup_script = repo_root / "scripts" / "setup.sh"
@@ -230,14 +244,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             )
             session_desc = args.session if args.session else "active"
             print(f"[INFO] Executing setup on {session_desc} session...")
-            exec_cmd = ["colab", "exec"] + _session_args(args.session)
-            if args.timeout:
-                exec_cmd.extend(["--timeout", str(args.timeout)])
-            return subprocess.run(
-                exec_cmd,
-                input=f"!{remote_cmd}",
-                text=True,
-            ).returncode
+            code = f"!{remote_cmd}\nif get_ipython().user_ns.get('_exit_code', 0) != 0: raise RuntimeError('Remote setup failed')"
+            return _execute_remote(args.session, code, args.timeout)
         finally:
             if source_zip is not None:
                 source_zip.unlink(missing_ok=True)
