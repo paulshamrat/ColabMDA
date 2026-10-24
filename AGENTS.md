@@ -132,3 +132,10 @@ Require a real device Context probe and a separately named software smoke before
 full molecular HPC validation. Enforce COLABMDA_REQUIRE_GPU=1. Never reuse quick
 smoke outputs as research equilibration. Code remains a committed runtime snapshot
 under scratch tools/, with the execution project separate under scratch projects/.
+
+Use compbio partition/account for this user's short Palmetto GPU pilots; inspect
+owner partitions with sinfo -a. Do not explicitly set QoS: Palmetto assigns it.
+Normal work1 is not the only available profile. Verify allocated-GPU operation,
+not just plugin presence on the login node. Update the platform guide from tested
+scheduler behavior. Headless plotting must override MPLBACKEND before importing
+Matplotlib, since an inherited notebook backend can be unavailable in conda.

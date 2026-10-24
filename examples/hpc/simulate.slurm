@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=cmda-pilot
-#SBATCH --partition=work1
+#SBATCH --partition=compbio
+#SBATCH --account=compbio
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=16G
-#SBATCH --time=04:00:00
+#SBATCH --time=01:00:00
 #SBATCH --signal=INT@120
 set -euo pipefail
 
@@ -30,6 +31,8 @@ done
 source "$COLABMDA_CONDA_ROOT/etc/profile.d/conda.sh"
 conda activate "${COLABMDA_ENV:-colabmda}"
 export COLABMDA_REQUIRE_GPU=1
+export PYTHONUNBUFFERED=1
+export MPLBACKEND=Agg
 export OPENMM_CPU_THREADS="${SLURM_CPUS_PER_TASK:-4}"
 cd "$PROJECT_ROOT/data/$state/simulation/$COLABMDA_RUN_ID/$variant"
 test -s 01_prep/system.prmtop

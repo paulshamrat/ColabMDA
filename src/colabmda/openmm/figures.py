@@ -7,8 +7,19 @@ import sys
 from pathlib import Path
 
 
-def _publication_style():
+def _headless_pyplot():
+    """Override inherited notebook backends before Matplotlib validates them."""
+    os.environ["MPLBACKEND"] = "Agg"
+    import matplotlib
+
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    return plt
+
+
+def _publication_style():
+    plt = _headless_pyplot()
     from cycler import cycler
 
     plt.rcParams.update(
@@ -28,7 +39,7 @@ def _publication_style():
 
 
 def openmm_compare(series_list, outdir):
-    import matplotlib.pyplot as plt
+    plt = _headless_pyplot()
     import pandas as pd
 
     outpath = Path(outdir) / "figures"
@@ -538,10 +549,7 @@ def openmm_snapshots(
 
 def plot_analysis(outdir):
     """Render saved measurements without recalculating trajectory metrics."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _headless_pyplot()
     import pandas as pd
 
     root = Path(outdir)
@@ -584,10 +592,7 @@ def plot_equilibration(workdir):
     """Plot saved thermodynamic logs after the numerical QC stage."""
     import json
 
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _headless_pyplot()
     import pandas as pd
 
     _publication_style()

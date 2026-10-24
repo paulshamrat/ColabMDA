@@ -99,6 +99,7 @@ Setup asks whether to install MODELLER; the small example does not require it.
 ```bash
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate colabmda
+export MPLBACKEND=Agg
 cmda --help
 ```
 

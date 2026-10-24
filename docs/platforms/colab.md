@@ -53,6 +53,7 @@ Setup asks whether to install MODELLER; CDKL5 model building and mutation requir
 ```bash
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate colabmda
+export MPLBACKEND=Agg
 cmda --help
 ```
 

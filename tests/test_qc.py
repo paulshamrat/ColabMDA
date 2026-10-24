@@ -137,3 +137,21 @@ def test_analyze_logs_varmdyn_missing_stages(tmp_path: Path):
     assert data["varmdyn_stages_verified"] == 18
     assert data["varmdyn_stages_complete"] is False
     assert data["varmdyn_missing_stages"] == [19, 20, 21, 22, 23, 24]
+
+
+def test_qc_plot_overrides_invalid_notebook_backend(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    (tmp_path / "equilibration_qc.json").write_text(json.dumps({"passed": True}))
+    (tmp_path / "nvt.log").write_text(
+        "Time (ps),Temperature (K),Potential Energy (kJ/mole)\n0,300,-10\n10,300,-11\n"
+    )
+    (tmp_path / "npt.log").write_text(
+        "Time (ps),Density (g/mL),Potential Energy (kJ/mole)\n0,1,-10\n10,1,-11\n"
+    )
+    env = dict(os.environ, MPLBACKEND="module://missing_notebook_backend")
+    code = "from colabmda.openmm.figures import plot_equilibration; import sys; plot_equilibration(sys.argv[1])"
+    subprocess.run([sys.executable, "-c", code, str(tmp_path)], env=env, check=True)
+    assert (tmp_path / "figures/equilibration_qc.png").stat().st_size > 0

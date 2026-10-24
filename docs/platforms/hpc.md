@@ -13,13 +13,16 @@ on a login node. Other clusters may require different resources or partitions.
 
 ```bash
 cd ~/research/tools/ColabMDA
-hpc exec -s hpc -- bash -lc 'sinfo -h -o "%P %a %l %G" | head -12'
+hpc exec -s hpc -- bash -lc 'sinfo -a -h -o "%P %a %l" | grep -E "^compbio |^work1"'
 ```
 
-On the checked Palmetto configuration, `work1` offers A100 GPUs and allows up to
-three days. The shipped pilot adapter requests one A100, four CPUs, 16 GB RAM and
-four hours. Resource discovery is verified; a successful scheduler query is not
-a completed GPU pilot.
+For this account, use the owner partition `compbio` and account `compbio` for
+short GPU pilots. It provides 52 A100 GPUs. The normal `work1` profile queued our
+short probe while the compbio molecular smoke completed in 57 seconds. Check
+all accessible partitions, not just the default view. Palmetto assigns QoS;
+explicit `--qos` is rejected. The adapter requests one A100, four CPUs, 16 GB RAM
+and one hour. Override to ten minutes for `smoke`; review wall time for longer
+production. Other accounts must use their authorized partition/account.
 
 Deploy a **clean committed snapshot**, excluding Git metadata and private study
 material. In the local terminal, export only the tool runtime files:
@@ -106,7 +109,7 @@ commands directly.
 cd "$PROJECT_ROOT"
 mkdir -p scripts/simulation
 cp -n "$COLABMDA_TOOL/examples/hpc/simulate.slurm" scripts/simulation/01_simulate.slurm
-mkdir -p logs/apo/$COLABMDA_RUN_ID/WT
+mkdir -p logs/atpmg/$COLABMDA_RUN_ID/WT
 ```
 
 Submit through `hpc` from Divergent. The following commands set their complete
@@ -123,8 +126,8 @@ hpc exec -s hpc -- bash -lc '
   project=/scratch/shamrap/research/projects/colabmda-example
   run=cdkl5_reviewed_v1
   cd "$project"
-  sbatch --output="logs/apo/$run/WT/eq_%j.out" --error="logs/apo/$run/WT/eq_%j.err" \
-    scripts/simulation/01_simulate.slurm "$project" "$run" apo WT eq
+  sbatch --partition=compbio --account=compbio --output="logs/atpmg/$run/WT/eq_%j.out" --error="logs/atpmg/$run/WT/eq_%j.err" \
+    scripts/simulation/01_simulate.slurm "$project" "$run" atpmg WT eq
 '
 ```
 
@@ -138,12 +141,12 @@ hpc exec -s hpc -- bash -lc '
   project=/scratch/shamrap/research/projects/colabmda-example
   run=cdkl5_reviewed_v1
   cd "$project"
-  sbatch --output="logs/apo/$run/WT/md_%j.out" --error="logs/apo/$run/WT/md_%j.err" \
-    scripts/simulation/01_simulate.slurm "$project" "$run" apo WT md r1 0.1
+  sbatch --partition=compbio --account=compbio --output="logs/atpmg/$run/WT/md_%j.out" --error="logs/atpmg/$run/WT/md_%j.err" \
+    scripts/simulation/01_simulate.slurm "$project" "$run" atpmg WT md r1 0.1
 '
 ```
 
-Use `atpmg` for its independently prepared state; create matching log folders.
+Use `apo` for protein in water; create matching log folders.
 Production reruns strict equilibration QC. Wall-time termination does not imply
 completion: inspect job exit status and validated output records, then resubmit
 the same command to recover a compatible run from complete stages/chunks.
@@ -182,6 +185,15 @@ this adapter deliberately submits no arrays or full-library campaign.
 Palmetto bridge, scheduler, scratch layout and existing scientific libraries have
 been inspected. Committed tool/project snapshots and reviewed inputs are deployed
 and hash-verified. The tool is installed without changing the scientific libraries.
-Hardware probe18086549 and dependent molecular smoke18087575 are queued; full
-molecular GPU acceptance remains pending. Record their actual outcomes separately
-from Colab results and from successful syntax/deployment checks.
+The two normal-profile queued checks were cancelled after verifying they had not
+started. Compbio smoke job 18088560 completed successfully on an A100 in 57 seconds,
+with five finite frames. Its tiny software equilibration does not pass research
+QC and is not reused. Full ATP/Mg equilibration job 18088721 uses a fresh run and
+strict 24-stage QC; its outcome remains pending. Colab independently completed
+all 24 apo stages and passed timing/thermodynamic QC. Keep these evidence levels
+separate from biological convergence.
+
+Palmetto currently rejects user changes to queued jobs. If a request must change,
+first verify that it is your pending job, cancel it, and resubmit; never alter
+another campaign. Record replacement IDs and dependencies. Source snapshots and
+scientific inputs remain fixed while active simulations execute.
