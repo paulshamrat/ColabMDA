@@ -1,204 +1,69 @@
-# ColabMDA Developer & Agent Rules
+# ColabMDA development rules
 
-## 1. Project Overview & Scope
+## Layout and scope
 
-ColabMDA is a resume-safe, modular Molecular Dynamics (MD) and structural modeling engine tailored for Google Colab GPUs, local workstations, and HPC environments.
-It combines **MODELLER** (homology modeling & mutagenesis with biological residue numbering) and **OpenMM** (chunked, fail-safe MD simulations with automated Google Drive checkpointing).
+- Work on private `dev1`. Public `main` is reserved for approved clean releases.
+- `src/colabmda/` contains implementation: core project/example handling, MODELLER,
+  AmberTools, flat OpenMM operation modules and remote Colab orchestration.
+- Keep OpenMM flat: prepare, em, nvt, npt, md, qc, merge, analysis, figures,
+  common, commands and the combined-command compatibility adapter run.
+- `scripts/setup.sh` is the only installer. `environment.yml` is its readable
+  core dependency specification. Optional MODELLER stays separate for license
+  and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
+- `examples/trpcage/scripts/` contains runnable user workflows, not engine code.
+  Main README owns installation/example/Colab/restart instructions. Do not add
+  separate example Markdown guides or project configuration YAML.
+- `cmda stage --example trpcage --root ...` installs templates and records hashes
+  in data/00_setup/example.json. Ship templates in wheels and source snapshots.
+  Refuse symlinks and different existing files; never overwrite user settings.
+- One working project: research/projects/colabmda-example on Divergent and Drive.
+  Its numbered scripts are copied templates; tests exercise those same scripts.
+  Runtime paths are data/01_structure and data/02_simulation/<run>/, with
+  logs/02_simulation/<run>/. Preserve existing historical provenance verbatim.
+- Never vendor external software or put coordinates/trajectories in src/examples.
+  Scientific inputs, caches, reports, checkpoints and figures stay in ignored data.
+  Compiler decks run in temporary sandboxes, not scientific data folders.
 
----
+## Scientific and recovery invariants
 
-## 2. Branching & Release Architecture
+- Preserve native author numbering/insertion codes. Structure retrieval supports
+  mmCIF and PDB. Check sequence identity and C-alpha coordinate presence.
+- Trp-cage is a designed peptide; verify its deposited sequence, model 1 and
+  author chain A. A canonical UniProt mutation annotation is not applicable.
+- RMSF author labels require a reference identity/count gate, including insertion
+  codes and chain disambiguation. Never use Amber indices as author numbers.
+- Numerical calculation modules never import plotting libraries. Plot only saved
+  numerical outputs downstream; use 7-inch, 300-DPI PNGs and workspace typography.
+- Keep one production implementation. Combined legacy CLI retains explicit
+  ff14SB/TIP3P defaults while delegating to shared equilibration/production stages.
+- Advance checkpoints only after complete trajectory/log chunks are published.
+  Interrupted chunks replay from the previous checkpoint without time gaps.
+- Validate nonempty outputs before completion markers. RUN_DONE means software
+  checks passed; physical equilibration QC remains separately visible.
+- Quick equilibration is a software test, not biological convergence or full
+  staged-protocol validation. Never claim mutant/cofactor coverage from Trp-cage.
 
-- **Active Development Branch (`dev1`):** All active development, modular refinements, tests, and bug fixes occur on `dev1`.
-- **Docking Module (`docking`):** Virtual screening and AutoDock Vina workflows are isolated in the `docking` branch for future standalone updates.
-- **Public Release (`main`):** Reserved strictly for clean, verified, production-ready releases on GitHub. Never commit directly to `main` or merge unvetted changes.
+## Installation, secrets and remote execution
 
----
+- Preserve the optional interactive MODELLER question and hidden key prompt.
+  Automated tests may use an existing key through the process environment.
+  Never record keys in source, provenance, global shell startup files or logs.
+- Remote MODELLER setup prompts locally and transfers a mode-600 temporary key
+  file, never a key literal in remote code; remove temporary credentials afterward.
+- Use cmda CLI/official Python API for operations; do not create ad-hoc temporary
+  workflow scripts. Project deployment/migration belongs in its numbered sync code.
+- Deploy committed dev1 snapshots through cmda colab setup --local-source, record
+  SNAPSHOT.json hashes and exclude Git metadata, build copies and private material.
+- Run protein GPU pilots on Colab, not Divergent. Keep Colab jobs foreground with
+  streaming output. Use CPU-only sessions for Drive cleanup when possible.
+- Stop dedicated sessions after verified retrieval; heavy trajectories stay on Drive.
 
-## 3. Directory Layout & Architecture
+## Verification
 
-```text
-tools/ColabMDA/
-├── src/colabmda/
-│   ├── cli.py                     # Central CLI entrypoint (cmda and colabmda)
-│   ├── core/                      # System taxonomy, ion registry, project paths
-│   │   ├── taxonomy.py            # SystemSpec definition & state-tag parser
-│   │   ├── ions.py                # Divalent ion parameters & registry
-│   │   └── project.py             # ProjectPaths layout resolver
-│   ├── amber/                     # AmberTools parameterization & cpptraj engine
-│   │   ├── params/                # Hu 2024 quantum nucleotide parameters
-│   │   ├── leap.py                # Fast tleap solvator with addIonsRand
-│   │   └── cpptraj.py             # Dual-stream trajectory autoimaging & stripper
-│   ├── modeller/                  # MODELLER homology and substrate engine
-│   │   ├── engine.py              # Biological numbering and mutation builder
-│   │   └── substrate.py           # Mathematical PTR builder & peptide docking
-│   ├── openmm/                    # Core OpenMM simulation engine
-│   │   ├── commands.py            # High-level subcommands (prep, stage, run, merge, analysis)
-│   │   ├── prepare.py            # PDBFixer preparation, local or downloaded input
-│   │   ├── em.py, nvt.py, npt.py  # Individual simulation stages
-│   │   ├── md.py                 # One checkpointed production implementation
-│   │   ├── qc.py                 # Numerical equilibration checks
-│   │   ├── merge.py              # Trajectory/log merging
-│   │   ├── analysis.py           # Numerical measurements and tables
-│   │   ├── figures.py            # Downstream plots and structure views
-│   │   ├── common.py             # Shared simulation helpers
-│   │   └── run.py                # Combined-command compatibility adapter
-│   └── remote/                    # Google Colab VM remote session manager
-│       └── colab.py               # colab CLI wrapper & upload orchestrator
-├── examples/                      # Public-CLI workflows; outputs stay in a separate project
-├── tests/                         # Unit and regression test suite
-├── docs/                          # Sphinx / Markdown documentation
-├── scripts/                       # Exactly one standalone bootstrap script: setup.sh
-└── AGENTS.md                      # Developer and agent rules
-```
-
----
-
-## 4. Architectural Rules & Invariants
-
-1. **Zero Data in `src/`:**
-   - Never commit raw structural files (`*.pdb`, `*.cif`, `*.sdf`, `*.mol2`), topologies (`*.prmtop`, `*.inpcrd`), or trajectories (`*.dcd`, `*.nc`) into `src/colabmda/`.
-   - All structural inputs belong strictly in the user's project workspace:
-     - Receptor structures: `<project>/structure/protein/`
-     - Template structures: `<project>/structure/template/`
-   - Non-standard residues like phosphotyrosine (`pY171` -> `PTR171`) are constructed mathematically via pure NumPy vectors with zero external template files.
-
-2. **Strict Tool vs. Data Separation (Zero Scripts in Project Data):**
-   - Never place executable scripts (`*.py`, `*.sh`, `*.pml`) or compiler batch input decks (`tleap.in`, `leap.log`) inside project data directories (e.g., `01_prep/`, `structure/variants/`).
-   - The tool (`ColabMDA`) executes external compilers (like `tleap`) in an ephemeral sandbox and unlinks temporary decks automatically (`keep_script=False`).
-   - Scientific parameters and audit trails are recorded strictly as structured JSON metadata (`prep.json`, `qc.json`).
-
-3. **Standardized Directory Layout:**
-   - Resolve one existing project layout; never create parallel compatibility trees.
-   - `COLABMDA_RUN_ID` selects an isolated pilot under `data/02_pilot/<run>/`,
-     with inputs in `data/01_structure/`, per-system `01_prep`, `02_eq`,
-     `03_md/r1` and `04_check`. Validate run identifiers before constructing paths.
-   - **Simulation Pipeline:** Strictly numbered chronological sub-stages inside `<state>/<variant>/`:
-     - `01_prep/`: Parameterization & solvation deliverables (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `prep.json`).
-     - `02_eq/`: Equilibration states, numerical QC (`equilibration_qc.json`), and downstream PNGs under `figures/`; staged and quick protocols remain distinct.
-     - `03_md/` in isolated pilots: production replicas (`r1/`, `r2/`, `r3/`); resolve existing normal project layouts through `ProjectPaths`.
-
-4. **Strict Single-Keyword File Naming Standard:**
-   - Primary deliverables and coordinates must use clean, single-word keywords:
-     - `model.pdb` (never `system_model.pdb` or `target.pdb`)
-     - `solvated.pdb` (never `system_solvated.pdb`)
-     - `eq.pdb` (never `equilibrated.pdb`)
-     - `prod.dcd`, `prod.log`, `restart.chk`, `state.xml`
-
-5. **Granular Resumption & Zero Redundant Compute:**
-   - Before running equilibration, `ColabMDA` must check for existing checkpoints using `find_highest_completed_stage()`.
-   - Completed stages (`em.state.xml`, `nvt.state.xml`, and `stage_01` through `stage_23`) must be fast-forwarded instantly without re-running earlier compute.
-
-6. **Decoupled Scripts Architecture:**
-   - Never place bash or SLURM scripts inside simulation data folders (e.g., no `simulation/atp_2mg_eb2/WT/run.sh`).
-   - All execution scripts live in `<project>/scripts/`:
-     - Standalone local/remote runner: `<project>/scripts/run.sh`
-     - HPC Palmetto scheduler: `<project>/scripts/submit.slurm`
-
-7. **Single Bootstrap Script:**
-   - Exactly one bootstrap script exists in the repository: `scripts/setup.sh`.
-   - Never introduce loose or duplicate shell bootstrap files.
-
-8. **Single-Keyword Unified CLI:**
-   - The CLI is accessible via both `colabmda` and the shortcut `cmda`.
-   - Core subcommands:
-     - `cmda stage`: Prepares standard folder layout and decoupled scripts.
-     - `cmda prep`: Mathematical assembly and Amber `tleap` parameterization.
-     - `cmda sim`: Executes simulation stages (`em`, `nvt`, `npt`, `qc`, `md`, or `eq`).
-     - `cmda merge`: Autoimages PBC and strips bulk solvent via `cpptraj`.
-     - `cmda analyze`: Extracts RMSD, Rg, RMSF, PCA, and contact maps.
-     - `cmda compare`: Multi-replica or cross-variant comparative plotting.
-     - `cmda colab`: Provisions and manages remote Google Colab GPU sessions.
-
-9. **No Ad-Hoc Scratch Scripts for Agents:**
-   - Agents must **never** create temporary one-off helper scripts (e.g., `check_status.py`, `resume_stage24.py`, `install_colabmda.py`) to run or inspect workflows.
-   - All operations must strictly go through the official `cmda` CLI or official Python API.
-
-10. **Colab VM Deployment & Idle Reaper Protection:**
-    - Deploy only committed `dev1` runtime files, record commit/file hashes in SNAPSHOT.json,
-     and exclude Git metadata, private instructions and stale build/dist trees.
-   - To deploy local development code to remote VMs, always use the standard command `cmda colab setup -s <session> --local-source`.
-    - Never execute simulations with background `nohup ... &` on Colab; run them in the foreground with live streaming output to prevent Google Colab's 30-minute idle reaper from terminating the VM.
-
-11. **Post-Verification Compute Cleanup:**
-    - Always terminate Colab GPU VM sessions (`colab stop -s <session>`) immediately after use to conserve user cloud compute units.
-    - Clean up temporary local tarballs and scratch files after test completion.
-
----
-
-## 5. Pre-Commit Quality Gates
-
-Before committing any changes to `dev1`:
-1. Run syntax verification:
-   ```bash
-   python -m py_compile src/colabmda/**/*.py
-   ```
-2. Run code formatting & linting checks:
-   ```bash
-   black --check src tests
-   ruff check src tests
-   ```
-   *(If formatting fails, auto-format using `black src tests`)*
-3. Run the test suite:
-   ```bash
-   pytest tests/
-   ```
-
----
-
-## 6. Google Colab CLI & Remote Cloud Testing
-
-The developer workstation is pre-authenticated with Google OAuth2 (`colab sessions`). When testing cloud bootstrapping or remote GPU execution:
-
-1. **Check Authentication & Identity:**
-   ```bash
-   colab sessions
-   ```
-2. **Launch a Cloud GPU Test Instance:**
-   ```bash
-   colab new -s colabmda-gpu --gpu T4
-   ```
-3. **Execute Commands Remotely:**
-   ```bash
-   echo '!nvidia-smi' | colab exec -s colabmda-gpu
-   ```
-4. **List Active Sessions:**
-   ```bash
-   colab sessions
-   ```
-5. **Terminate Sessions Promptly (Conserves Compute Units):**
-   ```bash
-   colab stop -s colabmda-gpu
-   ```
-
-
-
-
-## Refactor invariants
-
-- Keep the OpenMM source package flat with one-word operation names. Never recreate
-  `engine/` or `modular/` or duplicate production integrators in the combined adapter.
-- Calculation modules do not import plotting libraries. CLI routing calls downstream
-  figure functions after numerical outputs exist; figures use 7-inch, 300-DPI PNGs.
-- Keep the legacy combined command's ff14SB/TIP3P defaults explicit. It now delegates
-  to shared quick equilibration stages; historical trajectories are not bitwise targets.
-- Checkpoints advance only after complete trajectory/log chunks are published. An
-  interrupted chunk is replayed from its previous checkpoint; it must not create gaps.
-- Divergent runs standard tests without a GPU. GPU integration pilots execute on
-  Colab through the CLI; heavy outputs stay on Drive. Stop the GPU session afterward.
-
-## Examples
-
-- Keep examples small and call the public `cmda` CLI; never duplicate simulation
-  implementations or embed private inputs, credentials, data or outputs.
-- `examples/basic/run.sh` supports individual stages for reuse by integration
-  projects. Restart and Colab walkthroughs refer to that runner.
-- Include committed examples in local-source snapshots so documented remote paths
-  exist. Validate shell syntax and argument forwarding locally; protein execution
-  remains a GPU integration check. Do not label examples GPU-verified prematurely.
-
-- RMSF residue labels must come from the native-numbered reference structure,
-  with matching C-alpha residue identities and counts. Never display Amber
-  topology indices as author numbers. Preserve insertion codes and distinguish
-  duplicate numbers across chains. High-level analyze supplies model.pdb; direct
-  Amber analysis requires --reference. Record analysis source/reference hashes.
+Before commits, run Black (one file per process if multiprocessing hangs),
+ruff format --check, ruff check, Python compilation and pytest tests/.
+Run bash -n on changed shell scripts. Test project creation, conflict/symlink
+protection, argument forwarding, wheel resources and hidden MODELLER prompting.
+GPU acceptance includes real SIGINT/resume, unchanged committed chunk hashes,
+continuous frame times, finite measurements, native numbering and reviewed plots.
+Do not claim a new GPU run when only CPU/template tests were performed.

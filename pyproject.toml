@@ -58,3 +58,7 @@ ignore = ["E501"]  # Ignore long lines (handled by black)
 
 [tool.ruff.lint.isort]
 known-first-party = ["colabmda"]
+
+[tool.setuptools.data-files]
+"share/colabmda/examples/trpcage/scripts/01_structure" = ["examples/trpcage/scripts/01_structure/*.py"]
+"share/colabmda/examples/trpcage/scripts/02_simulation" = ["examples/trpcage/scripts/02_simulation/*.sh", "examples/trpcage/scripts/02_simulation/*.py"]

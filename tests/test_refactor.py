@@ -124,3 +124,33 @@ def test_rmsf_uses_native_author_numbers_and_identity_gate(tmp_path):
     atoms[1].residue.name = "ARG"
     with pytest.raises(ValueError, match="identity mismatch"):
         _residue_labels(topology, [0, 1, 2], reference)
+
+
+def test_modeller_prompt_transfers_key_without_embedding_it_in_remote_code(tmp_path, monkeypatch):
+    from colabmda.remote import colab
+
+    archive = tmp_path / "source.zip"
+    archive.write_bytes(b"test")
+    monkeypatch.delenv("KEY_MODELLER", raising=False)
+    monkeypatch.delenv("MODELLER_LICENSE", raising=False)
+    monkeypatch.setattr(colab.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(colab.getpass, "getpass", lambda prompt: "FAKE_TEST_LICENSE")
+    monkeypatch.setattr(colab, "_make_source_zip", lambda root: archive)
+    uploads = []
+
+    def upload(args):
+        if args[-1] == "/content/.colabmda-license":
+            path = Path(args[-2])
+            assert path.read_text() == "FAKE_TEST_LICENSE"
+            assert path.stat().st_mode & 0o077 == 0
+            uploads.append(path)
+
+    monkeypatch.setattr(colab.subprocess, "check_call", upload)
+    codes = []
+    monkeypatch.setattr(
+        colab, "_execute_remote", lambda session, code, timeout: codes.append(code) or 0
+    )
+    assert colab.colab_manager_cli(["setup", "--modeller", "-s", "test"]) == 0
+    assert uploads and not uploads[0].exists()
+    assert "FAKE_TEST_LICENSE" not in codes[0]
+    assert "trap 'rm -f /content/.colabmda-license' EXIT" in codes[0]

@@ -64,7 +64,6 @@ class ProjectPaths:
 
     Layout:
         <project_root>/
-        ├── config.yaml
         ├── 01_structure/ (or legacy structure/)
         │   ├── protein/
         │   ├── template/
@@ -143,6 +142,9 @@ class ProjectPaths:
     def simulation_base(self) -> Path:
         """Resolve data/simulation, 02_simulation, or simulation."""
         if self.run_id:
+            numbered = self.root / "data/02_simulation" / self.run_id
+            if numbered.exists() or (self.root / "data/00_setup/example.json").exists():
+                return numbered
             return self.root / "data/02_pilot" / self.run_id
         p_data = self.root / "data" / "simulation"
         p02 = self.root / "02_simulation"
@@ -263,6 +265,8 @@ class ProjectPaths:
     def analysis_dir(self, spec: SystemSpec) -> Path:
         """Analysis folder for this specific state and variant."""
         if self.run_id:
+            if "02_simulation" in self.simulation_base.parts:
+                return self.variant_dir(spec) / "04_analysis"
             return self.variant_dir(spec) / "04_check"
         canon = self.analysis_base / spec.state_tag / spec.variant
         if canon.exists():

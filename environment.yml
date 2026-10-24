@@ -1,7 +1,6 @@
 name: colabmda
 channels:
   - conda-forge
-  - salilab  # For modeller
 dependencies:
   - python=3.12
   - cuda-version=13.0
@@ -16,11 +15,5 @@ dependencies:
   - biopython
   - pandas
   - scipy
-  - modeller
-  - rdkit
-  - meeko
-  - vina
   - ambertools
   - pip
-  - pip:
-    - -e .

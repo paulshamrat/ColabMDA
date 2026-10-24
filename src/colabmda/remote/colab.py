@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import json
+import os
 import subprocess
+import sys
 import tempfile
 import uuid
 import zipfile
@@ -173,6 +176,14 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
         help="Timeout in seconds (default: 7200)",
     )
 
+    p_boot.add_argument(
+        "--modeller",
+        action="store_true",
+        help="Install MODELLER; securely prompt for a key if needed",
+    )
+    p_boot.add_argument(
+        "--no-modeller", action="store_true", help="Skip the optional interactive MODELLER question"
+    )
     args = parser.parse_args(argv)
 
     if not args.colab_action:
@@ -210,7 +221,40 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             raise FileNotFoundError(f"Setup script not found: {setup_script}")
 
         source_zip: Path | None = None
+        license_path = None
+        use_modeller = args.modeller or os.environ.get("WITH_MODELLER") == "1"
+        if args.modeller and args.no_modeller:
+            raise ValueError("Choose --modeller or --no-modeller")
+        if not use_modeller and not args.no_modeller and sys.stdin.isatty():
+            use_modeller = input("Install MODELLER as well? [y/N]: ").strip().lower() in {
+                "y",
+                "yes",
+            }
+        key = None
+        if use_modeller:
+            key = os.environ.get("KEY_MODELLER") or os.environ.get("MODELLER_LICENSE")
+            if not key and sys.stdin.isatty():
+                key = getpass.getpass("Enter MODELLER license key: ")
+            if not key:
+                raise ValueError("MODELLER requires KEY_MODELLER or an interactive key prompt")
         try:
+            if key:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", prefix="colabmda-license-", delete=False
+                ) as secret:
+                    secret.write(key)
+                    license_path = Path(secret.name)
+                subprocess.check_call(
+                    [
+                        "colab",
+                        "upload",
+                        *_session_args(args.session),
+                        str(license_path),
+                        "/content/.colabmda-license",
+                    ]
+                )
+                license_path.unlink()
+                license_path = None
             if args.local_source:
                 source_zip = _make_source_zip(repo_root)
                 print("[INFO] Uploading local ColabMDA source zip to /content/ColabMDA-upload.zip")
@@ -234,9 +278,11 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
                 ]
             )
 
+            license_setup = ""
+            if use_modeller:
+                license_setup = "chmod 600 /content/.colabmda-license; export WITH_MODELLER=1; export KEY_MODELLER=\"$(cat /content/.colabmda-license)\"; trap 'rm -f /content/.colabmda-license' EXIT; "
             remote_cmd = (
-                "set -e; "
-                "if [ -f /content/ColabMDA-upload.zip ]; then "
+                "set -e; " + license_setup + "if [ -f /content/ColabMDA-upload.zip ]; then "
                 "mkdir -p /content/ColabMDA; "
                 "unzip -oq /content/ColabMDA-upload.zip -d /content/ColabMDA; "
                 "fi; "
@@ -248,6 +294,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             code = f"!{remote_cmd}\nif get_ipython().user_ns.get('_exit_code', 0) != 0: raise RuntimeError('Remote setup failed')"
             return _execute_remote(args.session, code, args.timeout)
         finally:
+            if license_path is not None:
+                license_path.unlink(missing_ok=True)
             if source_zip is not None:
                 source_zip.unlink(missing_ok=True)
 

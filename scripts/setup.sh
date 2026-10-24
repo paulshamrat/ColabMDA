@@ -30,7 +30,7 @@ INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-}"
 OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
-ENV_NAME="${ENV_NAME:-openmm_env}"
+ENV_NAME="${ENV_NAME:-colabmda}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 
 INSTALL_REF="${INSTALL_REF:-}"
@@ -81,34 +81,26 @@ fi
 # 3. Core OpenMM + AmberTools Simulation Environment
 # ------------------------------------------------------------------------------
 echo "[STEP 3/6] Setting up simulation environment: ${ENV_NAME}..."
-PACKAGES=(
-  python=3.12
-  "cuda-version=${OPENMM_CUDA_VERSION}"
-  "openmm>=8.5"
-  pdbfixer
-  pdb2pqr
-  propka
-  mdanalysis
-  mdtraj
-  numpy
-  matplotlib
-  biopython
-)
-
-if [[ "${WITH_AMBERTOOLS}" == "1" ]]; then
-  PACKAGES+=(ambertools)
-fi
-
-if [[ "${WITH_LIGAND}" == "1" ]]; then
-  PACKAGES+=(openff-toolkit openmmforcefields)
-fi
-
-if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
-  echo "[INFO] Updating existing environment: ${ENV_NAME}..."
-  mamba install -y -n "${ENV_NAME}" -c conda-forge "${PACKAGES[@]}"
+# The readable environment specification is the single core dependency list.
+SPEC=$(mktemp /tmp/colabmda-environment-XXXXXX.yml)
+trap 'rm -f "$SPEC"' EXIT
+if [[ -f "${COLABMDA_SOURCE:-}/environment.yml" ]]; then
+  cp "$COLABMDA_SOURCE/environment.yml" "$SPEC"
+elif [[ -f "$(dirname -- "${BASH_SOURCE[0]}")/../environment.yml" ]]; then
+  cp "$(dirname -- "${BASH_SOURCE[0]}")/../environment.yml" "$SPEC"
 else
-  echo "[INFO] Creating new environment: ${ENV_NAME}..."
-  mamba create -y -n "${ENV_NAME}" -c conda-forge "${PACKAGES[@]}"
+  wget -q "https://raw.githubusercontent.com/${REPO}/${INSTALL_REF}/environment.yml" -O "$SPEC"
+fi
+[[ "$OPENMM_CUDA_VERSION" =~ ^[0-9]+\.[0-9]+$ ]] || { echo 'Invalid CUDA version' >&2; exit 2; }
+sed -i -E "s/cuda-version=[0-9.]+/cuda-version=${OPENMM_CUDA_VERSION}/" "$SPEC"
+if [[ "$WITH_AMBERTOOLS" != 1 ]]; then sed -i '/^  - ambertools$/d' "$SPEC"; fi
+if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
+  mamba env update -y -n "$ENV_NAME" -f "$SPEC"
+else
+  mamba env create -y -n "$ENV_NAME" -f "$SPEC"
+fi
+if [[ "$WITH_LIGAND" == 1 ]]; then
+  mamba install -y -n "$ENV_NAME" -c conda-forge openff-toolkit openmmforcefields
 fi
 
 conda activate "${ENV_NAME}"
@@ -131,7 +123,11 @@ fi
 if [[ "${WITH_MODELLER}" == "1" ]]; then
   echo "[STEP 4/6] Setting up MODELLER environment (${MODELLER_ENV_NAME})..."
   conda config --add channels salilab || true
-  mamba create -y -n "${MODELLER_ENV_NAME}" -c salilab -c conda-forge python=3.10 modeller biopython
+  if conda env list | awk '{print $1}' | grep -qx "$MODELLER_ENV_NAME"; then
+    mamba install -y -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
+  else
+    mamba create -y -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
+  fi
   conda activate "${MODELLER_ENV_NAME}"
   python -m pip install --upgrade pip
 
@@ -139,7 +135,8 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
     export KEY_MODELLER="${MODELLER_LICENSE}"
   fi
   if [[ -z "${KEY_MODELLER:-}" && -t 0 ]]; then
-    read -r -p "Enter MODELLER license key (KEY_MODELLER): " KEY_MODELLER
+    read -r -s -p "Enter MODELLER license key (KEY_MODELLER): " KEY_MODELLER
+    printf '\n'
     export KEY_MODELLER
   fi
   if [[ -z "${KEY_MODELLER:-}" ]]; then
@@ -148,9 +145,6 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
     echo "[WARN] Set it later: export KEY_MODELLER='YOUR_LICENSE_KEY'"
   else
     conda env config vars set KEY_MODELLER="${KEY_MODELLER}" >/dev/null || true
-    if ! grep -q 'KEY_MODELLER=' "$HOME/.bashrc" 2>/dev/null; then
-      echo "export KEY_MODELLER='${KEY_MODELLER}'" >> "$HOME/.bashrc"
-    fi
     # Patch MODELLER config.py directly as fallback
     for cfg in ${MINIFORGE_DIR}/envs/${MODELLER_ENV_NAME}/lib/modeller-*/modlib/modeller/config.py; do
       if [[ -f "$cfg" ]]; then

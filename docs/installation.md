@@ -1,3 +1,8 @@
+# Installation reference
+
+The maintained installation and complete Trp-cage example are in the
+[main README](../README.md). This page retains detailed platform reference.
+
 # Installation & Setup Guide
 
 This guide describes how to install, authenticate, and set up **ColabMDA** using the **Google Colab CLI** workflow ("The Colab CLI Way") as well as local workstation setups.
@@ -222,12 +227,13 @@ Use the provided `environment.yml` to create a production-ready conda environmen
 ```bash
 mamba env create -f environment.yml
 conda activate colabmda
+python -m pip install -e .
 ```
 
 ### 2.2. Modeller Environment Setup
 To build homology models locally, install Modeller into a separate environment:
 ```bash
-bash envs/install_modeller_env.sh
+WITH_MODELLER=1 bash scripts/setup.sh
 ```
 
 ---

@@ -251,6 +251,13 @@ def _dispatch_prep(args) -> int:
 
 
 def _dispatch_stage(args) -> int:
+    if getattr(args, "example", None):
+        from colabmda.core.examples import install_example
+
+        if not args.root:
+            raise ValueError("--example requires an explicit --root")
+        return install_example(args.example, args.root)
+
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
 
@@ -1009,6 +1016,9 @@ def main():
     )
     p_top_stage.add_argument(
         "--state", default="atp_2mg_eb2", help="State tag (default: atp_2mg_eb2)"
+    )
+    p_top_stage.add_argument(
+        "--example", choices=["trpcage"], help="Install a complete runnable example"
     )
     p_top_stage.add_argument("--variant", default="WT", help="Variant name (default: WT)")
     p_top_stage.add_argument("--protein", default="cdkl5", help="Protein name (default: cdkl5)")
