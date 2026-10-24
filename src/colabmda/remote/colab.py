@@ -56,6 +56,7 @@ def _make_source_zip(repo_root: Path) -> Path:
         raise RuntimeError("Local development deployment requires dev1")
     allowed = [
         "src",
+        "examples",
         "scripts/setup.sh",
         "pyproject.toml",
         "README.md",

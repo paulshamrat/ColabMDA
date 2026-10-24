@@ -45,6 +45,7 @@ tools/ColabMDA/
 │   │   └── run.py                # Combined-command compatibility adapter
 │   └── remote/                    # Google Colab VM remote session manager
 │       └── colab.py               # colab CLI wrapper & upload orchestrator
+├── examples/                      # Public-CLI workflows; outputs stay in a separate project
 ├── tests/                         # Unit and regression test suite
 ├── docs/                          # Sphinx / Markdown documentation
 ├── scripts/                       # Exactly one standalone bootstrap script: setup.sh
@@ -185,3 +186,13 @@ The developer workstation is pre-authenticated with Google OAuth2 (`colab sessio
   interrupted chunk is replayed from its previous checkpoint; it must not create gaps.
 - Divergent runs standard tests without a GPU. GPU integration pilots execute on
   Colab through the CLI; heavy outputs stay on Drive. Stop the GPU session afterward.
+
+## Examples
+
+- Keep examples small and call the public `cmda` CLI; never duplicate simulation
+  implementations or embed private inputs, credentials, data or outputs.
+- `examples/basic/run.sh` supports individual stages for reuse by integration
+  projects. Restart and Colab walkthroughs refer to that runner.
+- Include committed examples in local-source snapshots so documented remote paths
+  exist. Validate shell syntax and argument forwarding locally; protein execution
+  remains a GPU integration check. Do not label examples GPU-verified prematurely.

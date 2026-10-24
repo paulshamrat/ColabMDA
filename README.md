@@ -29,6 +29,7 @@ ColabMDA is organized into clear, functional modules:
 *   `src/colabmda/openmm/`: Flat OpenMM modules for preparation, EM, NVT, NPT, QC, chunked MD, analysis, and figures.
 *   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
 *   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
+*   `examples/`: [Runnable basic, restart and Colab workflows](examples/README.md), with results stored in a separate project.
 *   `tests/`: Comprehensive unit and regression test suite (`pytest`).
 *   `docs/`: Sphinx and ReadTheDocs scientific documentation source.
 
