@@ -13,3 +13,10 @@ ColabMDA Documentation
    protein_water_simulation
    protein_ligand_simulation
    pymol_visualization
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development reference
+
+   development/pilot_benchmark
+   development/legacy_mapping

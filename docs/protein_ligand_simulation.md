@@ -1,5 +1,9 @@
 # Protein-Ligand Simulation Guide
 
+For the complete maintained Trp-cage example, follow the [main README](../README.md).
+This advanced reference covers the compatibility CLI and existing project layouts.
+It is not a separate worked example project to create alongside colabmda-example.
+
 This guide describes how to model, setup, run, and analyze Molecular Dynamics (MD) simulations for protein-ligand complexes in water using **ColabMDA**.
 
 > 💡 **Where to Run the Commands:**

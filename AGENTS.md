@@ -67,3 +67,11 @@ protection, argument forwarding, wheel resources and hidden MODELLER prompting.
 GPU acceptance includes real SIGINT/resume, unchanged committed chunk hashes,
 continuous frame times, finite measurements, native numbering and reviewed plots.
 Do not claim a new GPU run when only CPU/template tests were performed.
+
+## Documentation upkeep
+
+Keep CONTRIBUTING and reference pages consistent with the flat source layout and
+main README. The installation reference links to the README rather than duplicating
+a second setup workflow. Document implemented behavior: standard analysis is
+RMSD/Rg/RMSF; comparison plotting currently uses openmm compare --series. Legacy
+path handlers and historical provenance are intentional compatibility support.

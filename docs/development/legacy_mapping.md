@@ -1,16 +1,26 @@
-# Developer Reference: Backward-Compatibility Mapping (v0.2.0 to v0.3.0)
+# CLI compatibility reference
 
-> 🧑‍💻 **Internal Developer Reference**  
-> This document maps legacy multi-keyword commands (`colabmda openmm ...`) to their modern single-keyword `cmda` equivalents for backward compatibility maintenance, testing, and migration of legacy scripts.
+This describes the current development checkout, not an announced release.
+`colabmda` and `cmda` are aliases for the same CLI. The main README owns the
+complete runnable example; this page helps maintain existing project workflows.
 
-| Legacy Command (v0.2.0) | Modern Command (v0.3.0) | Key Advantages |
+| Operation | Current command | Scope |
 | :--- | :--- | :--- |
-| `colabmda modeller build ...` | `cmda modeller build ...` | Direct top-level access, biological numbering by default. |
-| `colabmda openmm prep ...` | `cmda prep --state <tag> --variant <var>` | Combines PDBFixer, PROPKA 3 at pH 7.4, and Amber tleap solvation into one step. |
-| `colabmda openmm stage ...` | `cmda stage --state <tag> --variant <var>` | Auto-creates standard `data/simulation/<state>/<var>` layout and decoupled scripts. |
-| `colabmda openmm em/nvt/npt/qc` | `cmda sim --state <tag> --stage eq` | Executes full 24-stage relaxation hub with automated QC gating in one command. |
-| `colabmda openmm md ...` | `cmda sim --state <tag> --stage md --replica r1` | Resume-safe checkpointed production MD. |
-| `colabmda openmm merge ...` | `cmda merge --state <tag> --variant <var>` | Automated `cpptraj` PBC autoimaging and dual-stream solvent stripping. |
-| `colabmda openmm analysis ...` | `cmda analyze --state <tag> --variant <var>` | Generates time-series metrics (RMSD, Rg, RMSF, PCA). |
-| `colabmda openmm compare ...` | `cmda compare --state <tag> --variants WT,L119R` | Multi-replica and cross-variant comparative overlays. |
-| `colabmda openmm view ...` | `colabmda openmm view --pdb-dir <dir>` | Generates automated `visualize.pml` and launches PyMOL. |
+| Modeling | `cmda modeller build` or `mutate` | MODELLER-backed modeling; a valid key is required. |
+| Complete example | `cmda stage --example trpcage --root PROJECT` | Installs the seven workflow templates without overwriting different files. |
+| Existing state layout | `cmda stage --state TAG --variant NAME --root PROJECT` | Compatibility layout and runner generation for an existing research system. |
+| Preparation | `cmda prep --state TAG --variant NAME --root PROJECT` | Assembly and Amber parameterization from supplied reviewed inputs. |
+| Equilibration | `cmda sim --state TAG --stage eq --root PROJECT` | Select the staged or quick protocol explicitly; inspect physical QC. |
+| Production | `cmda sim --state TAG --stage md --replica r1 --root PROJECT` | Checkpointed production; preserve inputs and runtime to resume. |
+| Merge | `cmda merge --state TAG --variant NAME --root PROJECT` | Autoimaging and solvent stripping with matching topologies. |
+| Analysis | `cmda analyze --state TAG --variant NAME --root PROJECT` | RMSD, Rg and native-numbered RMSF tables, then downstream figures. |
+| Comparison plots | `cmda openmm compare --series LABEL=DIR1,DIR2 --outdir OUT` | Aggregate the supplied analysis tables; PNGs are under OUT/figures. |
+| Structure viewing | `cmda openmm view --pdb-dir DIR` | PyMOL viewing for a supported topology/trajectory pair. |
+
+The top-level `cmda compare` currently reports the requested comparison but does
+not generate plots. Use the implemented `cmda openmm compare --series ...` command.
+The standard analysis pipeline does not calculate PCA or contact maps.
+
+Direct `cmda openmm analysis` with an Amber topology requires `--reference` to
+recover author residue labels. Legacy path resolution remains for existing
+projects; new example projects use the numbered layout documented in the README.

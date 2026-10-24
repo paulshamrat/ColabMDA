@@ -1,52 +1,53 @@
 # Contributing to ColabMDA
 
-Thank you for your interest in contributing! We welcome help in making Molecular Dynamics more accessible and robust for everyone.
+Read the [main README](README.md) for installation, the runnable Trp-cage example
+and the repository layout. Follow [AGENTS.md](AGENTS.md) for development rules.
 
-## How to Contribute
+## Development
 
-1.  **Report Bugs:** If you find a bug, please open an issue with a clear description and steps to reproduce.
-2.  **Suggest Features:** Have an idea? Open an issue to discuss it!
-3.  **Submit Pull Requests:**
-    *   Fork the repository.
-    *   Create a new branch for your feature or fix.
-    *   Ensure your code follows the **Black** code style.
-    *   Ensure all tests and linting pass (`ruff check .`).
-    *   Submit a PR with a clear description of your changes.
+Use `dev1` for private research and active development. Public `main` is reserved
+for approved, sanitized releases; do not merge private development history into it.
+Keep changes focused and describe the resulting behavior and validation.
 
-## Development Setup
+Install the core environment from `environment.yml`, activate `colabmda`, then
+install the checkout with `python -m pip install -e .`. MODELLER is optional;
+use the single `scripts/setup.sh` installer and its key prompt when needed.
 
-To set up a development environment locally:
+## Architecture
 
-```bash
-git clone https://github.com/paulshamrat/ColabMDA.git
-cd ColabMDA
-mamba env create -f environment.yml
-conda activate colabmda
-```
+- `src/colabmda/cli.py` parses commands and routes operations.
+- `core/` owns project paths, example installation, state definitions and ions.
+- `modeller/` owns modeling and mutation logic.
+- `amber/` owns parameterization and trajectory processing.
+- `openmm/` is flat: preparation, EM, NVT, NPT, MD, QC, merge, analysis and figures
+  use separate operation modules. Do not recreate engine/modular subfolders.
+- `remote/colab.py` owns committed snapshot deployment and Colab execution.
+- `examples/trpcage/scripts/` contains thin, runnable user workflows that call the
+  public CLI/API. Install them with `cmda stage --example trpcage --root ...`.
+  Do not duplicate scientific implementations or add extra example guide files.
 
-## Project Architecture & Modularity Guide
+Keep calculations separate from plotting. Preserve native author numbering and
+validate coordinate identities. Write runtime outputs into ignored project data
+and logs, never into tool source or example templates. Test overwrite protection,
+checkpoint recovery and output validation rather than only successful process exit.
 
-ColabMDA is designed with a **Modular Command-Line Architecture**. This separates the "User Interface" (CLI) from the "Scientific Logic" (Engines).
+## Verification
 
-### 1. The Core Structure
-*   **`src/colabmda/cli.py`**: The central entry point. It handles argument parsing and basic path resolution. It **should not** contain heavy scientific logic.
-*   **`src/colabmda/modeller/`**: Contains everything related to protein modeling.
-    *   `engine.py`: The core MODELLER logic.
-    *   `commands.py`: Bridge between the CLI and the engine.
-*   **`src/colabmda/openmm/`**: Contains everything related to OpenMM simulations.
-    *   `engine/`: Contains core simulation scripts.
-    *   `modular/`: Contains individual EM, NVT, NPT, and MD steps.
-    *   `commands.py`: Bridge between the CLI and the engine.
+Before committing Python changes, run Black, `ruff format --check`, `ruff check`,
+Python compilation and `pytest tests/`. Run `bash -n` on changed shell scripts.
+If Black multiprocessing stalls, check one file per process.
 
-### 2. Adding a New Feature
-1.  **Logic First:** Add your core logic in a new file within the appropriate engine directory (e.g., `src/colabmda/openmm/analysis_tools.py`).
-2.  **Add Command Handler:** Update the `commands.py` file in that directory to expose your logic as a function.
-3.  **Update CLI:** Add a new subcommand to `cli.py` that calls your command handler.
-4.  **Test Locally:** Run your new command with a `test_` prefix to ensure it doesn't get tracked by Git.
+Generated example scripts use the tool's 100-character line length. A project
+should check them with `ruff format --line-length 100 --check scripts tests`;
+reformatting them differently invalidates their recorded template hashes.
 
-### 3. Coding Style
-*   **Functional Programming:** Prefer clean, standalone functions over complex classes where possible.
-*   **Logging:** Use the project's logging patterns (writing to a `pipeline.log` in the output directory) to help users debug.
-*   **Linting:** Always run `black .` and `ruff check . --fix` before committing.
+Run CPU tests on Divergent. Protein GPU acceptance runs on Colab through the CLI,
+using the generated example and the working project's `tests/gpu.py`. Keep it
+foreground, inspect physical QC separately, retrieve verified compact reports,
+and stop the dedicated session. Never include license keys or credentials in
+source, test fixtures using real secrets, logs or provenance.
 
-Happy coding!
+Update README/AGENTS.md and affected reference pages when behavior changes.
+Keep user instructions in the main README. Document only implemented commands;
+identify compatibility-only commands and limits explicitly. Record changes in
+the unreleased changelog without inventing a public release.

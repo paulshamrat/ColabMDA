@@ -4,6 +4,20 @@ All notable changes to **ColabMDA** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased development
+
+- Flattened OpenMM operation modules and consolidated checkpointed production.
+- Added the complete Trp-cage example and safe `cmda stage --example trpcage`
+  installation, including example resources in wheels and source snapshots.
+- Consolidated installation into scripts/setup.sh and environment.yml, retaining
+  interactive MODELLER setup and hidden key entry.
+- Recorded example/input/runtime fingerprints, preserved author RMSF numbering
+  with an identity gate, and separated numerical processing from figure modules.
+- Consolidated the working project as colabmda-example while preserving historical
+  inputs/results and verified migration records.
+- Centralized user instructions in README and corrected outdated developer and
+  compatibility references. These development changes are not a public release.
+
 ## [v0.2.0] - 2026-10-14 (Modular Architecture & Resilience)
 
 ### 📊 Release Summary (v0.1.0 vs. v0.2.0)
