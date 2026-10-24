@@ -1088,17 +1088,23 @@ def main():
 
     # 6. analyze (alias: analysis)
     p_top_ana = sub.add_parser(
-        "analyze", aliases=["analysis"], help="Extract RMSD, Rg, RMSF, PCA, contact maps"
+        "analyze",
+        aliases=["analysis"],
+        help="Calculate RMSD, Rg and RMSF, then render saved tables",
     )
     p_top_ana.add_argument("--state", required=True, help="State tag")
     p_top_ana.add_argument("--variant", default="WT", help="Variant name")
     p_top_ana.add_argument(
-        "--metrics", default="rmsd,rg,rmsf", help="Metrics to compute (default: rmsd,rg,rmsf)"
+        "--metrics",
+        default="rmsd,rg,rmsf",
+        help="Compatibility option; current analysis calculates RMSD, Rg and RMSF",
     )
     p_top_ana.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
 
     # 7. compare
-    p_top_comp = sub.add_parser("compare", help="Cross-variant or cross-state comparative analysis")
+    p_top_comp = sub.add_parser(
+        "compare", help="Report a comparison request (plotting: openmm compare --series)"
+    )
     p_top_comp.add_argument("--state", required=True, help="State tag")
     p_top_comp.add_argument(
         "--variants", required=True, help="Comma-separated variants list (e.g. WT,R59W)"

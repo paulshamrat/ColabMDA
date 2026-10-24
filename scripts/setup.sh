@@ -95,12 +95,12 @@ fi
 sed -i -E "s/cuda-version=[0-9.]+/cuda-version=${OPENMM_CUDA_VERSION}/" "$SPEC"
 if [[ "$WITH_AMBERTOOLS" != 1 ]]; then sed -i '/^  - ambertools$/d' "$SPEC"; fi
 if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
-  mamba env update -y -n "$ENV_NAME" -f "$SPEC"
+  mamba env update -y -q -n "$ENV_NAME" -f "$SPEC"
 else
-  mamba env create -y -n "$ENV_NAME" -f "$SPEC"
+  mamba env create -y -q -n "$ENV_NAME" -f "$SPEC"
 fi
 if [[ "$WITH_LIGAND" == 1 ]]; then
-  mamba install -y -n "$ENV_NAME" -c conda-forge openff-toolkit openmmforcefields
+  mamba install -y -q -n "$ENV_NAME" -c conda-forge openff-toolkit openmmforcefields
 fi
 
 conda activate "${ENV_NAME}"
@@ -124,9 +124,9 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
   echo "[STEP 4/6] Setting up MODELLER environment (${MODELLER_ENV_NAME})..."
   conda config --add channels salilab || true
   if conda env list | awk '{print $1}' | grep -qx "$MODELLER_ENV_NAME"; then
-    mamba install -y -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
+    mamba install -y -q -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
   else
-    mamba create -y -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
+    mamba create -y -q -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
   fi
   conda activate "${MODELLER_ENV_NAME}"
   python -m pip install --upgrade pip

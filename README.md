@@ -43,6 +43,12 @@ The tool stays separate from the project where simulations run.
 
 #### 1.1.1. Terminal Runner (Recommended)
 
+Prerequisites are Linux/Bash, Git, Python 3.12 or newer for the current Colab CLI,
+internet access and a Colab account. The core ColabMDA package supports Python
+3.10+, but the local Colab control environment must also meet the CLI requirement.
+Complete CLI authentication when requested. Existing installations can activate
+their environment instead of creating another one.
+
 **On your local computer**, enter the ColabMDA checkout. In our workspace this is
 `~/research/tools/ColabMDA`. A GPU is not required on the local computer:
 
@@ -55,10 +61,6 @@ python -m pip install -e . google-colab-cli
 cmda --help
 colab sessions
 ```
-
-Prerequisites are Linux/Bash, Git, Python 3.10 or newer, internet access and a Colab
-account. Complete the CLI authentication when requested. Existing installations
-can activate their environment instead of creating another one.
 
 Then create a GPU runtime, authenticate Drive and deploy the committed tool:
 
@@ -786,16 +788,34 @@ set `COLABMDA_EXAMPLE_NS` for production; the final check reads the saved reques
 Use positive multiples of 0.1 ns. Choose a fresh run ID for changed inputs,
 executed scripts or runtime revisions.
 
-To test extension from a smoke run, after preparation/equilibration run:
+To test extension instead of the direct production command above, use a fresh run
+ID, complete preparation/equilibration, then run:
 
 ```bash
 COLABMDA_EXAMPLE_NS=0.1 bash scripts/02_simulation/03_production.sh
 COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
 ```
 
-Then perform analysis and the final check. For actual interruption, press Ctrl+C
-while a later chunk is running and repeat the same production command. The
-interrupted command must fail and the committed chunk must remain unchanged.
+Then perform analysis and the final check. To include an actual interruption in
+this test, pause after the 0.1 ns smoke command, save its first chunk's checksum
+from the project root, then start the extension:
+
+```bash
+sha256sum "data/02_simulation/$COLABMDA_RUN_ID/apo/WT/03_md/r1/prod_0to100ps.dcd" \
+  > "data/02_simulation/$COLABMDA_RUN_ID/first_chunk.sha256"
+COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
+```
+
+Press Ctrl+C while the second chunk is running. Before another command, `echo $?`
+should report a nonzero exit status. Resume with the same production command, then
+verify the first committed chunk:
+
+```bash
+COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
+sha256sum -c "data/02_simulation/$COLABMDA_RUN_ID/first_chunk.sha256"
+```
+
+The checksum must report `OK`. Continue with analysis and the final check.
 The private working project's `tests/gpu.py` automates that acceptance test using
 these same generated scripts; it is not an extra file installed for every user.
 
@@ -835,8 +855,36 @@ test. That is an observed runtime, not a guarantee. Quick equilibration can fail
 the density-slope criterion; retain the warning and do not call this a converged
 production study, a mutant/cofactor validation or a full staged-protocol test.
 
-Keep heavy trajectories and checkpoints on Drive. Retrieve and verify compact
-reports and plots before stopping the dedicated session. **From the local terminal:**
+Keep heavy trajectories and checkpoints on Drive. To return from the interactive
+console to your local terminal, detach with **Ctrl-B, then D**. This does not stop
+the runtime. With the local ColabMDA environment active, download and verify the
+compact reports below. Set RUN_ID to the run you just completed:
+
+```bash
+RUN_ID=run01
+REMOTE_RUN="/content/drive/MyDrive/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
+LOCAL_RUN="$HOME/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
+files=(
+  summary.json provenance.json production.json RUN_DONE
+  apo/WT/02_eq/equilibration_qc.json apo/WT/02_eq/figures/equilibration_qc.png
+  apo/WT/02_eq/nvt.log apo/WT/02_eq/npt.log apo/WT/03_md/r1/prod_full.log
+  apo/WT/04_analysis/analysis.json
+  apo/WT/04_analysis/rmsd.csv apo/WT/04_analysis/rg.csv apo/WT/04_analysis/rmsf.csv
+  apo/WT/04_analysis/figures/rmsd_vs_time.png
+  apo/WT/04_analysis/figures/rg_vs_time.png
+  apo/WT/04_analysis/figures/rmsf_per_residue.png
+)
+cmda colab exec -s colabmda-example --timeout 120 \
+  "cd '$REMOTE_RUN' && sha256sum ${files[*]} > reports.sha256"
+for file in "${files[@]}" reports.sha256; do
+  mkdir -p "$LOCAL_RUN/$(dirname "$file")"
+  colab download -s colabmda-example "$REMOTE_RUN/$file" "$LOCAL_RUN/$file"
+done
+(cd "$LOCAL_RUN" && sha256sum -c reports.sha256)
+```
+
+Require `OK` for every downloaded report, review the PNGs and read the physical
+QC result. Then stop the dedicated session **from the local terminal**:
 
 ```bash
 colab stop -s colabmda-example
