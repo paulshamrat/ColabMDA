@@ -208,6 +208,12 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
 
     if args.colab_action == "exec":
         full_cmd = " ".join(args.cmd) if args.cmd else "!nvidia-smi"
+        if "\n" in full_cmd and not full_cmd.startswith(("%", "import", "print")):
+            # A notebook ! escape handles only one line. Execute a complete shell
+            # block in one Bash process, preserving cd, exports and failure status.
+            shell = full_cmd.removeprefix("!")
+            code = f"get_ipython().run_cell_magic('bash', '', {shell!r})"
+            return _execute_remote(args.session, code, args.timeout)
         if (
             not full_cmd.startswith("!")
             and not full_cmd.startswith("%")

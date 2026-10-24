@@ -107,6 +107,10 @@ The installed snapshot is `/content/ColabMDA`; persistent project data belongs u
 small example there. You can also dispatch foreground shell commands from the local
 terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
 
+Each remote exec call starts a new shell. Include environment activation, project
+variables and `cd` in that call; shell state does not carry between invocations.
+A quoted multiline shell block runs in one Bash process and propagates failure.
+
 #### 1.1.2. Web Notebook
 
 With a GPU runtime selected in Colab, mount Drive in a notebook cell:

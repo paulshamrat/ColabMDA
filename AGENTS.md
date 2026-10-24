@@ -122,3 +122,6 @@ Slurm settings. Test a single WT allocation before a panel or arrays; dynamic
 manifest bounds and dependencies belong in a later verified campaign adapter.
 Record scheduler/syntax checks separately from actual GPU acceptance. Do not
 modify or interrupt the active docking campaign while checking ColabMDA support.
+
+Remote multiline shell blocks must run in one Bash cell, preserving cd/export and
+propagating nonzero exits. Independent exec calls do not share shell state.

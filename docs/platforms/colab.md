@@ -99,6 +99,10 @@ the selected scientific guide activates it and installs the same tool snapshot.
 
 ---
 
+Each remote exec call starts a new shell. Include environment activation, project
+variables and `cd` in that call; shell state does not carry between invocations.
+A quoted multiline shell block runs in one Bash process and propagates failure.
+
 ## Execution
 
 Follow the selected guide in the foreground. Its production target is per replica.
