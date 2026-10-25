@@ -63,7 +63,8 @@ class ProjectPaths:
     """Standardized, decoupled directory hierarchy for ColabMDA simulation projects.
 
     New state-aware CLI runs use data/<state>/structure and
-    data/<state>/simulation/<run>/<variant>/{01_prep,02_eq,03_md,04_analysis}.
+    data/<state>/simulation/<run>/<variant>/{01_prep,02_eq,03_md} and
+    data/<state>/analysis/<run>/<variant>/{r1,r2,r3,aggregate}.
     Existing numbered and legacy runs remain readable in their original locations.
     """
 
@@ -181,7 +182,7 @@ class ProjectPaths:
     def analysis_base(self) -> Path:
         """Resolve data/analysis, 03_analysis, or analysis."""
         if self.state_dir is not None:
-            return self.simulation_base / "compare"
+            return self.state_dir / "analysis" / self.run_id
         p_data = self.root / "data" / "analysis"
         p03 = self.root / "03_analysis"
         p_legacy = self.root / "analysis"
@@ -289,7 +290,8 @@ class ProjectPaths:
     def analysis_dir(self, spec: SystemSpec) -> Path:
         """Analysis folder for this specific state and variant."""
         if self.state_dir is not None:
-            return self.variant_dir(spec) / "04_analysis"
+            self.variant_dir(spec)  # Require the same explicit run ID as simulation.
+            return self.analysis_base / spec.variant
         if self.run_id:
             if "02_simulation" in self.simulation_base.parts:
                 return self.variant_dir(spec) / "04_analysis"
@@ -306,6 +308,112 @@ class ProjectPaths:
             return canon
         return legacy
 
+    def replica_analysis_dir(self, spec: SystemSpec, replica: str = "r1") -> Path:
+        """Canonical per-replica reports; preserve pre-state layouts verbatim."""
+        normalized = self.replica_dir(spec, replica).name
+        return (
+            self.analysis_dir(spec) / normalized
+            if self.state_dir is not None
+            else self.analysis_dir(spec)
+        )
+
+    def migrate_analysis(self, spec: SystemSpec) -> dict | None:
+        """Explicitly migrate completed legacy high-level r1 reports, hash verified.
+
+        Never called implicitly by path resolution. Historical numbered examples
+        remain unchanged. A receipt preserves the old/new paths and file hashes.
+        """
+        import hashlib
+        import json
+        import shutil
+
+        if self.state_dir is None:
+            raise ValueError("Analysis migration applies only to state-first runs")
+        source = self.variant_dir(spec) / "04_analysis"
+        target = self.replica_analysis_dir(spec, "r1")
+        if not source.exists():
+            return None
+        required = [
+            "ANALYSIS_DONE",
+            "analysis.json",
+            "rmsd.csv",
+            "rg.csv",
+            "rmsf.csv",
+            "figures/rmsd_vs_time.png",
+            "figures/rg_vs_time.png",
+            "figures/rmsf_per_residue.png",
+        ]
+        if any(
+            not (source / name).is_file() or not (source / name).stat().st_size for name in required
+        ):
+            raise ValueError("Only completed legacy r1 analysis can be migrated")
+        if any((source / name).exists() for name in ["r1", "r2", "r3", "aggregate"]):
+            raise ValueError(
+                "Legacy analysis contains multiple replicas; explicit mapping required"
+            )
+
+        def inventory(folder):
+            result = {}
+            for path in [folder, *folder.rglob("*")]:
+                if path.is_symlink():
+                    raise ValueError("Refusing symlink in analysis migration")
+                if path.is_file():
+                    with path.open("rb") as handle:
+                        digest = hashlib.sha256()
+                        for block in iter(lambda: handle.read(1024 * 1024), b""):
+                            digest.update(block)
+                    result[str(path.relative_to(folder))] = digest.hexdigest()
+            return result
+
+        before = inventory(source)
+        if any(Path(n).suffix in {".dcd", ".xtc", ".trr", ".nc", ".chk"} for n in before):
+            raise ValueError("Analysis migration refuses heavy simulation data")
+        # Refuse parent symlinks and all conflicting files before copying anything.
+        for parent in [source, *source.parents, target, *target.parents]:
+            if parent.is_symlink():
+                raise ValueError("Refusing symlink in analysis destination")
+        existing = inventory(target) if target.exists() else {}
+        if any(name not in before or digest != before[name] for name, digest in existing.items()):
+            raise ValueError("Conflicting analysis destination preserved")
+        target.mkdir(parents=True, exist_ok=True)
+        markers = [n for n in before if n.endswith("_DONE")]
+        for name in markers:
+            (target / name).unlink(missing_ok=True)
+        for name in before.keys() - set(markers):
+            dest = target / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / name, dest)
+        if inventory(source) != before or inventory(target) != {
+            n: h for n, h in before.items() if n not in markers
+        }:
+            raise ValueError("Analysis changed during migration; original preserved")
+        record = {
+            "source": str(source.relative_to(self.root)),
+            "destination": str(target.relative_to(self.root)),
+            "replica": "r1",
+            "files": before,
+            "provenance": "Original metadata retained byte-for-byte; paths in historical receipts remain original",
+        }
+        receipt = (
+            self.root
+            / "data/00_setup/analysis_migrations"
+            / f"{self.state_dir.name}_{self.run_id}_{spec.variant}.json"
+        )
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        if receipt.exists() and json.loads(receipt.read_text()) != record:
+            raise ValueError("Conflicting migration receipt preserved")
+        receipt.write_text(json.dumps(record, indent=2) + "\n")
+        for name in markers:
+            dest = target / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / name, dest)
+        if inventory(source) != before or inventory(target) != before:
+            for name in markers:
+                (target / name).unlink(missing_ok=True)
+            raise ValueError("Final migration verification failed; original preserved")
+        shutil.rmtree(source)
+        return record
+
     def log_dir(self, spec: SystemSpec) -> Path:
         """Execution logs mirror state/run/variant, independently of scientific data."""
         if self.state_dir is not None:
@@ -315,7 +423,7 @@ class ProjectPaths:
     def compare_dir(self, state_tag: str) -> Path:
         """Cross-variant comparison folder for a state."""
         if self.state_dir is not None:
-            return self.analysis_base
+            return self.analysis_base / "compare"
         return self.analysis_base / state_tag / "compare"
 
     def find_template(self, filename: str) -> Path | None:

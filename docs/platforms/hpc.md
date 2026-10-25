@@ -188,7 +188,8 @@ hpc exec -s hpc -- bash -lc '
 ```
 
 This uses two CPUs, 4 GB RAM and ten minutes on compbio, with no GPU request.
-It calls the shared merge/analysis commands and verifies nonempty tables/figures
+It calls the shared merge/analysis commands and writes r1 reports under
+`data/<state>/analysis/<run>/<variant>/r1/`. It verifies nonempty tables/figures
 before writing `ANALYSIS_DONE`. Retrieve compact reports with `hpc download`; verify SHA-256 against a
 remote inventory. Heavy trajectories remain on scratch until a reviewed archival
 transfer. A Slurm `COMPLETED` result alone does not prove convergence.

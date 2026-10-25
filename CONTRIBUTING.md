@@ -112,3 +112,11 @@ Keep account/Drive authentication, committed snapshot deployment, recovery and
 MODELLER prompting in that path. Do not reintroduce a web notebook setup route
 or notebook-cell instructions. Internal runtime protocol and plotting-backend
 compatibility code are separate from the documented user workflow.
+
+Keep structure, simulation and analysis as unnumbered siblings within each state.
+Write new replica reports to analysis/<run>/<variant>/<replica>, model views to
+the variant's figures/, replica summaries to aggregate/, and variant comparisons
+to analysis/<run>/compare. Explicit migration applies only to completed flat
+state-based r1 reports; verify hashes, reject conflicts/symlinks/heavy data, keep
+historical provenance/receipts and never move outputs during path resolution.
+Historical numbered examples keep their layouts and template hashes.

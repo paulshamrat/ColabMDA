@@ -365,9 +365,10 @@ def _state_views(
         )
         record["source_kind"] = "starting_model" if structure else "trajectory"
         datasets.append((f"{s} · {v}", u, panels, record))
-    return datasets, ProjectPaths(root, state=specs[0][0]).analysis_dir(
-        SystemSpec.from_tag(specs[0][0], variant=specs[0][1])
-    )
+    paths = ProjectPaths(root, state=specs[0][0])
+    spec = SystemSpec.from_tag(specs[0][0], variant=specs[0][1])
+    folder = paths.analysis_dir(spec) if structure else paths.replica_analysis_dir(spec, replica)
+    return datasets, folder
 
 
 def _style_view(cmd, resi):
@@ -708,31 +709,23 @@ def plot_analysis(outdir):
         "rmsf": ("RMSF (Å)", "rmsf_per_residue.png"),
     }
     for key, (ylabel, filename) in names.items():
-        for table in root.rglob(f"{key}.csv"):
+        for table in [*root.rglob(f"{key}.csv"), *root.rglob(f"{key}_avg.csv")]:
             data = pd.read_csv(table)
             fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
             ax.plot(data.iloc[:, 0], data.iloc[:, 1], color="#0072B2")
+            if "Std" in data:
+                ax.fill_between(
+                    data.iloc[:, 0],
+                    data["Mean"] - data["Std"],
+                    data["Mean"] + data["Std"],
+                    color="#0072B2",
+                    alpha=0.2,
+                )
             ax.set(xlabel=data.columns[0], ylabel=ylabel)
             target = table.parent / "figures"
             target.mkdir(exist_ok=True)
-            fig.savefig(target / filename, dpi=300)
-            plt.close(fig)
-        table = root / "aggregate" / f"{key}_avg.csv"
-        if table.exists():
-            data = pd.read_csv(table)
-            fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
-            ax.plot(data.iloc[:, 0], data["Mean"], color="#0072B2")
-            ax.fill_between(
-                data.iloc[:, 0],
-                data["Mean"] - data["Std"],
-                data["Mean"] + data["Std"],
-                color="#0072B2",
-                alpha=0.2,
-            )
-            ax.set(xlabel=data.columns[0], ylabel=ylabel)
-            target = table.parent / "figures"
-            target.mkdir(exist_ok=True)
-            fig.savefig(target / f"{key}_aggregate.png", dpi=300)
+            output = f"{key}_aggregate.png" if table.stem.endswith("_avg") else filename
+            fig.savefig(target / output, dpi=300)
             plt.close(fig)
 
 

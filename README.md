@@ -212,11 +212,16 @@ Use this shared layout for CDKL5 apo and ATP/Mg on Colab, HPC or a workstation:
 colabmda-example/
 ├── data/{apo,atpmg}/
 │   ├── structure/{raw,mapping,models/{WT,L119R}}/
-│   └── simulation/<run>/<variant>/
-│       ├── 01_prep/
-│       ├── 02_eq/
-│       ├── 03_md/{r1,r2,r3}/
-│       └── 04_analysis/
+│   ├── simulation/<run>/<variant>/
+│   │   ├── 01_prep/
+│   │   ├── 02_eq/
+│   │   └── 03_md/{r1,r2,r3}/
+│   └── analysis/<run>/
+│       ├── <variant>/
+│       │   ├── {r1,r2,r3}/             # Tables, metadata and figures/
+│       │   ├── aggregate/              # Replica means and standard deviations
+│       │   └── figures/                # Starting-model views
+│       └── compare/                    # Cross-variant plots
 └── logs/{apo,atpmg}/<run>/<variant>/
 ```
 
@@ -229,7 +234,9 @@ thin [simulation](examples/hpc/simulate.slurm) and
 [analysis](examples/hpc/analyze.slurm) adapters. See the [Colab](docs/platforms/colab.md)
 and [HPC](docs/platforms/hpc.md) guides for platform setup.
 
-Existing projects retain their paths; `ProjectPaths` does not migrate their data.
+Path resolution does not move existing data. Historical numbered examples retain
+their original paths. Completed state-based analysis can be migrated explicitly
+using the command in section 3.6.
 
 ---
 
@@ -584,11 +591,13 @@ verify its residue-label mapping rather than treating Amber indices as author nu
 #### 3.6.1. System Metrics (cmda analyze)
 
 ```bash
-cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/04_analysis"
-cmda analyze --state "$STATE" --variant "$VARIANT"
+cd "$PROJECT_ROOT"
+cmda analyze --state "$STATE" --variant "$VARIANT" --replicas r1
 ```
 
-The high-level route currently analyzes r1. RMSD uses backbone fitting to the first
+The default is r1. Use `--replicas r1,r2,r3` to analyze completed replicas and
+write their mean and population standard deviation under `aggregate/`. Time and
+native residue axes must match; mismatches stop aggregation. RMSD uses backbone fitting to the first
 frame. Reported Rg is the unweighted geometric radius of protein heavy atoms.
 RMSF uses aligned C-alpha coordinates, with reference identity/count gates to retain
 verified reference labels and insertion codes. CDKL5 models use UniProt positions
@@ -602,14 +611,27 @@ interval. The high-level route currently uses 10 ps; do not silently use it for 
 trajectory sampled at another interval. PCA and contact maps are not calculated by
 the standard analysis route.
 
+For completed state-based runs that still contain `simulation/<run>/<variant>/04_analysis`,
+set the original run ID and migrate their r1 reports explicitly:
+
+```bash
+cd "$PROJECT_ROOT"
+cmda stage --state "$STATE" --variant "$VARIANT" --migrate-analysis
+```
+
+Migration checks every file hash and refuses incomplete reports, symlinks, heavy
+simulation data or conflicting destinations. It verifies the new copy before
+removing the old folder and records the path mapping under
+`data/00_setup/analysis_migrations/`. Original provenance is retained unchanged.
+
 #### 3.6.2. Comparative Overlays
 
 Use directories containing already calculated `rmsd.csv`, `rg.csv` and `rmsf.csv`:
 
 ```bash
-cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID"
-cmda openmm compare --series WT="$PWD/WT/04_analysis" \
-  --series L119R="$PWD/L119R/04_analysis" --outdir "$PWD/compare"
+cd "$PROJECT_ROOT/data/$STATE/analysis/$COLABMDA_RUN_ID"
+cmda openmm compare --series WT="$PWD/WT/r1" \
+  --series L119R="$PWD/L119R/r1" --outdir "$PWD/compare"
 ```
 
 The output PNGs are under the requested directory's `figures/`. Comma-separated
@@ -764,12 +786,13 @@ matched runs and merges have completed. Frame numbers are one-based; time labels
 come from the production log, so frame 1 is not relabeled as time zero.
 
 Outputs are 7-inch, 300-DPI PNGs under the first selected system's
-`04_analysis/figures/`, with camera, input hashes, residue labels and frame/time
+`data/<state>/analysis/<run>/<variant>/<replica>/figures/`, with camera, input hashes, residue labels and frame/time
 metadata beside them. Use `--output` for another filename and `--reference` for an
 explicit common WT reference. Custom input JSON remains an advanced option;
 the default CDKL5 workflow needs none. Custom time labels must be replaced with
 a matching production log. Starting-model grids use `model_snapshots.png`;
-trajectory grids use `structure_snapshots.png`.
+trajectory grids use `structure_snapshots.png`. Starting-model views use the
+variant's `figures/` folder, outside replica folders.
 
 ---
 
@@ -865,6 +888,9 @@ The earlier study-based pilots used different starting inputs.
 ## Changelog
 
 ### Unreleased Development
+
+- Keep analysis beside structure and simulation, with explicit replica selection,
+  checked aggregation and hash-verified migration of completed r1 reports.
 
 - Use terminal and Colab CLI setup throughout the guides; remove the web notebook route.
 - Make the CDKL5 WT/L119R apo and ATP/one-Mg walkthrough independent of private

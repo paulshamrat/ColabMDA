@@ -24,7 +24,8 @@
   Historical runtime paths are data/01_structure and data/02_simulation/<run>/,
   with logs/02_simulation/<run>/. Preserve their provenance verbatim.
 - New direct CDKL5 runs use data/{apo,atpmg}/structure/{raw,mapping,models} and
-  data/<state>/simulation/<run>/<variant>/{01_prep,02_eq,03_md,04_analysis}, with
+  data/<state>/simulation/<run>/<variant>/{01_prep,02_eq,03_md} and
+  data/<state>/analysis/<run>/<variant>/{r1,r2,r3,aggregate}, with
   logs/<state>/<run>/<variant>. State, structure and simulation stay unnumbered.
   Existing numbered runs remain readable; never migrate active scientific outputs.
 - CDKL5 uses O76039, 4BGQ A, residues 1–303. Derive canonical positions from
@@ -187,3 +188,11 @@ Keep account/Drive authentication, committed snapshot deployment, recovery and
 MODELLER prompting in that path. Do not reintroduce a web notebook setup route
 or notebook-cell instructions. Internal runtime protocol and plotting-backend
 compatibility code are separate from the documented user workflow.
+
+Keep structure, simulation and analysis as unnumbered siblings within each state.
+Write new replica reports to analysis/<run>/<variant>/<replica>, model views to
+the variant's figures/, replica summaries to aggregate/, and variant comparisons
+to analysis/<run>/compare. Explicit migration applies only to completed flat
+state-based r1 reports; verify hashes, reject conflicts/symlinks/heavy data, keep
+historical provenance/receipts and never move outputs during path resolution.
+Historical numbered examples keep their layouts and template hashes.

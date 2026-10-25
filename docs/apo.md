@@ -244,15 +244,19 @@ hardware/software versions is not assumed.
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/03_md"
 cmda merge --state "$STATE" --variant "$VARIANT" --replicas r1
-cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/04_analysis"
-cmda analyze --state "$STATE" --variant "$VARIANT"
+cd "$PROJECT_ROOT"
+cmda analyze --state "$STATE" --variant "$VARIANT" --replicas r1
 ```
 
 Merge verifies contiguous completed chunks and uses cpptraj autoimaging. It writes
 `prod_keep_ligand.dcd` with `stripped.prmtop`, and `prod_ca.dcd` with `ca.prmtop`.
 Raw solvated chunks require the original solvated topology. Never mix these pairs.
 
-The high-level analysis currently uses **r1**, at **10 ps spacing**. It calculates
+The default is **r1**, at **10 ps spacing**. Use `--replicas r1,r2,r3` for
+completed replicas and checked aggregation under `aggregate/`. Time and native
+residue axes must match. For older nested reports, use the
+[verified migration command](../README.md#36-trajectory-analysis--comparison).
+It calculates
 backbone RMSD relative to the first frame, unweighted geometric protein-heavy-atom
 Rg, and aligned C-alpha RMSF with checked model identity/residue labels. Saved CSVs
 and `analysis.json` precede the separate figure module, which writes 7-inch,
@@ -263,9 +267,9 @@ part of this command. For other replicas or sampling, use explicit paths and
 For matched WT/L119R protocols, compare already calculated tables:
 
 ```bash
-cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID"
-cmda openmm compare --series WT="$PWD/WT/04_analysis" \
-  --series L119R="$PWD/L119R/04_analysis" --outdir "$PWD/compare"
+cd "$PROJECT_ROOT/data/$STATE/analysis/$COLABMDA_RUN_ID"
+cmda openmm compare --series WT="$PWD/WT/r1" \
+  --series L119R="$PWD/L119R/r1" --outdir "$PWD/compare"
 ```
 
 Review actual time ranges and residue identities before combining replicas or
@@ -337,24 +341,27 @@ source .venv/bin/activate
 STATE=apo
 VARIANT=WT
 RUN_ID=cdkl5_public_v1
-REMOTE_RUN="/content/drive/MyDrive/research/projects/colabmda-example/data/$STATE/simulation/$RUN_ID/$VARIANT"
-LOCAL_RUN="$HOME/research/projects/colabmda-example/data/$STATE/simulation/$RUN_ID/$VARIANT"
+REMOTE_DATA="/content/drive/MyDrive/research/projects/colabmda-example/data/$STATE"
+LOCAL_DATA="$HOME/research/projects/colabmda-example/data/$STATE"
+SIM="simulation/$RUN_ID/$VARIANT"
+ANALYSIS="analysis/$RUN_ID/$VARIANT/r1"
 files=(
-  01_prep/prep.json 01_prep/preparation_input.json 01_prep/topology_check.json
-  01_prep/PREP_DONE 02_eq/equilibration_qc.json 02_eq/nvt_protocol.json 02_eq/npt_protocol.json
-  02_eq/nvt.log 02_eq/npt.log 02_eq/figures/equilibration_qc.png
-  03_md/r1/prod_full.log 04_analysis/analysis.json
-  04_analysis/rmsd.csv 04_analysis/rg.csv 04_analysis/rmsf.csv
-  04_analysis/figures/rmsd_vs_time.png 04_analysis/figures/rg_vs_time.png
-  04_analysis/figures/rmsf_per_residue.png
+  "$SIM/01_prep/prep.json" "$SIM/01_prep/preparation_input.json" "$SIM/01_prep/topology_check.json"
+  "$SIM/01_prep/PREP_DONE" "$SIM/02_eq/equilibration_qc.json"
+  "$SIM/02_eq/nvt_protocol.json" "$SIM/02_eq/npt_protocol.json"
+  "$SIM/02_eq/nvt.log" "$SIM/02_eq/npt.log" "$SIM/02_eq/figures/equilibration_qc.png"
+  "$SIM/03_md/r1/prod_full.log" "$ANALYSIS/ANALYSIS_DONE" "$ANALYSIS/analysis.json"
+  "$ANALYSIS/rmsd.csv" "$ANALYSIS/rg.csv" "$ANALYSIS/rmsf.csv"
+  "$ANALYSIS/figures/rmsd_vs_time.png" "$ANALYSIS/figures/rg_vs_time.png"
+  "$ANALYSIS/figures/rmsf_per_residue.png"
 )
 cmda colab exec -s colabmda-example --timeout 120 \
-  "cd '$REMOTE_RUN' && sha256sum ${files[*]} > reports.sha256"
-for file in "${files[@]}" reports.sha256; do
-  mkdir -p "$LOCAL_RUN/$(dirname "$file")"
-  colab download -s colabmda-example "$REMOTE_RUN/$file" "$LOCAL_RUN/$file"
+  "cd '$REMOTE_DATA' && sha256sum ${files[*]} > '$ANALYSIS/reports.sha256'"
+for file in "${files[@]}" "$ANALYSIS/reports.sha256"; do
+  mkdir -p "$LOCAL_DATA/$(dirname "$file")"
+  colab download -s colabmda-example "$REMOTE_DATA/$file" "$LOCAL_DATA/$file"
 done
-(cd "$LOCAL_RUN" && sha256sum -c reports.sha256)
+(cd "$LOCAL_DATA" && sha256sum -c "$ANALYSIS/reports.sha256")
 ```
 
 Require `OK` for every file. Retain the model/mapping records, source snapshot and

@@ -283,9 +283,12 @@ def _dispatch_stage(args) -> int:
 
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
-    paths.init_layout()
-
     spec = SystemSpec.from_tag(args.state, variant=args.variant, protein=args.protein)
+    if getattr(args, "migrate_analysis", False):
+        result = paths.migrate_analysis(spec)
+        print(f"[OK] {result['destination']}" if result else "[OK] No legacy analysis to migrate")
+        return 0
+    paths.init_layout()
     paths.log_dir(spec).mkdir(parents=True, exist_ok=True)
     paths.prep_dir(spec).mkdir(parents=True, exist_ok=True)
     paths.eq_dir(spec).mkdir(parents=True, exist_ok=True)
@@ -294,6 +297,7 @@ def _dispatch_stage(args) -> int:
     replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
     for rep in replicas:
         paths.replica_dir(spec, rep).mkdir(parents=True, exist_ok=True)
+        paths.replica_analysis_dir(spec, rep).mkdir(parents=True, exist_ok=True)
 
     if not getattr(args, "scripts", False):
         print(f"[OK] Staged {paths.variant_dir(spec)}; use direct cmda commands")
@@ -625,36 +629,75 @@ def _dispatch_analyze(args) -> int:
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
     name = f"{spec.state_tag}_{spec.variant}"
-    analysis_dir = paths.analysis_dir(spec)
-    analysis_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"[OK] Running analysis for {name} -> {analysis_dir}")
-    rep_dir = paths.replica_dir(spec, "r1")
-    traj = None
-    top = None
-    for cand_traj in ["prod_keep_ligand.dcd", f"{name}_merged.dcd", "prod_ca.dcd"]:
-        if (rep_dir / cand_traj).exists():
-            traj = str(rep_dir / cand_traj)
-            break
-    for cand_top in ["stripped.system.prmtop", "stripped.prmtop", "system.prmtop"]:
-        if (rep_dir / cand_top).exists():
-            top = str(rep_dir / cand_top)
-            break
-        elif (paths.prep_dir(spec) / cand_top).exists():
-            top = str(paths.prep_dir(spec) / cand_top)
-            break
-
-    if traj and top:
+    replicas = list(
+        dict.fromkeys(r.strip() for r in getattr(args, "replicas", "r1").split(",") if r.strip())
+    )
+    if not replicas:
+        raise ValueError("Select at least one analysis replica")
+    if paths.state_dir is None and len(replicas) != 1:
+        raise ValueError("Historical layouts support one explicit analysis replica per command")
+    inputs = []
+    for rep in replicas:
+        rep_dir = paths.replica_dir(spec, rep)
+        # Keep topology/trajectory pairs together; never mix a CA trajectory with solute atoms.
+        pair = next(
+            (
+                (rep_dir / t, rep_dir / d)
+                for t, d in [
+                    ("stripped.prmtop", "prod_keep_ligand.dcd"),
+                    ("stripped.system.prmtop", "prod_keep_ligand.dcd"),
+                    ("ca.prmtop", "prod_ca.dcd"),
+                ]
+                if (rep_dir / t).is_file() and (rep_dir / d).is_file()
+            ),
+            None,
+        )
+        if pair is None:
+            raise FileNotFoundError(f"No matching merged trajectory/topology in {rep_dir}")
+        inputs.append((rep_dir, pair, paths.replica_analysis_dir(spec, rep)))
+    aggregate = paths.analysis_dir(spec) / "aggregate"
+    (aggregate / "AGGREGATE_DONE").unlink(missing_ok=True)
+    for rep_dir, (top, traj), analysis_dir in inputs:
+        analysis_dir.mkdir(parents=True, exist_ok=True)
+        marker = analysis_dir / "ANALYSIS_DONE"
+        marker.unlink(missing_ok=True)
+        print(f"[OK] Running analysis for {name}/{rep_dir.name} -> {analysis_dir}")
         openmm_analysis(
             pdbid_dir=str(rep_dir),
-            topology=top,
-            trajectory=traj,
+            topology=str(top),
+            trajectory=str(traj),
             interval_ps=10.0,
             outdir=str(analysis_dir),
             reference=str(paths.model_pdb(spec)),
         )
-    else:
-        raise FileNotFoundError(f"No suitable trajectory/topology found in {rep_dir}")
+        required = [
+            "analysis.json",
+            "rmsd.csv",
+            "rg.csv",
+            "rmsf.csv",
+            "figures/rmsd_vs_time.png",
+            "figures/rg_vs_time.png",
+            "figures/rmsf_per_residue.png",
+        ]
+        if any(
+            not (analysis_dir / n).is_file() or not (analysis_dir / n).stat().st_size
+            for n in required
+        ):
+            raise RuntimeError("Analysis reports/figures are incomplete")
+        marker.write_text("Verified numerical tables and figures generated\n")
+    if len(inputs) > 1:
+        from colabmda.openmm.analysis import aggregate_reports
+        from colabmda.openmm.figures import plot_analysis
+
+        aggregate_reports([item[2] for item in inputs], aggregate)
+        plot_analysis(aggregate)
+        if any(
+            not (aggregate / "figures" / n).is_file()
+            for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
+        ):
+            raise RuntimeError("Aggregate figures are incomplete")
+        (aggregate / "AGGREGATE_DONE").write_text("Verified aligned replica tables and figures\n")
+
     return 0
 
 
@@ -1137,6 +1180,11 @@ def main():
         "stage", help="Stage standardized directory trees & decoupled scripts"
     )
     p_top_stage.add_argument(
+        "--migrate-analysis",
+        action="store_true",
+        help="Move completed legacy r1 analysis beside simulation, with verified hashes",
+    )
+    p_top_stage.add_argument(
         "--state", default="atp_2mg_eb2", help="State tag (default: atp_2mg_eb2)"
     )
     p_top_stage.add_argument(
@@ -1224,6 +1272,9 @@ def main():
     )
     p_top_ana.add_argument("--state", required=True, help="State tag")
     p_top_ana.add_argument("--variant", default="WT", help="Variant name")
+    p_top_ana.add_argument(
+        "--replicas", "--replica", default="r1", help="Replicas to analyze, e.g. r1,r2,r3"
+    )
     p_top_ana.add_argument(
         "--metrics",
         default="rmsd,rg,rmsf",

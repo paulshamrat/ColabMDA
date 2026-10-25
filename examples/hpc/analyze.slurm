@@ -25,11 +25,13 @@ source "$COLABMDA_CONDA_ROOT/etc/profile.d/conda.sh"
 conda activate "${COLABMDA_ENV:-colabmda}"
 export MPLBACKEND=Agg PYTHONUNBUFFERED=1
 run="$PROJECT_ROOT/data/$state/simulation/$COLABMDA_RUN_ID/$variant"
-rm -f "$run/04_analysis/ANALYSIS_DONE"
+analysis="$PROJECT_ROOT/data/$state/analysis/$COLABMDA_RUN_ID/$variant/r1"
+rm -f "$analysis/ANALYSIS_DONE"
 cd "$run/03_md"
 cmda merge --state "$state" --variant "$variant" --replicas r1 --root "$PROJECT_ROOT"
-cd "$run/04_analysis"
-cmda analyze --state "$state" --variant "$variant" --root "$PROJECT_ROOT"
+mkdir -p "$analysis"
+cd "$analysis"
+cmda analyze --state "$state" --variant "$variant" --replicas r1 --root "$PROJECT_ROOT"
 for output in analysis.json rmsd.csv rg.csv rmsf.csv figures/rmsd_vs_time.png figures/rg_vs_time.png figures/rmsf_per_residue.png; do
   test -s "$output"
 done

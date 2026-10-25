@@ -22,7 +22,9 @@ def test_state_layout_and_existing_run_compatibility(tmp_path, monkeypatch):
     spec = SystemSpec.from_tag("atp_1mg", variant="L119R")
     assert paths.structure_dir == tmp_path / "data/atpmg/structure"
     assert paths.prep_dir(spec) == tmp_path / "data/atpmg/simulation/trial01/L119R/01_prep"
-    assert paths.analysis_dir(spec).name == "04_analysis"
+    assert paths.analysis_dir(spec) == tmp_path / "data/atpmg/analysis/trial01/L119R"
+    assert paths.replica_analysis_dir(spec, "2").name == "r2"
+    assert paths.compare_dir(spec.state_tag) == tmp_path / "data/atpmg/analysis/trial01/compare"
     assert paths.log_dir(spec) == tmp_path / "logs/atpmg/trial01/L119R"
     (tmp_path / "data/02_simulation/trial01").mkdir(parents=True)
     legacy = ProjectPaths(tmp_path, state="apo")

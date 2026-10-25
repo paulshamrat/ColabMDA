@@ -205,6 +205,61 @@ def run_trajectory_analysis(
     return outdir_path
 
 
+def aggregate_reports(folders, outdir):
+    """Aggregate saved replica metrics only when time/native residue axes match."""
+    folders = [Path(p) for p in folders]
+    if len(folders) < 2 or len(set(folders)) != len(folders):
+        raise ValueError("Aggregate requires at least two distinct replicas")
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / "AGGREGATE_DONE").unlink(missing_ok=True)
+    tables = {}
+    hashes = {}
+    for metric in ["rmsd", "rg", "rmsf"]:
+        inputs = [folder / f"{metric}.csv" for folder in folders]
+        frames = [pd.read_csv(p) for p in inputs]
+        axis = frames[0].iloc[:, 0]
+        if axis.empty:
+            raise ValueError("Cannot aggregate empty tables")
+        values = []
+        for path, frame in zip(inputs, frames):
+            if len(frame) != len(axis) or frame.columns.tolist() != frames[0].columns.tolist():
+                raise ValueError("Replica table lengths or columns differ")
+            current = frame.iloc[:, 0]
+            if metric == "rmsf":
+                matched = current.astype(str).tolist() == axis.astype(str).tolist()
+            else:
+                matched = np.allclose(
+                    current.to_numpy(float), axis.to_numpy(float), atol=1e-8, rtol=0
+                )
+            if not matched:
+                raise ValueError("Replica time or native residue axes differ")
+            data = frame.iloc[:, 1].to_numpy(float)
+            if not np.isfinite(data).all():
+                raise ValueError("Nonfinite replica metric")
+            values.append(data)
+            hashes[str(path.resolve())] = hashlib.sha256(path.read_bytes()).hexdigest()
+        data = np.asarray(values)
+        tables[metric] = pd.DataFrame(
+            {axis.name: axis, "Mean": data.mean(axis=0), "Std": data.std(axis=0)}
+        )
+    for metric, frame in tables.items():
+        frame.to_csv(outdir / f"{metric}_avg.csv", index=False)
+    (outdir / "analysis.json").write_text(
+        json.dumps(
+            {
+                "replicas": [str(p.resolve()) for p in folders],
+                "input_sha256": hashes,
+                "standard_deviation": "population (ddof=0)",
+                "analysis_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    return outdir
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("pdbid", help="Simulation directory")
