@@ -1,7 +1,7 @@
 # Contributing to ColabMDA
 
-Read the [main README](README.md) for the preserved complete baseline and repository
-layout. Shared CDKL5 guides are [apo](docs/apo.md) and [ATP/Mg](docs/atpmg.md),
+Read the [main README](README.md) for installation, workflows and repository
+layout. Worked protein guides are [apo](docs/apo.md) and [ATP/Mg](docs/atpmg.md),
 with [Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md) setup. Follow [AGENTS.md](AGENTS.md) for development rules.
 
 ## Development
@@ -54,8 +54,9 @@ mutations, actual topology charges/composition and model-based analysis labels.
 Keep CPU modeling/preparation results separate from real GPU simulation evidence.
 
 Update README/AGENTS.md when behavior changes. Keep the established README
-organization: platform setup, project architecture, full simulation workflow and
-the small validation example. Scientific explanations and advanced command
+organization: package purpose, installation, first simulation, full workflow,
+then project/source layout and metadata. Write simple, direct, concise prose.
+Keep protein-specific run history in the execution project. Scientific explanations and advanced command
 reference belong in the appropriate README sections. Do not replace it with an
 example-only quickstart or recreate a separate documentation site.
 

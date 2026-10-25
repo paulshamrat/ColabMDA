@@ -1,70 +1,42 @@
 # ColabMDA
 
-**ColabMDA** supports protein modeling, parameterization, checkpointed OpenMM simulations, trajectory processing and analysis on Google Colab, HPC clusters and Linux workstations. This README is the user guide, from platform setup through apo/holo workflows and visualization.
+ColabMDA prepares protein structures, runs OpenMM molecular dynamics simulations,
+and analyzes trajectories. Use the same command line on Google Colab, Slurm
+clusters or a Linux workstation with an NVIDIA GPU.
 
+- Model proteins and variants with optional MODELLER support.
+- Prepare protein-in-water and protein–ligand systems with AmberTools.
+- Equilibrate, check simulation quality and resume production from checkpoints.
+- Calculate RMSD, radius of gyration and residue RMSF, with CSV tables and plots.
 
----
+## Getting started
 
-## 🛠 Project Information
-| Category | Details |
-| :--- | :--- |
-| **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
-| **Availability** | [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) |
-| **Workflows** | [![Python CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) |
-| **Issues** | [![GitHub issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) |
-| **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
-| **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
-| **Dependencies** | `OpenMM`, `AmberTools (tleap, cpptraj)`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA` |
-| **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
-| **Structure** | [Source Layout](#project-structure) |
+1. [Install and choose a platform](#1-installation).
+2. [Run the small example](#2-first-simulation) without a MODELLER license.
+3. [Follow the full workflow](#3-simulation-workflow) for modeling, preparation,
+   equilibration, production and analysis.
 
-### 📂 Project Structure <a id="project-structure"></a>
-ColabMDA is organized into clear, functional modules:
-*   `src/colabmda/cli.py`: Central unified CLI (`cmda` and `colabmda`).
-*   `src/colabmda/core/`: Project paths, safe example installation, small-protein workflows, state taxonomy and ion definitions.
-*   `src/colabmda/amber/`: AmberTools parameterization (`tleap`, Hu 2024 quantum nucleotide parameters, `cpptraj` autoimaging & solvent stripping).
-*   `src/colabmda/modeller/`: Homology modeling engine (UniProt biological numbering, mutagenesis, geometric substrate docking).
-*   `src/colabmda/openmm/`: Flat operation modules: `prepare.py`, `em.py`, `nvt.py`, `npt.py`, `md.py`, `qc.py`, `merge.py`, `analysis.py`, `figures.py`, `common.py`, `commands.py` and the compatibility adapter `run.py`.
-*   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
-*   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
-*   `examples/{fkbp,hras,trpcage}/scripts/`: Runnable templates copied into the execution project.
-*   `examples/hpc/{simulate,analyze}.slurm`: Thin GPU simulation and CPU analysis adapters for the shared scientific commands.
-*   `docs/{apo,atpmg}.md`: CDKL5 workflows, with setup under `docs/platforms/{colab,hpc}.md`.
-*   `tests/`: Comprehensive unit and regression test suite (`pytest`).
+For a worked protein example, see [protein in water](docs/apo.md) or
+[protein with ATP/Mg](docs/atpmg.md).
+Platform details are in the [Colab](docs/platforms/colab.md) and
+[HPC](docs/platforms/hpc.md) guides.
 
----
+## 1. Installation
 
+Requirements: Linux/Bash, Git and internet access. Colab runs need a Google
+account; local and cluster simulations need a compatible NVIDIA GPU and driver.
+Keep the tool checkout separate from the project that stores simulation outputs.
 
-CDKL5 command-based workflows are in [Protein in water](docs/apo.md) and
-[ATP with one Mg](docs/atpmg.md). Platform instructions are separate:
-[Google Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
-These guides use `data/{apo,atpmg}/{structure,simulation}` for new runs;
-existing numbered examples below retain their historical paths. The full README
-baseline remains here alongside the shared guides.
-
-Current CDKL5 checks cover archive mapping, WT/L119R modeling, reviewed ATP/Mg
-transfer and actual Amber topology checks for four systems. Reviewed-backbone WT
-pilots passed full 24-stage, 1.96 ns equilibration QC on Colab T4 (apo) and Palmetto
-A100 (ATP/one-Mg). Production and analysis cover 200 ps/20 frames and 100 ps/10
-frames, respectively. Colab also passed an actual interruption/resume check with
-unchanged committed chunks. L119R has CPU modeling/preparation checks only.
-These short pilots verify the workflow; they do not establish biological convergence.
-
-## 1. Platform Setup
-
-Use the checkout whose instructions you are reading. This development guide includes
-unreleased changes on `dev1`; the public `main` branch may contain an older release.
-The tool stays separate from the project where simulations run.
+These instructions describe the development checkout (`dev1`). Public `main`
+may not yet include these commands. Use the README supplied with your checkout.
 
 ### 1.1. Google Colab
 
 #### 1.1.1. Terminal Runner (Recommended)
 
-Prerequisites are Linux/Bash, Git, Python 3.12 or newer for the current Colab CLI,
-internet access and a Colab account. The core ColabMDA package supports Python
-3.10+, but the local Colab control environment must also meet the CLI requirement.
-Complete CLI authentication when requested. Existing installations can activate
-their environment instead of creating another one.
+The Colab CLI needs Python 3.12 or newer on your local computer. The core package
+supports Python 3.10+. Authenticate when prompted. If already installed, activate
+your existing environment instead of creating another one.
 
 **On your local computer**, enter the ColabMDA checkout. In our workspace this is
 `~/research/tools/ColabMDA`. A GPU is not required on the local computer:
@@ -79,9 +51,9 @@ cmda --help
 colab sessions
 ```
 
-Finish local changes and commit the deployment snapshot before creating the GPU
-runtime, so it is ready for use. An idle runtime can expire; a replacement needs
-fresh Drive authentication even when the previous session was mounted.
+Local-source deployment requires a clean, committed checkout. Commit any changes
+before creating the GPU runtime. A replacement runtime needs Drive authentication
+again.
 
 Then create a GPU runtime, authenticate Drive and deploy the committed tool:
 
@@ -92,9 +64,8 @@ cmda colab setup -s colabmda-example --local-source
 colab console -s colabmda-example
 ```
 
-Local-source deployment currently requires a clean, committed `dev1` checkout.
-It sends runtime files and example templates with `SNAPSHOT.json` hashes. Run
-these commands serially and wait for setup to finish before entering the console.
+Deployment sends runtime files and example templates with `SNAPSHOT.json` hashes.
+Run these commands in order and wait for setup before entering the console.
 Setup asks whether to install MODELLER; the small example does not require it.
 
 **Inside the Colab console**, activate the installed environment:
@@ -107,7 +78,7 @@ cmda --help
 ```
 
 The installed snapshot is `/content/ColabMDA`; persistent project data belongs under
-`/content/drive/MyDrive/research/projects/`. Section 4 creates and runs the complete
+`/content/drive/MyDrive/research/projects/`. Section 2 creates and runs the complete
 small example there. You can also dispatch foreground shell commands from the local
 terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
 
@@ -135,7 +106,7 @@ Keep simulations in the foreground with live output. Sessions can still terminat
 Keep inputs, completed chunks and checkpoints on Drive. On a replacement runtime,
 remount Drive and restore the recorded software before attempting recovery.
 Checkpoint compatibility across different GPUs or software versions is not assumed.
-Section 3.5 explains restart behavior; section 4 provides a short test.
+Section 3.5 explains restart behavior; section 2 provides a short test.
 
 #### 1.1.4. MODELLER License
 
@@ -181,14 +152,14 @@ the small example before designing a production campaign.
 
 #### 1.2.3. Batch Submission
 
-State-based `cmda stage` generates `eq.slurm`, `prod.slurm` and `chain.sh`. These are
+State-based `cmda stage --scripts` generates `eq.slurm`, `prod.slurm` and `chain.sh`. These are
 starting templates for an existing research system, not a scheduler configuration
 for every cluster. Review resources, environment, scratch paths, state, variant,
 replica bounds, scientific settings and QC before submission.
 
 Stage one state/variant at a time when using those shared script names: later stage
 calls replace the shared runner files. The Trp-cage `--example` mode instead copies
-the numbered workflow scripts shown in section 2; it does not generate Slurm jobs.
+the numbered workflow scripts shown in section 4; it does not generate Slurm jobs.
 
 ---
 
@@ -215,8 +186,7 @@ cmda --help
 With an existing Conda installation, the core environment can also be created
 from `environment.yml`, followed by `python -m pip install -e .` in the checkout.
 The installer can optionally configure MODELLER and its hidden license prompt.
-Divergent has no GPU; use section 1.1 for its control-plane installation and Colab
-execution rather than running a protein pilot locally.
+A computer without a GPU can control Colab runs using section 1.1.
 
 #### 1.3.2. Test Suite
 
@@ -234,97 +204,163 @@ and [AGENTS.md](AGENTS.md).
 
 ---
 
-## 2. Project Architecture
+## 2. First simulation
 
-For the new direct CDKL5 workflow, use this shared layout on Colab and HPC:
+### 2.1. Create and Fetch Trp-cage
 
-```text
-colabmda-example/
-├── data/{apo,atpmg}/
-│   ├── structure/{raw,mapping,models}/
-│   └── simulation/<run>/<variant>/
-│       ├── 01_prep/
-│       ├── 02_eq/
-│       ├── 03_md/{r1,r2,r3}/
-│       └── 04_analysis/
-└── logs/{apo,atpmg}/<run>/<variant>/
-```
-
-Only processing steps are numbered. Use a fresh `COLABMDA_RUN_ID` for changed
-inputs or protocol. `cmda stage --state apo --variant WT --root "$PROJECT_ROOT"`
-creates the directories and no runner scripts by default. Colab runs direct
-commands; the [HPC adapter](examples/hpc/simulate.slurm) runs those same commands
-inside Slurm. The adapter supports a separately named `smoke` software check and
-requires a GPU; it can select an existing conda environment. Platform setup is in [Colab](docs/platforms/colab.md) and
-[HPC](docs/platforms/hpc.md); the state guides hold the scientific workflow.
-
-The numbered example architecture below remains supported for existing runs.
-
-
-The tool repository contains the implementation and reusable workflow templates.
-Each execution project contains its own scripts, inputs, outputs and logs. No
-project configuration YAML is required.
-
-To create the complete Trp-cage example on the machine where it will run:
+Start with the 20-residue Trp-cage protein. It needs no MODELLER license or
+cofactor input. **On Colab after section 1.1 setup**, run:
 
 ```bash
-cmda stage --example trpcage --root "$HOME/research/projects/colabmda-example"
+cmda stage --example trpcage \
+  --root /content/drive/MyDrive/research/projects/colabmda-example
+cd /content/drive/MyDrive/research/projects/colabmda-example
+python scripts/01_structure/01_fetch.py
 ```
 
-On Colab, use `/content/drive/MyDrive/research/projects/colabmda-example` instead.
-Staging copies seven small scripts and records their tool version and hashes. It
-does not fetch structures, install software or start a simulation. Identical files
-are safe to stage again; different existing files stop staging and are preserved.
+On a local GPU workstation use `~/research/projects/colabmda-example` instead.
+Fetch prefers mmCIF, with PDB fallback, selecting NMR model 1, author chain A of
+1L2Y. It verifies the deposited sequence, all 20 C-alpha atoms and native numbering,
+then records the archive/selection hashes. As a designed peptide, it has no canonical
+UniProt mutation annotation. No MODELLER key or cofactor template is needed.
 
-```text
-colabmda-example/
-├── scripts/
-│   ├── 01_structure/01_fetch.py
-│   └── 02_simulation/
-│       ├── common.sh
-│       ├── 01_prepare.sh
-│       ├── 02_equilibrate.sh
-│       ├── 03_production.sh
-│       ├── 04_analysis.sh
-│       └── 05_check.py
-├── data/
-│   ├── 00_setup/example.json
-│   ├── 01_structure/trpcage/           # Raw archive, selected model, input hashes
-│   └── 02_simulation/<run>/
-│       ├── provenance.json
-│       ├── production.json
-│       └── apo/WT/
-│           ├── 01_prep/
-│           ├── 02_eq/
-│           ├── 03_md/r1/
-│           └── 04_analysis/figures/
-└── logs/02_simulation/<run>/
+### 2.2. Run the Scripts in Order
+
+With `colabmda` active in the generated project:
+
+```bash
+export COLABMDA_RUN_ID=run01
+bash scripts/02_simulation/01_prepare.sh
+bash scripts/02_simulation/02_equilibrate.sh
+bash scripts/02_simulation/03_production.sh
+bash scripts/02_simulation/04_analysis.sh
+python scripts/02_simulation/05_check.py
 ```
 
-Scientific projects can use their existing state/variant layout. `ProjectPaths`
-resolves the existing layout; do not create parallel compatibility trees. The
-numbered example layout above is the default for newly staged examples. Keep
-runtime data and logs outside Git and preserve native raw coordinates and provenance.
+The defaults are 100 ps NVT, 100 ps NPT, 1 ns production, 2 fs steps, 10 ps sampling
+and 100 ps checkpoint chunks. To choose another duration without editing scripts,
+set `COLABMDA_EXAMPLE_NS` for production; the final check reads the saved request.
+Use positive multiples of 0.1 ns. Choose a fresh run ID for changed inputs,
+executed scripts or runtime revisions.
 
-The natural-protein examples use the same layout, with scripts under
-scripts/01_structure/{fkbp,hras}/ and scripts/02_simulation/{fkbp,hras}/.
-Their separate data/00_setup/{fkbp,hras}.json receipts allow both examples and
-historical Trp-cage to coexist. Structure inputs/mapping/models live under
-data/01_structure/<protein>/; simulation outputs use one run ID per system.
+To test extension instead of the direct production command above, use a fresh run
+ID, complete preparation/equilibration, then run:
 
-Independent replicas may share an equilibration endpoint, while each production
-replica receives its own velocities, stochastic streams and checkpoint. They are
-independent simulation realizations, not proof of converged or uncorrelated sampling.
+```bash
+COLABMDA_EXAMPLE_NS=0.1 bash scripts/02_simulation/03_production.sh
+COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
+```
+
+Then perform analysis and the final check. To include an actual interruption in
+this test, pause after the 0.1 ns smoke command, save its first chunk's checksum
+from the project root, then start the extension:
+
+```bash
+sha256sum "data/02_simulation/$COLABMDA_RUN_ID/apo/WT/03_md/r1/prod_0to100ps.dcd" \
+  > "data/02_simulation/$COLABMDA_RUN_ID/first_chunk.sha256"
+COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
+```
+
+Press Ctrl+C while the second chunk is running. Before another command, `echo $?`
+should report a nonzero exit status. Resume with the same production command, then
+verify the first committed chunk:
+
+```bash
+COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
+sha256sum -c "data/02_simulation/$COLABMDA_RUN_ID/first_chunk.sha256"
+```
+
+The checksum must report `OK`. Continue with analysis and the final check.
+
+### 2.3. Expected Outputs & Checks
+
+After success, `data/02_simulation/run01/` contains the input/tool/script/runtime
+provenance, production requests, analysis results, `summary.json` and `RUN_DONE`.
+The default run has ten chunks and 100 merged frames, with times 10–1000 ps.
+The final check requires finite coordinates/logs/tables, 20 C-alpha atoms, native
+RMSF labels 1–20 and nonempty PNGs. Physical equilibration QC is reported separately.
+
+Scripts create the log directory; save terminal output when desired. For example,
+from the generated project after preparation/equilibration:
+
+```bash
+set -o pipefail
+bash scripts/02_simulation/03_production.sh 2>&1 \
+  | tee "logs/02_simulation/$COLABMDA_RUN_ID/production.log"
+```
+
+To rerender analysis figures from saved tables without rerunning MD:
+
+```bash
+python - <<'PY'
+import os
+from pathlib import Path
+from colabmda.openmm.figures import plot_analysis
+run = Path('data/02_simulation') / os.environ['COLABMDA_RUN_ID']
+plot_analysis(run / 'apo/WT/04_analysis')
+PY
+```
+
+### 2.4. Runtime, Limits & Cleanup
+
+Our earlier T4 test took approximately 7.5 minutes for production plus its restart
+test. That is an observed runtime, not a guarantee. Quick equilibration can fail
+the density-slope criterion; retain the warning and do not call this a converged
+production study, a mutant/cofactor validation or a full staged-protocol test.
+
+Keep heavy trajectories and checkpoints on Drive. To return from the interactive
+console to your local terminal, detach with **Ctrl-B, then D**. This does not stop
+the runtime. With the local ColabMDA environment active, download and verify the
+compact reports below. Set RUN_ID, STATE and VARIANT to the completed system.
+For example, FKBP12 F37V uses fkbp_f37v, apo and F37V; H-Ras G12V uses hras_g12v,
+gdp_1mg and G12V. The defaults below retrieve the Trp-cage run:
+
+```bash
+RUN_ID=run01
+STATE=apo
+VARIANT=WT
+SYSTEM="$STATE/$VARIANT"
+REMOTE_RUN="/content/drive/MyDrive/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
+LOCAL_RUN="$HOME/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
+files=(
+  summary.json provenance.json production.json RUN_DONE
+  "$SYSTEM/01_prep/prep.json"
+  "$SYSTEM/02_eq/equilibration_qc.json" "$SYSTEM/02_eq/figures/equilibration_qc.png"
+  "$SYSTEM/02_eq/nvt.log" "$SYSTEM/02_eq/npt.log" "$SYSTEM/03_md/r1/prod_full.log"
+  "$SYSTEM/04_analysis/analysis.json"
+  "$SYSTEM/04_analysis/rmsd.csv" "$SYSTEM/04_analysis/rg.csv" "$SYSTEM/04_analysis/rmsf.csv"
+  "$SYSTEM/04_analysis/figures/rmsd_vs_time.png"
+  "$SYSTEM/04_analysis/figures/rg_vs_time.png"
+  "$SYSTEM/04_analysis/figures/rmsf_per_residue.png"
+)
+cmda colab exec -s colabmda-example --timeout 120 \
+  "cd '$REMOTE_RUN' && sha256sum ${files[*]} > reports.sha256"
+for file in "${files[@]}" reports.sha256; do
+  mkdir -p "$LOCAL_RUN/$(dirname "$file")"
+  colab download -s colabmda-example "$REMOTE_RUN/$file" "$LOCAL_RUN/$file"
+done
+(cd "$LOCAL_RUN" && sha256sum -c reports.sha256)
+```
+
+Require `OK` for every downloaded report, review the PNGs and read the physical
+QC result. Then stop the dedicated session **from the local terminal**:
+
+```bash
+colab stop -s colabmda-example
+```
+
+A restarted session requires Drive authentication and the recorded software again.
+Keep the run records with the project. Installation and CPU tests alone do not
+verify GPU simulation or biological convergence.
 
 ---
 
-## 3. Simulation Protocol (cmda)
+## 3. Simulation workflow
 
-The full workflow uses two small natural proteins: FKBP12 in water (apo) and
+The following worked examples use two small proteins: FKBP12 in water (apo) and
 H-Ras with experimental GDP/Mg coordinates (holo). Each includes WT and one
 modeled substitution. They demonstrate separate workflows, not an apo/holo
-comparison of the same protein. Section 4 retains the smaller Trp-cage recovery
-test and its historical validation. Keep one working project and separate run IDs.
+comparison of the same protein. Use separate run IDs for each system and variant.
 
 | Track | Experimental input | Current UniProt region | Example variants |
 | :--- | :--- | :--- | :--- |
@@ -336,12 +372,8 @@ Sources: [1D6O](https://www.rcsb.org/structure/1D6O),
 [FKBP12](https://www.uniprot.org/uniprotkb/P62942/entry), and
 [H-Ras](https://www.uniprot.org/uniprotkb/P01112/entry).
 The substitutions are workflow examples; short simulations cannot establish their
-biological effects. Structure fetch, modeling and Amber preparation have been
-checked on the CPU and on Colab T4. Both WT/mutant workflows passed the short
-GPU software test (100 ps production; FKBP12 WT extended to 200 ps for actual
-interruption/resume). Numbering, finite outputs, nucleotide/ion retention,
-analysis and compact retrieval were checked. Physical QC remains separate;
-these short tests do not establish biological convergence.
+biological effects. The examples have passed short GPU workflow tests, including analysis and
+checkpoint recovery. These tests do not establish biological convergence.
 
 ### 3.1. Command Reference
 
@@ -349,7 +381,7 @@ these short tests do not establish biological convergence.
 | :--- | :--- |
 | `cmda modeller build` / `mutate` | Model a selected sequence or mutate a supplied structure using MODELLER. |
 | `cmda stage --example NAME --root PROJECT` | Install fkbp, hras or trpcage scripts without overwriting user edits. |
-| `cmda stage --state TAG --variant NAME --root PROJECT` | Stage an existing research state and generate compatibility runners. |
+| `cmda stage --state TAG --variant NAME --root PROJECT` | Create state/variant directories; add `--scripts` for compatibility runners. |
 | `cmda prep --state TAG --variant NAME --root PROJECT` | Assemble reviewed coordinates and parameterize them with AmberTools. |
 | `cmda sim --state TAG --variant NAME --stage STAGES --root PROJECT` | Run EM, NVT, NPT, QC or production MD. |
 | `cmda merge --state TAG --variant NAME --replicas r1 --root PROJECT` | Autoimage trajectories and write matching stripped topologies. |
@@ -383,7 +415,7 @@ Model completion requires exact sequence, residue count, numbering and C-alpha
 checks. RMSF labels subsequently refer to the verified model numbering.
 
 **On Colab**, in the active local-control console with Drive mounted, install the
-scripts into the same project used in section 4:
+scripts into the same project used in section 2:
 
 ```bash
 export PROJECT_ROOT=/content/drive/MyDrive/research/projects/colabmda-example
@@ -554,7 +586,7 @@ run hras_wt/variant WT or run hras_g12v/variant G12V. These scripts explicitly
 use quick 100 ps NVT/NPT and default 100 ps production; extend to 1 ns by setting
 COLABMDA_EXAMPLE_NS=1 with the same run ID and compatible inputs. Rerun analysis
 and the final check after extension. This short profile tests software, not
-physical convergence. Read summary.json and equilibration_qc.json separately. Section 4.4 provides
+physical convergence. Read summary.json and equilibration_qc.json separately. Section 2.4 provides
 compact retrieval and shutdown commands for any completed run by setting its
 RUN_ID, STATE and VARIANT; heavy trajectories remain on Drive.
 
@@ -589,7 +621,7 @@ unrestrained. Strengths below are in kcal mol⁻¹ Å⁻²:
 | 24 | Final unrestrained NPT | 1000 ps, 300 K, 1 bar, 2 fs | None |
 
 Numbered state/JSON records support recovery from completed stages. The quick
-profile in section 4 instead uses one short NVT and NPT interval; it is not this
+profile in section 2 instead uses one short NVT and NPT interval; it is not this
 full protocol. The legacy combined `openmm run` adapter retains ff14SB/TIP3P defaults
 and delegates to quick equilibration; it should not be confused with the staged route.
 
@@ -880,157 +912,118 @@ using it for another protein.
 
 ---
 
-## 4. Small Example & Validation
+## 4. Project and source layout
 
-### 4.1. Create and Fetch Trp-cage
+Keep the installed tool separate from each simulation project. Direct state-based
+workflows use the same project layout on Colab and HPC:
 
-The 20-residue Trp-cage example tests software behavior quickly without replacing
-the full research workflows above. **On Colab after section 1.1 setup**, run:
-
-```bash
-cmda stage --example trpcage \
-  --root /content/drive/MyDrive/research/projects/colabmda-example
-cd /content/drive/MyDrive/research/projects/colabmda-example
-python scripts/01_structure/01_fetch.py
+```text
+colabmda-example/
+├── data/{apo,atpmg}/
+│   ├── structure/{raw,mapping,models}/
+│   └── simulation/<run>/<variant>/
+│       ├── 01_prep/
+│       ├── 02_eq/
+│       ├── 03_md/{r1,r2,r3}/
+│       └── 04_analysis/
+└── logs/{apo,atpmg}/<run>/<variant>/
 ```
 
-On a local GPU workstation use `~/research/projects/colabmda-example` instead.
-Fetch prefers mmCIF, with PDB fallback, selecting NMR model 1, author chain A of
-1L2Y. It verifies the deposited sequence, all 20 C-alpha atoms and native numbering,
-then records the archive/selection hashes. As a designed peptide, it has no canonical
-UniProt mutation annotation. No MODELLER key or cofactor template is needed.
+Only processing steps are numbered. Use a fresh `COLABMDA_RUN_ID` for changed
+inputs or protocol. `cmda stage --state apo --variant WT --root "$PROJECT_ROOT"`
+creates the directories and no runner scripts by default. Colab runs direct
+commands; the [HPC adapter](examples/hpc/simulate.slurm) runs those same commands
+inside Slurm. The adapter supports a separately named `smoke` software check and
+requires a GPU; it can select an existing conda environment. Platform setup is in [Colab](docs/platforms/colab.md) and
+[HPC](docs/platforms/hpc.md); the state guides hold the scientific workflow.
 
-### 4.2. Run the Scripts in Order
+The small examples use the numbered layout below. Each project holds its own
+scripts, inputs, outputs and logs. No project configuration YAML is required.
 
-With `colabmda` active in the generated project:
-
-```bash
-export COLABMDA_RUN_ID=run01
-bash scripts/02_simulation/01_prepare.sh
-bash scripts/02_simulation/02_equilibrate.sh
-bash scripts/02_simulation/03_production.sh
-bash scripts/02_simulation/04_analysis.sh
-python scripts/02_simulation/05_check.py
-```
-
-The defaults are 100 ps NVT, 100 ps NPT, 1 ns production, 2 fs steps, 10 ps sampling
-and 100 ps checkpoint chunks. To choose another duration without editing scripts,
-set `COLABMDA_EXAMPLE_NS` for production; the final check reads the saved request.
-Use positive multiples of 0.1 ns. Choose a fresh run ID for changed inputs,
-executed scripts or runtime revisions.
-
-To test extension instead of the direct production command above, use a fresh run
-ID, complete preparation/equilibration, then run:
+To create the complete Trp-cage example on the machine where it will run:
 
 ```bash
-COLABMDA_EXAMPLE_NS=0.1 bash scripts/02_simulation/03_production.sh
-COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
+cmda stage --example trpcage --root "$HOME/research/projects/colabmda-example"
 ```
 
-Then perform analysis and the final check. To include an actual interruption in
-this test, pause after the 0.1 ns smoke command, save its first chunk's checksum
-from the project root, then start the extension:
+On Colab, use `/content/drive/MyDrive/research/projects/colabmda-example` instead.
+Staging copies seven small scripts and records their tool version and hashes. It
+does not fetch structures, install software or start a simulation. Identical files
+are safe to stage again; different existing files stop staging and are preserved.
 
-```bash
-sha256sum "data/02_simulation/$COLABMDA_RUN_ID/apo/WT/03_md/r1/prod_0to100ps.dcd" \
-  > "data/02_simulation/$COLABMDA_RUN_ID/first_chunk.sha256"
-COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
+```text
+colabmda-example/
+├── scripts/
+│   ├── 01_structure/01_fetch.py
+│   └── 02_simulation/
+│       ├── common.sh
+│       ├── 01_prepare.sh
+│       ├── 02_equilibrate.sh
+│       ├── 03_production.sh
+│       ├── 04_analysis.sh
+│       └── 05_check.py
+├── data/
+│   ├── 00_setup/example.json
+│   ├── 01_structure/trpcage/           # Raw archive, selected model, input hashes
+│   └── 02_simulation/<run>/
+│       ├── provenance.json
+│       ├── production.json
+│       └── apo/WT/
+│           ├── 01_prep/
+│           ├── 02_eq/
+│           ├── 03_md/r1/
+│           └── 04_analysis/figures/
+└── logs/02_simulation/<run>/
 ```
 
-Press Ctrl+C while the second chunk is running. Before another command, `echo $?`
-should report a nonzero exit status. Resume with the same production command, then
-verify the first committed chunk:
+Scientific projects can use their existing state/variant layout. `ProjectPaths`
+resolves the existing layout; do not create parallel compatibility trees. The
+numbered example layout above is the default for newly staged examples. Keep
+runtime data and logs outside Git and preserve native raw coordinates and provenance.
 
-```bash
-COLABMDA_EXAMPLE_NS=1 bash scripts/02_simulation/03_production.sh
-sha256sum -c "data/02_simulation/$COLABMDA_RUN_ID/first_chunk.sha256"
-```
+The natural-protein examples use the same layout, with scripts under
+scripts/01_structure/{fkbp,hras}/ and scripts/02_simulation/{fkbp,hras}/.
+Their separate data/00_setup/{fkbp,hras}.json receipts allow both examples and
+historical Trp-cage to coexist. Structure inputs/mapping/models live under
+data/01_structure/<protein>/; simulation outputs use one run ID per system.
 
-The checksum must report `OK`. Continue with analysis and the final check.
-The private working project's `tests/gpu.py` automates that acceptance test using
-these same generated scripts; it is not an extra file installed for every user.
+Independent replicas may share an equilibration endpoint, while each production
+replica receives its own velocities, stochastic streams and checkpoint. They are
+independent simulation realizations, not proof of converged or uncorrelated sampling.
 
-### 4.3. Expected Outputs & Checks
+---
 
-After success, `data/02_simulation/run01/` contains the input/tool/script/runtime
-provenance, production requests, analysis results, `summary.json` and `RUN_DONE`.
-The default run has ten chunks and 100 merged frames, with times 10–1000 ps.
-The final check requires finite coordinates/logs/tables, 20 C-alpha atoms, native
-RMSF labels 1–20 and nonempty PNGs. Physical equilibration QC is reported separately.
+### Source layout <a id="project-structure"></a>
 
-Scripts create the log directory; save terminal output when desired. For example,
-from the generated project after preparation/equilibration:
+The tool repository contains the implementation and reusable templates:
+*   `src/colabmda/cli.py`: Command line (`cmda` and `colabmda`).
+*   `src/colabmda/core/`: Project paths, safe example installation, small-protein workflows, state taxonomy and ion definitions.
+*   `src/colabmda/amber/`: AmberTools parameterization (`tleap`, Hu 2024 quantum nucleotide parameters, `cpptraj` autoimaging & solvent stripping).
+*   `src/colabmda/modeller/`: Homology modeling engine (UniProt biological numbering, mutagenesis, geometric substrate docking).
+*   `src/colabmda/openmm/`: Flat operation modules: `prepare.py`, `em.py`, `nvt.py`, `npt.py`, `md.py`, `qc.py`, `merge.py`, `analysis.py`, `figures.py`, `common.py`, `commands.py` and the compatibility adapter `run.py`.
+*   `src/colabmda/remote/`: Google Colab session control via `colab` CLI.
+*   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
+*   `examples/{fkbp,hras,trpcage}/scripts/`: Runnable templates copied into the execution project.
+*   `examples/hpc/{simulate,analyze}.slurm`: Thin GPU simulation and CPU analysis adapters for the shared scientific commands.
+*   `docs/{apo,atpmg}.md`: CDKL5 workflows, with setup under `docs/platforms/{colab,hpc}.md`.
+*   `tests/`: Unit and regression tests (`pytest`).
 
-```bash
-set -o pipefail
-bash scripts/02_simulation/03_production.sh 2>&1 \
-  | tee "logs/02_simulation/$COLABMDA_RUN_ID/production.log"
-```
 
-To rerender analysis figures from saved tables without rerunning MD:
+---
 
-```bash
-python - <<'PY'
-import os
-from pathlib import Path
-from colabmda.openmm.figures import plot_analysis
-run = Path('data/02_simulation') / os.environ['COLABMDA_RUN_ID']
-plot_analysis(run / 'apo/WT/04_analysis')
-PY
-```
+## Project information
+| Category | Details |
+| :--- | :--- |
+| **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
+| **Availability** | [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) |
+| **Workflows** | [![Python CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) |
+| **Issues** | [![GitHub issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) |
+| **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
+| **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
+| **Dependencies** | `OpenMM`, `AmberTools (tleap, cpptraj)`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA` |
+| **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
+| **Structure** | [Source Layout](#project-structure) |
 
-### 4.4. Runtime, Limits & Cleanup
-
-Our earlier T4 test took approximately 7.5 minutes for production plus its restart
-test. That is an observed runtime, not a guarantee. Quick equilibration can fail
-the density-slope criterion; retain the warning and do not call this a converged
-production study, a mutant/cofactor validation or a full staged-protocol test.
-
-Keep heavy trajectories and checkpoints on Drive. To return from the interactive
-console to your local terminal, detach with **Ctrl-B, then D**. This does not stop
-the runtime. With the local ColabMDA environment active, download and verify the
-compact reports below. Set RUN_ID, STATE and VARIANT to the completed system.
-For example, FKBP12 F37V uses fkbp_f37v, apo and F37V; H-Ras G12V uses hras_g12v,
-gdp_1mg and G12V. The defaults below retrieve the Trp-cage run:
-
-```bash
-RUN_ID=run01
-STATE=apo
-VARIANT=WT
-SYSTEM="$STATE/$VARIANT"
-REMOTE_RUN="/content/drive/MyDrive/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
-LOCAL_RUN="$HOME/research/projects/colabmda-example/data/02_simulation/$RUN_ID"
-files=(
-  summary.json provenance.json production.json RUN_DONE
-  "$SYSTEM/01_prep/prep.json"
-  "$SYSTEM/02_eq/equilibration_qc.json" "$SYSTEM/02_eq/figures/equilibration_qc.png"
-  "$SYSTEM/02_eq/nvt.log" "$SYSTEM/02_eq/npt.log" "$SYSTEM/03_md/r1/prod_full.log"
-  "$SYSTEM/04_analysis/analysis.json"
-  "$SYSTEM/04_analysis/rmsd.csv" "$SYSTEM/04_analysis/rg.csv" "$SYSTEM/04_analysis/rmsf.csv"
-  "$SYSTEM/04_analysis/figures/rmsd_vs_time.png"
-  "$SYSTEM/04_analysis/figures/rg_vs_time.png"
-  "$SYSTEM/04_analysis/figures/rmsf_per_residue.png"
-)
-cmda colab exec -s colabmda-example --timeout 120 \
-  "cd '$REMOTE_RUN' && sha256sum ${files[*]} > reports.sha256"
-for file in "${files[@]}" reports.sha256; do
-  mkdir -p "$LOCAL_RUN/$(dirname "$file")"
-  colab download -s colabmda-example "$REMOTE_RUN/$file" "$LOCAL_RUN/$file"
-done
-(cd "$LOCAL_RUN" && sha256sum -c reports.sha256)
-```
-
-Require `OK` for every downloaded report, review the PNGs and read the physical
-QC result. Then stop the dedicated session **from the local terminal**:
-
-```bash
-colab stop -s colabmda-example
-```
-
-A restarted session requires Drive authentication and the recorded software again.
-Historical run records remain in the working project's README; user instructions
-stay here. CPU unit tests, script/CLI checks and a successful installation are
-reported separately from an actual GPU integration run.
 
 ---
 
@@ -1048,6 +1041,9 @@ reported separately from an actual GPU integration run.
 ## Changelog
 
 ### Unreleased Development
+
+- Reorder the user guide around installation and a first simulation; keep the
+  full protocol and calculations, with project/source layout later in the guide.
 
 - Add CDKL5 apo and ATP/one-Mg command guides with shared Colab/HPC platform setup
   and unnumbered state/structure/simulation folders for new runs.
