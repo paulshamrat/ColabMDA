@@ -68,7 +68,9 @@ the short 4BGQ pilot. Link state guides to the shared layout.
 Use one compact command reference near the end; detailed options belong in --help.
 Keep runnable workflow commands and quantitative protocol explanations in place.
 Keep release, CI, license, repository, Issues, Black and Ruff badges directly
-below the README title, then its short purpose and starting path. Platform/dependency details belong in
+below the README title. Lead the short purpose with Colab interruptions and
+Drive checkpoint recovery, then terminal commands and HPC/workstation support.
+Follow with the starting path. Platform/dependency details belong in
 Platform Setup. Keep detailed guide links in the workflow and validation results
 near the end of the README.
 

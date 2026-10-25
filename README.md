@@ -2,7 +2,11 @@
 
 [![Release](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) [![CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) [![Issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**ColabMDA** supports protein modeling, parameterization, checkpointed OpenMM simulations, trajectory processing and analysis on Google Colab, HPC clusters and Linux workstations. This README is the user guide, from platform setup through apo/holo workflows and visualization.
+**ColabMDA** helps you run molecular dynamics simulations on Google Colab and recover
+from session interruptions. It saves progress to Google Drive so you can resume
+from the last completed checkpoint. It supports protein modeling, simulation and
+analysis through terminal commands, with the same workflow available on HPC
+clusters and Linux workstations.
 
 Start with [Platform Setup](#1-platform-setup), then follow the
 [Simulation Workflow](#3-simulation-protocol-cmda). For a short pilot, use the
