@@ -59,8 +59,8 @@ the small validation example. Scientific explanations and advanced command
 reference belong in the appropriate README sections. Do not replace it with an
 example-only quickstart or recreate a separate documentation site.
 
-Consolidate tool and simulation layouts in README section 2. Keep the Trp-cage
-layout beside its section 4 example, and link state guides to the shared layout.
+Consolidate tool and simulation layouts in README section 2. Keep optional Trp-cage instructions/layout in docs/examples.md. Section 4 is
+the short 4BGQ pilot. Link state guides to the shared layout.
 Use one compact command reference near the end; detailed options belong in --help.
 Keep runnable workflow commands and quantitative protocol explanations in place.
 Use a short opening with inline badges and a clear starting path. Keep detailed
@@ -97,3 +97,12 @@ identity/density gates, frozen preparation inputs, real topology charges and
 noncovalent boundaries. Research production requires complete 24-stage timing and
 physical QC. Separate software tests, Colab GPU results and HPC pilot status.
 Update AGENTS.md and the local ignored PLAN.md with material design/status changes.
+
+CDKL5 visualization uses the activation project's full-kinase orientation by
+default, with its network orientation optional. Store numeric camera metadata
+only; never require private activation-study files. Fit native core C-alpha
+positions to one WT reference and reuse its framing across panels. Read physical
+time from matching production logs; never invent zero-time labels. Validate
+declared mutations and distinguish starting-model grids from MD snapshots.
+Optional small-protein tutorials/templates remain available outside the main
+4BGQ walkthrough; preserve their historical validation records.

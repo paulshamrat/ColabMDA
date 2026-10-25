@@ -121,7 +121,8 @@ diagnostics separate from the main command sequence. Preserve historical study
 models and pilot evidence when adding the public-input route.
 
 Keep architecture consolidated in README section 2: tool repository, then shared
-simulation project. The optional Trp-cage layout belongs with section 4's example.
+simulation project. The optional Trp-cage tutorial and layout belong in docs/examples.md; section 4
+is the short 4BGQ pilot.
 State guides link to the shared layout instead of repeating its tree. Keep one
 compact command reference near the end (section 5), with options available through
 --help. Workflow sections retain runnable steps, not duplicate command catalogs.
@@ -171,3 +172,12 @@ GPU mutant coverage and biological convergence remain separate, untested claims.
 Public-input CDKL5 WT pilots also passed full 24-stage QC and 100 ps production
 plus analysis on compbio (run cdkl5_public_v1, runtime0d7f4b3). Keep this evidence
 separate from the earlier reviewed-input tests. Public L119R is CPU-only.
+
+CDKL5 visualization uses the activation project's full-kinase orientation by
+default, with its network orientation optional. Store numeric camera metadata
+only; never require private activation-study files. Fit native core C-alpha
+positions to one WT reference and reuse its framing across panels. Read physical
+time from matching production logs; never invent zero-time labels. Validate
+declared mutations and distinguish starting-model grids from MD snapshots.
+Optional small-protein tutorials/templates remain available outside the main
+4BGQ walkthrough; preserve their historical validation records.

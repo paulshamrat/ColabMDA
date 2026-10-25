@@ -668,6 +668,62 @@ def _dispatch_compare(args) -> int:
     return 0
 
 
+def _visual_options(parser, snapshots=False):
+    parser.add_argument("--state", help="Project state(s): apo or atpmg; comma-separated for grids")
+    parser.add_argument("--variant", default="WT", help="Variant(s), e.g. WT or WT,L119R")
+    parser.add_argument("--root", default=None, help=ROOT_HELP)
+    parser.add_argument("--replica", default="r1")
+    parser.add_argument("--reference", help="Common numbered WT PDB/mmCIF reference")
+    parser.add_argument("--camera", choices=["activation", "network"], default="activation")
+    parser.add_argument(
+        "--structure", action="store_true", help="Show starting models without implying MD"
+    )
+    parser.add_argument(
+        "-r", "--resi", type=int, default=119, help="Native residue to highlight (default:119)"
+    )
+    if snapshots:
+        parser.add_argument(
+            "-c", "--config", help="Optional custom input JSON; not needed with --state"
+        )
+        parser.add_argument(
+            "-o", "--output", help="PNG output; defaults to analysis figures folder"
+        )
+        parser.add_argument("--frames", default="1,last", help="One-based frames, e.g. 1,last")
+        parser.add_argument(
+            "--temp-dir", help="Compatibility option; derived inputs stay beside figures"
+        )
+        parser.add_argument("--font-path")
+    else:
+        parser.add_argument("--pdb-dir")
+        parser.add_argument("-t", "--topology", help="Explicit matching PDB or Amber topology")
+        parser.add_argument("-x", "--trajectory")
+        parser.add_argument(
+            "--frame", default="1", help="One-based frame, last, or all for an interactive movie"
+        )
+        parser.add_argument(
+            "--png", nargs="?", const="auto", help="Render headlessly; optional output PNG path"
+        )
+        parser.add_argument(
+            "--no-launch", action="store_true", help="Write PyMOL inputs without opening a GUI"
+        )
+
+
+def _visual_common(args):
+    return {
+        key: getattr(args, key)
+        for key in [
+            "state",
+            "variant",
+            "root",
+            "replica",
+            "reference",
+            "camera",
+            "structure",
+            "resi",
+        ]
+    }
+
+
 def main():
     p = argparse.ArgumentParser(prog="colabmda")
     sub = p.add_subparsers(dest="tool", required=True)
@@ -927,40 +983,12 @@ def main():
     )
     p_comp.add_argument("--outdir", required=True, help="Output directory for plots")
 
-    # view
-    p_view = sub_openmm.add_parser("view", help="View trajectory in PyMOL")
-    p_view.add_argument(
-        "--pdb-dir",
-        default=None,
-        help="Directory containing the merged files (default: current directory)",
-    )
-    p_view.add_argument(
-        "-t", "--topology", default=None, help="Topology file (default: prod_full.pdb)"
-    )
-    p_view.add_argument(
-        "-x", "--trajectory", default=None, help="Trajectory file (default: prod_full.dcd)"
-    )
-    p_view.add_argument(
-        "-r", "--resi", type=int, default=12, help="Highlight residue index (default: 12)"
-    )
-
-    # snapshots
+    p_view = sub_openmm.add_parser("view", help="View a native-numbered protein frame in PyMOL")
+    _visual_options(p_view)
     p_snap = sub_openmm.add_parser(
-        "snapshots", help="Generate comparative snapshot grid (e.g. 3x8 WT vs Mutants)"
+        "snapshots", help="Render CDKL5 structure or trajectory comparisons"
     )
-    p_snap.add_argument(
-        "-c", "--config", default=None, help="Path to custom JSON configuration file"
-    )
-    p_snap.add_argument(
-        "-o",
-        "--output",
-        default="data/analysis/snapshots/master_3x8_snapshots.png",
-        help="Path to output image grid file",
-    )
-    p_snap.add_argument(
-        "--temp-dir", default="scratch/master_grid_3x8", help="Temporary folder for panel rendering"
-    )
-    p_snap.add_argument("--font-path", default=None, help="Custom TrueType font path")
+    _visual_options(p_snap, snapshots=True)
 
     # stage
     p_stage = sub_openmm.add_parser(
@@ -1214,38 +1242,10 @@ def main():
     p_top_comp.add_argument("--metrics", default="rmsf,rmsd", help="Metrics to compare")
     p_top_comp.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
 
-    # 8. view
-    p_top_view = sub.add_parser("view", help="View trajectory in PyMOL")
-    p_top_view.add_argument(
-        "--pdb-dir",
-        default=None,
-        help="Directory containing the merged files (default: current directory)",
-    )
-    p_top_view.add_argument(
-        "-t", "--topology", default=None, help="Topology file (default: prod_full.pdb)"
-    )
-    p_top_view.add_argument(
-        "-x", "--trajectory", default=None, help="Trajectory file (default: prod_full.dcd)"
-    )
-    p_top_view.add_argument(
-        "-r", "--resi", type=int, default=12, help="Highlight residue index (default: 12)"
-    )
-
-    # 9. snapshots
-    p_top_snap = sub.add_parser("snapshots", help="Generate comparative snapshot grid")
-    p_top_snap.add_argument(
-        "-c", "--config", required=True, help="Path to custom JSON configuration file"
-    )
-    p_top_snap.add_argument(
-        "-o",
-        "--output",
-        default="data/analysis/snapshots/master_3x8_snapshots.png",
-        help="Path to output image grid file",
-    )
-    p_top_snap.add_argument(
-        "--temp-dir", default="scratch/master_grid_3x8", help="Temporary folder for panel rendering"
-    )
-    p_top_snap.add_argument("--font-path", default=None, help="Custom TrueType font path")
+    p_top_view = sub.add_parser("view", help="View a CDKL5 structure or trajectory frame")
+    _visual_options(p_top_view)
+    p_top_snap = sub.add_parser("snapshots", help="Render a CDKL5 comparison grid")
+    _visual_options(p_top_snap, snapshots=True)
 
     args = p.parse_args()
 
@@ -1281,7 +1281,16 @@ def main():
         from colabmda.openmm.commands import openmm_view
 
         raise SystemExit(
-            openmm_view(args.pdb_dir, args.topology, args.trajectory, resi=args.resi) or 0
+            openmm_view(
+                args.pdb_dir,
+                args.topology,
+                args.trajectory,
+                png=args.png,
+                no_launch=args.no_launch,
+                frame=args.frame,
+                **_visual_common(args),
+            )
+            or 0
         )
 
     elif args.tool == "snapshots":
@@ -1293,6 +1302,8 @@ def main():
                 output=args.output,
                 temp_dir=args.temp_dir,
                 font_path=args.font_path,
+                frames=args.frames,
+                **_visual_common(args),
             )
             or 0
         )
@@ -1702,7 +1713,15 @@ def main():
             openmm_compare(args.series, args.outdir)
 
         elif args.cmd == "view":
-            openmm_view(args.pdb_dir, args.topology, args.trajectory, resi=args.resi)
+            openmm_view(
+                args.pdb_dir,
+                args.topology,
+                args.trajectory,
+                png=args.png,
+                no_launch=args.no_launch,
+                frame=args.frame,
+                **_visual_common(args),
+            )
 
         elif args.cmd == "snapshots":
             openmm_snapshots(
@@ -1710,6 +1729,8 @@ def main():
                 output=args.output,
                 temp_dir=args.temp_dir,
                 font_path=args.font_path,
+                frames=args.frames,
+                **_visual_common(args),
             )
 
         elif args.cmd == "status":

@@ -3,7 +3,6 @@
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -95,456 +94,605 @@ def openmm_compare(series_list, outdir):
     print(f"Aggregate plots saved in {outpath}")
 
 
-def openmm_view(pdb_dir: str | None, topology: str | None, trajectory: str | None, resi: int = 12):
-    from pathlib import Path
+# Activation project structural overview and apo/holo network camera presets.
+# Numeric camera metadata only; no activation-project coordinates are required.
+CDKL5_CAMERAS = {
+    "activation": (
+        0.360244870,
+        0.822598636,
+        -0.439932555,
+        0.888235748,
+        -0.158373788,
+        0.431204081,
+        0.285034835,
+        -0.546108961,
+        -0.787725031,
+        -0.001081586,
+        -0.000175163,
+        -245.772369385,
+        53.673915863,
+        50.904361725,
+        39.656856537,
+        205.716583252,
+        285.834991455,
+        -20.0,
+    ),
+    "network": (
+        0.854537665844,
+        0.461885809898,
+        0.237543433905,
+        -0.240715444088,
+        0.757462859154,
+        -0.606882452965,
+        -0.460240691900,
+        0.461423516273,
+        0.758463501930,
+        0.0,
+        0.0,
+        -262.464569091797,
+        44.759418487549,
+        32.431861877441,
+        65.356414794922,
+        206.929061889648,
+        318.000061035156,
+        -20.0,
+    ),
+}
+CAMERA_SOURCES = {
+    "activation": "cdkl5-activation/scripts/clustering/05_mapping.py:KINASE_VIEW (also grant/variantmap)",
+    "network": "cdkl5-activation state-paired apo/holo network rendering:KINASE_VIEW + turn z 90",
+}
 
-    # 1. Resolve simulation directory
-    sim_dir = Path(pdb_dir or os.getcwd()).resolve()
-    if not sim_dir.is_dir():
-        sys.exit(f"Error: directory '{sim_dir}' does not exist.")
 
-    # 2. Resolve topology and trajectory filenames
-    topo_name = topology
-    traj_name = trajectory
+def _view_dataset(
+    topology,
+    trajectory=None,
+    reference=None,
+    frames="1,last",
+    resi=119,
+    variant="WT",
+    log=None,
+    mapping=None,
+    core_residues=None,
+):
+    """Validate atom identity/native labels and fit display frames to one reference."""
+    import hashlib
+    import json
 
-    if not topo_name:
-        for candidate in ["prod_full.pdb", "kras_protein.pdb", "solvated.pdb"]:
-            if (sim_dir / candidate).is_file():
-                topo_name = candidate
+    import MDAnalysis as mda
+    import numpy as np
+    from Bio.PDB import PDBParser
+    from Bio.SeqUtils import seq1
+
+    from colabmda.modeller.substrate import kabsch
+
+    topology = Path(topology).resolve()
+    reference = Path(reference or topology).resolve()
+    if reference.suffix.lower() not in {".pdb", ".cif"}:
+        raise ValueError("A numbered PDB/mmCIF reference is required")
+    from Bio.PDB import MMCIFParser
+
+    parser = (
+        MMCIFParser(QUIET=True) if reference.suffix.lower() == ".cif" else PDBParser(QUIET=True)
+    )
+    model = parser.get_structure("ref", str(reference))[0]
+    residues = [r for r in model.get_residues() if r.id[0] == " " and "CA" in r]
+    ids = [(r.parent.id, r.id[1], r.id[2].strip()) for r in residues]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Ambiguous reference residue labels")
+    u = mda.Universe(str(topology), str(trajectory)) if trajectory else mda.Universe(str(topology))
+    ca = u.select_atoms("protein and name CA")
+    aliases = {"HID": "HIS", "HIE": "HIS", "HIP": "HIS", "CYX": "CYS", "ASH": "ASP", "GLH": "GLU"}
+    actual = "".join(seq1(aliases.get(r, r)) for r in ca.resnames)
+    expected = "".join(seq1(aliases.get(r.resname, r.resname)) for r in residues)
+    if len(ca) != len(residues):
+        raise ValueError("Reference/trajectory C-alpha count mismatch")
+    differences = [i for i, (a, b) in enumerate(zip(expected, actual)) if a != b]
+    if variant != "WT":
+        import re
+
+        if not re.fullmatch(r"[A-Z][1-9][0-9]*[A-Z]", variant):
+            raise ValueError("Declared variant must use native notation, e.g. L119R")
+        if not differences:
+            raise ValueError("Declared variant is absent from the displayed sequence")
+    if differences:
+        if variant == "WT" or len(differences) != 1:
+            raise ValueError("Reference/trajectory sequence mismatch")
+        i = differences[0]
+        if (residues[i].id[1], expected[i], actual[i]) != (
+            int(variant[1:-1]),
+            variant[0],
+            variant[-1],
+        ):
+            raise ValueError("Declared variant does not explain sequence mismatch")
+    selected = []
+    for text in frames.split(","):
+        n = len(u.trajectory) if text.strip() == "last" else int(text)
+        if not 1 <= n <= len(u.trajectory):
+            raise ValueError("Requested frame is outside trajectory")
+        if n not in selected:
+            selected.append(n)
+    observed = None
+    if mapping and Path(mapping).is_file():
+        observed = {r["uniprot"] for r in json.loads(Path(mapping).read_text()) if r["resolved"]}
+    core = [
+        i
+        for i, r in enumerate(residues)
+        if (r.id[1] in core_residues if core_residues is not None else 30 <= r.id[1] <= 220)
+        and (observed is None or r.id[1] in observed)
+    ]
+    if len(core) < 3:
+        raise ValueError("Insufficient matched core C-alpha atoms (30-220)")
+    ref_xyz = np.array([r["CA"].coord for r in residues])
+    # Native labels are applied only to a derived viewer copy, never raw topology.
+    for atom, residue in zip(ca, residues):
+        atom.residue.resid = residue.id[1]
+    if not hasattr(u.atoms, "chainIDs"):
+        u.add_TopologyAttr("chainIDs")
+    u.atoms.chainIDs = "A"
+    if not hasattr(u.residues, "icodes"):
+        u.add_TopologyAttr("icodes")
+    for atom, residue in zip(ca, residues):
+        atom.residue.atoms.chainIDs = residue.parent.id.strip() or "A"
+        atom.residue.icode = residue.id[2].strip()
+    if not u.select_atoms(f"protein and resid {resi}").n_atoms:
+        raise ValueError(f"Highlighted native residue {resi} is absent")
+    times = None
+    if trajectory and log:
+        import csv
+
+        if not Path(log).is_file():
+            raise FileNotFoundError(f"Production time log missing: {log}")
+
+        with Path(log).open() as handle:
+            times = np.array([float(row["Time (ps)"]) for row in csv.DictReader(handle)])
+        if (
+            len(times) != len(u.trajectory)
+            or not np.isfinite(times).all()
+            or (len(times) > 1 and not (np.diff(times) > 0).all())
+        ):
+            raise ValueError("Production times do not match trajectory frames")
+    panels = []
+    for n in selected:
+        u.trajectory[n - 1]
+        rotation, translation = kabsch(ca.positions[core], ref_xyz[core])
+        xyz = u.atoms.positions @ rotation + translation
+        if not np.isfinite(xyz).all():
+            raise ValueError("Nonfinite display coordinates")
+        panels.append(
+            dict(
+                frame=n,
+                time_ps=float(times[n - 1]) if times is not None else None,
+                positions=xyz,
+                core_rmsd_angstrom=float(
+                    np.sqrt(
+                        np.mean(
+                            np.sum(
+                                (ca.positions[core] @ rotation + translation - ref_xyz[core]) ** 2,
+                                axis=1,
+                            )
+                        )
+                    )
+                ),
+            )
+        )
+
+    def sha(p):
+        digest = hashlib.sha256()
+        with Path(p).open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+
+    return (
+        u,
+        panels,
+        dict(
+            topology=str(topology),
+            topology_sha256=sha(topology),
+            trajectory=str(Path(trajectory).resolve()) if trajectory else None,
+            trajectory_sha256=sha(trajectory) if trajectory else None,
+            reference=str(reference),
+            reference_sha256=sha(reference),
+            core_residues=[ids[i] for i in core],
+            native_residues=ids,
+            variant=variant,
+            highlight=resi,
+            ca_count=len(ca),
+            source_kind="trajectory" if trajectory else "structure",
+            time_log=str(Path(log).resolve()) if trajectory and log else None,
+            time_log_sha256=sha(log) if trajectory and log else None,
+            alignment="Per-frame matched native core CA 30-220; experimentally missing positions excluded when mapping available",
+        ),
+    )
+
+
+def _state_views(
+    state,
+    variant,
+    root=None,
+    replica="r1",
+    structure=False,
+    reference=None,
+    frames="1,last",
+    resi=119,
+):
+    from colabmda.core.project import ProjectPaths, resolve_project_root
+    from colabmda.core.taxonomy import SystemSpec
+
+    root = resolve_project_root(root)
+    specs = [(s.strip(), v.strip()) for s in state.split(",") for v in variant.split(",")]
+    datasets = []
+    common = Path(reference) if reference else None
+    if common is None:
+        for s in ["apo", specs[0][0]]:
+            p = ProjectPaths(root, state=s)
+            candidate = p.model_pdb(SystemSpec.from_tag(s, variant="WT"))
+            if candidate.is_file():
+                common = candidate
                 break
-        if not topo_name:
-            sys.exit(f"Error: No topology PDB file found in '{sim_dir}'. Run merge first.")
+        if common is None:
+            candidate = root / "data/apo/structure/models/WT/WT.pdb"
+            if candidate.is_file():
+                common = candidate
+    if common is None:
+        raise FileNotFoundError("Supply a checked common WT --reference")
+    for s, v in specs:
+        paths = ProjectPaths(root, state=s)
+        spec = SystemSpec.from_tag(s, variant=v)
+        prod = paths.replica_dir(spec, replica)
+        if structure:
+            topo = paths.model_pdb(spec)
+            if not topo.is_file():
+                topo = (
+                    paths.structure_dir
+                    / "models"
+                    / v
+                    / ("complex.pdb" if s == "atpmg" else f"{v}.pdb")
+                )
+            traj = None
+        else:
+            topo, traj = prod / "stripped.prmtop", prod / "prod_keep_ligand.dcd"
+        u, panels, record = _view_dataset(
+            topo,
+            traj,
+            common,
+            "1" if structure else frames,
+            resi,
+            v,
+            prod / "prod_full.log",
+            paths.structure_dir / "mapping/residues.json",
+        )
+        record["source_kind"] = "starting_model" if structure else "trajectory"
+        datasets.append((f"{s} · {v}", u, panels, record))
+    return datasets, ProjectPaths(root, state=specs[0][0]).analysis_dir(
+        SystemSpec.from_tag(specs[0][0], variant=specs[0][1])
+    )
 
-    if not traj_name:
-        for candidate in ["prod_full.dcd", "kras_protein.dcd"]:
-            if (sim_dir / candidate).is_file():
-                traj_name = candidate
-                break
-        if not traj_name:
-            sys.exit(f"Error: No trajectory DCD file found in '{sim_dir}'. Run merge first.")
 
-    topo_path = sim_dir / topo_name
-    traj_path = sim_dir / traj_name
+def _style_view(cmd, resi):
+    cmd.hide("everything", "all")
+    cmd.bg_color("white")
+    for key, value in [
+        ("orthoscopic", 1),
+        ("depth_cue", 0),
+        ("ray_shadows", 0),
+        ("antialias", 2),
+        ("cartoon_fancy_helices", 0),
+        ("cartoon_flat_sheets", 1),
+        ("cartoon_smooth_loops", 1),
+    ]:
+        cmd.set(key, value)
+    cmd.show("cartoon", "molecule and polymer.protein")
+    cmd.color("wheat", "molecule and polymer.protein")
+    cmd.set("cartoon_transparency", 0.12, "molecule and polymer.protein")
+    cmd.show("sticks", f"molecule and polymer.protein and resi {resi} and not hydro")
+    cmd.color("orange", f"molecule and polymer.protein and resi {resi}")
+    cmd.show("sticks", "molecule and resn ATP")
+    cmd.color("purple", "molecule and resn ATP")
+    cmd.show("spheres", "molecule and resn MG")
+    cmd.color("marine", "molecule and resn MG")
+    cmd.set("sphere_scale", 0.55, "molecule and resn MG")
+    cmd.set("stick_radius", 0.18)
 
-    if not topo_path.is_file():
-        sys.exit(f"Error: topology file not found: {topo_path}")
-    if not traj_path.is_file():
-        sys.exit(f"Error: trajectory file not found: {traj_path}")
 
-    # Find crystal reference PDB (e.g., 4ldj_wt.pdb) to align coordinate space
-    ref_name = f"{sim_dir.parent.name}.pdb"
-    ref_path = sim_dir / ref_name
-    if not ref_path.is_file():
-        for p in sim_dir.glob("*.pdb"):
-            if (
-                p.name not in [topo_name, "solvated.pdb", "equilibrated.pdb"]
-                and "cleaned" not in p.name
-                and "protein" not in p.name
-            ):
-                ref_name = p.name
-                ref_path = p
-                break
+def _render_views(datasets, output, camera="activation", camera_view=None, font_path=None):
+    import hashlib
+    import json
 
-    align_cmds = ""
-    if ref_path.is_file():
-        align_cmds = f"""
-# 2b. Align trajectory to the crystal reference to ensure identical viewing orientation
-load {ref_name}, crystal_ref
-align kras and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
-delete crystal_ref
-"""
+    import MDAnalysis as mda
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFont
+    from pymol2 import PyMOL
 
-    # 3. Create visualize.pml file
-    pml_content = f"""# PyMOL Script generated by ColabMDA
-# 1. Clear out all the old overlapping objects from memory
-reinitialize
+    if camera not in CDKL5_CAMERAS:
+        raise ValueError("Unknown CDKL5 camera")
+    if camera_view is not None and (len(camera_view) != 18 or not np.isfinite(camera_view).all()):
+        raise ValueError("Camera requires 18 finite values")
+    output = Path(output).resolve()
+    if output.suffix.lower() != ".png":
+        raise ValueError("Save rendered figures as PNG")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    marker = output.with_name(output.stem.upper() + "_DONE")
+    marker.unlink(missing_ok=True)
+    counts = {len(panels) for _, _, panels, _ in datasets}
+    if len(counts) != 1 or not datasets:
+        raise ValueError("Snapshot rows must have equal frame counts")
+    source_cols = counts.pop()
+    compact = source_cols == 1 and len(datasets) > 1
+    cols = min(2, len(datasets)) if compact else source_cols
+    row_count = (len(datasets) + cols - 1) // cols if compact else len(datasets)
+    width = 2100
+    gap = 24
+    cell = (width - gap * (cols - 1)) // cols
+    header = 64
+    canvas = Image.new("RGB", (width, row_count * (cell + header) + gap * (row_count - 1)), "white")
+    fontfile = font_path or "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    font = ImageFont.truetype(fontfile, 38)
+    bold = ImageFont.truetype(
+        fontfile.replace(".ttf", "-Bold.ttf") if not font_path else fontfile, 42
+    )
+    draw = ImageDraw.Draw(canvas)
+    records = []
+    work = output.parent / "view_inputs" / output.stem
+    work.mkdir(parents=True, exist_ok=True)
+    with PyMOL() as session:
+        cmd = session.cmd
+        cmd.viewport(cell, cell)
+        cmd.set("orthoscopic", 1)
+        cmd.load(datasets[0][3]["reference"], "reference")
+        cmd.set_view(camera_view or CDKL5_CAMERAS[camera])
+        if camera == "network" and camera_view is None:
+            cmd.turn("z", 90)
+        cmd.zoom("reference and polymer.protein", buffer=4)
+        fixed_camera = tuple(cmd.get_view())
+        cmd.delete("reference")
+        for row, (label, u, panels, record) in enumerate(datasets):
+            items = []
+            for col, panel in enumerate(panels):
+                pdb = work / f"row{row + 1}_frame{panel['frame']}.pdb"
+                u.atoms.positions = panel["positions"]
+                with mda.Writer(str(pdb), n_atoms=len(u.atoms)) as writer:
+                    writer.write(u.atoms)
+                cmd.delete("all")
+                cmd.load(str(pdb), "molecule")
+                cmd.dss("molecule")
+                _style_view(cmd, record["highlight"])
+                cmd.set_view(fixed_camera)
+                png = work / f"row{row + 1}_frame{panel['frame']}.png"
+                cmd.png(str(png), width=cell, height=cell, dpi=300, ray=1, quiet=1)
+                image = Image.open(png).convert("RGB")
+                grid_row = row // cols if compact else row
+                grid_col = row % cols if compact else col
+                x = grid_col * (cell + gap)
+                y = grid_row * (cell + header + gap)
+                canvas.paste(image, (x, y + header))
+                time = (
+                    f"{panel['time_ps']:g} ps"
+                    if panel["time_ps"] is not None
+                    else (
+                        "model"
+                        if record["source_kind"] == "starting_model"
+                        else (
+                            "structure"
+                            if record["source_kind"] == "structure"
+                            else f"frame {panel['frame']}"
+                        )
+                    )
+                )
+                draw.text(
+                    (x + 8, y + 5), chr(65 + row * source_cols + col), font=bold, fill="black"
+                )
+                draw.text((x + 65, y + 8), f"{label} · {time}", font=font, fill="black")
+                items.append(
+                    dict(
+                        frame=panel["frame"],
+                        time_ps=panel["time_ps"],
+                        pdb_sha256=hashlib.sha256(pdb.read_bytes()).hexdigest(),
+                        core_rmsd_angstrom=panel["core_rmsd_angstrom"],
+                    )
+                )
+            records.append(dict(label=label, source=record, panels=items))
+    canvas.save(output, dpi=(300, 300))
+    metadata = dict(
+        renderer_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        camera=camera,
+        camera_source=CAMERA_SOURCES[camera] if camera_view is None else "Explicit custom camera",
+        source_camera=list(camera_view or CDKL5_CAMERAS[camera]),
+        render_camera=list(fixed_camera),
+        framing="Activation orientation; zoom once to common WT reference and reuse for every panel",
+        rows=records,
+        width_inches=7,
+        dpi=300,
+    )
+    output.with_suffix(".json").write_text(json.dumps(metadata, indent=2) + "\n")
+    marker.write_text("Verified PNG and native-reference display inputs generated\n")
+    return output
+
+
+def openmm_view(
+    pdb_dir=None,
+    topology=None,
+    trajectory=None,
+    resi=119,
+    *,
+    state=None,
+    variant="WT",
+    root=None,
+    replica="r1",
+    reference=None,
+    camera="activation",
+    structure=False,
+    png=None,
+    no_launch=False,
+    frame="1",
+):
+    import json
+
+    import MDAnalysis as mda
+
+    if state:
+        if "," in state or "," in variant:
+            raise ValueError("Use snapshots for multiple states or variants")
+        datasets, folder = _state_views(
+            state,
+            variant,
+            root,
+            replica,
+            structure,
+            reference,
+            "1" if frame == "all" else str(frame),
+            resi,
+        )
+    else:
+        folder = Path(pdb_dir or os.getcwd()).resolve()
+        if topology is None:
+            raise ValueError("Supply --state or an explicit matching --topology")
+        u, panels, record = _view_dataset(
+            folder / topology,
+            folder / trajectory if trajectory else None,
+            reference,
+            "1" if frame == "all" else str(frame),
+            resi,
+            variant,
+        )
+        datasets = [(variant, u, panels, record)]
+    if png and frame == "all":
+        raise ValueError("Use snapshots for a frame grid; --frame all opens an interactive movie")
+    if png:
+        out = folder / "figures/structure.png" if png == "auto" else Path(png)
+        _render_views(datasets, out, camera)
+        return 0
+    label, u, panels, record = datasets[0]
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "view.pdb"
+    u.atoms.positions = panels[0]["positions"]
+    with mda.Writer(str(target), n_atoms=len(u.atoms)) as writer:
+        writer.write(u.atoms)
+    # The generated script displays a fitted, native-numbered frame. Snapshots
+    # provides sampled multi-frame comparison without loading an entire movie.
+    if frame == "all" and not record["trajectory"]:
+        raise ValueError("A trajectory is required for --frame all")
+    core = "+".join(str(item[1]) + item[2] for item in record["core_residues"])
+    movie = (
+        f'load_traj "{record["trajectory"]}", molecule, state=1\nintra_fit molecule and polymer.protein and name CA and resi {core}, 1\nalign molecule and polymer.protein and name CA and resi {core}, reference and polymer.protein and name CA and resi {core}, mobile_state=1, target_state=1, cycles=0\n'
+        if frame == "all"
+        else ""
+    )
+    pml = folder / "visualize.pml"
+    view = ",".join(map(str, CDKL5_CAMERAS[camera]))
+    pml.write_text(
+        f"""reinitialize
+load "{record["reference"]}", reference
+load "{target}", molecule
+{movie}hide everything
 bg_color white
-
-# 2. Load the trajectory files
-load {topo_name}, kras
-load_traj {traj_name}, kras
-{align_cmds}
-# 3. Hide solvent water and ions
-hide everything, all
-hide nonbonded, all
-hide nb_spheres, all
-
-# 4. Freeze the backbone tumbling rotation frame-by-frame
-intra_fit kras and name CA
-
-# 5. Generate your crisp secondary structure ribbon
-dss kras
-cartoon automatic, kras
-show cartoon, kras
-
-# 6. Apply your smooth cyan color scheme
-color cyan, kras and name C*
-util.cnc("kras")
-
-# 7. Highlight the mutated residue side chain sticks
-show sticks, kras and resi {resi} and not name N+C+O+H
-color yellow, kras and resi {resi} and name SG
-set stick_radius, 0.25
-
-# 8. Focus camera right onto the protein
-zoom kras and polymer, buffer=4
+show cartoon, molecule and polymer.protein
+color wheat, molecule and polymer.protein
+show sticks, molecule and polymer.protein and resi {resi} and not hydro
+color orange, molecule and polymer.protein and resi {resi}
+show sticks, molecule and resn ATP
+color purple, molecule and resn ATP
+show spheres, molecule and resn MG
+color marine, molecule and resn MG
+set orthoscopic, 1
+set_view ({view})
 """
-    pml_file = sim_dir / "visualize.pml"
-    try:
-        pml_file.write_text(pml_content)
-        print(f"→ Generated PyMOL script: {pml_file}")
-    except Exception as e:
-        sys.exit(f"Error writing PyMOL script: {e}")
-
-    # 4. Run PyMOL
-    if not shutil.which("pymol"):
-        print("[WARN] PyMOL executable ('pymol') not found in PATH.")
-        print("Please install PyMOL or run manually using the generated visualize.pml file:")
-        print(f"  cd {sim_dir} && pymol visualize.pml")
-        return
-
-    print(f"→ Launching PyMOL: pymol visualize.pml in {sim_dir}...")
-    try:
-        subprocess.run(["pymol", "visualize.pml"], cwd=str(sim_dir), check=True)
-    except Exception as e:
-        print(f"Error running PyMOL: {e}")
+        + ("turn z, 90\n" if camera == "network" else "")
+        + "zoom reference and polymer.protein, 4\ndelete reference\n"
+    )
+    record["display_frames"] = "all" if frame == "all" else panels[0]["frame"]
+    pml.with_suffix(".json").write_text(
+        json.dumps(
+            dict(
+                record,
+                camera=camera,
+                source_camera=CDKL5_CAMERAS[camera],
+                camera_source=CAMERA_SOURCES[camera],
+                framing="Reframed to common WT reference",
+            ),
+            indent=2,
+        )
+        + "\n"
+    )
+    if not no_launch:
+        if not shutil.which("pymol"):
+            raise RuntimeError(f"PyMOL missing; script saved at {pml}")
+        subprocess.run(["pymol", str(pml)], check=True)
+    print(f"Generated {pml}")
+    return 0
 
 
 def openmm_snapshots(
-    config_path: str | None = None,
-    output: str = "data/analysis/snapshots/master_3x8_snapshots.png",
-    temp_dir: str = "scratch/master_grid_3x8",
-    font_path: str | None = None,
+    config_path=None,
+    output=None,
+    temp_dir=None,
+    font_path=None,
+    *,
+    state=None,
+    variant="WT",
+    root=None,
+    replica="r1",
+    reference=None,
+    camera="activation",
+    structure=False,
+    frames="1,last",
+    resi=119,
 ):
     import json
-    from pathlib import Path
 
-    # 1. Load configuration
-    default_config = {
-        "camera_view": [
-            -0.597478449,
-            -0.617595792,
-            -0.511463583,
-            -0.502994895,
-            0.785388291,
-            -0.360776752,
-            0.624511778,
-            0.041705273,
-            -0.779902637,
-            0.000050262,
-            -0.000109358,
-            -182.850265503,
-            31.930021286,
-            32.076828003,
-            34.52369679,
-            141.553222656,
-            224.141143799,
-            -20.000000000,
-        ],
-        "align_ref_pdb": "analysis/clean_trajectories/g12c_protein.pdb",
-        "stable_core_sel": "name CA and (resi 1-24 or resi 41-54 or resi 81-166)",
-        "systems": {
-            "WT": {
-                "pdb": "analysis/clean_trajectories/wt_protein.pdb",
-                "dcd": "analysis/clean_trajectories/wt_protein.dcd",
-                "states": [1, 51, 91, 100, 101, 106, 111, 121],
-                "times": [
-                    "t = 0.00 ns",
-                    "t = 0.50 ns",
-                    "t = 0.90 ns",
-                    "t = 0.99 ns",
-                    "t = 1.00 ns",
-                    "t = 1.05 ns",
-                    "t = 1.10 ns",
-                    "t = 1.20 ns",
-                ],
-                "mut_residue": 12,
-            },
-            "G12C": {
-                "pdb": "analysis/clean_trajectories/g12c_protein.pdb",
-                "dcd": "analysis/clean_trajectories/g12c_protein.dcd",
-                "states": [1, 51, 91, 100, 101, 106, 111, 121],
-                "times": [
-                    "t = 0.00 ns",
-                    "t = 0.50 ns",
-                    "t = 0.90 ns",
-                    "t = 0.99 ns",
-                    "t = 1.00 ns",
-                    "t = 1.05 ns",
-                    "t = 1.10 ns",
-                    "t = 1.20 ns",
-                ],
-                "mut_residue": 12,
-            },
-            "G12D": {
-                "pdb": "analysis/clean_trajectories/g12d_protein.pdb",
-                "dcd": "analysis/clean_trajectories/g12d_protein.dcd",
-                "states": [1, 51, 91, 100, 101, 106, 111, 121],
-                "times": [
-                    "t = 0.00 ns",
-                    "t = 0.50 ns",
-                    "t = 0.90 ns",
-                    "t = 0.99 ns",
-                    "t = 1.00 ns",
-                    "t = 1.05 ns",
-                    "t = 1.10 ns",
-                    "t = 1.20 ns",
-                ],
-                "mut_residue": 12,
-            },
-        },
-    }
+    if state:
+        if config_path:
+            raise ValueError("Choose --state or --config")
+        datasets, folder = _state_views(
+            state, variant, root, replica, structure, reference, frames, resi
+        )
+        view = None
+    elif config_path:
+        configfile = Path(config_path).resolve()
+        config = json.loads(configfile.read_text())
+        datasets = []
 
-    if config_path:
-        print(f"Loading custom configuration from {config_path}...")
-        with open(config_path) as f:
-            config = json.load(f)
-    else:
-        print("Using default KRAS 3x8 snapshot configuration...")
-        config = default_config
+        def resolve(value):
+            return configfile.parent / str(value)
 
-    camera_view = config["camera_view"]
-    align_ref_pdb = config.get("align_ref_pdb")
-    stable_core_sel = config.get(
-        "stable_core_sel", "name CA and (resi 1-24 or resi 41-54 or resi 81-166)"
-    )
-    systems = config["systems"]
+        core_residues = config.get("core_residues")
+        if config.get("stable_core_sel"):
+            import re
 
-    # 2. Check for PyMOL
-    try:
-        import pymol
-        from pymol import cmd
-    except ImportError:
-        print("[ERROR] PyMOL python package is not installed in the active environment.")
-        print("Please run this command using an environment with PyMOL (e.g. 'pymol-viz').")
-        sys.exit(1)
-
-    # Start PyMOL headlessly
-    pymol.finish_launching(["pymol", "-qc"])
-
-    # Create temp directory
-    temp_path = Path(temp_dir)
-    temp_path.mkdir(parents=True, exist_ok=True)
-
-    rendered_files = {}
-
-    for sys_name, sys_cfg in systems.items():
-        pdb_path = sys_cfg["pdb"]
-        dcd_path = sys_cfg["dcd"]
-        states = sys_cfg["states"]
-        mut_residue = sys_cfg.get("mut_residue", 12)
-
-        if not os.path.exists(pdb_path):
-            sys.exit(f"Error: PDB file not found: {pdb_path}")
-        if not os.path.exists(dcd_path):
-            sys.exit(f"Error: DCD file not found: {dcd_path}")
-
-        print(f"Rendering snapshots for {sys_name}...")
-        cmd.reinitialize()
-        cmd.bg_color("white")
-
-        # Load reference PDB for alignment if specified
-        if align_ref_pdb and os.path.exists(align_ref_pdb):
-            cmd.load(align_ref_pdb, "ref_align")
-
-        # Load system
-        cmd.load(pdb_path, "prot")
-        cmd.load_traj(dcd_path, "prot")
-
-        # Hide nonbonded
-        cmd.hide("everything", "all")
-        cmd.hide("nonbonded", "all")
-        cmd.hide("nb_spheres", "all")
-
-        # Step 1: Align all states of prot to state 1 of prot using stable core
-        cmd.intra_fit(f"prot and {stable_core_sel}", 1)
-
-        # Step 2: Align state 1 of prot to ref_align using stable core and apply to all states
-        if align_ref_pdb and os.path.exists(align_ref_pdb):
-            cmd.align(
-                f"prot and {stable_core_sel}",
-                f"ref_align and {stable_core_sel}",
-                mobile_state=1,
-                target_state=1,
+            selection = config["stable_core_sel"]
+            if not re.fullmatch(r"name CA and \(resi \d+-\d+(?: or resi \d+-\d+)*\)", selection):
+                raise ValueError("Use explicit core_residues for complex custom selections")
+            core_residues = [
+                i
+                for a, b in re.findall(r"resi (\d+)-(\d+)", selection)
+                for i in range(int(a), int(b) + 1)
+            ]
+        for name, item in config["systems"].items():
+            if "times" in item or "times" in config:
+                raise ValueError("Replace custom times labels with a matching production log")
+            u, panels, record = _view_dataset(
+                resolve(item["pdb"]),
+                resolve(item["dcd"]) if item.get("dcd") else None,
+                resolve(item.get("reference") or config.get("align_ref_pdb") or item["pdb"]),
+                ",".join(map(str, item.get("states", [1]))),
+                item.get("mut_residue", resi),
+                item.get("variant", "WT"),
+                resolve(item["log"]) if item.get("log") else None,
+                core_residues=core_residues,
             )
-            cmd.delete("ref_align")
-
-        cmd.dss("prot")
-        cmd.cartoon("automatic", "prot")
-        cmd.cartoon("loop", "prot and resid 57-75")
-        cmd.show("cartoon", "prot")
-
-        # Colors
-        cmd.color("gray90", "prot")
-        cmd.color("orange", "prot and resid 57-75")  # Switch II
-        cmd.color("yellow", f"prot and resid {mut_residue}")
-
-        # Mutation sticks
-        cmd.show("sticks", f"prot and resi {mut_residue} and not name N+C+O+H")
-        cmd.set("stick_radius", 0.25)
-
-        # Transparency
-        cmd.set("cartoon_transparency", 0.6, f"prot and not (resid 57-75 or resid {mut_residue})")
-        cmd.set("cartoon_transparency", 0.0, f"resid 57-75 or resid {mut_residue}")
-
-        # Ray tracing options
-        cmd.set("ray_shadows", 1)
-        cmd.set("ray_trace_mode", 1)
-        cmd.set("ray_trace_gain", 0.5)
-        cmd.set("depth_cue", 1)
-        cmd.set("specular", 0.3)
-        cmd.set("ray_opaque_background", 1)
-
-        cmd.set_view(camera_view)
-
-        rendered_files[sys_name] = []
-        for state in states:
-            p_out = temp_path / f"{sys_name}_state_{state}.png"
-            rendered_files[sys_name].append(str(p_out))
-            cmd.set("state", state)
-            cmd.png(str(p_out), width=800, height=800, ray=1)
-
-    pymol.cmd.quit()
-
-    print("All snapshots rendered! Compiling image grid...")
-
-    import PIL.ImageOps
-    from PIL import Image, ImageDraw, ImageFont
-
-    all_images = []
-    for sys_name in systems.keys():
-        for path in rendered_files[sys_name]:
-            all_images.append(Image.open(path))
-
-    # Bounding boxes for cropping
-    bboxes = []
-    for img in all_images:
-        gray = img.convert("L")
-        inverted = PIL.ImageOps.invert(gray)
-        bbox = inverted.getbbox()
-        if bbox:
-            bboxes.append(bbox)
-
-    orig_width, orig_height = all_images[0].size
-    if bboxes:
-        left_crop = min(b[0] for b in bboxes)
-        top_crop = min(b[1] for b in bboxes)
-        right_crop = max(b[2] for b in bboxes)
-        bottom_crop = max(b[3] for b in bboxes)
-
-        padding = 20
-        left_crop = max(0, left_crop - padding)
-        top_crop = max(0, top_crop - padding)
-        right_crop = min(orig_width, right_crop + padding)
-        bottom_crop = min(orig_height, bottom_crop + padding)
-
-        cropped_images = [
-            img.crop((left_crop, top_crop, right_crop, bottom_crop)) for img in all_images
-        ]
+            datasets.append((name, u, panels, record))
+        folder = configfile.parent
+        view = config.get("camera_view")
+        if view is not None and len(view) != 18:
+            raise ValueError("Camera requires 18 values")
     else:
-        cropped_images = all_images
-
-    # Grid configuration (N columns, M rows total)
-    num_rows = len(systems)
-    num_cols = len(list(systems.values())[0]["states"])
-
-    panel_w, panel_h = cropped_images[0].size
-    spacing_x = 12
-    spacing_y = 15
-    label_y_area = 120
-
-    total_width = panel_w * num_cols + spacing_x * (num_cols - 1)
-    total_height = (panel_h + label_y_area) * num_rows + spacing_y * (num_rows - 1)
-
-    combined = Image.new("RGB", (total_width, total_height), "white")
-    draw = ImageDraw.Draw(combined)
-
-    # Font resolution
-    font_path_to_use = font_path
-    if not font_path_to_use:
-        for path in [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-            "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
-        ]:
-            if os.path.exists(path):
-                font_path_to_use = path
-                break
-
-    try:
-        if font_path_to_use:
-            font_panel_letter = ImageFont.truetype(font_path_to_use, 64)
-            # Find corresponding regular font for time labels
-            regular_font_path = font_path_to_use.replace("-Bold", "").replace("Bold", "")
-            if not os.path.exists(regular_font_path):
-                regular_font_path = font_path_to_use
-            font_time = ImageFont.truetype(regular_font_path, 72)
-        else:
-            font_panel_letter = ImageFont.load_default()
-            font_time = ImageFont.load_default()
-    except OSError:
-        font_panel_letter = ImageFont.load_default()
-        font_time = ImageFont.load_default()
-
-    img_idx = 0
-    for r, (sys_name, sys_cfg) in enumerate(systems.items()):
-        row_y = r * (panel_h + label_y_area + spacing_y)
-        for c in range(num_cols):
-            img = cropped_images[img_idx]
-            x = c * (panel_w + spacing_x)
-            combined.paste(img, (x, row_y))
-
-            # Panel letter on the first panel of each row
-            if c == 0:
-                letter = chr(65 + r)  # A, B, C...
-                draw.text((x + 20, row_y + 20), letter, fill="black", font=font_panel_letter)
-
-            # Time label
-            time_str = sys_cfg["times"][c]
-            try:
-                time_w = draw.textlength(time_str, font=font_time)
-            except AttributeError:
-                time_w, _ = draw.textsize(time_str, font=font_time)
-
-            time_x = x + (panel_w - time_w) // 2
-            time_y = row_y + panel_h + 20
-            draw.text((time_x, time_y), time_str, fill="black", font=font_time)
-
-            img_idx += 1
-
-    # Draw faint dashed separator line only for G12C row (row r = 1) between columns 3 (0.99ns) and 4 (1.00ns)
-    # If the system name G12C exists as the second row (standard KRAS layout)
-    sys_list = list(systems.keys())
-    if "G12C" in sys_list and sys_list.index("G12C") == 1 and num_cols >= 8:
-        x_divider = 4 * panel_w + 3 * spacing_x + spacing_x // 2
-        y_start = 1 * (panel_h + label_y_area + spacing_y)
-        y_end = y_start + panel_h
-        dash_len = 15
-        gap_len = 10
-        curr_y = y_start
-        while curr_y < y_end:
-            draw.line(
-                [(x_divider, curr_y), (x_divider, min(curr_y + dash_len, y_end))],
-                fill=(180, 180, 180),
-                width=4,
-            )
-            curr_y += dash_len + gap_len
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    combined.save(str(output_path), dpi=(300, 300))
-    print(f"Master snapshots grid successfully saved to {output_path}!")
-
-    # Clean up temp files
-    for sys_name in systems.keys():
-        for path in rendered_files[sys_name]:
-            if os.path.exists(path):
-                os.remove(path)
-    if temp_path.exists():
-        try:
-            temp_path.rmdir()
-        except OSError:
-            pass
+        raise ValueError("Supply --state for project data or --config for custom inputs")
+    name = "model_snapshots.png" if structure else "structure_snapshots.png"
+    out = Path(output) if output else folder / "figures" / name
+    print(f"Rendered {_render_views(datasets, out, camera, view, font_path)}")
+    return 0
 
 
 def plot_analysis(outdir):

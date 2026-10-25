@@ -404,3 +404,9 @@ Installation, CPU tests and topology checks are distinct from real GPU validatio
 See the working project's run record for completed tests and current limitations.
 Scientific references and software acknowledgements remain in the
 [main README](../README.md#acknowledgements).
+
+## Visualization
+
+Use the [CDKL5 view and snapshot commands](../README.md#37-cdkl5-visualization)
+for the activation camera, native residue labels and matched apo/ATP/Mg grids.
+Starting-model views are separate from trajectory snapshots.
