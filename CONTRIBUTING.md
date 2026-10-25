@@ -42,10 +42,10 @@ Generated example scripts use the tool's 100-character line length. A project
 should check them with `ruff format --line-length 100 --check scripts tests`;
 reformatting them differently invalidates their recorded template hashes.
 
-Run CPU tests on Divergent. Protein GPU acceptance runs on Colab through the CLI,
-using the generated example and the working project's `tests/gpu.py`. Keep it
-foreground, inspect physical QC separately, retrieve verified compact reports,
-and stop the dedicated session. Never include license keys or credentials in
+Run CPU tests on Divergent. Use Palmetto compbio for current protein GPU pilots;
+use Colab through its CLI for Colab-specific acceptance, including the working
+project's `tests/gpu.py`. Keep Colab runs foreground, inspect physical QC separately,
+retrieve verified compact reports and stop dedicated sessions. Never include license keys or credentials in
 source, test fixtures using real secrets, logs or provenance.
 
 Natural-protein acceptance uses the staged FKBP12 WT/F37V and H-Ras–GDP/Mg
@@ -74,6 +74,15 @@ The root walkthrough also follows CDKL5 WT/L119R for apo and ATP/one-Mg. Keep it
 current design and section order. Use concise wording and matching state-based
 paths throughout modeling, preparation, analysis and comparisons. Trp-cage stays
 the optional quick test; retain older FKBP12/H-Ras templates and run records.
+
+The default CDKL5 example must use public inputs, not files copied from another
+study. `cmda model` delegates to the existing MODELLER build/mutate engine and
+checks outputs. Public `cmda assemble --template` records homologous donor fitting
+and optional fixed-backbone sidechain relaxation. A modeled CDK2-to-CDKL5 ATP/Mg
+pose is not an experimental complex or reproduction of a legacy study. Keep
+refinement, assembly and solvated equilibration as separate scientific steps.
+Run short GPU pilots on Palmetto compbio when available; do not infer acceptance
+from modeling/preparation or from the previous study-based pilots.
 
 New runs use unnumbered state/structure/simulation folders and numbered variant
 processing steps. Preserve existing numbered example paths. Require canonical

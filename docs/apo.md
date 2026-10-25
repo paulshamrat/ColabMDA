@@ -53,14 +53,17 @@ colabmda-example/
 processing steps within each variant. Choose a fresh run ID when inputs, force
 fields or protocol change; retain that ID only for a compatible resume.
 
-**Inside Colab**, define the project once for the current shell:
+**Inside Colab**, choose an empty project for this public-input walkthrough. If
+the example folder contains older inputs, choose another name. Define the project
+once for the current shell:
 
 ```bash
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate colabmda
 export COLABMDA_TOOL=/content/ColabMDA
 export PROJECT_ROOT=/content/drive/MyDrive/research/projects/colabmda-example
-export COLABMDA_RUN_ID=cdkl5_reviewed_v1
+export COLABMDA_PROJECT_DIR="$PROJECT_ROOT"
+export COLABMDA_RUN_ID=cdkl5_public_v1
 mkdir -p "$PROJECT_ROOT"
 cd "$PROJECT_ROOT"
 ```
@@ -72,84 +75,50 @@ opening a new shell.
 
 ## 3. Structure, numbering and variants
 
-### 3.1. Retrieve and map the experimental template
+Start from public 4BGQ and UniProt O76039. This workflow does not need another
+project, a reviewed study model or manually copied coordinates.
+
+Fetch the public structure and UniProt sequence:
 
 ```bash
-cd "$PROJECT_ROOT"
-cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --chain A \
-  --range 1 303 --mutations L119R,D193H,G202E,Q219K,C291Y,S240T,H254R \
-  --root "$PROJECT_ROOT"
-cd "$PROJECT_ROOT/data/apo/structure"
+cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303 --mutations L119R
 ```
 
-The archive stays unchanged in `raw/`; mmCIF is preferred, with PDB fallback.
-`mapping/residues.json` records author positions, insertion codes, canonical
-positions and missing coordinates. For 4BGQ A, label positions 2–304 map to
-UniProt 1–303. The current input has **276 resolved residues and 27 missing
-positions** in this construct. A missing residue is not experimental evidence.
-Requested mutation positions must match canonical WT identities and have C-alpha
-density before modeling. `STRUCTURE_DONE` records a successful input check.
+Fetch keeps the raw mmCIF archive, with PDB fallback. The mapping records native
+author positions and insertion codes. In 4BGQ A, 276 residues have coordinates and
+27 are missing within UniProt 1–303. The requested WT amino acid must match both
+UniProt and its mapped coordinates, with a C-alpha present.
 
-### 3.2. Choose the starting model
-
-For continuation of the activation study, use its reviewed 303-residue WT model.
-Copy it to `raw/receptor.pdb`, retaining the source path and SHA-256 in a local
-provenance record, then use:
-
-```bash
-cd "$PROJECT_ROOT/data/apo/structure"
-mkdir -p models/WT
-cp -n raw/receptor.pdb models/WT/WT.pdb
-cmda check --state apo --variant WT --root "$PROJECT_ROOT"
-```
-
-`raw/receptor.pdb` is a project input supplied by the study owner. In our workspace
-its source is `cdkl5-activation/input/varmodel/01_structure/target.B99990001_with_cryst.pdb`.
-Copy the resolved file, not a dependency symlink. It is not bundled with ColabMDA.
-Use this same reviewed WT backbone for a controlled apo versus ATP/Mg comparison.
-
-To build a **new** model from the archive instead, use an empty `models/WT` folder
-and a fresh run. Keep historical models; never overwrite them to follow a guide:
+Activate the MODELLER environment, install this same tool checkout there once,
+then build WT and make L119R:
 
 ```bash
 conda activate modeller_env
 python -m pip install -e "$COLABMDA_TOOL"
-cd "$PROJECT_ROOT/data/apo/structure"
-cmda modeller build --pdb-id 4BGQ --uniprot-id O76039 --chain A \
-  --range 1 303 --uniprot-numbering --template raw/template.pdb \
-  --sequence raw/uniprot.fasta --outdir models/WT --seed 13031
+cd "$PROJECT_ROOT"
+cmda model --state apo
+cmda model --state apo --variant L119R
 conda activate colabmda
-cmda check --state apo --variant WT --root "$PROJECT_ROOT"
 ```
 
-Only derived models use UniProt numbering. Inspect the alignment, model scores,
-missing loops and stereochemistry; a sequence check does not validate the modeled
-conformation. Freshly modeled missing loops can clash with ATP. The tested rebuilt
-apo model must not be substituted into the holo workflow without pose review.
+The commands use the fetched template and sequence, save models under
+`data/apo/structure/models/{WT,L119R}/`, and check the full sequence, numbering
+and C-alpha coordinates before `MODEL_DONE`. Derived models use UniProt 1–303;
+raw coordinates stay unchanged. Seed 13031 is recorded and applied to modeling.
+Completed models are reused only when inputs and settings match.
 
-### 3.3. Make and verify the variant
+MODELLER requires a license. Installation keeps its optional question and hidden
+key prompt; no key belongs in a README command. The lower-level `cmda modeller
+build` and `mutate` commands remain available for custom inputs.
 
-```bash
-conda activate modeller_env
-cd "$PROJECT_ROOT/data/apo/structure"
-cmda modeller mutate --pdb-in models/WT/WT.pdb --chain A --mut L119R \
-  --outdir-mut models/L119R --seed 13031
-conda activate colabmda
-cmda check --state apo --variant L119R --root "$PROJECT_ROOT"
-```
+Review alignment, modeled loops, stereochemistry and scores. Exact sequence and
+numbering checks do not establish biological accuracy. A new model is distinct
+from the earlier activation-study pilot.
 
-`cmda check` verifies the entire model sequence, canonical residue numbering and
-C-alpha coordinates, not only the substituted residue. It records input/model
-hashes in `model_check.json` before writing `MODEL_DONE`.
-
-The activation panel also contains D193H, G202E, Q219K and C291Y as clustering
-representatives, with S240T and H254R as published benign controls. A clustering
-representative is not a clinical classification; Q219K and C291Y were listed as
-uncertain significance. Repeat the mutation/check commands for the chosen panel.
 
 ## 4. Prepare the system
 
-Start with WT. After its small validation succeeds, repeat with `VARIANT=L119R`.
+Start with WT. After its short validation succeeds, repeat with `VARIANT=L119R`.
 The run ID groups variants; each variant has independent preparation and replicas.
 
 ```bash
@@ -157,11 +126,9 @@ conda activate colabmda
 export STATE=apo
 export VARIANT=WT
 cd "$PROJECT_ROOT"
-cmda stage --state "$STATE" --variant "$VARIANT" --replicas r1,r2,r3 --root "$PROJECT_ROOT"
+cmda stage --state "$STATE" --variant "$VARIANT"
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/01_prep"
-cmda prep --state "$STATE" --variant "$VARIANT" --protein cdkl5 \
-  --receptor "$PROJECT_ROOT/data/$STATE/structure/models/$VARIANT/$VARIANT.pdb" \
-  --root "$PROJECT_ROOT"
+cmda prep --state "$STATE" --variant "$VARIANT"
 ```
 
 `cmda stage` creates folders; direct commands perform the work. It creates no
@@ -186,8 +153,8 @@ prepared simulation.
 
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/02_eq"
-cmda sim --state "$STATE" --variant "$VARIANT" --stage eq --protocol staged \
-  --root "$PROJECT_ROOT"
+export COLABMDA_REQUIRE_GPU=1
+cmda sim --state "$STATE" --variant "$VARIANT" --stage eq --protocol staged
 ```
 
 Do not set `COLABMDA_TEST_1_24` for research. The shortened internal test and
@@ -233,8 +200,7 @@ After the WT equilibration passes and its plots are reviewed:
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/03_md"
 cmda sim --state "$STATE" --variant "$VARIANT" --stage md --replica r1 \
-  --protocol staged --total-ns 0.1 --checkpoint-ps 100 --traj-interval 10 \
-  --root "$PROJECT_ROOT"
+  --protocol staged --total-ns 0.1 --checkpoint-ps 100 --traj-interval 10
 ```
 
 The command reruns strict equilibration QC before production. This 100 ps target
@@ -305,9 +271,9 @@ hardware/software versions is not assumed.
 
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/03_md"
-cmda merge --state "$STATE" --variant "$VARIANT" --replicas r1 --root "$PROJECT_ROOT"
+cmda merge --state "$STATE" --variant "$VARIANT" --replicas r1
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/04_analysis"
-cmda analyze --state "$STATE" --variant "$VARIANT" --root "$PROJECT_ROOT"
+cmda analyze --state "$STATE" --variant "$VARIANT"
 ```
 
 Merge verifies contiguous completed chunks and uses cpptraj autoimaging. It writes
@@ -398,7 +364,7 @@ cd ~/research/tools/ColabMDA
 source .venv/bin/activate
 STATE=apo
 VARIANT=WT
-RUN_ID=cdkl5_reviewed_v1
+RUN_ID=cdkl5_public_v1
 REMOTE_RUN="/content/drive/MyDrive/research/projects/colabmda-example/data/$STATE/simulation/$RUN_ID/$VARIANT"
 LOCAL_RUN="$HOME/research/projects/colabmda-example/data/$STATE/simulation/$RUN_ID/$VARIANT"
 files=(

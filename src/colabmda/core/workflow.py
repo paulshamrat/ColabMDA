@@ -214,6 +214,8 @@ def model(args):
         raise ValueError("Invalid variant")
     paths = ProjectPaths(resolve_project_root(args.root), state=args.state)
     folder = paths.structure_dir
+    if not (folder / "STRUCTURE_DONE").is_file():
+        raise ValueError("Modeling requires completed cmda fetch (STRUCTURE_DONE)")
     record = json.loads((folder / "mapping/input.json").read_text())
     for name, expected in record["files"].items():
         if sha(folder / name) != expected:
@@ -245,6 +247,11 @@ def model(args):
             str(parent),
         ]
     else:
+        position = int(args.variant[1:-1])
+        rows = json.loads((folder / "mapping/residues.json").read_text())
+        row = next((row for row in rows if row["uniprot"] == position), None)
+        if not row or not row["resolved"] or row["amino_acid"] != args.variant[0]:
+            raise ValueError("Mutation WT/canonical/coordinate density gate failed")
         check(SimpleNamespace(root=str(paths.root), state=args.state, variant="WT", model=None))
         wt = folder / "models/WT/WT.pdb"
         request["wt_sha256"] = sha(wt)

@@ -124,7 +124,7 @@ hpc exec -s hpc -- bash -lc '
   export COLABMDA_ENV=openmm_env
   export PYTHONUNBUFFERED=1
   project=/scratch/shamrap/research/projects/colabmda-example
-  run=cdkl5_reviewed_v1
+  run=cdkl5_public_v1
   cd "$project"
   sbatch --partition=compbio --account=compbio --output="logs/atpmg/$run/WT/eq_%j.out" --error="logs/atpmg/$run/WT/eq_%j.err" \
     scripts/simulation/01_simulate.slurm "$project" "$run" atpmg WT eq
@@ -139,7 +139,7 @@ hpc exec -s hpc -- bash -lc '
   export COLABMDA_ENV=openmm_env
   export PYTHONUNBUFFERED=1
   project=/scratch/shamrap/research/projects/colabmda-example
-  run=cdkl5_reviewed_v1
+  run=cdkl5_public_v1
   cd "$project"
   sbatch --partition=compbio --account=compbio --output="logs/atpmg/$run/WT/md_%j.out" --error="logs/atpmg/$run/WT/md_%j.err" \
     scripts/simulation/01_simulate.slurm "$project" "$run" atpmg WT md r1 0.1
@@ -181,9 +181,9 @@ hpc exec -s hpc -- bash -lc '
   export COLABMDA_ENV=openmm_env
   cd "$project"
   cp "$tool/examples/hpc/analyze.slurm" scripts/simulation/02_analyze.slurm
-  sbatch --output=logs/atpmg/cdkl5_reviewed_v1/WT/analysis_%j.out \
-    --error=logs/atpmg/cdkl5_reviewed_v1/WT/analysis_%j.err \
-    scripts/simulation/02_analyze.slurm "$project" cdkl5_reviewed_v1 atpmg WT
+  sbatch --output=logs/atpmg/cdkl5_public_v1/WT/analysis_%j.out \
+    --error=logs/atpmg/cdkl5_public_v1/WT/analysis_%j.err \
+    scripts/simulation/02_analyze.slurm "$project" cdkl5_public_v1 atpmg WT
 '
 ```
 
@@ -199,6 +199,23 @@ campaign wrapper should be tested separately after the single-system pilot;
 this adapter deliberately submits no arrays or full-library campaign.
 
 ## Validation status
+
+The earlier reviewed-input tests below are distinct from the new public-input
+workflow. Both public WT pilots completed on compbio with run ID
+`cdkl5_public_v1`, frozen tool snapshot `0d7f4b3`:
+
+| State | Full 24-stage equilibration | 100 ps production | CPU analysis |
+| --- | --- | --- | --- |
+| apo | 18148627, 17:41 | 18148643, 1:17 | 18148795, 14 s |
+| ATP/Mg | 18148635, 17:45 | 18148785, 1:19 | 18148810, 4 s |
+
+All six jobs completed with exit 0:0. Strict timing/thermodynamic QC, ten finite
+frames per state, residue labels 1–303 and ATP43/Mg1 retention passed. Compact
+collection verified 59 files per run; all eight QC/analysis PNGs were reviewed.
+L119R passed public modeling/preparation checks only. These are software pilots,
+not evidence of biological convergence.
+
+### Earlier reviewed-input pilots
 
 Palmetto bridge, scheduler, scratch layout and existing scientific libraries have
 been inspected. Committed tool/project snapshots and reviewed inputs are deployed

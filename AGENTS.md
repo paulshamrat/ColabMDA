@@ -29,10 +29,12 @@
   Existing numbered runs remain readable; never migrate active scientific outputs.
 - CDKL5 uses O76039, 4BGQ A, residues 1–303. Derive canonical positions from
   archive reference mappings; distinguish observed coordinates from modeled gaps.
-  ATP/one-Mg assembly reuses the reviewed activation-study pose and receptor,
-  checks identities and clashes, and records hashes. A rebuilt apo loop is not
-  accepted for holo by sequence identity alone. Matched apo/holo studies must
-  start from the same reviewed protein backbone and modeling method.
+  The standalone route fetches public inputs, builds WT/L119R, and transfers
+  ATP/one-Mg from public 8FP5 with homologous sequence/CA fitting and explicit
+  fixed-backbone pocket sidechain minimization. Record it as a new modeled pose,
+  never as the reviewed activation-study complex. Keep the explicit legacy-pose
+  route available. Check identities, fit coverage, clashes and hashes. Matched
+  apo/holo models share the source protein backbone and modeling method.
 - Research uses full 24-stage equilibration, continuous physical time and strict
   timing/energy/thermodynamic QC before MD. Quick/reduced profiles require explicit
   --software-test. Check solvent/Amber salt naming so bulk ions stay unrestrained.
@@ -84,8 +86,9 @@
   workflow scripts. Project deployment/migration belongs in its numbered sync code.
 - Deploy committed dev1 snapshots through cmda colab setup --local-source, record
   SNAPSHOT.json hashes and exclude Git metadata, build copies and private material.
-- Run protein GPU pilots on Colab, not Divergent. Keep Colab jobs foreground with
-  streaming output. Use CPU-only sessions for Drive cleanup when possible.
+- Run protein GPU pilots in a Palmetto allocation or on Colab, never Divergent.
+  Prefer compbio for current pilots. Keep Colab jobs foreground with streaming
+  output; use CPU-only sessions for Drive cleanup when possible.
 - Stop dedicated sessions after verified retrieval; heavy trajectories stay on Drive.
 
 ## Verification
@@ -110,8 +113,12 @@ The root README's main workflow uses CDKL5 WT/L119R for apo and ATP/one-Mg,
 matching docs/apo.md and docs/atpmg.md. Keep the existing section order and use
 simple, direct, concise language. Trp-cage remains the optional quick test;
 FKBP12/H-Ras templates and historical evidence remain available. Do not claim
-L119R GPU validation from its CPU model/preparation checks. Reviewed study inputs
-are supplied by the owner, not bundled public example coordinates.
+L119R GPU validation from its CPU model/preparation checks. The default walkthrough
+must run from public inputs without another project or owner-supplied files.
+Use short cmda commands; put copying, hashing and checks in package operations.
+COLABMDA_PROJECT_DIR removes repeated --root arguments. Keep optional Python
+diagnostics separate from the main command sequence. Preserve historical study
+models and pilot evidence when adding the public-input route.
 
 Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary
 Markdown workflow guides under docs/ with nested platform setup, as explicitly
@@ -151,3 +158,7 @@ Matplotlib, since an inherited notebook backend can be unavailable in conda.
 CDKL5 reviewed WT pilots passed full 24-stage QC on Colab T4 (apo) and Palmetto
 A100 (ATP/one-Mg). Keep runtime source snapshots and collection receipts intact.
 GPU mutant coverage and biological convergence remain separate, untested claims.
+
+Public-input CDKL5 WT pilots also passed full 24-stage QC and 100 ps production
+plus analysis on compbio (run cdkl5_public_v1, runtime0d7f4b3). Keep this evidence
+separate from the earlier reviewed-input tests. Public L119R is CPU-only.

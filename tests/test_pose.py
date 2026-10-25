@@ -60,6 +60,7 @@ def test_model_wrapper_checks_inputs_and_reuses_only_matching_request(tmp_path, 
     folder = tmp_path / "data/apo/structure"
     (folder / "mapping").mkdir(parents=True)
     (folder / "raw").mkdir()
+    (folder / "STRUCTURE_DONE").write_text("Verified public inputs\n")
     for name in ["template.pdb", "uniprot.fasta"]:
         (folder / "raw" / name).write_text("public-input fixture\n")
     inputs = dict(
@@ -119,3 +120,20 @@ def test_missing_state_mutant_does_not_fall_back_to_wt(tmp_path, monkeypatch):
 def test_invalid_public_variant_rejected_before_filesystem(tmp_path):
     with pytest.raises(ValueError, match="Invalid variant"):
         model(Namespace(root=tmp_path, state="apo", variant="../WT", seed=1))
+
+
+def test_model_refuses_mutation_without_experimental_coordinate_density(tmp_path):
+    folder = tmp_path / "data/apo/structure/mapping"
+    folder.mkdir(parents=True)
+    (folder.parent / "STRUCTURE_DONE").write_text("Verified public inputs\n")
+    (folder / "input.json").write_text(json.dumps(dict(files={})))
+    (folder / "residues.json").write_text(
+        json.dumps([dict(uniprot=119, resolved=False, amino_acid="L")])
+    )
+    with pytest.raises(ValueError, match="density gate"):
+        model(Namespace(root=tmp_path, state="apo", variant="L119R", seed=13031))
+
+
+def test_model_requires_completed_fetch(tmp_path):
+    with pytest.raises(ValueError, match="STRUCTURE_DONE"):
+        model(Namespace(root=tmp_path, state="apo", variant="WT", seed=13031))

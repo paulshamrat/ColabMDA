@@ -700,7 +700,7 @@ def main():
     check.add_argument("--root", default=None, help=ROOT_HELP)
 
     assemble = sub.add_parser(
-        "assemble", help="Transfer a reviewed ATP/Mg pose to a verified receptor frame"
+        "assemble", help="Assemble ATP/Mg from a public donor or an explicit reviewed pose"
     )
     for name in ["receptor", "reference", "ligand", "ions", "mapping", "out"]:
         assemble.add_argument("--" + name)

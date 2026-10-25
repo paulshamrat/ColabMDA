@@ -1,13 +1,13 @@
 # CDKL5 with ATP and one Mg
 
 This guide uses CDKL5 **O76039**, chain A, residues **1–303**, with WT and L119R,
-one ATP and one Mg. It uses the activation study's reviewed starting receptor and
-ATP/Mg pose. It is not a claim that a modeled complex proves catalysis.
+one ATP and one Mg. It builds the protein from public inputs and transfers ATP/Mg
+from public 8FP5. This is a modeled complex, not evidence of catalysis.
 
 The [main README](../README.md) remains the baseline. The companion
 [protein-in-water guide](apo.md) shares this architecture. For an apo/holo comparison,
-start both from the same reviewed protein backbone, mutation method and protocol.
-Freshly rebuilt missing loops require independent cofactor/clash review.
+use the same source protein models, mutation method and protocol. Pocket sidechain
+relaxation keeps the source backbone and transferred ATP/Mg fixed.
 
 ## 1. Choose the execution platform
 
@@ -53,14 +53,17 @@ colabmda-example/
 processing steps within each variant. Choose a fresh run ID when inputs, force
 fields or protocol change; retain that ID only for a compatible resume.
 
-**Inside Colab**, define the project once for the current shell:
+**Inside Colab**, choose an empty project for this public-input walkthrough. If
+the example folder contains older inputs, choose another name. Define the project
+once for the current shell:
 
 ```bash
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate colabmda
 export COLABMDA_TOOL=/content/ColabMDA
 export PROJECT_ROOT=/content/drive/MyDrive/research/projects/colabmda-example
-export COLABMDA_RUN_ID=cdkl5_reviewed_v1
+export COLABMDA_PROJECT_DIR="$PROJECT_ROOT"
+export COLABMDA_RUN_ID=cdkl5_public_v1
 mkdir -p "$PROJECT_ROOT"
 cd "$PROJECT_ROOT"
 ```
@@ -70,107 +73,79 @@ Divergent can fetch, model, prepare and analyze; run protein GPU dynamics on Col
 or a suitable GPU machine. Export the same project and run variables again after
 opening a new shell.
 
-## 3. Reviewed structure, numbering and cofactor pose
+## 3. Public protein model and ATP/Mg pose
 
-### 3.1. Retrieve the experimental mapping
+Build the public protein models first. No apo simulation is needed; `apo/structure`
+holds the shared source protein models for both states.
+
+Fetch the public structure and UniProt sequence:
+
+```bash
+cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303 --mutations L119R
+```
+
+Fetch keeps the raw mmCIF archive, with PDB fallback. The mapping records native
+author positions and insertion codes. In 4BGQ A, 276 residues have coordinates and
+27 are missing within UniProt 1–303. The requested WT amino acid must match both
+UniProt and its mapped coordinates, with a C-alpha present.
+
+Activate the MODELLER environment, install this same tool checkout there once,
+then build WT and make L119R:
+
+```bash
+conda activate modeller_env
+python -m pip install -e "$COLABMDA_TOOL"
+cd "$PROJECT_ROOT"
+cmda model --state apo
+cmda model --state apo --variant L119R
+conda activate colabmda
+```
+
+The commands use the fetched template and sequence, save models under
+`data/apo/structure/models/{WT,L119R}/`, and check the full sequence, numbering
+and C-alpha coordinates before `MODEL_DONE`. Derived models use UniProt 1–303;
+raw coordinates stay unchanged. Seed 13031 is recorded and applied to modeling.
+Completed models are reused only when inputs and settings match.
+
+MODELLER requires a license. Installation keeps its optional question and hidden
+key prompt; no key belongs in a README command. The lower-level `cmda modeller
+build` and `mutate` commands remain available for custom inputs.
+
+Download the public 8FP5 ATP/Mg donor and assemble WT:
 
 ```bash
 cd "$PROJECT_ROOT"
-cmda fetch --state atpmg --pdb-id 4BGQ --uniprot-id O76039 --chain A \
-  --range 1 303 --mutations L119R,D193H,G202E,Q219K,C291Y,S240T,H254R \
-  --root "$PROJECT_ROOT"
-cd "$PROJECT_ROOT/data/atpmg/structure"
+cmda assemble --state atpmg --template 8FP5 --relax-sidechains
 ```
 
-This preserves the raw archive and checks canonical WT identity and C-alpha
-presence at the mutation positions. `mapping/residues.json` distinguishes the
-276 resolved residues from 27 missing positions. Model numbering must be 1–303;
-raw author numbering and insertion codes stay unchanged.
+This command downloads the donor, copies the checked protein model and mapping,
+fits homologous core residues, and writes `data/atpmg/structure/models/WT/complex.pdb`.
+No study-owner files or manual file copying are needed.
 
-### 3.2. Supply the reviewed study inputs
+[8FP5](https://www.rcsb.org/structure/8FP5) is CDK2 with ATP/Mg. Its transfer to
+CDKL5 creates a modeled pose, not an experimental CDKL5 complex or a reproduction
+of the earlier study. The fit uses aligned, experimentally resolved core C-alpha
+positions, rejects outliers and records coverage and RMSD.
 
-Provide these four compact project inputs under `raw/`; no trajectories are needed:
+`--relax-sidechains` locally minimizes pocket sidechains with the protein backbone,
+ATP and Mg fixed. This geometry step uses Amber parameters in vacuum; it is not
+solvent equilibration or a binding-affinity calculation. Assembly fails if the fit,
+fixed-coordinate, energy or final clash checks fail. Review the pocket and Mg
+coordination in `complex.pdb` and the recorded checks in `complex.json`.
 
-| File | Meaning |
-| --- | --- |
-| `receptor.pdb` | Reviewed unprotonated CDKL5 WT model, chain A, residues 1–303 |
-| `reference.pdb` | Receptor in the coordinate frame of the reviewed ATP/Mg pose |
-| `ATP.pdb` | One ATP residue in that reference frame |
-| `MG.pdb` | One Mg residue in that reference frame |
-
-In our workspace the reviewed model is
-`cdkl5-activation/input/varmodel/01_structure/target.B99990001_with_cryst.pdb`.
-The three pose/frame files were retrieved using `hpc download` from:
-
-```text
-/project/ealexov/compbio/shamrat/250820_simulation/250922_sim/05_cdkl5atpmg/01_WT/ligprep/
-    cdl.prot.noH.pdb                       -> reference.pdb
-    ligand-only-from-complex-atponly.pdb   -> ATP.pdb
-    mg-only-from-complex-mgonly.pdb        -> MG.pdb
-```
-
-Retain source paths and SHA-256 hashes in `raw/provenance.json`. On another machine,
-obtain these reviewed inputs from the study owner and upload the compact files to
-this same project location. They are study-specific inputs, not bundled public
-example coordinates. Do not substitute an ATP-only file or unrelated kinase pose.
-
-The activation workflow originally transferred ATP/Mg from **8FP5**, matching
-kinase core C-alpha residues 30–220. This guide reuses that reviewed transferred
-pose. It does not rerun or claim numerical identity with the original PyMOL fit.
-For a newly built receptor, follow the modeling commands in the apo guide with
-`atpmg` paths, then review the pocket and pose before proceeding. The newly rebuilt
-apo model tested during this update had a sub-1 Å ATP clash and was rejected for
-holo assembly. It is not the reviewed receptor used here.
-
-### 3.3. Verify WT and make the variant
+For L119R, after WT validation:
 
 ```bash
-cd "$PROJECT_ROOT/data/atpmg/structure"
-mkdir -p models/WT
-cp -n raw/receptor.pdb models/WT/WT.pdb
-cmda check --state atpmg --variant WT --root "$PROJECT_ROOT"
-conda activate modeller_env
-python -m pip install -e "$COLABMDA_TOOL"
-cmda modeller mutate --pdb-in models/WT/WT.pdb --chain A --mut L119R \
-  --outdir-mut models/L119R --seed 13031
-conda activate colabmda
-cmda check --state atpmg --variant L119R --root "$PROJECT_ROOT"
+cmda assemble --state atpmg --template 8FP5 --variant L119R --relax-sidechains
 ```
 
-The entire model sequence, numbering and C-alpha coordinates must match canonical
-WT or the declared substitution. Missing loop coordinates are modeled evidence.
-The wider panel is L119R, D193H, G202E, Q219K and C291Y as clustering
-representatives, with S240T and H254R as published benign controls; the
-representatives do not share one clinical classification.
+The source apo backbone stays unchanged. Each holo backbone matches its apo
+model; only selected pocket sidechains are relaxed. Original archives are retained.
 
-### 3.4. Transfer the reviewed ATP/Mg pose
-
-```bash
-export STATE=atpmg
-export VARIANT=WT
-cd "$PROJECT_ROOT/data/atpmg/structure"
-cmda assemble --receptor "models/$VARIANT/$VARIANT.pdb" --reference raw/reference.pdb \
-  --ligand raw/ATP.pdb --ions raw/MG.pdb --mapping mapping/residues.json \
-  --variant "$VARIANT" --core 30 220 --max-rmsd 1.0 \
-  --out "models/$VARIANT/complex.pdb"
-```
-
-The fit uses experimentally resolved core C-alpha positions, excluding modeled
-gaps. It checks receptor/reference identities, the declared mutation, one ATP,
-one Mg and severe protein/ATP clashes. Reference protonation aliases are
-normalized only for the identity comparison. Raw files are never renumbered or
-rewritten. `complex.json` records fitted residue IDs, RMSD, the minimum ATP/protein
-distance and input/output hashes. Existing assembled coordinates are preserved.
-
-Inspect the ATP pocket, Mg coordination and all short contacts before dynamics.
-The automated sub-1 Å rejection catches severe clashes; passing it is not a complete
-stereochemical or metal-coordination assessment. The reviewed source itself has
-short contacts that require careful minimization and subsequent geometry review.
-Repeat assembly with `VARIANT=L119R` only after WT validation.
 
 ## 4. Prepare the system
 
-Start with WT. After its small validation succeeds, repeat with `VARIANT=L119R`.
+Start with WT. After its short validation succeeds, repeat with `VARIANT=L119R`.
 The run ID groups variants; each variant has independent preparation and replicas.
 
 ```bash
@@ -178,16 +153,13 @@ conda activate colabmda
 export STATE=atpmg
 export VARIANT=WT
 cd "$PROJECT_ROOT"
-cmda stage --state "$STATE" --variant "$VARIANT" --replicas r1,r2,r3 --root "$PROJECT_ROOT"
+cmda stage --state "$STATE" --variant "$VARIANT"
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/01_prep"
-cmda prep --state "$STATE" --variant "$VARIANT" --protein cdkl5 \
-  --receptor "$PROJECT_ROOT/data/$STATE/structure/models/$VARIANT/complex.pdb" \
-  --root "$PROJECT_ROOT"
+cmda prep --state "$STATE" --variant "$VARIANT"
 ```
 
-The state selects **ATP plus one Mg**, without phosphorylation or a substrate
-peptide. Supply the assembled complex directly; do not also provide `--template`,
-which could reposition its cofactors.
+Preparation finds the assembled variant complex automatically. The state contains
+**ATP plus one Mg**, without phosphorylation or a substrate peptide.
 
 `cmda stage` creates folders; direct commands perform the work. It creates no
 runner scripts unless the compatibility option `--scripts` is requested.
@@ -216,8 +188,8 @@ prepared simulation.
 
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/02_eq"
-cmda sim --state "$STATE" --variant "$VARIANT" --stage eq --protocol staged \
-  --root "$PROJECT_ROOT"
+export COLABMDA_REQUIRE_GPU=1
+cmda sim --state "$STATE" --variant "$VARIANT" --stage eq --protocol staged
 ```
 
 Do not set `COLABMDA_TEST_1_24` for research. The shortened internal test and
@@ -263,8 +235,7 @@ After the WT equilibration passes and its plots are reviewed:
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/03_md"
 cmda sim --state "$STATE" --variant "$VARIANT" --stage md --replica r1 \
-  --protocol staged --total-ns 0.1 --checkpoint-ps 100 --traj-interval 10 \
-  --root "$PROJECT_ROOT"
+  --protocol staged --total-ns 0.1 --checkpoint-ps 100 --traj-interval 10
 ```
 
 The command reruns strict equilibration QC before production. This 100 ps target
@@ -335,9 +306,9 @@ hardware/software versions is not assumed.
 
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/03_md"
-cmda merge --state "$STATE" --variant "$VARIANT" --replicas r1 --root "$PROJECT_ROOT"
+cmda merge --state "$STATE" --variant "$VARIANT" --replicas r1
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/04_analysis"
-cmda analyze --state "$STATE" --variant "$VARIANT" --root "$PROJECT_ROOT"
+cmda analyze --state "$STATE" --variant "$VARIANT"
 ```
 
 Merge verifies contiguous completed chunks and uses cpptraj autoimaging. It writes
@@ -428,7 +399,7 @@ cd ~/research/tools/ColabMDA
 source .venv/bin/activate
 STATE=atpmg
 VARIANT=WT
-RUN_ID=cdkl5_reviewed_v1
+RUN_ID=cdkl5_public_v1
 REMOTE_RUN="/content/drive/MyDrive/research/projects/colabmda-example/data/$STATE/simulation/$RUN_ID/$VARIANT"
 LOCAL_RUN="$HOME/research/projects/colabmda-example/data/$STATE/simulation/$RUN_ID/$VARIANT"
 files=(
