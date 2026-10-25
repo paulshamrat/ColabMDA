@@ -85,7 +85,7 @@
   file, never a key literal in remote code; remove temporary credentials afterward.
 - Use cmda CLI/official Python API for operations; do not create ad-hoc temporary
   workflow scripts. Project deployment/migration belongs in its numbered sync code.
-- Deploy committed dev1 snapshots through cmda colab setup --local-source, record
+- Deploy clean committed snapshots through cmda colab setup --local-source, record
   SNAPSHOT.json hashes and exclude Git metadata, build copies and private material.
 - Run protein GPU pilots in a Palmetto allocation or on Colab, never Divergent.
   Prefer compbio for current pilots. Keep Colab jobs foreground with streaming
@@ -199,3 +199,19 @@ to analysis/<run>/compare. Explicit migration applies only to completed flat
 state-based r1 reports; verify hashes, reject conflicts/symlinks/heavy data, keep
 historical provenance/receipts and never move outputs during path resolution.
 Historical numbered examples keep their layouts and template hashes.
+
+## Public release and credentials
+
+Keep this canonical dev1 checkout private, with its public push URL disabled and
+colabmda.privateCheckout=true. Enable .githooks; use Gitleaks default rules plus
+MODELLER rules before commits and on all history before public pushes. Never
+store actual key values in scanner configuration, output or tracked fixtures.
+Publish only whitelisted clean-history snapshots from a separate release checkout.
+AGENTS.md, PLAN.md, runtime data, lab account paths and private run records are
+excluded from that public snapshot. Keep private research provenance unchanged.
+Colab source export accepts any clean committed branch or tag. Package all seven
+nucleotide resources in wheels; verify an isolated wheel import. Public HPC
+adapters leave partition/account selection to the user; private execution-project
+adapters retain account-specific settings. Preserve the README design/scientific
+protocol. License installation reads the key from the environment, uses private
+permissions and does not place key values in subprocess arguments.

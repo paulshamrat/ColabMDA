@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=cmda-analysis
-#SBATCH --partition=compbio
-#SBATCH --account=compbio
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2

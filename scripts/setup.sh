@@ -144,14 +144,34 @@ if [[ "${WITH_MODELLER}" == "1" ]]; then
     echo "[WARN] Obtain a free academic key at: https://salilab.org/modeller/"
     echo "[WARN] Set it later: export KEY_MODELLER='YOUR_LICENSE_KEY'"
   else
-    conda env config vars set KEY_MODELLER="${KEY_MODELLER}" >/dev/null || true
-    # Patch MODELLER config.py directly as fallback
-    for cfg in ${MINIFORGE_DIR}/envs/${MODELLER_ENV_NAME}/lib/modeller-*/modlib/modeller/config.py; do
-      if [[ -f "$cfg" ]]; then
-        sed -i "s/^license *=.*/license = r'${KEY_MODELLER}'/" "$cfg"
-        echo "[INFO] Injected license into: $cfg"
-      fi
-    done
+    # Read the key from the process environment, never a command-line argument.
+    python - <<'PY_LICENSE'
+import json
+import os
+import re
+import tempfile
+from pathlib import Path
+
+prefix = Path(os.environ["CONDA_PREFIX"])
+prefix.chmod(0o700)
+key = os.environ["KEY_MODELLER"]
+
+def private_write(path, text):
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as handle:
+        temporary = Path(handle.name)
+        handle.write(text)
+    temporary.chmod(0o600)
+    temporary.replace(path)
+
+state = prefix / "conda-meta/state"
+settings = json.loads(state.read_text()) if state.exists() else {}
+settings.setdefault("env_vars", {})["KEY_MODELLER"] = key
+private_write(state, json.dumps(settings, indent=2) + "\n")
+for cfg in prefix.glob("lib/modeller-*/modlib/modeller/config.py"):
+    text = re.sub(r"^license\s*=.*$", lambda _: "license = " + repr(key), cfg.read_text(), flags=re.M)
+    private_write(cfg, text)
+print("[INFO] Private MODELLER environment and license files configured.")
+PY_LICENSE
     echo "[INFO] KEY_MODELLER successfully configured."
   fi
 

@@ -1,130 +1,116 @@
 # Contributing to ColabMDA
 
-Read the [main README](README.md) for the preserved complete baseline and repository
-layout. Shared CDKL5 guides are [apo](docs/apo.md) and [ATP/Mg](docs/atpmg.md),
-with [Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md) setup. Follow [AGENTS.md](AGENTS.md) for development rules.
+The [README](README.md) is the complete user guide. Scientific walkthroughs are
+[protein in water](docs/apo.md) and [ATP/Mg](docs/atpmg.md); platform setup is in
+[Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
 
 ## Development
 
-Use `dev1` for private research and active development. Public `main` is reserved
-for approved, sanitized releases; do not merge private development history into it.
-Keep changes focused and describe the resulting behavior and validation.
+Keep changes focused and describe the behavior and validation. Public `main`
+contains reviewed release snapshots. Keep private research history, credentials,
+coordinates, trajectories and run records outside the public repository.
+
+Create the scientific environment from `environment.yml`, activate it and install
+the checkout with `python -m pip install -e .`. MODELLER is optional and requires
+your own license; use the single `scripts/setup.sh` installer and hidden prompt.
 
 Report reproducible problems through [GitHub Issues](https://github.com/paulshamrat/ColabMDA/issues).
 Formatting and linting use [Black](https://github.com/psf/black) and
 [Ruff](https://github.com/astral-sh/ruff).
 
-Install the core environment from `environment.yml`, activate `colabmda`, then
-install the checkout with `python -m pip install -e .`. MODELLER is optional;
-use the single `scripts/setup.sh` installer and its key prompt when needed.
+## Credential protection
+
+Install [Gitleaks](https://github.com/gitleaks/gitleaks#installing), then enable the
+repository hooks:
+
+```bash
+git config core.hooksPath .githooks
+gitleaks version
+```
+
+If the scanner is not on PATH, set its executable using the local Git setting
+`colabmda.gitleaksPath`. The commit hook scans staged content. The push hook scans
+all reachable history. Both redact findings and fail if the scanner is missing.
+The configuration adds MODELLER license and Google session-cookie checks to
+the standard credential rules. Notebook outputs must not contain captured
+request headers or browser cookies.
+Only explicit placeholders belong in examples; never add a real value to an
+allowlist or scanner configuration.
+
+Keep credentials in private files outside Git or use the installer's hidden
+prompt. `.env`, credential files and logs are ignored; ignore rules do not remove
+files already committed. GitHub Actions credentials belong in repository secrets.
+If a value was published, replace/revoke it with its provider and clean affected
+history. Coordinate replacement clones after a history rewrite.
+
+For a private research checkout, set `colabmda.privateCheckout=true` and disable
+its public push URL. Export reviewed code to a separate clean-history release
+checkout; never merge the private branch into public `main`.
 
 ## Architecture
 
-- `src/colabmda/cli.py` parses commands and routes operations.
-- `core/` owns project paths, example installation, state definitions and ions.
-- `modeller/` owns modeling and mutation logic.
-- `amber/` owns parameterization and trajectory processing.
-- `openmm/` is flat: preparation, EM, NVT, NPT, MD, QC, merge, analysis and figures
-  use separate operation modules. Do not recreate engine/modular subfolders.
-- `remote/colab.py` owns committed snapshot deployment and Colab execution.
-- `examples/<name>/scripts/` contains thin user workflows calling the public
-  CLI/API. Install fkbp, hras or trpcage with `cmda stage --example NAME --root ...`.
-  Do not duplicate scientific implementations across platform adapters.
+- `cli.py` parses commands; `core/` owns project paths, mapping and checks.
+- `modeller/` owns modeling and mutation; `amber/` owns parameterization and merging.
+- `openmm/` keeps preparation, EM, NVT, NPT, MD, QC, analysis and figures in flat,
+  separate operation modules. Calculations never import plotting libraries.
+- `remote/colab.py` deploys committed source snapshots and controls Colab execution.
+- `examples/` contains thin workflows and Slurm adapters calling the public CLI/API.
+  Keep one scientific implementation across platforms.
 
-Keep calculations separate from plotting. Preserve native author numbering and
-validate coordinate identities. Write runtime outputs into ignored project data
-and logs, never into tool source or example templates. Test overwrite protection,
-checkpoint recovery and output validation rather than only successful process exit.
+Preserve native numbering/insertion codes and check identities and coordinate
+presence. Raw structures stay unchanged. Runtime data, reports and logs belong
+in the execution project. New state workflows keep structure, simulation and
+analysis as unnumbered siblings; only simulation processing steps are numbered.
+Replica reports, aggregates and variant comparisons remain separate. Historical
+numbered examples retain their paths and template hashes.
+
+Check noncovalent component boundaries, actual charges and complete water-matched
+ion parameters. Research production requires full 24-stage timing and physical
+QC. Quick smoke tests and completion markers do not establish convergence.
+Advance checkpoints only after complete chunks are published; recovery must
+preserve continuous frame times. Distinguish model/preparation tests from GPU runs.
+
+CDKL5 public inputs are 4BGQ/O76039 and homologous ATP/Mg transfer from 8FP5. Keep
+its modeled pose distinct from an experimental complex or previous study inputs.
+Visualization fits native core positions to a common WT reference and uses shared
+framing. Frame labels come from matching logs, and model panels remain distinct
+from trajectory panels.
 
 ## Verification
 
-Before committing Python changes, run Black, `ruff format --check`, `ruff check`,
-Python compilation and `pytest tests/`. Run `bash -n` on changed shell scripts.
-If Black multiprocessing stalls, check one file per process.
+Before committing Python changes, run formatting, lint, compilation and CPU tests:
 
-Generated example scripts use the tool's 100-character line length. A project
-should check them with `ruff format --line-length 100 --check scripts tests`;
-reformatting them differently invalidates their recorded template hashes.
+```bash
+python -m pip install pytest build black ruff
+black --check .
+ruff format --check src tests
+ruff check .
+python -m compileall -q src tests
+python -m pytest tests/ -q
+```
 
-Run CPU tests on Divergent. Use Palmetto compbio for current protein GPU pilots;
-use Colab through its CLI for Colab-specific acceptance, including the working
-project's `tests/gpu.py`. Keep Colab runs foreground, inspect physical QC separately,
-retrieve verified compact reports and stop dedicated sessions. Never include license keys or credentials in
-source, test fixtures using real secrets, logs or provenance.
+If Black multiprocessing stalls, check one file per process. Run `bash -n` on
+changed shell/Slurm scripts. Generated example scripts use 100-character lines;
+changing their formatting also changes recorded template hashes.
 
-Natural-protein acceptance uses the staged FKBP12 WT/F37V and H-Ras–GDP/Mg
-WT/G12V scripts. Verify author-to-UniProt mapping, unchanged raw inputs, modeled
-mutations, actual topology charges/composition and model-based analysis labels.
-Keep CPU modeling/preparation results separate from real GPU simulation evidence.
+Tests cover public input gates, overwrite/symlink protection, replica isolation,
+checkpoint recovery, wheel resources, committed source export and hidden license
+prompting. Run credential-hook tests with Gitleaks on PATH. GPU pilots belong on
+an allocated cluster GPU or Colab; never claim GPU acceptance from CPU tests.
+Retrieve verified compact reports and review plots before ending a pilot session.
 
-Update README/AGENTS.md when behavior changes. Keep the established README
-organization: platform setup, project architecture, full simulation workflow and
-the small validation example. Scientific explanations and advanced command
-reference belong in the appropriate README sections. Do not replace it with an
-example-only quickstart or recreate a separate documentation site.
+## Documentation
 
-Consolidate tool and simulation layouts in README section 2. Keep optional Trp-cage instructions/layout in docs/examples.md. Section 4 is
-the short 4BGQ pilot. Link state guides to the shared layout.
-Use one compact command reference near the end; detailed options belong in --help.
-Keep runnable workflow commands and quantitative protocol explanations in place.
-Keep release, CI, license, repository, Issues, Black and Ruff badges directly
-below the README title. Lead the short purpose with Colab interruptions and
-Drive checkpoint recovery, then terminal commands and HPC/workstation support.
-Follow with the starting path. Platform/dependency details belong in
-Platform Setup. Keep detailed guide links in the workflow and validation results
-near the end of the README.
+Preserve the README's existing section order, protocol and timestep/frame/storage
+calculations. Use simple, direct, concise language. Keep all seven badges directly
+below the title, followed by Colab interruption recovery and the starting path.
+Platform/dependency details belong in Platform Setup, architecture in section 2,
+and one compact command reference near the end.
 
-Validate guide code blocks and command arguments against the current CLI. State
-which checks were executed and which GPU or cluster steps remain unexecuted.
-Record changes in the unreleased changelog without inventing a public release.
-
-## CDKL5 guides and platforms
-
-Maintain the complete root README alongside docs/apo.md and docs/atpmg.md. Platform
-setup belongs in docs/platforms/{colab,hpc}.md; common scientific commands stay in
-the state guides. Use explicit cd, environment activation and direct cmda commands.
-HPC alone needs the thin examples/hpc/simulate.slurm scheduler adapter.
-
-The root walkthrough also follows CDKL5 WT/L119R for apo and ATP/one-Mg. Keep its
-current design and section order. Use concise wording and matching state-based
-paths throughout modeling, preparation, analysis and comparisons. Trp-cage stays
-the optional quick test; retain older FKBP12/H-Ras templates and run records.
-
-The default CDKL5 example must use public inputs, not files copied from another
-study. `cmda model` delegates to the existing MODELLER build/mutate engine and
-checks outputs. Public `cmda assemble --template` records homologous donor fitting
-and optional fixed-backbone sidechain relaxation. A modeled CDK2-to-CDKL5 ATP/Mg
-pose is not an experimental complex or reproduction of a legacy study. Keep
-refinement, assembly and solvated equilibration as separate scientific steps.
-Run short GPU pilots on Palmetto compbio when available; do not infer acceptance
-from modeling/preparation or from the previous study-based pilots.
-
-New runs use unnumbered state/structure/simulation folders and numbered variant
-processing steps. Preserve existing numbered example paths. Require canonical
-identity/density gates, frozen preparation inputs, real topology charges and
-noncovalent boundaries. Research production requires complete 24-stage timing and
-physical QC. Separate software tests, Colab GPU results and HPC pilot status.
-Update AGENTS.md and the local ignored PLAN.md with material design/status changes.
-
-CDKL5 visualization uses the activation project's full-kinase orientation by
-default, with its network orientation optional. Store numeric camera metadata
-only; never require private activation-study files. Fit native core C-alpha
-positions to one WT reference and reuse its framing across panels. Read physical
-time from matching production logs; never invent zero-time labels. Validate
-declared mutations and distinguish starting-model grids from MD snapshots.
-Optional small-protein tutorials/templates remain available outside the main
-4BGQ walkthrough; preserve their historical validation records.
-
-Colab user instructions use the local terminal, Colab CLI and its remote console.
-Keep account/Drive authentication, committed snapshot deployment, recovery and
-MODELLER prompting in that path. Do not reintroduce a web notebook setup route
-or notebook-cell instructions. Internal runtime protocol and plotting-backend
-compatibility code are separate from the documented user workflow.
-
-Keep structure, simulation and analysis as unnumbered siblings within each state.
-Write new replica reports to analysis/<run>/<variant>/<replica>, model views to
-the variant's figures/, replica summaries to aggregate/, and variant comparisons
-to analysis/<run>/compare. Explicit migration applies only to completed flat
-state-based r1 reports; verify hashes, reject conflicts/symlinks/heavy data, keep
-historical provenance/receipts and never move outputs during path resolution.
-Historical numbered examples keep their layouts and template hashes.
+Shared scientific guides live in docs/apo.md and docs/atpmg.md; nested platform
+guides own installation and execution. Optional small-protein tutorials stay in
+one separate guide. Use terminal commands for Colab; do not recreate notebook
+instructions or a separate documentation site. Check local links, shell blocks
+and CLI arguments after guide changes. Keep account-specific deployment records
+in the private execution project. Record unreleased changes without announcing
+a release or claiming unperformed simulation tests.

@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=cmda-pilot
-#SBATCH --partition=compbio
-#SBATCH --account=compbio
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gpus=1
 #SBATCH --mem=16G
 #SBATCH --time=01:00:00
 #SBATCH --signal=INT@120

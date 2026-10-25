@@ -73,3 +73,14 @@ leap.log
 *.mol2
 *.sdf
 
+
+# Credentials and execution logs stay outside version control.
+logs/
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.lic
+credentials.json
+client_secret*.json

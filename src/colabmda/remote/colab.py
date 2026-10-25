@@ -56,8 +56,7 @@ def _make_source_zip(repo_root: Path) -> Path:
     def git(*args):
         return subprocess.check_output(["git", "-C", str(repo_root), *args])
 
-    if git("branch", "--show-current").decode().strip() != "dev1":
-        raise RuntimeError("Local development deployment requires dev1")
+    git("rev-parse", "--verify", "HEAD")  # Any clean committed branch or release tag.
     allowed = [
         "src",
         "examples",

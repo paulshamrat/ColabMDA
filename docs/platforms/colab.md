@@ -7,9 +7,9 @@ simulation commands.
 
 ## Setup
 
-Use the checkout whose instructions you are reading. This development guide includes
-unreleased changes on `dev1`; the public `main` branch may contain an older release.
-The tool stays separate from the project where simulations run.
+Use the checkout whose instructions you are reading. Public releases use `main`;
+private development stays separate. The tool stays outside the project where
+simulations run.
 
 ### Terminal and Colab CLI
 
@@ -19,11 +19,12 @@ internet access and a Colab account. The core ColabMDA package supports Python
 Complete CLI authentication when requested. Existing installations can activate
 their environment instead of creating another one.
 
-**On your local computer**, enter the ColabMDA checkout. In our workspace this is
-`~/research/tools/ColabMDA`. A GPU is not required on the local computer:
+**On your local computer**, clone the public tool and enter its folder.
+A GPU is not required on the local computer:
 
 ```bash
-cd ~/research/tools/ColabMDA
+git clone --branch main https://github.com/paulshamrat/ColabMDA.git
+cd ColabMDA
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -32,8 +33,8 @@ cmda --help
 colab sessions
 ```
 
-Finish local changes and commit the deployment snapshot before creating the GPU
-runtime, so it is ready for use. An idle runtime can expire; a replacement needs
+Use a clean, committed checkout before creating the GPU runtime. If you edit
+runtime files, commit those changes before deployment. An idle runtime can expire; a replacement needs
 fresh Drive authentication even when the previous session was mounted.
 
 Then create a GPU runtime, authenticate Drive and deploy the committed tool:
@@ -45,7 +46,8 @@ cmda colab setup -s colabmda-example --local-source --modeller
 colab console -s colabmda-example
 ```
 
-Local-source deployment currently requires a clean, committed `dev1` checkout.
+Local-source deployment requires a clean, committed Git checkout. Branches and
+release tags are both supported.
 It sends runtime files and example templates with `SNAPSHOT.json` hashes. Run
 these commands serially and wait for setup to finish before entering the console.
 Setup asks whether to install MODELLER; CDKL5 model building and mutation require it.

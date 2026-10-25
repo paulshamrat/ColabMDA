@@ -16,9 +16,9 @@ Start with [Platform Setup](#1-platform-setup), then follow the
 
 **Platforms:** Linux · Google Colab · Slurm | **Dependencies:** OpenMM · AmberTools · MODELLER · MDAnalysis · MDTraj · PDB2PQR/PROPKA
 
-Use the checkout whose instructions you are reading. This development guide includes
-unreleased changes on `dev1`; the public `main` branch may contain an older release.
-The tool stays separate from the project where simulations run.
+Use the checkout whose instructions you are reading. Public releases use `main`;
+private development stays separate. The tool stays outside the project where
+simulations run.
 
 ### 1.1. Google Colab
 
@@ -33,10 +33,12 @@ internet access and a Colab account. The core ColabMDA package supports Python
 Complete CLI authentication when requested. Existing installations can activate
 their environment instead of creating another one.
 
-**On your local computer**, open a terminal in your ColabMDA checkout.
+**On your local computer**, clone the public tool and enter its folder.
 A GPU is not required on this computer:
 
 ```bash
+git clone --branch main https://github.com/paulshamrat/ColabMDA.git
+cd ColabMDA
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -45,8 +47,8 @@ cmda --help
 colab sessions
 ```
 
-Finish local changes and commit the deployment snapshot before creating the GPU
-runtime, so it is ready for use. An idle runtime can expire; a replacement needs
+Use a clean, committed checkout before creating the GPU runtime. If you edit
+runtime files, commit those changes before deployment. An idle runtime can expire; a replacement needs
 fresh Drive authentication even when the previous session was mounted.
 
 Then create a GPU runtime, authenticate Drive and deploy the committed tool:
@@ -58,7 +60,8 @@ cmda colab setup -s colabmda-example --local-source
 colab console -s colabmda-example
 ```
 
-Local-source deployment currently requires a clean, committed `dev1` checkout.
+Local-source deployment requires a clean, committed Git checkout. Branches and
+release tags are both supported.
 It sends runtime files and example templates with `SNAPSHOT.json` hashes. Run
 these commands serially and wait for setup to finish before entering the console.
 Setup asks whether to install MODELLER; choose it for the CDKL5 modeling steps.
@@ -113,9 +116,8 @@ Install the tool and its Conda dependencies on the cluster according to its soft
 policy. Put active simulation outputs in scratch, not the software checkout.
 Activate the selected MD environment on the allocated compute node, then use the same state-based commands below with an explicit project root.
 
-For Palmetto access from Divergent, use the workspace's `hpc` CLI for inspection,
-code deployment and submission. Do not use direct SSH/SCP for Palmetto. Transfer
-computational code and inputs only; manuscripts and private editorial material stay local.
+Use the cluster's approved access and deployment tools. Transfer computational
+code and inputs only; keep unrelated private material outside the cluster.
 
 #### 1.2.2. Interactive GPU Allocation
 
@@ -145,11 +147,13 @@ calls replace the shared runner files. Optional `--example` templates are descri
 
 #### 1.3.1. Installation
 
-**On a Linux workstation with an NVIDIA GPU**, enter the tool checkout and run its
-single installer with local paths. This ensures it installs the current checkout
+**On a Linux workstation with an NVIDIA GPU**, clone the tool and run its
+single installer with local paths. Skip cloning if you already have this checkout. This ensures it installs the current checkout
 and does not try to create a Colab-only `/content` directory:
 
 ```bash
+mkdir -p ~/research/tools
+git clone --branch main https://github.com/paulshamrat/ColabMDA.git ~/research/tools/ColabMDA
 cd ~/research/tools/ColabMDA
 export COLABMDA_TOOL="$PWD"
 COLABMDA_SOURCE="$COLABMDA_TOOL" \
@@ -164,8 +168,7 @@ cmda --help
 With an existing Conda installation, the core environment can also be created
 from `environment.yml`, followed by `python -m pip install -e .` in the checkout.
 The installer can optionally configure MODELLER and its hidden license prompt.
-Divergent has no GPU; use section 1.1 for its control-plane installation and Colab
-execution rather than running a protein pilot locally.
+On a CPU-only local computer, use section 1.1 to control a remote Colab GPU runtime.
 
 #### 1.3.2. Test Suite
 
@@ -178,8 +181,7 @@ python -m pytest tests/ -q
 ```
 
 These CPU tests check software behavior. They do not establish physical convergence
-or replace GPU integration testing. Development rules are in [CONTRIBUTING.md](CONTRIBUTING.md)
-and [AGENTS.md](AGENTS.md).
+or replace GPU integration testing. Development rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

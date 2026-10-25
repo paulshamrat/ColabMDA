@@ -2,37 +2,62 @@ name: Python CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main, dev1]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  lint-and-test:
+  security:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install ruff black
-        pip install -e .
-        
-    - name: Lint with ruff
-      run: |
-        ruff check .
-        
-    - name: Check formatting with black
-      run: |
-        black --check .
-        
-    - name: Basic CLI Test
-      run: |
-        colabmda --help
-        colabmda openmm --help
-        colabmda modeller --help
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install verified Gitleaks
+        run: |
+          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/gitleaks.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install /tmp/gitleaks /usr/local/bin/gitleaks
+      - name: Scan complete Git history
+        run: gitleaks git --log-opts=--all --redact=100 --no-banner --config .gitleaks.toml .
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare CPU dependency specification
+        shell: bash
+        run: sed '/cuda-version=/d' environment.yml > /tmp/colabmda-ci.yml
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: /tmp/colabmda-ci.yml
+          environment-name: colabmda
+          create-args: >-
+            pytest ruff black build
+          cache-environment: true
+          init-shell: bash
+      - name: Install package
+        run: python -m pip install --no-deps -e .
+      - name: Check source and scripts
+        run: |
+          ruff check .
+          git ls-files -z '*.py' | xargs -0 -n 1 black --check --quiet
+          find examples scripts .githooks -type f \( -name '*.sh' -o -name '*.slurm' -o -name 'pre-commit' -o -name 'pre-push' \) -exec bash -n {} \;
+      - name: Install verified Gitleaks
+        run: |
+          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/gitleaks.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install /tmp/gitleaks /usr/local/bin/gitleaks
+      - name: Run CPU suite and wheel-resource checks
+        env:
+          MPLBACKEND: Agg
+          OPENMM_DEFAULT_PLATFORM: Reference
+        run: python -m pytest tests/ -q
