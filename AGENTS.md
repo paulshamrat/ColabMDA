@@ -106,6 +106,13 @@ simulation protocol, small example, acknowledgements, changelog and citation
 sections. Make focused updates; do not replace the full guide with a quickstart
 or reorganize it without an explicit user request.
 
+The root README's main workflow uses CDKL5 WT/L119R for apo and ATP/one-Mg,
+matching docs/apo.md and docs/atpmg.md. Keep the existing section order and use
+simple, direct, concise language. Trp-cage remains the optional quick test;
+FKBP12/H-Ras templates and historical evidence remain available. Do not claim
+L119R GPU validation from its CPU model/preparation checks. Reviewed study inputs
+are supplied by the owner, not bundled public example coordinates.
+
 Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary
 Markdown workflow guides under docs/ with nested platform setup, as explicitly
 requested by the user. Do not restore ReadTheDocs/Sphinx or duplicate apo/holo

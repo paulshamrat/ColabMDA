@@ -70,6 +70,11 @@ setup belongs in docs/platforms/{colab,hpc}.md; common scientific commands stay 
 the state guides. Use explicit cd, environment activation and direct cmda commands.
 HPC alone needs the thin examples/hpc/simulate.slurm scheduler adapter.
 
+The root walkthrough also follows CDKL5 WT/L119R for apo and ATP/one-Mg. Keep its
+current design and section order. Use concise wording and matching state-based
+paths throughout modeling, preparation, analysis and comparisons. Trp-cage stays
+the optional quick test; retain older FKBP12/H-Ras templates and run records.
+
 New runs use unnumbered state/structure/simulation folders and numbered variant
 processing steps. Preserve existing numbered example paths. Require canonical
 identity/density gates, frozen preparation inputs, real topology charges and
