@@ -1,7 +1,9 @@
 # Google Colab
 
 Use this platform setup with [apo](../apo.md) or [ATP/Mg](../atpmg.md).
-The scientific commands and data layout are shared with HPC.
+The scientific commands and data layout are shared with HPC. Use your local
+terminal to manage runtimes with the Colab CLI and its remote console to run
+simulation commands.
 
 ## Setup
 
@@ -9,7 +11,7 @@ Use the checkout whose instructions you are reading. This development guide incl
 unreleased changes on `dev1`; the public `main` branch may contain an older release.
 The tool stays separate from the project where simulations run.
 
-### Terminal Runner (Recommended)
+### Terminal and Colab CLI
 
 Prerequisites are Linux/Bash, Git, Python 3.12 or newer for the current Colab CLI,
 internet access and a Colab account. The core ColabMDA package supports Python
@@ -61,20 +63,6 @@ The installed snapshot is `/content/ColabMDA`; persistent project data belongs u
 `/content/drive/MyDrive/research/projects/`. Continue with the linked CDKL5 workflow after setup. You can also dispatch foreground shell commands from the local
 terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
 
-### Web Notebook
-
-With a GPU runtime selected in Colab, mount Drive in a notebook cell:
-
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-```
-
-For a published release, the notebook terminal can download and run that release's
-`scripts/setup.sh`. For this private development checkout, use the terminal-runner
-local-source deployment above so the installed code matches this guide. Downloading
-public `main` does not deploy unpublished local changes.
-
 ### Crash Recovery & Checkpointing
 
 Keep simulations in the foreground with live output. Sessions can still terminate.
@@ -86,10 +74,9 @@ The selected scientific guide explains restart behavior.
 An exec connection error does not prove the remote calculation stopped. Check
 the foreground console, process and log before retrying, so two writers cannot
 target the same run. Use `colab console -s colabmda-example` for long foreground
-commands. If the notebook control connection fails after computation has ended,
+commands. If the runtime connection fails after computation has ended,
 `colab restart-kernel -s colabmda-example` can restore control; verify Drive is
 still mounted before collection. Do not restart a kernel during an active job.
-File download/removal APIs avoid opening another notebook execution connection.
 
 ### MODELLER License
 

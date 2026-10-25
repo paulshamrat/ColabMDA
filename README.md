@@ -20,7 +20,10 @@ The tool stays separate from the project where simulations run.
 
 ### 1.1. Google Colab
 
-#### 1.1.1. Terminal Runner (Recommended)
+Use your local terminal to create and manage Colab runtimes with the Colab CLI.
+Run the simulation commands inside its remote console.
+
+#### 1.1.1. Terminal and Colab CLI
 
 Prerequisites are Linux/Bash, Git, Python 3.12 or newer for the current Colab CLI,
 internet access and a Colab account. The core ColabMDA package supports Python
@@ -75,21 +78,7 @@ Each remote exec call starts a new shell. Include environment activation, projec
 variables and `cd` in that call; shell state does not carry between invocations.
 A quoted multiline shell block runs in one Bash process and propagates failure.
 
-#### 1.1.2. Web Notebook
-
-With a GPU runtime selected in Colab, mount Drive in a notebook cell:
-
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-```
-
-For a published release, the notebook terminal can download and run that release's
-`scripts/setup.sh`. For this private development checkout, use the terminal-runner
-local-source deployment above so the installed code matches this guide. Downloading
-public `main` does not deploy unpublished local changes.
-
-#### 1.1.3. Crash Recovery & Checkpointing
+#### 1.1.2. Crash Recovery & Checkpointing
 
 Keep simulations in the foreground with live output. Sessions can still terminate.
 Keep inputs, completed chunks and checkpoints on Drive. On a replacement runtime,
@@ -97,7 +86,7 @@ remount Drive and restore the recorded software before attempting recovery.
 Checkpoint compatibility across different GPUs or software versions is not assumed.
 Section 3.4 explains restart behavior; section 4 provides a short test.
 
-#### 1.1.4. MODELLER License
+#### 1.1.3. MODELLER License
 
 Model building and mutation require MODELLER and a valid key. Its registration page
 is [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
@@ -877,6 +866,7 @@ The earlier study-based pilots used different starting inputs.
 
 ### Unreleased Development
 
+- Use terminal and Colab CLI setup throughout the guides; remove the web notebook route.
 - Make the CDKL5 WT/L119R apo and ATP/one-Mg walkthrough independent of private
   study files, with short public-input commands and a full 24-stage protocol.
 - Record homologous ATP/Mg transfer, fixed-backbone pocket relaxation, native

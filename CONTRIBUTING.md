@@ -106,3 +106,9 @@ time from matching production logs; never invent zero-time labels. Validate
 declared mutations and distinguish starting-model grids from MD snapshots.
 Optional small-protein tutorials/templates remain available outside the main
 4BGQ walkthrough; preserve their historical validation records.
+
+Colab user instructions use the local terminal, Colab CLI and its remote console.
+Keep account/Drive authentication, committed snapshot deployment, recovery and
+MODELLER prompting in that path. Do not reintroduce a web notebook setup route
+or notebook-cell instructions. Internal runtime protocol and plotting-backend
+compatibility code are separate from the documented user workflow.
