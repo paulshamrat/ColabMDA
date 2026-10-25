@@ -6,6 +6,7 @@
 ---
 
 ## 🛠 Project Information
+
 | Category | Details |
 | :--- | :--- |
 | **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
@@ -18,29 +19,12 @@
 | **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
 | **Structure** | [Source Layout](#project-structure) |
 
-### 📂 Project Structure <a id="project-structure"></a>
-ColabMDA is organized into clear, functional modules:
-*   `src/colabmda/cli.py`: Central unified CLI (`cmda` and `colabmda`).
-*   `src/colabmda/core/`: Project paths, safe example installation, small-protein workflows, state taxonomy and ion definitions.
-*   `src/colabmda/amber/`: AmberTools parameterization (`tleap`, Hu 2024 quantum nucleotide parameters, `cpptraj` autoimaging & solvent stripping).
-*   `src/colabmda/modeller/`: Homology modeling engine (UniProt biological numbering, mutagenesis, geometric substrate docking).
-*   `src/colabmda/openmm/`: Flat operation modules: `prepare.py`, `em.py`, `nvt.py`, `npt.py`, `md.py`, `qc.py`, `merge.py`, `analysis.py`, `figures.py`, `common.py`, `commands.py` and the compatibility adapter `run.py`.
-*   `src/colabmda/remote/`: Google Colab GPU remote session management via `colab` CLI.
-*   `scripts/`: Single standalone bootstrap script (`scripts/setup.sh`).
-*   `examples/{fkbp,hras,trpcage}/scripts/`: Runnable templates copied into the execution project.
-*   `examples/hpc/{simulate,analyze}.slurm`: Thin GPU simulation and CPU analysis adapters for the shared scientific commands.
-*   `docs/{apo,atpmg}.md`: CDKL5 workflows, with setup under `docs/platforms/{colab,hpc}.md`.
-*   `tests/`: Comprehensive unit and regression test suite (`pytest`).
-
----
-
 
 CDKL5 command-based workflows are in [Protein in water](docs/apo.md) and
 [ATP with one Mg](docs/atpmg.md). Platform instructions are separate:
 [Google Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
-These guides use `data/{apo,atpmg}/{structure,simulation}` for new runs;
-existing numbered examples below retain their historical paths. The full README
-baseline remains here alongside the shared guides.
+The main walkthrough is in section 3. The shared project layout is in
+[Project Architecture](#2-project-architecture).
 
 The public-input example passed WT/L119R modeling and preparation checks.
 WT apo and ATP/Mg each passed full 24-stage, 1.96 ns equilibration, 100 ps
@@ -131,7 +115,7 @@ Keep simulations in the foreground with live output. Sessions can still terminat
 Keep inputs, completed chunks and checkpoints on Drive. On a replacement runtime,
 remount Drive and restore the recorded software before attempting recovery.
 Checkpoint compatibility across different GPUs or software versions is not assumed.
-Section 3.5 explains restart behavior; section 4 provides a short test.
+Section 3.4 explains restart behavior; section 4 provides a short test.
 
 #### 1.1.4. MODELLER License
 
@@ -146,7 +130,7 @@ cmda colab setup -s colabmda-example --local-source --modeller
 Automated setup accepts `KEY_MODELLER` or `MODELLER_LICENSE` through the process
 environment. Do not place real keys in commands saved to Git, logs or provenance.
 `--no-modeller` skips the optional remote question. MODELLER uses `modeller_env`;
-section 3.2 explains activating it and installing the same tool checkout there.
+section 3.1 explains activating it and installing the same tool checkout there.
 
 ---
 
@@ -184,7 +168,7 @@ replica bounds, scientific settings and QC before submission.
 
 Stage one state/variant at a time when using those shared script names: later stage
 calls replace the shared runner files. The Trp-cage `--example` mode instead copies
-the numbered workflow scripts shown in section 2; it does not generate Slurm jobs.
+the numbered workflow scripts shown in section 4; it does not generate Slurm jobs.
 
 ---
 
@@ -232,7 +216,30 @@ and [AGENTS.md](AGENTS.md).
 
 ## 2. Project Architecture
 
-For CDKL5 WT/L119R, use this shared layout on Colab and HPC:
+Keep the tool checkout separate from each simulation project. The tool contains
+code; the project contains inputs, results and logs. No project YAML is required.
+
+### 2.1. Tool repository <a id="project-structure"></a>
+
+```text
+ColabMDA/
+├── src/colabmda/
+│   ├── cli.py             # cmda commands
+│   ├── core/              # Projects, mapping and workflow checks
+│   ├── modeller/          # Protein modeling and mutation
+│   ├── amber/             # Parameterization and trajectory processing
+│   ├── openmm/            # Simulation, QC, analysis and figures
+│   └── remote/            # Colab setup and control
+├── examples/              # Small workflows and HPC adapters
+├── scripts/setup.sh       # Installer
+├── environment.yml        # Core dependencies
+├── docs/                  # State and platform guides
+└── tests/                 # CPU tests
+```
+
+### 2.2. Simulation project
+
+Use this shared layout for CDKL5 apo and ATP/Mg on Colab, HPC or a workstation:
 
 ```text
 colabmda-example/
@@ -246,69 +253,18 @@ colabmda-example/
 └── logs/{apo,atpmg}/<run>/<variant>/
 ```
 
-Only processing steps are numbered. Use a fresh `COLABMDA_RUN_ID` for changed
-inputs or protocol. `cmda stage --state apo --variant WT --root "$PROJECT_ROOT"`
-creates the directories and no runner scripts by default. Colab runs direct
-commands; the [HPC adapter](examples/hpc/simulate.slurm) runs those same commands
-inside Slurm. The adapter supports a separately named `smoke` software check and
-requires a GPU; it can select an existing conda environment. Platform setup is in [Colab](docs/platforms/colab.md) and
-[HPC](docs/platforms/hpc.md); the state guides hold the scientific workflow.
+Only processing steps are numbered. Use a fresh run ID for changed inputs or
+protocols, and retain it for compatible recovery. Keep runtime data and logs
+outside Git; preserve raw coordinates and provenance.
 
-The numbered example architecture below remains supported for existing runs.
+Colab runs the workflow commands directly. HPC uses the same commands through
+thin [simulation](examples/hpc/simulate.slurm) and
+[analysis](examples/hpc/analyze.slurm) adapters. See the [Colab](docs/platforms/colab.md)
+and [HPC](docs/platforms/hpc.md) guides for platform setup.
 
-
-The tool repository contains the implementation and reusable workflow templates.
-Each execution project contains its own scripts, inputs, outputs and logs. No
-project configuration YAML is required.
-
-To create the complete Trp-cage example on the machine where it will run:
-
-```bash
-cmda stage --example trpcage --root "$HOME/research/projects/colabmda-example"
-```
-
-On Colab, use `/content/drive/MyDrive/research/projects/colabmda-example` instead.
-Staging copies seven small scripts and records their tool version and hashes. It
-does not fetch structures, install software or start a simulation. Identical files
-are safe to stage again; different existing files stop staging and are preserved.
-
-```text
-colabmda-example/
-├── scripts/
-│   ├── 01_structure/01_fetch.py
-│   └── 02_simulation/
-│       ├── common.sh
-│       ├── 01_prepare.sh
-│       ├── 02_equilibrate.sh
-│       ├── 03_production.sh
-│       ├── 04_analysis.sh
-│       └── 05_check.py
-├── data/
-│   ├── 00_setup/example.json
-│   ├── 01_structure/trpcage/           # Raw archive, selected model, input hashes
-│   └── 02_simulation/<run>/
-│       ├── provenance.json
-│       ├── production.json
-│       └── apo/WT/
-│           ├── 01_prep/
-│           ├── 02_eq/
-│           ├── 03_md/r1/
-│           └── 04_analysis/figures/
-└── logs/02_simulation/<run>/
-```
-
-Scientific projects can use their existing state/variant layout. `ProjectPaths`
-resolves the existing layout; do not create parallel compatibility trees. The
-numbered example layout above is the default for newly staged examples. Keep
-runtime data and logs outside Git and preserve native raw coordinates and provenance.
-
-The older FKBP12 and H-Ras templates remain available through `cmda stage
---example fkbp` or `--example hras`. They use the numbered example layout.
-The CDKL5 commands in section 3 use the state-based layout above.
-
-Independent replicas may share an equilibration endpoint, while each production
-replica receives its own velocities, stochastic streams and checkpoint. They are
-independent simulation realizations, not proof of converged or uncorrelated sampling.
+The optional [Trp-cage example](#4-small-example--validation) shows its numbered
+layout in section 4. Older FKBP12/H-Ras templates use that example layout too.
+Existing projects retain their paths; `ProjectPaths` does not migrate their data.
 
 ---
 
@@ -331,29 +287,7 @@ Structure sources: [4BGQ](https://www.rcsb.org/structure/4BGQ) and
 The separate [apo](docs/apo.md) and [ATP/Mg](docs/atpmg.md) guides provide the same
 workflow by state. Section 4 retains Trp-cage as an optional quick software test.
 
-### 3.1. Command Reference
-
-| Command | Purpose |
-| :--- | :--- |
-| `cmda fetch` / `check` / `assemble` | Map an archive to UniProt, verify a model or assemble ATP/Mg from a public donor or reviewed pose. |
-| `cmda model --state TAG --variant NAME` | Build WT or mutate it from checked project inputs. |
-| `cmda modeller build` / `mutate` | Model a selected sequence or mutate a supplied structure using MODELLER. |
-| `cmda stage --example NAME --root PROJECT` | Install fkbp, hras or trpcage scripts without overwriting user edits. |
-| `cmda stage --state TAG --variant NAME --root PROJECT` | Create state/variant folders; add `--scripts` for compatibility runners. |
-| `cmda prep --state TAG --variant NAME --root PROJECT` | Find the checked state model and parameterize it with AmberTools. |
-| `cmda sim --state TAG --variant NAME --stage STAGES --root PROJECT` | Run EM, NVT, NPT, QC or production MD. |
-| `cmda merge --state TAG --variant NAME --replicas r1 --root PROJECT` | Autoimage trajectories and write matching stripped topologies. |
-| `cmda analyze --state TAG --variant NAME --root PROJECT` | Calculate RMSD, geometric heavy-atom Rg and C-alpha RMSF, then plot the tables. |
-| `cmda openmm compare --series LABEL=DIR1,DIR2 --outdir OUT` | Plot comparisons from existing analysis tables. |
-| `cmda view --topology FILE --trajectory FILE --resi NUMBER` | Generate a PyMOL view from a matching topology/trajectory pair. |
-| `cmda snapshots --config FILE --output FILE` | Render a custom snapshot description through the existing PyMOL helper. |
-| `cmda colab setup` / `exec` / `stop` | Set up and control a remote Colab session. |
-
-Use `--help` for each command's arguments. Standard analysis does not calculate
-PCA or contact maps. Top-level `cmda compare` currently reports the request but
-produces no plots; the implemented plotting command is `cmda openmm compare`.
-
-### 3.2. Homology Modeling & Mutagenesis
+### 3.1. Homology Modeling & Mutagenesis
 
 #### Biological Numbering
 
@@ -412,14 +346,14 @@ Review alignment, missing-loop models, stereochemistry and scores. A correct
 sequence does not validate conformation. This public model is newly built; it is
 not the reviewed model from the earlier activation-study pilot.
 
-### 3.3. Track 1: Apo Dynamics
+### 3.2. Track 1: Apo Dynamics
 
-#### 3.3.1. Scope & Inputs
+#### 3.2.1. Scope & Inputs
 
 Use the verified CDKL5 protein model without ATP or bound Mg. Preparation adds
 water and bulk salt. Start with WT; repeat with L119R after WT validation.
 
-#### 3.3.2. Directory Staging
+#### 3.2.2. Directory Staging
 
 ```bash
 cd "$PROJECT_ROOT"
@@ -430,7 +364,7 @@ cmda stage --state "$STATE" --variant "$VARIANT"
 
 Staging creates folders. It does not start a simulation or create runner scripts.
 
-#### 3.3.3. Preparation & Protonation (cmda prep)
+#### 3.2.3. Preparation & Protonation (cmda prep)
 
 ```bash
 cmda prep --state "$STATE" --variant "$VARIANT"
@@ -449,14 +383,14 @@ hashes before `PREP_DONE`. Changed inputs require a new run ID.
 After WT validation, set `VARIANT=L119R` and repeat staging and preparation.
 Models, preparation, equilibration and production remain separate by variant.
 
-### 3.4. Track 2: Holo Dynamics (ATP + Mg²⁺)
+### 3.3. Track 2: Holo Dynamics (ATP + Mg²⁺)
 
-#### 3.4.1. Scope & Chemistry
+#### 3.3.1. Scope & Chemistry
 
-Use the public WT/L119R protein models from section 3.2. The `atpmg` state contains
+Use the public WT/L119R protein models from section 3.1. The `atpmg` state contains
 one ATP and one Mg, without phosphorylation or a substrate peptide.
 
-#### 3.4.2. ATP & Mg²⁺ Placement
+#### 3.3.2. ATP & Mg²⁺ Placement
 
 Download the public 8FP5 ATP/Mg donor and assemble WT:
 
@@ -489,7 +423,7 @@ cmda assemble --state atpmg --template 8FP5 --variant L119R --relax-sidechains
 The source apo backbone stays unchanged. Each holo backbone matches its apo
 model; only selected pocket sidechains are relaxed. Original archives are retained.
 
-#### 3.4.3. Directory Staging & Holo Parameterization
+#### 3.3.3. Directory Staging & Holo Parameterization
 
 ```bash
 cd "$PROJECT_ROOT"
@@ -509,7 +443,7 @@ Repeat with `VARIANT=L119R` after its assembly is reviewed. For continuation of 
 existing study, the explicit `--receptor`, `--reference`, `--ligand` and `--ions`
 assembly route remains supported; it is separate from this public-input example.
 
-#### 3.4.4. Additional State Conventions
+#### 3.3.4. Additional State Conventions
 
 ATP, ADP and GTP resources remain available for appropriate structures. Choose
 state tags and ion counts for the actual experimental/model composition. Existing
@@ -528,12 +462,12 @@ Generic GAFF parameters are not equivalent to the specialized nucleotide route.
 Preserve a matching Amber topology/coordinate pair for independently parameterized
 systems, and review protonation, charge, ligand atom names and coordination.
 
-### 3.5. Equilibration, QC & Production
+### 3.4. Equilibration, QC & Production
 
-#### 3.5.1. Staged Equilibration
+#### 3.4.1. Staged Equilibration
 
 Choose the prepared state and variant in the current shell. For example, to run
-apo WT after section 3.3:
+apo WT after section 3.2:
 
 ```bash
 export STATE=apo
@@ -567,7 +501,7 @@ profile in section 4 instead uses one short NVT and NPT interval; it is not this
 full protocol. The legacy combined `openmm run` adapter retains ff14SB/TIP3P defaults
 and delegates to quick equilibration; it should not be confused with the staged route.
 
-#### 3.5.2. Physical Settings & QC
+#### 3.4.2. Physical Settings & QC
 
 Shared dynamics use PME with a 1.0 nm cutoff, switching from 0.8 nm, hydrogen-bond
 constraints and rigid water. LangevinMiddle friction is 1/ps. The isotropic NPT
@@ -588,7 +522,7 @@ an output marker does not certify physical equilibration. The separate
 `cmda openmm qc` command fails on QC failure unless `--warn-only` is selected.
 No QC PDF is produced.
 
-#### 3.5.3. Production MD (r1, r2, r3)
+#### 3.4.3. Production MD (r1, r2, r3)
 
 After full equilibration passes QC, run a short WT production check:
 
@@ -609,9 +543,10 @@ cmda sim --state "$STATE" --variant "$VARIANT" --stage md --replica r1,r2,r3 \
 
 Repeat for each reviewed state/variant and its run ID. Targets are per replica.
 The high-level route processes the listed replicas sequentially; parallel batch
-execution needs an appropriate scheduler design.
+execution needs an appropriate scheduler design. Replicas can share an equilibration
+endpoint; this does not establish converged or uncorrelated sampling.
 
-#### 3.5.4. Timestep, Steps & Saved Output
+#### 3.4.4. Timestep, Steps & Saved Output
 
 The **integration timestep**, **frame-saving interval** and **checkpoint interval**
 are different settings:
@@ -656,7 +591,7 @@ The high-level `--steps` testing override changes the requested production step
 count as well as quick equilibration. Use `--total-ns` for research duration. Use intervals corresponding to whole integration steps;
 the implementation converts requested intervals to integer step counts.
 
-#### 3.5.5. Interruption & Checkpoint Recovery
+#### 3.4.5. Interruption & Checkpoint Recovery
 
 `--total-ns` is an absolute production target, excluding equilibration. Extending
 0.1 ns to 1 ns requests 1 ns total, not another 1 ns. New replicas start from the
@@ -670,9 +605,9 @@ committed checkpoint. Verify unchanged committed chunks and continuous times.
 Portable `*.state.xml` states transfer physical data between ensembles; binary
 checkpoints contain Context/RNG internals and are not assumed portable.
 
-### 3.6. Autoimaging & Solvent Stripping (cmda merge)
+### 3.5. Autoimaging & Solvent Stripping (cmda merge)
 
-#### 3.6.1. PBC Autoimaging
+#### 3.5.1. PBC Autoimaging
 
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/03_md"
@@ -684,7 +619,7 @@ simulated variant. `cpptraj` autoimages the completed chunks and
 writes both a solute stream and a C-alpha stream. Storage savings depend on system
 composition; inspect the results rather than assuming a fixed reduction.
 
-#### 3.6.2. Reference Topologies
+#### 3.5.2. Reference Topologies
 
 | Output | Matching topology | Use |
 | :--- | :--- | :--- |
@@ -697,9 +632,9 @@ Never pair a stripped trajectory with the unstripped solvated PDB. Confirm atom
 counts and ordering. A viewer requiring PDB needs an exported, matching topology;
 verify its residue-label mapping rather than treating Amber indices as author numbers.
 
-### 3.7. Trajectory Analysis & Comparison
+### 3.6. Trajectory Analysis & Comparison
 
-#### 3.7.1. System Metrics (cmda analyze)
+#### 3.6.1. System Metrics (cmda analyze)
 
 ```bash
 cd "$PROJECT_ROOT/data/$STATE/simulation/$COLABMDA_RUN_ID/$VARIANT/04_analysis"
@@ -720,7 +655,7 @@ interval. The high-level route currently uses 10 ps; do not silently use it for 
 trajectory sampled at another interval. PCA and contact maps are not calculated by
 the standard analysis route.
 
-#### 3.7.2. Comparative Overlays
+#### 3.6.2. Comparative Overlays
 
 Use directories containing already calculated `rmsd.csv`, `rg.csv` and `rmsf.csv`:
 
@@ -732,10 +667,9 @@ cmda openmm compare --series WT="$PWD/WT/04_analysis" \
 
 The output PNGs are under the requested directory's `figures/`. Comma-separated
 analysis directories within one series group compatible replicas. Check protocol,
-residue identity and time axes before aggregation. Top-level `cmda compare` currently
-reports a request without plotting, so it is not substituted here.
+residue identity and time axes before aggregation.
 
-#### 3.7.3. Frame Counts, Sampling & Stride
+#### 3.6.3. Frame Counts, Sampling & Stride
 
 With regular sampling and no extra initial frame:
 
@@ -765,7 +699,7 @@ Before quantitative analysis of strided data, check the actual logged first-fram
 time and spacing; changing an interval alone does not restore a lost time origin.
 Striding reduces saved observations, not the integration time already simulated.
 
-#### 3.7.4. Storage Calculation
+#### 3.6.4. Storage Calculation
 
 For a DCD containing three 32-bit coordinate values per atom, the coordinate-data
 size is approximately:
@@ -786,7 +720,7 @@ well, and use the actual solvated atom count; proteins of similar residue count
 can have very different solvent boxes. Coarser saving does not guarantee that
 all dynamics of interest remain resolved.
 
-#### 3.7.5. Frame & Coordinate Verification
+#### 3.6.5. Frame & Coordinate Verification
 
 Run this in the MD environment after merging a selected research system. It uses
 the matching stripped topology, reports the saved log times, and checks frame
@@ -828,9 +762,9 @@ the same state/run/variant paths as this workflow and verify SHA-256 after downl
 Heavy trajectories stay on Drive or HPC scratch. Section 4.4 collects Trp-cage
 outputs from its separate example layout.
 
-### 3.8. PyMOL Visualization
+### 3.7. PyMOL Visualization
 
-#### 3.8.1. Workstation Setup
+#### 3.7.1. Workstation Setup
 
 Use a separate PyMOL environment and install the same tool checkout there. Enter
 the checkout first, then run locally:
@@ -841,7 +775,7 @@ conda activate pymol_env
 python -m pip install -e .
 ```
 
-#### 3.8.2. Launching Visualization
+#### 3.7.2. Launching Visualization
 
 Supply a reviewed topology/trajectory pair with matching atom order and residue
 labels. The helper accepts explicit files instead of relying on old filename guesses:
@@ -855,7 +789,7 @@ cmda view --topology "$VIEW_TOPOLOGY" --trajectory "$VIEW_TRAJECTORY" --resi 119
 Inspect the generated PyMOL selection and camera. The helper retains KRAS-oriented
 styling; do not assume its default residue selections annotate CDKL5 correctly. Keep native numbering consistent when highlighting a mutation.
 
-#### 3.8.3. Snapshot Grids
+#### 3.7.3. Snapshot Grids
 
 ```bash
 : "${SNAPSHOT_CONFIG:?Set the reviewed snapshot JSON path}"
@@ -894,6 +828,35 @@ Fetch prefers mmCIF, with PDB fallback, selecting NMR model 1, author chain A of
 1L2Y. It verifies the deposited sequence, all 20 C-alpha atoms and native numbering,
 then records the archive/selection hashes. As a designed peptide, it has no canonical
 UniProt mutation annotation. No MODELLER key or cofactor template is needed.
+
+Staging copies seven scripts and records their tool version and hashes. It does
+not fetch inputs or run a simulation. Repeating staging preserves identical files
+and stops if existing files differ.
+
+```text
+colabmda-example/
+├── scripts/
+│   ├── 01_structure/01_fetch.py
+│   └── 02_simulation/
+│       ├── common.sh
+│       ├── 01_prepare.sh
+│       ├── 02_equilibrate.sh
+│       ├── 03_production.sh
+│       ├── 04_analysis.sh
+│       └── 05_check.py
+├── data/
+│   ├── 00_setup/example.json
+│   ├── 01_structure/trpcage/           # Raw archive, selected model, input hashes
+│   └── 02_simulation/<run>/
+│       ├── provenance.json
+│       ├── production.json
+│       └── apo/WT/
+│           ├── 01_prep/
+│           ├── 02_eq/
+│           ├── 03_md/r1/
+│           └── 04_analysis/figures/
+└── logs/02_simulation/<run>/
+```
 
 ### 4.2. Run the Scripts in Order
 
@@ -1030,7 +993,34 @@ reported separately from an actual GPU integration run.
 
 ---
 
+## 5. Command Reference
+
+| Command | Purpose |
+| :--- | :--- |
+| `cmda fetch` | Download structures and map UniProt positions. |
+| `cmda model` | Build WT or a variant from checked inputs. |
+| `cmda check` | Verify sequence, numbering and coordinates. |
+| `cmda assemble` | Assemble ATP/Mg from a donor or reviewed pose. |
+| `cmda stage` | Create folders or install an example. |
+| `cmda prep` | Build Amber topology and coordinates. |
+| `cmda sim` | Equilibrate, check QC and run production. |
+| `cmda merge` | Autoimage and strip trajectories. |
+| `cmda analyze` | Write RMSD, Rg and RMSF tables and plots. |
+| `cmda openmm compare` | Plot existing analysis tables. |
+| `cmda modeller` | Use custom build or mutation inputs. |
+| `cmda view` | Open a matching topology/trajectory in PyMOL. |
+| `cmda snapshots` | Render a configured snapshot grid. |
+| `cmda colab` | Set up and control Colab sessions. |
+
+Use `cmda --help` to list commands and `cmda COMMAND --help` for options, for
+example `cmda sim --help`. Workflow sections show only the commands needed for
+each step. Use `cmda openmm compare` for plots; top-level `cmda compare` only
+reports a request.
+
+---
+
 ## Acknowledgements
+
 - [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer); [OpenMM 8 methods paper](https://doi.org/10.1021/acs.jpcb.3c06662)
 - [Modeller](https://salilab.org/modeller/)
 - [AmberTools](https://ambermd.org/AmberTools.php) (`tleap`, `cpptraj`)
@@ -1044,6 +1034,9 @@ reported separately from an actual GPU integration run.
 ## Changelog
 
 ### Unreleased Development
+
+- Consolidate architecture in section 2 and command lookup in section 5; retain
+  runnable workflow steps and place the Trp-cage layout beside its example.
 
 - Add short public-input modeling and ATP/Mg assembly commands. The default
   CDKL5 walkthrough no longer needs private study coordinates or manual copying.

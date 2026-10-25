@@ -20,38 +20,10 @@ The commands below use the Colab project path. On HPC set `PROJECT_ROOT` to the
 scratch project and activate your installed environments instead. The platform
 guide explains the scheduler wrappers; do not run dynamics on a login node.
 
-## 2. Project architecture
+## 2. Project setup
 
-The tool is installed separately from the working project. Use the same project
-name on Divergent and Drive. All scientific files below are runtime data, not tool
-source. Existing numbered example runs remain in their original locations.
-
-```text
-colabmda-example/
-├── data/
-│   ├── apo/
-│   │   ├── structure/
-│   │   │   ├── raw/
-│   │   │   ├── mapping/
-│   │   │   └── models/{WT,L119R}/
-│   │   └── simulation/<run>/{WT,L119R}/
-│   │       ├── 01_prep/
-│   │       ├── 02_eq/
-│   │       ├── 03_md/{r1,r2,r3}/
-│   │       └── 04_analysis/
-│   └── atpmg/
-│       ├── structure/{raw,mapping,models}/
-│       └── simulation/<run>/{WT,L119R}/
-│           ├── 01_prep/
-│           ├── 02_eq/
-│           ├── 03_md/{r1,r2,r3}/
-│           └── 04_analysis/
-└── logs/{apo,atpmg}/<run>/{WT,L119R}/
-```
-
-`apo`, `atpmg`, `structure` and `simulation` are unnumbered. Numbering applies to
-processing steps within each variant. Choose a fresh run ID when inputs, force
-fields or protocol change; retain that ID only for a compatible resume.
+Use the shared [simulation project layout](../README.md#22-simulation-project).
+Both states use the same folders; only variant processing steps are numbered.
 
 **Inside Colab**, choose an empty project for this public-input walkthrough. If
 the example folder contains older inputs, choose another name. Define the project

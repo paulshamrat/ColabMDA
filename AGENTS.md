@@ -120,6 +120,12 @@ COLABMDA_PROJECT_DIR removes repeated --root arguments. Keep optional Python
 diagnostics separate from the main command sequence. Preserve historical study
 models and pilot evidence when adding the public-input route.
 
+Keep architecture consolidated in README section 2: tool repository, then shared
+simulation project. The optional Trp-cage layout belongs with section 4's example.
+State guides link to the shared layout instead of repeating its tree. Keep one
+compact command reference near the end (section 5), with options available through
+--help. Workflow sections retain runnable steps, not duplicate command catalogs.
+
 Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary
 Markdown workflow guides under docs/ with nested platform setup, as explicitly
 requested by the user. Do not restore ReadTheDocs/Sphinx or duplicate apo/holo

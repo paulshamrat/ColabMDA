@@ -59,6 +59,11 @@ the small validation example. Scientific explanations and advanced command
 reference belong in the appropriate README sections. Do not replace it with an
 example-only quickstart or recreate a separate documentation site.
 
+Consolidate tool and simulation layouts in README section 2. Keep the Trp-cage
+layout beside its section 4 example, and link state guides to the shared layout.
+Use one compact command reference near the end; detailed options belong in --help.
+Keep runnable workflow commands and quantitative protocol explanations in place.
+
 Validate guide code blocks and command arguments against the current CLI. State
 which checks were executed and which GPU or cluster steps remain unexecuted.
 Record changes in the unreleased changelog without inventing a public release.
