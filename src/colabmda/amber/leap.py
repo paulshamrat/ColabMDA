@@ -49,6 +49,7 @@ def generate_tleap_script(
     padding_angstroms: float = 14.0,
     salt_conc_molar: float = 0.15,
     salt_type: str = "NaCl",
+    solvate: bool = True,
 ) -> str:
     """Generate a clean, self-contained tleap input script for Amber system building.
 
@@ -123,37 +124,38 @@ def generate_tleap_script(
         ]
     )
 
-    # 7. Solvation box
-    box_type = "OPCBOX" if water_lower == "opc" else "TIP3PBOX"
-    lines.extend(
-        [
-            f"solvateBox mol {box_type} {padding_angstroms:.1f}",
-            "",
-        ]
-    )
+    if solvate:
+        # 7. Solvation box
+        box_type = "OPCBOX" if water_lower == "opc" else "TIP3PBOX"
+        lines.extend(
+            [
+                f"solvateBox mol {box_type} {padding_angstroms:.1f}",
+                "",
+            ]
+        )
 
-    # 8. Neutralization & Salt
-    cation = "Na+" if "na" in salt_type.lower() else "K+"
-    anion = "Cl-"
-    lines.extend(
-        [
-            "# Neutralize system charge",
-            f"addIonsRand mol {cation} 0",
-            f"addIonsRand mol {anion} 0",
-            "",
-        ]
-    )
+        # 8. Neutralization & Salt
+        cation = "Na+" if "na" in salt_type.lower() else "K+"
+        anion = "Cl-"
+        lines.extend(
+            [
+                "# Neutralize system charge",
+                f"addIonsRand mol {cation} 0",
+                f"addIonsRand mol {anion} 0",
+                "",
+            ]
+        )
 
-    if salt_conc_molar > 0:
-        num_pairs = _estimate_ion_pairs(abs_pdb, padding_angstroms, salt_conc_molar)
-        if num_pairs > 0:
-            lines.extend(
-                [
-                    f"# Add physiological ionic strength ({salt_conc_molar} M {salt_type})",
-                    f"addIonsRand mol {cation} {num_pairs} {anion} {num_pairs} 6.0",
-                    "",
-                ]
-            )
+        if salt_conc_molar > 0:
+            num_pairs = _estimate_ion_pairs(abs_pdb, padding_angstroms, salt_conc_molar)
+            if num_pairs > 0:
+                lines.extend(
+                    [
+                        f"# Add physiological ionic strength ({salt_conc_molar} M {salt_type})",
+                        f"addIonsRand mol {cation} {num_pairs} {anion} {num_pairs} 6.0",
+                        "",
+                    ]
+                )
 
     # 9. Save Amber parameters
     abs_top = Path(output_prmtop).resolve()
@@ -227,6 +229,7 @@ def write_prep_provenance(
     padding_angstroms: float = 14.0,
     salt_conc_molar: float = 0.15,
     salt_type: str = "NaCl",
+    solvate: bool = True,
     extra: dict | None = None,
 ) -> Path:
     """Write machine-readable provenance metadata for system preparation."""

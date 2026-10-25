@@ -146,6 +146,12 @@ def _dispatch_prep(args) -> int:
         spec.peptide_name = args.peptide_name
 
     # Receptor resolution
+    if paths.state_dir is not None and not args.receptor:
+        model = paths.structure_dir / "models" / spec.variant
+        candidate = model / ("complex.pdb" if not spec.is_apo else f"{spec.variant}.pdb")
+        if not candidate.is_file():
+            raise FileNotFoundError(f"Verified state/variant receptor missing: {candidate}")
+        args.receptor = str(candidate)
     if args.receptor:
         rec_path = Path(args.receptor).resolve()
     else:
@@ -679,6 +685,12 @@ def main():
     fetch.add_argument("--state", required=True)
     fetch.add_argument("--root", default=None, help=ROOT_HELP)
 
+    model = sub.add_parser("model", help="Build WT or a variant from checked public project inputs")
+    model.add_argument("--state", required=True)
+    model.add_argument("--variant", default="WT")
+    model.add_argument("--seed", type=int, default=13031)
+    model.add_argument("--root", default=None, help=ROOT_HELP)
+
     check = sub.add_parser(
         "check", help="Verify a canonical WT/mutant model against frozen structure inputs"
     )
@@ -691,7 +703,15 @@ def main():
         "assemble", help="Transfer a reviewed ATP/Mg pose to a verified receptor frame"
     )
     for name in ["receptor", "reference", "ligand", "ions", "mapping", "out"]:
-        assemble.add_argument("--" + name, required=True)
+        assemble.add_argument("--" + name)
+    assemble.add_argument("--state", help="Use verified project models for public pose transfer")
+    assemble.add_argument("--template", help="Public ATP/Mg donor archive ID (e.g. 8FP5)")
+    assemble.add_argument(
+        "--relax-sidechains",
+        action="store_true",
+        help="Locally minimize pocket sidechains with backbone/ATP/Mg fixed",
+    )
+    assemble.add_argument("--root", default=None, help=ROOT_HELP)
     assemble.add_argument("--chain", default="A")
     assemble.add_argument("--variant", default="WT")
     assemble.add_argument("--core", nargs=2, type=int, default=[30, 220])
@@ -1229,7 +1249,7 @@ def main():
 
     args = p.parse_args()
 
-    if args.tool in {"fetch", "check", "assemble"}:
+    if args.tool in {"fetch", "model", "check", "assemble"}:
         from colabmda.core import workflow
 
         raise SystemExit(getattr(workflow, args.tool)(args))

@@ -153,10 +153,10 @@ def run_align2d_write_pir(pdb_id, out_pir, logfh):
     write(logfh, f"Wrote {out_pir} via align2d()")
 
 
-def run_automodel(alnfile, knowns, sequence, logfh, verbose=False):
+def run_automodel(alnfile, knowns, sequence, logfh, verbose=False, seed=-49837):
     if not _MODELLER_OK:
         raise ImportError(f"Modeller not available: {_MODELLER_ERR}")
-    env = Environ()
+    env = Environ(rand_seed=seed)
     env.io.hetatm = True
     mlog.verbose() if verbose else mlog.minimal()
     a = automodel(
@@ -1019,6 +1019,7 @@ def main():
         # 6) Build model
         run_automodel(
             alnfile="alignment.ali",
+            seed=args.seed,
             knowns=pdb_id,
             sequence="target",
             logfh=logfh,

@@ -3,7 +3,9 @@
 import hashlib
 import io
 import json
+import re
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.request import urlopen
 
 from Bio import SeqIO
@@ -203,8 +205,98 @@ def check(args):
     return 0
 
 
+def model(args):
+    """Build/mutate from checked project inputs using the existing MODELLER engine."""
+    import subprocess
+    import sys
+
+    if not re.fullmatch(r"WT|[A-Z][1-9][0-9]*[A-Z]", args.variant):
+        raise ValueError("Invalid variant")
+    paths = ProjectPaths(resolve_project_root(args.root), state=args.state)
+    folder = paths.structure_dir
+    record = json.loads((folder / "mapping/input.json").read_text())
+    for name, expected in record["files"].items():
+        if sha(folder / name) != expected:
+            raise ValueError(f"Changed structure input: {name}")
+    parent = folder / "models" / args.variant
+    request = dict(
+        variant=args.variant,
+        seed=args.seed,
+        mapping_sha256=sha(folder / "mapping/input.json"),
+        engine_sha256=sha(Path(__file__).parents[1] / "modeller/engine.py"),
+    )
+    if args.variant == "WT":
+        argv = [
+            "build",
+            "--pdb-id",
+            record["pdb"],
+            "--uniprot-id",
+            record["uniprot"],
+            "--chain",
+            record["chain"],
+            "--range",
+            *map(str, record["range"]),
+            "--uniprot-numbering",
+            "--template",
+            str(folder / "raw/template.pdb"),
+            "--sequence",
+            str(folder / "raw/uniprot.fasta"),
+            "--outdir",
+            str(parent),
+        ]
+    else:
+        check(SimpleNamespace(root=str(paths.root), state=args.state, variant="WT", model=None))
+        wt = folder / "models/WT/WT.pdb"
+        request["wt_sha256"] = sha(wt)
+        argv = [
+            "mutate",
+            "--pdb-in",
+            str(wt),
+            "--chain",
+            record["chain"],
+            "--mut",
+            args.variant,
+            "--outdir-mut",
+            str(parent),
+        ]
+    receipt = parent / "model_request.json"
+    if (parent / "MODEL_DONE").exists():
+        if not receipt.is_file() or json.loads(receipt.read_text()) != request:
+            raise ValueError(
+                "Existing model has different inputs/settings; use a fresh project structure"
+            )
+        return check(
+            SimpleNamespace(
+                root=str(paths.root), state=args.state, variant=args.variant, model=None
+            )
+        )
+    if parent.exists() and any(parent.iterdir()):
+        raise ValueError("Incomplete/nonempty model folder preserved; inspect before retrying")
+    parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [sys.executable, "-m", "colabmda.cli", "modeller", *argv, "--seed", str(args.seed)],
+        check=True,
+    )
+    write_json(receipt, request)
+    check(SimpleNamespace(root=str(paths.root), state=args.state, variant=args.variant, model=None))
+    return 0
+
+
 def assemble(args):
-    """Transfer a reviewed ATP/Mg pose by matching canonical CDKL5 core residues."""
+    """Transfer a reviewed pose or a checked public homologous ATP/Mg donor."""
+    if getattr(args, "template", None):
+        from colabmda.core.pose import assemble_public
+
+        return assemble_public(args)
+    if not all(
+        getattr(args, key, None)
+        for key in ["receptor", "reference", "ligand", "ions", "mapping", "out"]
+    ):
+        raise ValueError(
+            "Supply --state/--template or explicit receptor/reference/ligand/ions/mapping/out"
+        )
+    if getattr(args, "relax_sidechains", False):
+        raise ValueError("Sidechain relaxation is available only for a public donor")
     import numpy as np
 
     parser = PDBParser(QUIET=True)
