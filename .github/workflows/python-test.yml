@@ -40,11 +40,13 @@ jobs:
           environment-file: /tmp/colabmda-ci.yml
           environment-name: colabmda
           create-args: >-
-            pytest ruff black build
+            pytest ruff black
           cache-environment: true
           init-shell: bash
       - name: Install package
-        run: python -m pip install --no-deps -e .
+        run: |
+          python -m pip install "setuptools>=68" wheel build
+          python -m pip install --no-deps -e .
       - name: Check source and scripts
         run: |
           ruff check .
