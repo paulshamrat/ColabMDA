@@ -127,7 +127,8 @@ is the short 4BGQ pilot.
 State guides link to the shared layout instead of repeating its tree. Keep one
 compact command reference near the end (section 5), with options available through
 --help. Workflow sections retain runnable steps, not duplicate command catalogs.
-Place one badge row directly below the title: release, CI, license and repository.
+Place one badge row directly below the title: release, CI, license, repository,
+Issues, Black and Ruff. Keep the development/style badges visible there.
 Follow it with package purpose and where to start. Keep platform/dependency details
 in Platform Setup, with development/support links in CONTRIBUTING.md.
 Put state-guide links with the workflow and test outcomes in section 6, Validation.
