@@ -137,3 +137,20 @@ def test_installer_keeps_license_out_of_arguments_and_private_files(tmp_path):
         assert p.stat().st_mode & 0o777 == 0o600
         assert secret in p.read_text()
     assert "conda env config vars set KEY_MODELLER=" not in script
+
+
+def test_hooks_keep_executable_bits_in_the_git_index():
+    rows = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(ROOT),
+            "ls-files",
+            "--stage",
+            ".githooks/pre-commit",
+            ".githooks/pre-push",
+        ],
+        text=True,
+    ).splitlines()
+    assert len(rows) == 2
+    assert all(row.startswith("100755 ") for row in rows)
