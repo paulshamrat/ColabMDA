@@ -101,13 +101,10 @@ Do not claim a new GPU run when only CPU/template tests were performed.
 ## Documentation upkeep
 
 README.md is the complete maintained user guide. Preserve its established project
-information, full modeling/apo/holo protocol, calculations, small example,
-acknowledgements, changelog and citation. Follow the user-approved reading order:
-package purpose, installation, first simulation, full workflow, then project/source
-layout and package metadata. Use simple, direct, concise language. Protein names
-identify worked examples, not the package scope. Keep detailed run history in the
-execution project; do not lead the README with internal validation or migration
-notes. Do not replace the full guide with an example-only quickstart.
+information, numbered platform setup, project architecture, full modeling/apo/holo
+simulation protocol, small example, acknowledgements, changelog and citation
+sections. Make focused updates; do not replace the full guide with a quickstart
+or reorganize it without an explicit user request.
 
 Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary
 Markdown workflow guides under docs/ with nested platform setup, as explicitly
