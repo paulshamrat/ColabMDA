@@ -125,6 +125,9 @@ simulation project. The optional Trp-cage layout belongs with section 4's exampl
 State guides link to the shared layout instead of repeating its tree. Keep one
 compact command reference near the end (section 5), with options available through
 --help. Workflow sections retain runnable steps, not duplicate command catalogs.
+Keep the opening focused on package purpose and where to start. Show project
+metadata as inline badges and a compact platform/dependency line, not a table.
+Put state-guide links with the workflow and test outcomes in section 6, Validation.
 
 Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary
 Markdown workflow guides under docs/ with nested platform setup, as explicitly

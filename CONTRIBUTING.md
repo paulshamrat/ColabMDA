@@ -63,6 +63,8 @@ Consolidate tool and simulation layouts in README section 2. Keep the Trp-cage
 layout beside its section 4 example, and link state guides to the shared layout.
 Use one compact command reference near the end; detailed options belong in --help.
 Keep runnable workflow commands and quantitative protocol explanations in place.
+Use a short opening with inline badges and a clear starting path. Keep detailed
+guide links in the workflow and validation results near the end of the README.
 
 Validate guide code blocks and command arguments against the current CLI. State
 which checks were executed and which GPU or cluster steps remain unexecuted.

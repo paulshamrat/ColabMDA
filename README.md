@@ -2,34 +2,15 @@
 
 **ColabMDA** supports protein modeling, parameterization, checkpointed OpenMM simulations, trajectory processing and analysis on Google Colab, HPC clusters and Linux workstations. This README is the user guide, from platform setup through apo/holo workflows and visualization.
 
-
 ---
 
-## 🛠 Project Information
+[![Release](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) [![Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) [![CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) [![Issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-| Category | Details |
-| :--- | :--- |
-| **Release** | [![GitHub tag](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) |
-| **Availability** | [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) |
-| **Workflows** | [![Python CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) |
-| **Issues** | [![GitHub issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) |
-| **License** | [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
-| **Style / Lint** | [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
-| **Dependencies** | `OpenMM`, `AmberTools (tleap, cpptraj)`, `Modeller`, `MDAnalysis`, `MDTraj`, `PDB2PQR / PROPKA` |
-| **Platform** | `Linux` · `Google Colab (CLI / Terminal)` · `HPC (SLURM)` |
-| **Structure** | [Source Layout](#project-structure) |
+**Platforms:** Linux · Google Colab · Slurm | **Dependencies:** OpenMM · AmberTools · MODELLER · MDAnalysis · MDTraj · PDB2PQR/PROPKA
 
-
-CDKL5 command-based workflows are in [Protein in water](docs/apo.md) and
-[ATP with one Mg](docs/atpmg.md). Platform instructions are separate:
-[Google Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
-The main walkthrough is in section 3. The shared project layout is in
-[Project Architecture](#2-project-architecture).
-
-The public-input example passed WT/L119R modeling and preparation checks.
-WT apo and ATP/Mg each passed full 24-stage, 1.96 ns equilibration, 100 ps
-production and analysis on Palmetto A100. L119R GPU runs remain untested.
-These short pilots verify the workflow, not mutation effects or convergence.
+Start with [Platform Setup](#1-platform-setup), then follow the
+[Simulation Workflow](#3-simulation-protocol-cmda). For a quick test, use the
+[Small Example](#4-small-example--validation).
 
 ## 1. Platform Setup
 
@@ -279,13 +260,14 @@ This workflow uses CDKL5 WT and L119R, with two states:
 
 Start with WT, then repeat with L119R. Both tracks start from public archive and
 UniProt inputs and run through modeling, preparation, simulation and analysis.
-The earlier study-based pilots used different inputs. Public-input GPU validation
-is recorded separately; short pilots do not establish mutation effects or convergence.
+See [Validation](#6-validation) for tested systems and limits.
 
 Structure sources: [4BGQ](https://www.rcsb.org/structure/4BGQ) and
 [O76039](https://www.uniprot.org/uniprotkb/O76039/entry).
-The separate [apo](docs/apo.md) and [ATP/Mg](docs/atpmg.md) guides provide the same
-workflow by state. Section 4 retains Trp-cage as an optional quick software test.
+For separate walkthroughs, see [Protein in water](docs/apo.md) and
+[ATP with one Mg](docs/atpmg.md). Platform details are in the
+[Google Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md) guides.
+Section 4 retains Trp-cage as an optional quick software test.
 
 ### 3.1. Homology Modeling & Mutagenesis
 
@@ -1016,6 +998,17 @@ Use `cmda --help` to list commands and `cmda COMMAND --help` for options, for
 example `cmda sim --help`. Workflow sections show only the commands needed for
 each step. Use `cmda openmm compare` for plots; top-level `cmda compare` only
 reports a request.
+
+---
+
+## 6. Validation
+
+The public-input example passed WT/L119R modeling and preparation checks.
+WT apo and ATP/Mg each passed full 24-stage, 1.96 ns equilibration, 100 ps
+production and analysis on Palmetto A100. L119R GPU runs remain untested.
+These short pilots verify the workflow, not mutation effects or convergence.
+
+The earlier study-based pilots used different starting inputs.
 
 ---
 
