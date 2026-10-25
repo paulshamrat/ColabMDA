@@ -127,8 +127,9 @@ is the short 4BGQ pilot.
 State guides link to the shared layout instead of repeating its tree. Keep one
 compact command reference near the end (section 5), with options available through
 --help. Workflow sections retain runnable steps, not duplicate command catalogs.
-Keep the opening focused on package purpose and where to start. Show project
-metadata as inline badges and a compact platform/dependency line, not a table.
+Place one badge row directly below the title: release, CI, license and repository.
+Follow it with package purpose and where to start. Keep platform/dependency details
+in Platform Setup, with development/support links in CONTRIBUTING.md.
 Put state-guide links with the workflow and test outcomes in section 6, Validation.
 
 Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary

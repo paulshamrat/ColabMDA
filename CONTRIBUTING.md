@@ -10,6 +10,10 @@ Use `dev1` for private research and active development. Public `main` is reserve
 for approved, sanitized releases; do not merge private development history into it.
 Keep changes focused and describe the resulting behavior and validation.
 
+Report reproducible problems through [GitHub Issues](https://github.com/paulshamrat/ColabMDA/issues).
+Formatting and linting use [Black](https://github.com/psf/black) and
+[Ruff](https://github.com/astral-sh/ruff).
+
 Install the core environment from `environment.yml`, activate `colabmda`, then
 install the checkout with `python -m pip install -e .`. MODELLER is optional;
 use the single `scripts/setup.sh` installer and its key prompt when needed.
@@ -63,8 +67,10 @@ Consolidate tool and simulation layouts in README section 2. Keep optional Trp-c
 the short 4BGQ pilot. Link state guides to the shared layout.
 Use one compact command reference near the end; detailed options belong in --help.
 Keep runnable workflow commands and quantitative protocol explanations in place.
-Use a short opening with inline badges and a clear starting path. Keep detailed
-guide links in the workflow and validation results near the end of the README.
+Keep release, CI, license and repository badges directly below the README title,
+then its short purpose and starting path. Platform/dependency details belong in
+Platform Setup. Keep detailed guide links in the workflow and validation results
+near the end of the README.
 
 Validate guide code blocks and command arguments against the current CLI. State
 which checks were executed and which GPU or cluster steps remain unexecuted.
