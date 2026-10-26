@@ -215,3 +215,34 @@ adapters leave partition/account selection to the user; private execution-projec
 adapters retain account-specific settings. Preserve the README design/scientific
 protocol. License installation reads the key from the environment, uses private
 permissions and does not place key values in subprocess arguments.
+
+### Required checks for every commit and release
+
+- Before committing, verify `core.hooksPath=.githooks`, both hooks are executable,
+  and the configured Gitleaks binary is available. Keep the private checkout's
+  push URL disabled and `colabmda.privateCheckout=true`. Never use `--no-verify`,
+  unset these guards or weaken scanner rules to make a commit/push pass.
+- Review staged paths and scan the exact staged snapshot through the pre-commit
+  hook, including initial commits. Pay particular attention to notebook output,
+  copied terminal sessions, configuration, fixtures and generated archives.
+  Do not print raw suspicious diffs; use fully redacted scanner output.
+- Keep default Gitleaks rules plus the custom MODELLER and Google authentication
+  cookie rules enabled. Tests use synthetic credentials or explicit placeholders,
+  never historical leaked values. New credential-handling code must keep hidden
+  prompts, avoid argument/log exposure and preserve private file permissions.
+- A public release uses a separate reviewed checkout with clean public ancestry.
+  Scan all reachable refs using the command below, then scan the actual source
+  export and unpacked wheel with the same configuration.
+  Verify exclusions and scan a fresh clone of the published refs after release.
+  Record commit IDs, scan scope and results without credential values.
+- Keep secret scanning, push protection and the CI credential scan enabled.
+  They supplement local checks; a green scan is not proof that credentials were
+  revoked or that external copies were removed. Do not claim checks not performed.
+- Historical cleanup bundles and reports stay restricted in the owning execution
+  project's ignored data tree. Never include them in source snapshots, releases,
+  Colab/HPC deployments or public issue attachments. Report exposure safely and
+  leave provider account actions to the owner; do not test leaked credentials.
+
+```bash
+gitleaks git --log-opts=--all --redact=100 --config .gitleaks.toml .
+```
