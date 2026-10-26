@@ -123,7 +123,7 @@ def colab_push(
 
     project_name = project or local_root.name
     if project_name in {"research", "projects", "ColabMDA"}:
-        project_name = "colabmda-example"
+        project_name = "cmda-example"
     remote_base = f"/content/drive/MyDrive/research/projects/{project_name}"
 
     print(f"[INFO] Packaging local data/ from {local_root}...")
@@ -178,7 +178,7 @@ def colab_pull(
     local_root = Path(root or os.getcwd()).resolve()
     project_name = project or local_root.name
     if project_name in {"research", "projects", "ColabMDA"}:
-        project_name = "colabmda-example"
+        project_name = "cmda-example"
     remote_base = f"/content/drive/MyDrive/research/projects/{project_name}"
     remote_tar = "/content/_cmda_pull.tar.gz"
 
@@ -329,7 +329,7 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_push.add_argument(
         "--project",
         default=None,
-        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+        help="Remote project folder name in Google Drive (default: directory name or cmda-example)",
     )
     p_push.add_argument(
         "--timeout",
@@ -354,7 +354,7 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_pull.add_argument(
         "--project",
         default=None,
-        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+        help="Remote project folder name in Google Drive (default: directory name or cmda-example)",
     )
     p_pull.add_argument(
         "--all",

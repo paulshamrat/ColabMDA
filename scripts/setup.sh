@@ -31,7 +31,7 @@ if [[ -z "${DRIVE_RUNS_DIR}" ]] && [[ -d "/content/drive/MyDrive" ]]; then
   DRIVE_RUNS_DIR="/content/drive/MyDrive/research/projects"
 fi
 OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
-ENV_NAME="${ENV_NAME:-colabmda}"
+ENV_NAME="${ENV_NAME:-cmda}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

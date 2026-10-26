@@ -368,7 +368,7 @@ cd "${{PROJECT_ROOT}}"
 # Activate environment
 if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
-    conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
+    conda activate cmda 2>/dev/null || conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
 fi
 
 STATE="{spec.state_tag}"
@@ -408,7 +408,7 @@ cd "${{PROJECT_ROOT}}"
 # Activate environment
 if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
-    conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
+    conda activate cmda 2>/dev/null || conda activate colabmda 2>/dev/null || conda activate openmm_env 2>/dev/null || true
 fi
 
 STATE="{spec.state_tag}"
@@ -1201,7 +1201,7 @@ def main():
         "-s",
         "--session",
         default=None,
-        help="Colab session name (e.g. colabmda-example)",
+        help="Colab session name (e.g. cmda-example)",
     )
     p_top_push.add_argument(
         "--root",
@@ -1211,7 +1211,7 @@ def main():
     p_top_push.add_argument(
         "--project",
         default=None,
-        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+        help="Remote project folder name in Google Drive (default: directory name or cmda-example)",
     )
     p_top_push.add_argument(
         "--timeout",
@@ -1228,7 +1228,7 @@ def main():
         "-s",
         "--session",
         default=None,
-        help="Colab session name (e.g. colabmda-example)",
+        help="Colab session name (e.g. cmda-example)",
     )
     p_top_pull.add_argument(
         "--root",
@@ -1238,7 +1238,7 @@ def main():
     p_top_pull.add_argument(
         "--project",
         default=None,
-        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+        help="Remote project folder name in Google Drive (default: directory name or cmda-example)",
     )
     p_top_pull.add_argument(
         "--all",
