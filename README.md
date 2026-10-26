@@ -6,27 +6,34 @@
 
 ---
 
-## 1. Local Workstation Setup (One-Time Setup)
+## 1. Installation: Where, What, & When to Install
 
-ColabMDA uses a **Hybrid Architecture** designed to save cloud compute units and avoid idle timeouts:
-* **Local Machine (CPU):** Fast homology modeling with Modeller (~20 seconds) and interactive 3D visual inspection in local PyMOL.
-* **Google Colab (GPU):** Heavy Amber parameterization, 24-stage equilibration, and 100 ns OpenMM MD on free cloud GPUs (NVIDIA T4 / A100).
+ColabMDA uses a **Hybrid Architecture** designed to preserve free cloud compute units and avoid session timeouts. To keep workflows simple, the conda environment is named **`cmda`** in both environments:
+
+| Environment | Where It Runs | What Gets Installed | When To Install |
+| :--- | :--- | :--- | :--- |
+| **1. Local Environment (`cmda`)** | Your Laptop / Workstation (macOS, Linux, WSL) | Python, MODELLER, Open-Source PyMOL, `google-colab-cli`, ColabMDA CLI | **Do this right now (one-time setup).** |
+| **2. Cloud GPU Environment (`cmda`)** | Google Colab Cloud VM (NVIDIA T4 / A100) | OpenMM (CUDA), AmberTools `tleap`, MDAnalysis, ColabMDA CLI | **Do this in Phase 3** (only after launching your GPU instance). |
 
 ```mermaid
 flowchart LR
-    A["💻 Local Machine<br/>(cmda env)"] -->|"cmda push<br/>(One Command)"| B["☁️ Google Drive<br/>(/MyDrive/research/projects)"]
-    B <-->|"Mount & Compute"| C["⚡ Google Colab<br/>(cmda env on GPU)"]
+    A["💻 Local Machine<br/>(cmda env: Modeller & PyMOL)"] -->|"cmda push<br/>(One Command)"| B["☁️ Google Drive<br/>(/MyDrive/research/projects)"]
+    B <-->|"Mount & Compute"| C["⚡ Google Colab<br/>(cmda env: OpenMM GPU)"]
     B -->|"cmda pull<br/>(One Command)"| A
 ```
 
 ---
 
-### 1.1. Install Local Environment (`cmda`)
+### 1.1. Local Installation (Do This Now on Your Workstation)
 
-Run these commands in your local terminal (macOS, Linux, or Windows WSL):
+* **Where:** Your local terminal (macOS, Linux, or Windows WSL).
+* **What:** Homology modeling engine (Modeller), interactive 3D viewer (PyMOL), and the Colab remote CLI.
+* **When:** Right now, before starting any modeling work.
+
+Run these commands in your local terminal:
 
 ```bash
-# 1. Create and activate the conda environment (cmda)
+# 1. Create and activate the local conda environment (cmda)
 conda create -n cmda python=3.12 -y
 conda activate cmda
 
@@ -49,10 +56,27 @@ pip install git+https://github.com/paulshamrat/ColabMDA.git@dev1
 > [!NOTE]
 > **Modeller Academic License:** Modeller is completely free for academic use. Get your license key instantly at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
 
+---
+
+### 1.2. Cloud GPU Installation (Do This Later in Phase 3 on Colab)
+
+* **Where:** Inside the Google Colab GPU terminal/console (not on your laptop).
+* **What:** Miniforge, OpenMM with CUDA acceleration, AmberTools `tleap`, and MDAnalysis.
+* **When:** Later in **Phase 3** when your models are ready and you connect to the cloud GPU.
+
 > [!IMPORTANT]
-> **When Do I Launch Google Colab?**  
-> **Do NOT launch Google Colab yet!** Fast homology modeling (Modeller) and PyMOL 3D quality checks run locally on your laptop CPU (taking ~20 seconds).  
-> You will launch your Google Colab GPU instance in **Phase 2 & 3** when your structures are modeled and you are actually ready to run molecular dynamics simulations. This prevents idle Colab timeouts and preserves your free cloud compute quota.
+> **Do NOT launch Google Colab yet!**  
+> Fast homology modeling (Modeller) and PyMOL 3D quality checks run locally on your laptop CPU (taking ~20 seconds).  
+> You will launch your Google Colab GPU instance in **Phase 2 & 3** when your coordinates are ready for molecular dynamics. This prevents idle Colab timeouts and preserves your free cloud compute quota.
+
+*(When you reach Phase 3, you will provision the cloud environment with these exact commands inside the Colab console):*
+```bash
+# Inside Colab console (Phase 3):
+git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git /content/ColabMDA
+bash /content/ColabMDA/scripts/setup.sh
+source /root/miniforge3/etc/profile.d/conda.sh
+conda activate cmda
+```
 
 ---
 
