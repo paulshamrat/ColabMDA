@@ -185,14 +185,19 @@ def assemble_public(args):
         raise ValueError(
             "Public mode uses state model paths; do not mix explicit reviewed-pose inputs"
         )
-    paths = ProjectPaths(resolve_project_root(args.root), state="atpmg")
-    apo = ProjectPaths(paths.root, state="apo").structure_dir
+    apo = ProjectPaths(resolve_project_root(args.root), state="apo").structure_dir
+    inputs = json.loads((apo / "mapping/input.json").read_text())
+    target_tag = (
+        f"{inputs['uniprot'].upper()}_{inputs['pdb'].upper()}"
+        if "uniprot" in inputs and "pdb" in inputs
+        else None
+    )
+    paths = ProjectPaths(resolve_project_root(args.root), state="atpmg", target=target_tag)
     parent = paths.structure_dir / "models" / args.variant
     out = parent / "complex.pdb"
     marker = parent / "ASSEMBLY_DONE"
     source = apo / "models" / args.variant / f"{args.variant}.pdb"
     check(SimpleNamespace(root=str(paths.root), state="apo", variant=args.variant, model=None))
-    inputs = json.loads((apo / "mapping/input.json").read_text())
     request = dict(
         model_sha256=sha(source),
         mapping_sha256=sha(apo / "mapping/input.json"),
