@@ -32,13 +32,13 @@ ColabMDA is organized into clear, functional modules:
 
 ---
 
-## 1. Quick Start (Google Colab Installation)
+## 1. Quick Start (Google Colab CLI)
 
-You can run ColabMDA directly inside the **Colab Terminal** or via the **Google Colab CLI** from your local machine.
+ColabMDA is designed to be operated directly from your terminal using the official **Google Colab CLI (`google-colab-cli`)**. This eliminates browser disconnects, clunky web editors, and lost tabs by streaming an interactive GPU terminal session directly into your shell.
 
-### 1.1. Connect via Google Colab CLI (Recommended)
+### 1.1. Launch GPU Session & Mount Drive (Local Terminal)
 
-Run these commands in your local terminal:
+Run these three commands in your local terminal:
 
 ```bash
 # 1. Install Colab CLI & authenticate (one-time browser login)
@@ -47,20 +47,25 @@ colab sessions
 
 # 2. Launch Google Colab GPU session & mount Google Drive
 colab new -s colabmda-example --gpu T4
-# Visit the OAuth URL printed in terminal to grant Drive access, then press Enter:
+# Visit the OAuth link printed in terminal to approve Drive access, then press Enter:
 colab drivemount --session colabmda-example
 
-# 3. Connect to the interactive Colab console
+# 3. Connect to the interactive Colab console terminal
 colab console -s colabmda-example
 ```
 
-*(Alternatively, in the Colab web interface: select `Runtime` → `Change runtime type` → **T4 GPU**, mount Drive, and open the terminal via the **⋮** menu → **Terminal**).*
+> 💡 **Why Colab CLI?**
+> * **No Browser Tab Needed:** You interact with the cloud GPU directly in your native terminal.
+> * **Instant Reconnect:** If your connection drops, simply run `colab console -s colabmda-example` to reattach to the running instance.
+> * **Full Terminal Power:** Native keyboard shortcuts, tmux/screen, and bash history without browser conflicts.
+>
+> *(Optional Browser Fallback: If you prefer the Google Colab web interface, select `Runtime` → `Change runtime type` → **T4 GPU**, mount Drive, and click the **⋮** menu → **Terminal**).*
 
 ---
 
-### 1.2. Install ColabMDA & Activate Environment
+### 1.2. Install ColabMDA & Activate Environment (Inside Colab Console)
 
-Now **inside the Colab console / terminal**, install the environment and activate it:
+Now that you are attached to the Colab GPU terminal via `colab console`, install the scientific environment:
 
 ```bash
 # 1. Clone ColabMDA on the cloud GPU instance
@@ -92,9 +97,15 @@ cmda --help
 
 ### 💡 Tip: How to Resume After a Timeout
 If your Google Colab session expires:
-1. Re-mount Drive and run **Step 1.2** to re-provision the environment.
-2. Navigate to your project directory on Drive and run the **exact same `cmda sim md` command**.
-3. ColabMDA automatically detects existing checkpoint files (`.chk`) and resumes without repeating completed work.
+1. Launch a session and re-mount Drive:
+   ```bash
+   colab new -s colabmda-example --gpu T4
+   colab drivemount --session colabmda-example
+   colab console -s colabmda-example
+   ```
+2. Re-run **Step 1.2** to re-provision the environment.
+3. Navigate to your project directory on Drive and run the **exact same `cmda sim md` command**.
+4. ColabMDA automatically detects existing checkpoint files (`.chk`) and resumes without repeating completed work.
 
 ---
 
