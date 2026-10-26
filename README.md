@@ -4,8 +4,6 @@
 
 **ColabMDA** is a specialized framework for running high-quality Molecular Dynamics simulations on Google Colab without the fear of losing your progress. The biggest challenge with Google Colab is session timeouts and disconnections, which frequently destroy hours of simulation work. **ColabMDA fixes this** with a "resume-safe" architecture that continuously saves checkpoints directly to Google Drive. If your session expires, you can resume exactly where you left off with one simple command. From homology modeling and point mutations to 24-stage equilibration and publication-ready comparative figures, ColabMDA handles the entire pipeline using free cloud GPUs.
 
-📖 **Full Documentation:** Visit our official manual at [colabmda.readthedocs.io](https://colabmda.readthedocs.io/)
-
 ---
 
 ## 1. Installation: Universal One-Command Setup
@@ -31,8 +29,8 @@ flowchart LR
 A single bootstrap script sets up Miniforge, the `cmda` conda environment, Modeller, PyMOL, AmberTools, MDAnalysis, and `google-colab-cli` automatically—**without requiring you to clone the git repository**:
 
 ```bash
-# 1. Download and run the universal bootstrap script (no git clone needed):
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh -o setup.sh && bash setup.sh
+# 1. Run the universal bootstrap script (runs in-memory, leaves no files behind):
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
 
 # 2. Activate the environment
 source ~/miniforge3/etc/profile.d/conda.sh
