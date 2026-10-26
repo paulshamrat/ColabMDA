@@ -17,50 +17,28 @@ Start with [Quick Start](#1-platform-setup), then follow the
 **Runtime:** Google Colab GPU (T4 / A100 / L4) | **Persistent Storage:** Google Drive  
 **Scientific Engine:** OpenMM · AmberTools · MODELLER · MDAnalysis · MDTraj · PROPKA
 
-Follow these 4 steps in your terminal to launch your Colab GPU session and install ColabMDA:
-
 ---
 
-### Step 1: Install & Authenticate the Colab CLI
+### Step 1: Connect to Google Colab GPU
 
-In your terminal, install the lightweight Colab CLI and authenticate with your Google account:
+Run these commands in your terminal to authenticate, create your cloud GPU instance, mount Drive, and connect:
 
 ```bash
-# 1. Install the Google Colab CLI
+# 1. Install Colab CLI & authenticate (one-time browser login)
 pip install google-colab-cli
-
-# 2. Authenticate with your Google account (opens one-time browser login)
 colab sessions
-```
 
----
-
-### Step 2: Configure & Launch Google Colab GPU
-
-Create your GPU cloud instance and attach persistent Google Drive storage:
-
-```bash
-# 1. Allocate a remote Google Colab GPU session (T4)
+# 2. Launch Google Colab GPU session & mount Google Drive
 colab new -s colabmda-example --gpu T4
-
-# 2. Mount your Google Drive to keep checkpoints and results safe
 colab drivemount --session colabmda-example
-```
 
----
-
-### Step 3: Connect to the Colab Console
-
-Open the interactive shell into your Colab GPU instance:
-
-```bash
-# Connect directly to the Colab terminal console
+# 3. Connect to the interactive Colab console
 colab console -s colabmda-example
 ```
 
 ---
 
-### Step 4: Install ColabMDA & Activate Environment
+### Step 2: Install ColabMDA & Activate Environment
 
 Now **inside the Colab console**, clone the repository and run the automated installer:
 
@@ -81,18 +59,33 @@ export MPLBACKEND=Agg
 cmda --help
 ```
 
-> 🔑 **Modeller License:** During Step 4.2, the installer will pause and prompt for an optional free MODELLER key for protein modeling. If you don't have one, register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
+> 🔑 **Modeller License:** During setup, the installer will pause and prompt for an optional free MODELLER key for protein modeling. If you don't have one, register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
+
+<details>
+<summary><b>🛠️ Developer Tip: Installing an existing checkout or custom branch</b></summary>
+
+If you already have a custom checkout in `/content/ColabMDA` and want to install it directly in editable mode:
+```bash
+pip install -e /content/ColabMDA
+```
+</details>
 
 ---
 
 ### 💡 Session Recovery & Checkpointing
 
 If your Colab session times out, your checkpoints and completed chunks are safely preserved on your Google Drive under `/content/drive/MyDrive/research/projects/`:
-1. Re-run **Steps 2 & 3** (`colab new`, `colab drivemount`, `colab console`).
+1. Re-launch the session and reconnect:
+   ```bash
+   colab new -s colabmda-example --gpu T4
+   colab drivemount --session colabmda-example
+   colab console -s colabmda-example
+   ```
 2. Inside the console, activate the environment (`conda activate colabmda`).
 3. Re-run your simulation command (`cmda sim ...`). ColabMDA automatically detects the saved checkpoints on Drive and resumes from the last completed chunk without lost time.
 
 > 💡 **HPC Clusters & Local Workstations:** The simulation commands in Sections 3 and 4 are identical across all platforms. Cluster (SLURM) and workstation deployment guides are documented in [`docs/platforms/hpc.md`](docs/platforms/hpc.md).
+
 
 ---
 
