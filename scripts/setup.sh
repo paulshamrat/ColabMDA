@@ -33,6 +33,12 @@ OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
 ENV_NAME="${ENV_NAME:-colabmda}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+if [[ -z "${COLABMDA_SOURCE:-}" ]] && [[ -f "${REPO_DIR}/pyproject.toml" ]]; then
+  COLABMDA_SOURCE="${REPO_DIR}"
+fi
+
 INSTALL_REF="${INSTALL_REF:-}"
 if [[ -z "${INSTALL_REF}" ]]; then
   if [[ "${TAG}" == "latest" ]]; then
@@ -221,7 +227,8 @@ except Exception as e:
 # 3. Core libraries
 import MDAnalysis
 print(f"[HEALTH] MDAnalysis v{MDAnalysis.__version__}: OK")
-print(f"[HEALTH] ColabMDA v{colabmda.__version__}: OK")
+version = getattr(colabmda, "__version__", getattr(colabmda, "VERSION", "0.2.0"))
+print(f"[HEALTH] ColabMDA v{version}: OK")
 PY
 
 if command -v tleap >/dev/null 2>&1; then
