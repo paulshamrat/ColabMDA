@@ -229,23 +229,17 @@ conda activate colabmda
 ---
 
 ### 4.1. Homology Modeling & Point Mutations (Modeller)
-**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 The modeling workflow enforces strict **Biological UniProt Numbering**, automated loop completion, and coordinate validation gates:
 
 ```bash
-# 1. Activate environment and enter project directory:
-source /root/miniforge3/etc/profile.d/conda.sh
-conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
-# 2. Fetch template coordinates (PDB 4BGQ) and map UniProt (O76039, residues 1–303)
+# 1. Fetch template coordinates (PDB 4BGQ) and map UniProt (O76039, residues 1–303)
 cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303
 
-# 3. Build full Wild-Type model (fills all 27 missing loop residues)
+# 2. Build full Wild-Type model (fills all 27 missing loop residues)
 cmda model --state apo --variant WT
 
-# 4. Build Point Mutant (L119R) on the verified WT backbone
+# 3. Build Point Mutant (L119R) on the verified WT backbone
 cmda model --state apo --variant L119R
 ```
 
@@ -258,15 +252,10 @@ cmda model --state apo --variant L119R
 ---
 
 ### 4.2. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
-**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 Accurate protonation states are critical for biophysical fidelity. ColabMDA integrates **PDBFixer**, **PROPKA 3**, and **AmberTools `tleap`** to assign physiological protonation states at pH 7.4, solvate with OPC 4-point water, neutralize with 150 mM NaCl, and build Amber `ff19SB` topologies:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # 1. Parameterize and solvate Wild-Type
 cmda prep --state apo --variant WT
 
@@ -282,16 +271,11 @@ cmda prep --state apo --variant L119R
 ---
 
 ### 4.3. Simulation Execution: 24-Stage Equilibration & Production MD
-**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 ColabMDA uses a standardized 24-stage equilibration ladder (1.96 ns total) that progressively heats the system to 300 K and relaxes positional restraints before production MD:
 
 #### Step 1: Initialize Stage & Shared Equilibration Hub (`02_eq/`)
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # Initialize simulation directories
 cmda stage --state apo --variant WT
 
@@ -308,10 +292,6 @@ cmda sim qc --state apo --variant WT
 Replicas fork from `02_eq/` with distinct random velocity seeds into `03_md/`:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # Replica 1 (e.g. 10 ns chunked production run)
 cmda sim md --state apo --variant WT --replica r1 --length-ns 10
 
@@ -329,15 +309,10 @@ cmda sim md --state apo --variant WT --replica r3 --length-ns 10
 ---
 
 ### 4.4. Merge Trajectories & Apply PBC Autoimaging
-**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 Concatenate trajectory chunks, apply periodic boundary condition (PBC) autoimaging, center the protein, and strip solvent:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # Merge Wild-Type replicas
 cmda merge --state apo --variant WT
 
@@ -352,16 +327,11 @@ cmda merge --state apo --variant L119R
 ---
 
 ### 4.5. Trajectory Analysis & Direct Overlay Comparison
-**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 #### Step 1: Single-Variant Analysis (RMSD, Rg, RMSF)
 Calculate backbone metrics for each replica:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # Analyze Wild-Type replicas
 cmda analysis --state apo --variant WT
 
@@ -373,10 +343,6 @@ cmda analysis --state apo --variant L119R
 Automatically aggregate triplicate statistics and generate publication-grade comparison plots:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # Compare WT vs L119R (computes Triplicate Mean ± SD)
 cmda compare --state apo --variants WT,L119R
 ```
@@ -400,10 +366,6 @@ To investigate catalytic active-site geometry, cofactor coordination, and how pa
 ColabMDA transfers cofactor coordinates from homologous public donor structures using verified structural alignment without requiring manual docking or private files:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
 cmda assemble --state atpmg --template 8FP5 --variant WT --relax-sidechains
 
@@ -427,10 +389,6 @@ cmda assemble --state atpmg --template 8FP5 --variant L119R --relax-sidechains
 Once the complex coordinates are assembled, parameterize the protein-cofactor system:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # Parameterize Holo WT
 cmda prep --state atpmg --variant WT
 
@@ -451,10 +409,6 @@ cmda prep --state atpmg --variant L119R
 Every downstream simulation and analysis command runs identically to the apo track, simply passing `--state atpmg`:
 
 ```bash
-# Ensure environment & directory are active:
-source /root/miniforge3/etc/profile.d/conda.sh && conda activate colabmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
-
 # 1. Initialize Stage & Shared Equilibration Hub (02_eq/)
 cmda stage --state atpmg --variant WT
 cmda sim eq --state atpmg --variant WT
