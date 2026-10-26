@@ -186,6 +186,9 @@ research/projects/colabmda-example/       # Your project root on Google Drive
         └── analysis/run01/{WT, L119R, compare/figures}
 ```
 
+> 💡 **What is `run01`?**
+> In biomolecular modeling, you may want to test different simulation lengths or physical conditions without overwriting previous results. ColabMDA organizes runs into trial folders (defaulting automatically to `run01`). The CLI manages this automatically behind the scenes—you never need to manually create or configure `run01/`.
+
 > 💡 **Why Shared Equilibration (`02_eq/`)?**
 > The 24-stage equilibration ladder (EM, thermalization, density relaxation) only needs to be calculated once per variant. Replicas (`r1`, `r2`, `r3`) fork from `02_eq/` with distinct random velocity seeds, saving substantial GPU time while guaranteeing true statistical independence.
 
@@ -202,6 +205,10 @@ research/projects/colabmda-example/       # Your project root on Google Drive
 6. **Production MD:** Execute resume-safe chunked production MD across triplicates (`r1`, `r2`, `r3`).
 7. **Merge:** Combine trajectory chunks into centered, wrapped, solvent-stripped trajectories.
 8. **Analyze & Compare:** Compute RMSD, $R_g$, and RMSF, and overlay WT vs Mutant triplicate statistics.
+
+> 💡 **Unified Environment & Working Directory:**
+> * **Single Environment:** All modeling, simulation, and analysis commands run in the unified **`colabmda`** conda environment.
+> * **Project Directory:** Always run `cmda` commands from your project root (e.g. `/content/drive/MyDrive/research/projects/colabmda-example`).
 
 ---
 
@@ -222,11 +229,13 @@ conda activate colabmda
 ---
 
 ### 4.1. Homology Modeling & Point Mutations (Modeller)
-**Environment:** `colabmda`
+**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 The modeling workflow enforces strict **Biological UniProt Numbering**, automated loop completion, and coordinate validation gates:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # 1. Fetch template coordinates (PDB 4BGQ) and map UniProt (O76039, residues 1–303)
 cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303
 
@@ -246,11 +255,13 @@ cmda model --state apo --variant L119R
 ---
 
 ### 4.2. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
-**Environment:** `colabmda`
+**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 Accurate protonation states are critical for biophysical fidelity. ColabMDA integrates **PDBFixer**, **PROPKA 3**, and **AmberTools `tleap`** to assign physiological protonation states at pH 7.4, solvate with OPC 4-point water, neutralize with 150 mM NaCl, and build Amber `ff19SB` topologies:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # 1. Parameterize and solvate Wild-Type
 cmda prep --state apo --variant WT
 
@@ -266,12 +277,14 @@ cmda prep --state apo --variant L119R
 ---
 
 ### 4.3. Simulation Execution: 24-Stage Equilibration & Production MD
-**Environment:** `colabmda`
+**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 ColabMDA uses a standardized 24-stage equilibration ladder (1.96 ns total) that progressively heats the system to 300 K and relaxes positional restraints before production MD:
 
 #### Step 1: Initialize Stage & Shared Equilibration Hub (`02_eq/`)
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # Initialize simulation directories
 cmda stage --state apo --variant WT
 
@@ -288,6 +301,8 @@ cmda sim qc --state apo --variant WT
 Replicas fork from `02_eq/` with distinct random velocity seeds into `03_md/`:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # Replica 1 (e.g. 10 ns chunked production run)
 cmda sim md --state apo --variant WT --replica r1 --length-ns 10
 
@@ -305,11 +320,13 @@ cmda sim md --state apo --variant WT --replica r3 --length-ns 10
 ---
 
 ### 4.4. Merge Trajectories & Apply PBC Autoimaging
-**Environment:** `colabmda`
+**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 Concatenate trajectory chunks, apply periodic boundary condition (PBC) autoimaging, center the protein, and strip solvent:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # Merge Wild-Type replicas
 cmda merge --state apo --variant WT
 
@@ -324,12 +341,14 @@ cmda merge --state apo --variant L119R
 ---
 
 ### 4.5. Trajectory Analysis & Direct Overlay Comparison
-**Environment:** `colabmda`
+**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 #### Step 1: Single-Variant Analysis (RMSD, Rg, RMSF)
 Calculate backbone metrics for each replica:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # Analyze Wild-Type replicas
 cmda analysis --state apo --variant WT
 
@@ -341,6 +360,8 @@ cmda analysis --state apo --variant L119R
 Automatically aggregate triplicate statistics and generate publication-grade comparison plots:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # Compare WT vs L119R (computes Triplicate Mean ± SD)
 cmda compare --state apo --variants WT,L119R
 ```
@@ -353,6 +374,7 @@ cmda compare --state apo --variants WT,L119R
 ---
 
 ### 4.6. Track 2: Holo Dynamics (ATP + $\text{Mg}^{2+}$ Complex)
+**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
 To simulate the catalytically active holo kinase complex with ATP and $\text{Mg}^{2+}$ bound in the active site:
 
@@ -360,6 +382,8 @@ To simulate the catalytically active holo kinase complex with ATP and $\text{Mg}
 Transfer ATP and $\text{Mg}^{2+}$ from donor structure [8FP5](https://www.rcsb.org/structure/8FP5) onto your verified WT and mutant models:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # Assemble Holo WT
 cmda assemble --state atpmg --template 8FP5 --variant WT --relax-sidechains
 
@@ -371,6 +395,8 @@ cmda assemble --state atpmg --template 8FP5 --variant L119R --relax-sidechains
 Every subsequent command is identical to the apo workflow, simply specifying `--state atpmg`:
 
 ```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
 # Prep & Solvate
 cmda prep --state atpmg --variant WT
 cmda prep --state atpmg --variant L119R
