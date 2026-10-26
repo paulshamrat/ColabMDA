@@ -343,8 +343,17 @@ def _state_views(
     for s, v in specs:
         paths = ProjectPaths(root, state=s)
         spec = SystemSpec.from_tag(s, variant=v)
-        prod = paths.replica_dir(spec, replica)
-        is_structure = structure or not (prod / "stripped.prmtop").is_file()
+        if not paths.run_id:
+            prod = None
+            is_structure = True
+        else:
+            try:
+                prod = paths.replica_dir(spec, replica)
+                is_structure = structure or not (prod / "stripped.prmtop").is_file()
+            except Exception:
+                prod = None
+                is_structure = True
+
         if is_structure:
             topo = paths.model_pdb(spec)
             if not topo.is_file():
@@ -365,14 +374,19 @@ def _state_views(
             "1" if is_structure else frames,
             resi,
             v,
-            prod / "prod_full.log" if not is_structure else None,
+            prod / "prod_full.log" if not is_structure and prod else None,
             mapping_file if mapping_file.is_file() else None,
         )
-        record["source_kind"] = "starting_model" if structure else "trajectory"
+        record["source_kind"] = "starting_model" if is_structure else "trajectory"
         datasets.append((f"{s} · {v}", u, panels, record))
     paths = ProjectPaths(root, state=specs[0][0])
     spec = SystemSpec.from_tag(specs[0][0], variant=specs[0][1])
-    folder = paths.analysis_dir(spec) if structure else paths.replica_analysis_dir(spec, replica)
+    if is_structure or not paths.run_id:
+        folder = paths.structure_dir / "models" / spec.variant
+    else:
+        folder = (
+            paths.analysis_dir(spec) if structure else paths.replica_analysis_dir(spec, replica)
+        )
     return datasets, folder
 
 
@@ -535,7 +549,72 @@ def openmm_view(
 ):
     import json
 
-    import MDAnalysis as mda
+    try:
+        import MDAnalysis as mda
+    except ImportError:
+        mda = None
+
+    if mda is None:
+        if png or trajectory:
+            raise ImportError(
+                "Trajectory viewing and offline PNG rendering require MDAnalysis.\n"
+                "Install it with:\n"
+                "  conda install -c conda-forge mdanalysis\n"
+                "or:\n"
+                "  pip install mdanalysis"
+            )
+        from colabmda.core.project import ProjectPaths, resolve_project_root
+        from colabmda.core.taxonomy import SystemSpec
+
+        root_path = resolve_project_root(root)
+        if state:
+            paths = ProjectPaths(root_path, state=state)
+            spec = SystemSpec.from_tag(state, variant=variant)
+            target = paths.model_pdb(spec)
+            if not target.is_file():
+                target = (
+                    paths.structure_dir
+                    / "models"
+                    / variant
+                    / ("complex.pdb" if state == "atpmg" else f"{variant}.pdb")
+                )
+            folder = paths.structure_dir / "models" / variant
+        else:
+            folder = Path(pdb_dir or os.getcwd()).resolve()
+            target = folder / topology if topology else None
+
+        if not target or not target.is_file():
+            raise FileNotFoundError(
+                f"Structure file not found: {target}\n"
+                "Run local modeling first (cmda model) or specify a valid --topology."
+            )
+
+        folder.mkdir(parents=True, exist_ok=True)
+        pml = folder / "visualize.pml"
+        view = ",".join(map(str, CDKL5_CAMERAS.get(camera, CDKL5_CAMERAS["activation"])))
+        pml.write_text(
+            f"""reinitialize
+load "{target}", molecule
+hide everything
+bg_color white
+show cartoon, molecule and polymer.protein
+color wheat, molecule and polymer.protein
+show sticks, molecule and polymer.protein and resi {resi} and not hydro
+color orange, molecule and polymer.protein and resi {resi}
+show sticks, molecule and resn ATP
+color purple, molecule and resn ATP
+show spheres, molecule and resn MG
+color marine, molecule and resn MG
+set orthoscopic, 1
+set_view ({view})
+zoom molecule and polymer.protein, 4
+"""
+        )
+        if not no_launch:
+            cmd = ["pymol", str(pml)]
+            if subprocess.call(cmd) != 0:
+                raise RuntimeError("PyMOL failed")
+        return 0
 
     if state:
         if "," in state or "," in variant:

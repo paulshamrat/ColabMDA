@@ -254,18 +254,40 @@ class ProjectPaths:
         return v_dir / "prep"
 
     def model_pdb(self, spec: SystemSpec) -> Path:
-        # Check prep folder first
-        p_model = self.prep_dir(spec) / "model.pdb"
-        if p_model.exists():
-            return p_model
-        # Check variants folder: variants/<variant>/model.pdb or variants/<variant>.pdb
+        # 1. Check prep folder first if run_id is set
+        if self.run_id:
+            try:
+                p_model = self.prep_dir(spec) / "model.pdb"
+                if p_model.exists():
+                    return p_model
+            except Exception:
+                pass
+
+        # 2. Check structure models folder: structure/models/<variant>/complex.pdb or <variant>.pdb
+        if hasattr(self, "structure_dir") and self.structure_dir:
+            model_candidate = (
+                self.structure_dir
+                / "models"
+                / spec.variant
+                / ("complex.pdb" if not spec.is_apo else f"{spec.variant}.pdb")
+            )
+            if model_candidate.is_file():
+                return model_candidate
+            alt_candidate = self.structure_dir / "models" / spec.variant / "model.pdb"
+            if alt_candidate.is_file():
+                return alt_candidate
+
+        # 3. Check variants folder: variants/<variant>/model.pdb or variants/<variant>.pdb
         var_dir_model = self.variants_dir / spec.variant / "model.pdb"
         if var_dir_model.exists():
             return var_dir_model
         var_flat = self.variants_dir / f"{spec.variant}.pdb"
         if var_flat.exists():
             return var_flat
-        return p_model
+
+        if self.run_id:
+            return self.prep_dir(spec) / "model.pdb"
+        return self.structure_dir / "models" / spec.variant / f"{spec.variant}.pdb"
 
     def prepared_prmtop(self, spec: SystemSpec) -> Path:
         return self.prep_dir(spec) / "system.prmtop"

@@ -42,8 +42,8 @@ conda install -c salilab modeller -y
 # In your ~/.bashrc or terminal, configure your free academic license:
 # export KEY_MODELLER="YOUR_ACADEMIC_KEY"
 
-# 3. Install Open-Source PyMOL (Interactive 3D visualization)
-conda install -c conda-forge pymol-open-source -y
+# 3. Install Open-Source PyMOL & MDAnalysis (Interactive 3D visualization & trajectory analysis)
+conda install -c conda-forge pymol-open-source mdanalysis -y
 
 # 4. Install Google Colab CLI & authenticate (one-time browser login)
 pip install google-colab-cli
