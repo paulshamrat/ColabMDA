@@ -194,7 +194,21 @@ research/projects/colabmda-example/       # Project root (or custom project fold
     │           └── compare/figures/      # Triplicate Mean ± SD overlay plots
     │
     └── atpmg/                            # Track 2: Holo state (ATP + Mg²⁺ complex)
-        ├── structure/models/{WT, L119R}/
+        ├── structure/
+        │   └── O76039_4BGQ/
+        │       ├── donors/
+        │       │   └── 8FP5/             # Isolated cofactor donor template folder
+        │       │       └── 8fp5.cif      # Donor crystal archive containing ATP and Mg²⁺
+        │       ├── raw/                  # Inherited target archive and mapping
+        │       ├── models/
+        │       │   ├── WT/
+        │       │   │   ├── complex.pdb   # Assembled Protein + ATP + Mg²⁺ complex
+        │       │   │   ├── complex.json  # Core RMSD & ATP/Mg fit audit trail
+        │       │   │   └── ASSEMBLY_DONE
+        │       │   └── L119R/
+        │       │       └── complex.pdb
+        │       └── STRUCTURE_DONE
+        │
         ├── simulation/run01/{WT, L119R}/{01_prep, 02_eq, 03_md/{r1, r2, r3}}
         └── analysis/run01/{WT, L119R, compare/figures}
 ```
@@ -202,51 +216,41 @@ research/projects/colabmda-example/       # Project root (or custom project fold
 > 💡 **Why `UniProt_PDB` Folders (`O76039_4BGQ/`)?**
 > Organizing structures by `<uniprot>_<pdb>` keeps coordinates, mappings, and models completely separated when comparing alternative templates (e.g. 4BGQ vs 8FP5) or modeling multiple proteins in the same project workspace.
 
+> 💡 **Why Separate `donors/<template>/` Folders?**
+> In holo simulations, the cofactor donor crystal structure (e.g. 8FP5) is kept in its own dedicated `donors/8FP5/` subfolder. This completely isolates the donor coordinates from the target protein files (`raw/`), preventing any confusion about which PDB provided the backbone vs which provided the ligands.
+
 > 💡 **Why `model.pdb` in `01_prep/`?**
-> When you run `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `L119R.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation run (`run01`), guaranteeing full reproducibility even if upstream modeling files are modified later.
+> When you run `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `complex.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation run (`run01`), guaranteeing full reproducibility even if upstream modeling files are modified later.
 
 > 💡 **Why Shared Equilibration (`02_eq/`)?**
 > The 24-stage equilibration ladder (EM, thermalization, density relaxation) only needs to be calculated once per variant. Replicas (`r1`, `r2`, `r3`) fork from `02_eq/` with distinct random velocity seeds, saving substantial GPU time while guaranteeing true statistical independence.
 
 ---
 
-## 4. Simulation Workflow
+## 4. Simulation Workflow: Step-by-Step Execution
 
-### Pipeline at a Glance:
-1. **Model:** Fetch template coordinates, map UniProt numbering, verify template sequence, and build WT and mutant models.
-2. **Titrate & Prep:** Assign physiological protonation states with PROPKA and solvate with Amber ff19SB/OPC.
-3. **Stage:** Initialize simulation folders under `data/simulation/`.
-4. **Equilibrate:** Run 24-stage equilibration in `02_eq/` with progressive restraint release (`cmda sim eq`).
-5. **QC Gate:** Verify equilibration density, temperature, and stability (`qc.png`).
-6. **Production MD:** Execute resume-safe chunked production MD across triplicates (`r1`, `r2`, `r3`).
-7. **Merge:** Combine trajectory chunks into centered, wrapped, solvent-stripped trajectories.
-8. **Analyze & Compare:** Compute RMSD, $R_g$, and RMSF, and overlay WT vs Mutant triplicate statistics.
-
-> 💡 **Unified Environment & Working Directory:**
-> * **Single Environment:** All modeling, simulation, and analysis commands run in the unified **`colabmda`** conda environment.
-> * **Project Directory:** Always run `cmda` commands from your project root (e.g. `/content/drive/MyDrive/research/projects/colabmda-example` or your custom project folder).
+ColabMDA divides work logically into three clear phases:
+* **Phase 1 (Local):** Fast CPU homology modeling and interactive PyMOL QA on your workstation (~30 seconds).
+* **Phase 2 (Sync):** Pushing verified coordinates to Google Drive via `rclone copy` (~5 MB).
+* **Phase 3 (Cloud):** Heavy GPU parameterization, 24-stage equilibration, and 100 ns OpenMM MD on Google Colab GPU.
 
 ---
 
-### Step 0: Create Project Directory & Activate Environment
+### 💻 Phase 1: Local Modeling & PyMOL Visual Inspection (Local Workstation)
+*Execute this on your local laptop or workstation (macOS, Linux, or Windows WSL). No GPU is needed.*
 
-Before running workflow commands, switch to your project workspace (on Google Drive or local machine) and ensure your environment is active:
-
+#### 4.1. Initialize Local Project Workspace
 ```bash
-# 1. Create and navigate to your project directory
+# 1. Create and navigate to your local project directory
 # (Replace 'colabmda-example' with your custom project name if desired, e.g. cdkl5-dynamics)
-mkdir -p /content/drive/MyDrive/research/projects/colabmda-example
-cd /content/drive/MyDrive/research/projects/colabmda-example
+mkdir -p ~/research/projects/colabmda-example
+cd ~/research/projects/colabmda-example
 
-# 2. Activate the ColabMDA environment
-source /root/miniforge3/etc/profile.d/conda.sh
-conda activate colabmda
+# 2. Activate your local environment
+conda activate colabmda-local
 ```
 
----
-
-### 4.1. Homology Modeling & Point Mutations (Modeller)
-
+#### 4.2. Homology Modeling & Point Mutations (Modeller)
 The modeling workflow enforces strict **Biological UniProt Numbering**, automated loop completion, and coordinate validation gates:
 
 ```bash
@@ -258,9 +262,6 @@ cmda model --state apo --variant WT
 
 # 3. Build Point Mutant (L119R) on the verified WT backbone
 cmda model --state apo --variant L119R
-
-# 4. (Optional) Interactive Visual Inspection in Local PyMOL
-cmda view --state apo --variant WT
 ```
 
 *What happens behind the scenes:*
@@ -269,13 +270,14 @@ cmda view --state apo --variant WT
   ==============================================================================
    ColabMDA Structural Mapping & Verification
   ==============================================================================
-   UniProt Target:   O76039 (Residues 1–303, Total Length: 303 AA)
-   Template PDB:     4BGQ (Chain A, Method: X-RAY, Resolution: 2.10 Å)
+   UniProt Target:   O76039 (Residues 1–303, Total Length: 960 AA)
+   Template PDB:     4BGQ (Chain A, Method: X-RAY DIFFRACTION, Resolution: 2.00 Å)
    Coordinate Gate:  276/303 observed residues resolved (91.1% coordinate density)
-   Missing Loops:    27 missing residues identified across 3 loop segment(s):
-                     - Loop 1: Res 45–52 (8 residues)
-                     - Loop 2: Res 168–181 (14 residues)
-                     - Loop 3: Res 299–303 (5 residues)
+   Missing Loops:    27 missing residues identified across 4 loop segment(s):
+                     - Loop 1: Res 1–8 (8 residues)
+                     - Loop 2: Res 46–52 (7 residues)
+                     - Loop 3: Res 163–173 (11 residues)
+                     - Loop 4: Res 303–303 (1 residues)
    Template Check:   ✓ All 276 observed residues match Canonical UniProt WT
    Mutation Gate:    ✓ Target variant L119R verified on WT residue L119 (coordinate & UniProt match)
    Outputs Saved:    data/apo/structure/O76039_4BGQ/
@@ -284,70 +286,121 @@ cmda view --state apo --variant WT
 * **Engineered Template Mutations**: If crystallographers introduced mutations into the PDB template, `cmda fetch` reports them, and Modeller automatically reverts them to canonical UniProt WT during `cmda model WT`.
 * **`cmda model WT`**: Invokes Modeller to build full coordinates for residues 1–303, closing missing loops and preserving author residue numbering.
 * **`cmda model L119R`**: Introduces the point mutation onto the verified WT template and optimizes local sidechain rotamers.
-* **`cmda view`**: Generates a standardized PyMOL visualization script and launches PyMOL with residue highlights (orange) and optimal camera framing.
-* **Pre-built / AlphaFold models:** If you already have pre-built coordinates, verify them directly via `cmda check --state apo --variant WT --model /path/to/model.pdb`.
+
+#### 4.3. (Optional) Holo ATP/$\text{Mg}^{2+}$ Coordinate Assembly (Track 2)
+To investigate catalytic active-site geometry and cofactor coordination, assemble ATP and $\text{Mg}^{2+}$ from donor PDB 8FP5 onto your models:
+
+```bash
+# 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
+cmda assemble --state atpmg --variant WT --template 8FP5 --relax-sidechains
+
+# 2. Assemble Holo Mutant (L119R) from the same donor pose
+cmda assemble --state atpmg --variant L119R --template 8FP5 --relax-sidechains
+```
+*What happens:* Downloads `8fp5.cif` into `data/atpmg/structure/O76039_4BGQ/donors/8FP5/`, aligns kinase catalytic core residues (30–220), transfers ATP and $\text{Mg}^{2+}$, relaxes pocket sidechains, and writes `complex.pdb`.
+
+#### 4.4. Visual Quality Assurance in Local PyMOL
+Verify loop closure and mutated residue rotamers interactively:
+
+```bash
+# Inspect Wild-Type model in PyMOL:
+cmda view --state apo --variant WT
+
+# Or compare WT and Mutant side-by-side:
+pymol data/apo/structure/O76039_4BGQ/models/WT/WT.pdb data/apo/structure/O76039_4BGQ/models/L119R/L119R.pdb
+```
+*Visual Check:* Confirm loop 163–173 is closed smoothly and Arg119 points into solvent with zero steric clashes.
 
 ---
 
-### 4.2. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
+### 🚀 Phase 2: Push Modeled Structures to Google Drive
+*Once models are verified locally, transfer the lightweight `data/` directory (~5 MB) to Google Drive so Google Colab's GPU can access them.*
 
-Accurate protonation states are critical for biophysical fidelity. ColabMDA integrates **PDBFixer**, **PROPKA 3**, and **AmberTools `tleap`** to assign physiological protonation states at pH 7.4, solvate with OPC 4-point water, neutralize with 150 mM NaCl, and build Amber `ff19SB` topologies:
-
+#### Option A: Terminal CLI via `rclone` (Recommended)
+From your local project folder:
 ```bash
-# 1. Parameterize and solvate Wild-Type
-cmda prep --state apo --variant WT
-
-# 2. Parameterize and solvate Mutant (L119R)
-cmda prep --state apo --variant L119R
+rclone copy data/ gdrive:research/projects/colabmda-example/data/ \
+  --exclude ".git/**" --exclude ".~lock.*#" --fast-list -P
 ```
 
-*Key outputs in `data/apo/simulation/run01/<variant>/01_prep/`:*
-* `system.prmtop`: Amber topology file containing all atomic parameters.
-* `system.inpcrd`: Solvated, charge-neutralized input coordinates.
-* `system.pdb`: Reference starting coordinate file.
+#### Option B: Google Drive for Desktop
+If you worked inside your Google Drive desktop mount (`~/Google Drive/MyDrive/research/projects/colabmda-example/`), all files are already synced automatically in the background.
 
 ---
 
-### 4.3. Simulation Execution: 24-Stage Equilibration & Production MD
+### ⚡ Phase 3: GPU Simulation & Analysis (Google Colab Cloud)
+*Now connect to Google Colab to run heavy Amber parameterization and OpenMM molecular dynamics on an NVIDIA T4 / A100 GPU.*
 
-ColabMDA uses a standardized 24-stage equilibration ladder (1.96 ns total) that progressively heats the system to 300 K and relaxes positional restraints before production MD:
-
-#### Step 1: Initialize Stage & Shared Equilibration Hub (`02_eq/`)
+#### 4.5. Connect to Colab GPU & Activate Environment
+In your local terminal:
 ```bash
-# Initialize simulation directories
+# Launch Colab session with T4 GPU and mount Google Drive
+colab new -s colabmda-example --gpu T4
+colab drivemount --session colabmda-example
+colab console -s colabmda-example
+```
+
+Inside the interactive Colab console terminal:
+```bash
+# 1. Navigate to the synced project workspace on Google Drive
+cd /content/drive/MyDrive/research/projects/colabmda-example
+
+# 2. Activate the ColabMDA environment
+source /root/miniforge3/etc/profile.d/conda.sh
+conda activate colabmda
+```
+
+#### 4.6. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
+Assign physiological protonation states at pH 7.4, solvate with OPC water, neutralize with 150 mM NaCl, and build Amber `ff19SB` topologies:
+
+```bash
+# Track 1: Apo state
+cmda prep --state apo --variant WT
+cmda prep --state apo --variant L119R
+
+# Track 2: Holo state (includes Hu et al. B3 ATP and Li–Merz 12–6 Mg²⁺)
+cmda prep --state atpmg --variant WT
+cmda prep --state atpmg --variant L119R
+```
+
+*Key outputs in `data/<state>/simulation/run01/<variant>/01_prep/`:*
+* `model.pdb`: Immutable copy of the input coordinate PDB for complete reproducibility.
+* `system.prmtop`: Amber topology containing all physical parameters.
+* `system.inpcrd`: Solvated, charge-neutralized initial coordinates.
+
+#### 4.7. Simulation Execution: 24-Stage Equilibration & QC Gate
+Run the 24-stage progressive heating and restraint release ladder (EM, NVT heating, NPT density relaxation) on CUDA GPU:
+
+```bash
+# 1. Initialize simulation directories
 cmda stage --state apo --variant WT
 
-# Run full 24-stage equilibration (EM, NVT heating, NPT density relaxation)
+# 2. Run full 24-stage equilibration
 cmda sim eq --state apo --variant WT
 
-# Check equilibration stability QC gate (generates qc.png)
+# 3. Check equilibration stability QC gate (generates qc.png)
 cmda sim qc --state apo --variant WT
 ```
+*(For Holo state, run with `--state atpmg`).*
 
-*(You can also run individual modular stages if preferred: `cmda sim em`, `cmda sim nvt`, `cmda sim npt`).*
-
-#### Step 2: Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
+#### 4.8. Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
 Replicas fork from `02_eq/` with distinct random velocity seeds into `03_md/`:
 
 ```bash
-# Replica 1 (e.g. 10 ns chunked production run)
-cmda sim md --state apo --variant WT --replica r1 --length-ns 10
+# Replica 1 (100 ns production run, or 10 ns for testing)
+cmda sim md --state apo --variant WT --replica r1 --total-ns 100
 
 # Replica 2
-cmda sim md --state apo --variant WT --replica r2 --length-ns 10
+cmda sim md --state apo --variant WT --replica r2 --total-ns 100
 
 # Replica 3
-cmda sim md --state apo --variant WT --replica r3 --length-ns 10
+cmda sim md --state apo --variant WT --replica r3 --total-ns 100
 ```
-
 *(Repeat the same commands for mutant: `cmda stage --state apo --variant L119R`, `cmda sim eq ...`, and `cmda sim md ...`).*
 
-> 🛡️ **Resume Safety:** Production MD saves checkpoints (`prod.chk`) at regular intervals. If Colab disconnects, simply re-run the same command and ColabMDA will resume from the exact last completed chunk.
+> 🛡️ **Resume Safety:** Production MD saves checkpoints (`prod.chk`) at regular intervals directly to Google Drive. If Colab disconnects, simply re-run the exact same command to resume immediately with zero lost progress.
 
----
-
-### 4.4. Merge Trajectories & Apply PBC Autoimaging
-
+#### 4.9. Merge Trajectories & Autoimage PBC
 Concatenate trajectory chunks, apply periodic boundary condition (PBC) autoimaging, center the protein, and strip solvent:
 
 ```bash
@@ -358,30 +411,15 @@ cmda merge --state apo --variant WT
 cmda merge --state apo --variant L119R
 ```
 
-*Key outputs in `data/apo/simulation/run01/<variant>/03_md/r1/`:*
-* `prod_full.dcd`: The final, concatenated, and centered/wrapped trajectory file.
-* `prod_full.pdb`: Matching reference topology PDB file.
-
----
-
-### 4.5. Trajectory Analysis & Direct Overlay Comparison
-
-#### Step 1: Single-Variant Analysis (RMSD, Rg, RMSF)
-Calculate backbone metrics for each replica:
+#### 4.10. Trajectory Analysis & Direct Overlay Comparison
+Calculate backbone metrics and overlay WT vs Mutant triplicate statistics:
 
 ```bash
-# Analyze Wild-Type replicas
-cmda analysis --state apo --variant WT
+# 1. Single-variant analysis (RMSD, Radius of Gyration, RMSF)
+cmda analyze --state apo --variant WT
+cmda analyze --state apo --variant L119R
 
-# Analyze Mutant replicas
-cmda analysis --state apo --variant L119R
-```
-
-#### Step 2: Direct Comparative Overlay (WT vs Mutant)
-Automatically aggregate triplicate statistics and generate publication-grade comparison plots:
-
-```bash
-# Compare WT vs L119R (computes Triplicate Mean ± SD)
+# 2. Direct comparative overlay (WT vs L119R with Mean ± SD band)
 cmda compare --state apo --variants WT,L119R
 ```
 
@@ -389,86 +427,6 @@ cmda compare --state apo --variants WT,L119R
 * `rmsd_avg.png`: Backbone RMSD overlay across time (Mean ± SD band).
 * `rg_avg.png`: Radius of gyration ($R_g$) compaction profiles.
 * `rmsf_avg.png`: Per-residue flexibility plot highlighting dynamic differences.
-
----
-
-### 4.6. Track 2: Holo Dynamics (ATP + $\text{Mg}^{2+}$ Complex)
-**Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
-
-To investigate catalytic active-site geometry, cofactor coordination, and how pathogenic mutations disrupt nucleotide binding, ColabMDA provides **Track 2: Holo Dynamics (`atpmg`)**. This models the protein complexed with one ATP molecule and one $\text{Mg}^{2+}$ ion in the active site pocket.
-
----
-
-#### 4.6.1. Coordinate Transfer & Pose Assembly (`cmda assemble`)
-
-ColabMDA transfers cofactor coordinates from homologous public donor structures using verified structural alignment without requiring manual docking or private files:
-
-```bash
-# 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
-cmda assemble --state atpmg --template 8FP5 --variant WT --relax-sidechains
-
-# 2. Assemble Holo Mutant (L119R) from the same donor pose
-cmda assemble --state atpmg --template 8FP5 --variant L119R --relax-sidechains
-```
-
-*What happens during coordinate transfer:*
-* **Donor Structure ([8FP5](https://www.rcsb.org/structure/8FP5)):** Downloads the high-resolution CDK2 reference crystal structure containing bound ATP and $\text{Mg}^{2+}$.
-* **Structural Core Alignment:** Aligns the homologous kinase core $\text{C}\alpha$ coordinates (residues 30–220) of CDKL5 to the donor kinase, calculating alignment coverage and RMSD (< 1.0 Å).
-* **Coordinate Transfer:** Superimposes and transfers the exact crystallographic coordinates of ATP and $\text{Mg}^{2+}$ into the CDKL5 catalytic cleft.
-* **Sidechain Relaxation (`--relax-sidechains`):** Freezes the protein backbone, ATP, and $\text{Mg}^{2+}$ in place, then locally minimizes active-site sidechain rotamers using Amber parameters in vacuum to relieve steric clashes.
-* **Outputs Written:** 
-  - `data/atpmg/structure/models/WT/complex.pdb`
-  - `data/atpmg/structure/models/WT/complex.json` (audit log recording fit RMSD, atom counts, and clash energy checks)
-
----
-
-#### 4.6.2. Holo System Parameterization (`cmda prep`)
-
-Once the complex coordinates are assembled, parameterize the protein-cofactor system:
-
-```bash
-# Parameterize Holo WT
-cmda prep --state atpmg --variant WT
-
-# Parameterize Holo Mutant (L119R)
-cmda prep --state atpmg --variant L119R
-```
-
-*Force field and chemical specifications:*
-* **ATP Parameters:** Assigns the validated Hu et al. B3 force-field parameters (43 atoms, net formal charge −4).
-* **$\text{Mg}^{2+}$ Ion Parameters:** Assigns water-matched Li–Merz 12–6 parameters (formal charge +2) optimized for OPC water.
-* **Solvation & Neutralization:** Solvates the complex with OPC 4-point water in a truncated octahedron (10 Å buffer) and adds 150 mM NaCl to neutralize the net charge.
-* **Outputs:** `data/atpmg/simulation/run01/<variant>/01_prep/` (`system.prmtop`, `system.inpcrd`, `system.pdb`).
-
----
-
-#### 4.6.3. Holo Equilibration, Production MD & Comparison
-
-Every downstream simulation and analysis command runs identically to the apo track, simply passing `--state atpmg`:
-
-```bash
-# 1. Initialize Stage & Shared Equilibration Hub (02_eq/)
-cmda stage --state atpmg --variant WT
-cmda sim eq --state atpmg --variant WT
-cmda sim qc --state atpmg --variant WT
-
-# 2. Production MD across Triplicates (03_md/r1, r2, r3)
-cmda sim md --state atpmg --variant WT --replica r1 --length-ns 10
-cmda sim md --state atpmg --variant WT --replica r2 --length-ns 10
-cmda sim md --state atpmg --variant WT --replica r3 --length-ns 10
-
-# 3. Merge & Autoimage Trajectories (preserves protein, ATP, and Mg²⁺)
-cmda merge --state atpmg --variant WT
-cmda merge --state atpmg --variant L119R
-
-# 4. Trajectory Analysis & Direct Overlay Comparison
-cmda analysis --state atpmg --variant WT
-cmda analysis --state atpmg --variant L119R
-cmda compare --state atpmg --variants WT,L119R
-```
-
-*Results in `data/atpmg/analysis/run01/compare/figures/`:*
-Overlay plots (`rmsd_avg.png`, `rg_avg.png`, `rmsf_avg.png`) comparing Holo WT vs Holo L119R dynamics in the presence of ATP and $\text{Mg}^{2+}$.
 
 ---
 

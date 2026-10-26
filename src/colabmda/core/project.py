@@ -169,6 +169,10 @@ class ProjectPaths:
         return self.structure_dir / ("raw" if self.state_dir is not None else "template")
 
     @property
+    def donors_dir(self) -> Path:
+        return self.structure_dir / "donors"
+
+    @property
     def ligand_dir(self) -> Path:
         return self.structure_dir / "ligand"
 
