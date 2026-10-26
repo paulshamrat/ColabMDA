@@ -26,8 +26,6 @@ WITH_MODELLER="${WITH_MODELLER:-0}"
 WITH_LIGAND="${WITH_LIGAND:-0}"
 WITH_AMBERTOOLS="${WITH_AMBERTOOLS:-1}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
-INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
-WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-}"
 if [[ -z "${DRIVE_RUNS_DIR}" ]] && [[ -d "/content/drive/MyDrive" ]]; then
   DRIVE_RUNS_DIR="/content/drive/MyDrive/research/projects"
@@ -193,8 +191,6 @@ fi
 # 5. ColabMDA Package Installation
 # ------------------------------------------------------------------------------
 echo "[STEP 5/6] Installing ColabMDA (${TAG})..."
-mkdir -p "${INSTALL_DIR}"
-cd "${INSTALL_DIR}"
 
 if [[ -n "${COLABMDA_SOURCE:-}" ]]; then
   python -m pip install -e "$COLABMDA_SOURCE"
@@ -238,14 +234,15 @@ if command -v tleap >/dev/null 2>&1; then
   echo "[HEALTH] AmberTools tleap: $(which tleap)"
 fi
 
-mkdir -p "${WORK_DIR}"
-[[ -z "$DRIVE_RUNS_DIR" ]] || mkdir -p "$DRIVE_RUNS_DIR"
-true
+if [[ -n "$DRIVE_RUNS_DIR" ]]; then
+  mkdir -p "$DRIVE_RUNS_DIR"
+fi
 
 echo "=============================================================================="
 echo " [OK] ColabMDA GPU Environment Successfully Installed!"
 echo " Env Name:       ${ENV_NAME}"
-echo " Working Dir:    ${WORK_DIR}"
-echo " Google Drive:   ${DRIVE_RUNS_DIR}"
-echo " Activate via:   conda activate ${ENV_NAME} && cd ${WORK_DIR}"
+if [[ -n "${DRIVE_RUNS_DIR}" ]]; then
+  echo " Google Drive:   ${DRIVE_RUNS_DIR}"
+fi
+echo " Activate via:   conda activate ${ENV_NAME}"
 echo "=============================================================================="
