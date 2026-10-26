@@ -54,9 +54,15 @@ if [[ -z "${DRIVE_RUNS_DIR}" ]] && [[ -d "/content/drive/MyDrive" ]]; then
   DRIVE_RUNS_DIR="/content/drive/MyDrive/research/projects"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-if [[ -z "${COLABMDA_SOURCE:-}" ]] && [[ -f "${REPO_DIR}/pyproject.toml" ]]; then
+SCRIPT_DIR=""
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || true)"
+fi
+REPO_DIR=""
+if [[ -n "${SCRIPT_DIR}" ]]; then
+  REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd 2>/dev/null || true)"
+fi
+if [[ -z "${COLABMDA_SOURCE:-}" ]] && [[ -n "${REPO_DIR}" ]] && [[ -f "${REPO_DIR}/pyproject.toml" ]]; then
   COLABMDA_SOURCE="${REPO_DIR}"
 fi
 
@@ -127,10 +133,10 @@ fi
 echo "[STEP 3/6] Setting up simulation environment: ${ENV_NAME}..."
 SPEC=$(mktemp /tmp/colabmda-environment-XXXXXX.yml)
 trap 'rm -f "$SPEC"' EXIT
-if [[ -f "${COLABMDA_SOURCE:-}/environment.yml" ]]; then
+if [[ -n "${COLABMDA_SOURCE:-}" && -f "${COLABMDA_SOURCE}/environment.yml" ]]; then
   cp "$COLABMDA_SOURCE/environment.yml" "$SPEC"
-elif [[ -f "$(dirname -- "${BASH_SOURCE[0]}")/../environment.yml" ]]; then
-  cp "$(dirname -- "${BASH_SOURCE[0]}")/../environment.yml" "$SPEC"
+elif [[ -n "${SCRIPT_DIR:-}" && -f "${SCRIPT_DIR}/../environment.yml" ]]; then
+  cp "${SCRIPT_DIR}/../environment.yml" "$SPEC"
 else
   wget -q "https://raw.githubusercontent.com/${REPO}/${INSTALL_REF}/environment.yml" -O "$SPEC"
 fi

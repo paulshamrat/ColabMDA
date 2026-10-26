@@ -28,13 +28,11 @@ flowchart LR
 
 ### 1.1. Local Installation (Do This Now on Your Workstation)
 
-A single bootstrap script sets up Miniforge, the `cmda` conda environment, Modeller, PyMOL, AmberTools, MDAnalysis, and `google-colab-cli` automatically:
+A single bootstrap script sets up Miniforge, the `cmda` conda environment, Modeller, PyMOL, AmberTools, MDAnalysis, and `google-colab-cli` automatically—**without requiring you to clone the git repository**:
 
 ```bash
-# 1. Clone repository and run the universal bootstrap script
-git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
-cd ~/ColabMDA
-bash scripts/setup.sh
+# 1. Download and run the universal bootstrap script (no git clone needed):
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh -o setup.sh && bash setup.sh
 
 # 2. Activate the environment
 source ~/miniforge3/etc/profile.d/conda.sh
@@ -48,8 +46,19 @@ colab sessions
 > **Modeller Academic License:** Modeller is completely free for academic use. Obtain your license key at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html). During local `setup.sh`, you will be prompted once to enter your license key, or you can provide it ahead of time:
 > ```bash
 > export KEY_MODELLER="YOUR_ACADEMIC_KEY"
-> bash scripts/setup.sh
+> bash setup.sh
 > ```
+
+<details>
+<summary><b>🛠️ Developer Alternative: Clone from Source</b></summary>
+
+If you are developing new features or contributing code to ColabMDA, you can clone the repository directly:
+```bash
+git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
+cd ~/ColabMDA
+bash scripts/setup.sh
+```
+</details>
 
 ---
 
@@ -60,12 +69,11 @@ colab sessions
 > Fast homology modeling (Modeller), loop completion, and structure preparation with AmberTools `tleap` run locally on your laptop CPU (taking ~20 seconds total).  
 > You will launch your Google Colab GPU instance in **Phase 2 & 3** when your solvated coordinates are ready for molecular dynamics. This prevents idle Colab timeouts and preserves your free cloud compute quota.
 
-When you reach Phase 3, the exact same bootstrap script provisions the cloud environment **unattended in ~90 seconds** with zero license prompts (since modeling is already completed locally):
+When you reach Phase 3, the exact same bootstrap script provisions the cloud environment **unattended in ~90 seconds** with zero license prompts and **zero git cloning**:
 
 ```bash
-# Inside Colab console (Phase 3):
-git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git /content/ColabMDA
-bash /content/ColabMDA/scripts/setup.sh
+# Inside Colab console (Phase 3 — one single command):
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 ```
@@ -310,8 +318,7 @@ Inside the interactive Colab console terminal:
 # ------------------------------------------------------------------------------
 # A. One-Time Cloud Setup (only run once per new Colab VM instance):
 # ------------------------------------------------------------------------------
-git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git /content/ColabMDA
-bash /content/ColabMDA/scripts/setup.sh
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
 
 # ------------------------------------------------------------------------------
 # B. Activate Cloud Environment & Navigate to Drive Project:
@@ -366,7 +373,7 @@ If your Google Colab session expires:
    ```
 2. In the console, re-activate the environment:
    ```bash
-   [ ! -d "/root/miniforge3/envs/cmda" ] && bash /content/ColabMDA/scripts/setup.sh
+   [ ! -d "/root/miniforge3/envs/cmda" ] && curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
    source /root/miniforge3/etc/profile.d/conda.sh
    conda activate cmda
    cd /content/drive/MyDrive/research/projects/cmda-example
