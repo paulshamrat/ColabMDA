@@ -125,6 +125,9 @@ def _dispatch_prep(args) -> int:
     from colabmda.core.taxonomy import SystemSpec
     from colabmda.modeller.substrate import assemble_system_model, fetch_rcsb_pdb
 
+    if not os.environ.get("COLABMDA_RUN_ID"):
+        os.environ["COLABMDA_RUN_ID"] = "run01"
+
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     paths.init_layout()
@@ -278,8 +281,14 @@ def _dispatch_stage(args) -> int:
             raise ValueError("--example requires an explicit --root")
         return install_example(args.example, args.root)
 
+    if not os.environ.get("COLABMDA_RUN_ID"):
+        os.environ["COLABMDA_RUN_ID"] = "run01"
+
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
+
+    if not os.environ.get("COLABMDA_RUN_ID"):
+        os.environ["COLABMDA_RUN_ID"] = "run01"
 
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
@@ -465,6 +474,9 @@ def _dispatch_sim(args) -> int:
         openmm_qc,
     )
 
+    if not os.environ.get("COLABMDA_RUN_ID"):
+        os.environ["COLABMDA_RUN_ID"] = "run01"
+
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
@@ -625,6 +637,9 @@ def _dispatch_analyze(args) -> int:
     from colabmda.core.taxonomy import SystemSpec
     from colabmda.openmm.commands import openmm_analysis
 
+    if not os.environ.get("COLABMDA_RUN_ID"):
+        os.environ["COLABMDA_RUN_ID"] = "run01"
+
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
@@ -703,11 +718,30 @@ def _dispatch_analyze(args) -> int:
 
 def _dispatch_compare(args) -> int:
     from colabmda.core.project import ProjectPaths, resolve_project_root
+    from colabmda.core.taxonomy import SystemSpec
+    from colabmda.openmm.figures import openmm_compare
+
+    if not os.environ.get("COLABMDA_RUN_ID"):
+        os.environ["COLABMDA_RUN_ID"] = "run01"
 
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     variants = [v.strip() for v in args.variants.split(",") if v.strip()]
+
+    series_list = []
+    for var in variants:
+        spec = SystemSpec.from_tag(args.state, variant=var)
+        var_analysis = paths.analysis_dir(spec)
+        rep_dirs = [d for d in var_analysis.glob("r*") if d.is_dir()]
+        if not rep_dirs:
+            rep_dirs = [var_analysis]
+        series_list.append(f"{var}={','.join(str(d) for d in sorted(rep_dirs))}")
+
+    outdir = paths.compare_dir(args.state)
+    outdir.mkdir(parents=True, exist_ok=True)
     print(f"[OK] Comparing variants {variants} for state {args.state} under {paths.root}")
+    openmm_compare(series_list, str(outdir))
+    print(f"✔ Comparison figures saved in {outdir / 'figures'}")
     return 0
 
 

@@ -168,101 +168,69 @@ For separate walkthroughs, see [Protein in water](docs/apo.md) and
 [Google Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md) guides.
 Section 4 runs a short 4BGQ WT pilot in each state.
 
-### 3.1. Homology Modeling & Mutagenesis
+### 3.1. Structure Modeling (WT & L119R)
 
-#### Biological Numbering
-
-**Inside Colab**, after setup, choose an empty project and a new run ID. If the
-example folder already contains older inputs, choose a different folder name:
+Navigate to your persistent project workspace on Google Drive:
 
 ```bash
-export COLABMDA_TOOL=/content/ColabMDA
-export PROJECT_ROOT=/content/drive/MyDrive/research/projects/colabmda-example
-export COLABMDA_PROJECT_DIR="$PROJECT_ROOT"
-export COLABMDA_RUN_ID=cdkl5_public_v1
-mkdir -p "$PROJECT_ROOT"
-cd "$PROJECT_ROOT"
+mkdir -p /content/drive/MyDrive/research/projects/cdkl5
+cd /content/drive/MyDrive/research/projects/cdkl5
 ```
 
-On HPC, use your scratch project path and installed tool path. Set these variables
-again in each new shell. `COLABMDA_PROJECT_DIR` lets commands find the project
-without repeating `--root`. No other research project or private input is needed.
-
-Fetch the public structure and UniProt sequence:
+Fetch the public structure (4BGQ) and UniProt sequence (O76039), mapping native residue numbering (residues 1–303):
 
 ```bash
+# 1. Fetch template coordinates and UniProt mapping
 cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303 --mutations L119R
-```
 
-Fetch keeps the raw mmCIF archive, with PDB fallback. The mapping records native
-author positions and insertion codes. In 4BGQ A, 276 residues have coordinates and
-27 are missing within UniProt 1–303. The requested WT amino acid must match both
-UniProt and its mapped coordinates, with a C-alpha present.
+# 2. Build full Wild-Type model (models missing loops 1–303)
+cmda model --state apo --variant WT
 
-Activate the MODELLER environment, install this same tool checkout there once,
-then build WT and make L119R:
-
-```bash
-conda activate modeller_env
-python -m pip install -e "$COLABMDA_TOOL"
-cd "$PROJECT_ROOT"
-cmda model --state apo
+# 3. Build L119R point mutant on the verified WT backbone
 cmda model --state apo --variant L119R
-conda activate colabmda
 ```
 
-The commands use the fetched template and sequence, save models under
-`data/apo/structure/models/{WT,L119R}/`, and check the full sequence, numbering
-and C-alpha coordinates before `MODEL_DONE`. Derived models use UniProt 1–303;
-raw coordinates stay unchanged. Seed 13031 is recorded and applied to modeling.
-Completed models are reused only when inputs and settings match.
+The commands use the fetched template and sequence, save verified models under `data/apo/structure/models/{WT,L119R}/`, and verify sequence, biological numbering (1–303), and C-alpha coordinates before creating `MODEL_DONE`.
 
-MODELLER requires a license. Installation keeps its optional question and hidden
-key prompt; no key belongs in a README command. The lower-level `cmda modeller
-build` and `mutate` commands remain available for custom inputs.
+> 🔑 **Modeller:** Loop building and mutation use MODELLER (`conda install -y -c salilab modeller`). If you already have completed PDB coordinates, you can proceed directly to preparation and simulation without MODELLER.
 
-#### Quality Control (QC)
+### 3.2. Track 1: Apo Dynamics (WT & L119R)
 
-Review alignment, missing-loop models, stereochemistry and scores. A correct
-sequence does not validate conformation. This public model is newly built; it is
-not the reviewed model from the earlier activation-study pilot.
+#### 3.2.1. Wild-Type (WT) Pipeline
 
-### 3.2. Track 1: Apo Dynamics
-
-#### 3.2.1. Scope & Inputs
-
-Use the verified CDKL5 protein model without ATP or bound Mg. Preparation adds
-water and bulk salt. Start with WT; repeat with L119R after WT validation.
-
-#### 3.2.2. Directory Staging
+Simulate the verified Wild-Type protein in physiological water and salt:
 
 ```bash
-cd "$PROJECT_ROOT"
-export STATE=apo
-export VARIANT=WT
-cmda stage --state "$STATE" --variant "$VARIANT"
+# 1. Solvate & Parameterize (Amber ff19SB + OPC water + 150 mM NaCl)
+cmda prep --state apo --variant WT
+# -> Outputs: data/apo/simulation/WT/01_prep/ (system.prmtop, system.inpcrd)
+
+# 2. 24-Stage Equilibration (1.96 ns heating & density ladder) + QC check
+cmda sim --state apo --variant WT --stage eq
+# -> Outputs: data/apo/simulation/WT/02_eq/ (equilibration_qc.json, qc.png)
+
+# 3. Production MD (e.g. 100 ns, saving frames every 10 ps)
+cmda sim --state apo --variant WT --stage md --replica r1 --total-ns 100 --checkpoint-ps 1000 --traj-interval 10
+# -> Outputs: data/apo/simulation/WT/03_md/r1/ (prod_*.dcd chunks, prod.chk)
 ```
 
-Staging creates folders. It does not start a simulation or create runner scripts.
+#### 3.2.2. Mutant (L119R) Pipeline
 
-#### 3.2.3. Preparation & Protonation (cmda prep)
+Once WT is validated, repeat the identical physical pipeline for the L119R variant:
 
 ```bash
-cmda prep --state "$STATE" --variant "$VARIANT"
+# 1. Solvate & Parameterize L119R
+cmda prep --state apo --variant L119R
+# -> Outputs: data/apo/simulation/L119R/01_prep/
+
+# 2. 24-Stage Equilibration & QC
+cmda sim --state apo --variant L119R --stage eq
+# -> Outputs: data/apo/simulation/L119R/02_eq/
+
+# 3. Production MD
+cmda sim --state apo --variant L119R --stage md --replica r1 --total-ns 100 --checkpoint-ps 1000 --traj-interval 10
+# -> Outputs: data/apo/simulation/L119R/03_md/r1/
 ```
-
-Preparation finds the checked model in the state/variant folder. Defaults are
-ff19SB, OPC, 14 Å padding, neutralization and an estimated 0.15 M NaCl pair count.
-Inspect the actual box, ion counts, protonation and charge. This route does not
-run automatic pKa titration. Lower-level `cmda openmm prep` supports
-PDBFixer/PDB2PQR/PROPKA when needed.
-
-Outputs are in `data/apo/simulation/<run>/<variant>/01_prep/`.
-`topology_check.json` checks charge, composition, ion parameters and output
-hashes before `PREP_DONE`. Changed inputs require a new run ID.
-
-After WT validation, set `VARIANT=L119R` and repeat staging and preparation.
-Models, preparation, equilibration and production remain separate by variant.
 
 ### 3.3. Track 2: Holo Dynamics (ATP + Mg²⁺)
 
@@ -532,19 +500,17 @@ simulation data or conflicting destinations. It verifies the new copy before
 removing the old folder and records the path mapping under
 `data/00_setup/analysis_migrations/`. Original provenance is retained unchanged.
 
-#### 3.6.2. Comparative Overlays
+#### 3.6.2. Comparative Overlays (WT vs Mutant)
 
-Use directories containing already calculated `rmsd.csv`, `rg.csv` and `rmsf.csv`:
+Generate direct publication-grade overlay comparison figures across variants:
 
 ```bash
-cd "$PROJECT_ROOT/data/$STATE/analysis/$COLABMDA_RUN_ID"
-cmda openmm compare --series WT="$PWD/WT/r1" \
-  --series L119R="$PWD/L119R/r1" --outdir "$PWD/compare"
+cmda compare --state apo --variants WT,L119R
 ```
 
-The output PNGs are under the requested directory's `figures/`. Comma-separated
-analysis directories within one series group compatible replicas. Check protocol,
-residue identity and time axes before aggregation.
+This automatically aggregates all completed replicas for `WT` and `L119R`, generates 300-DPI publication plots with mean and shaded standard deviations, and writes them into `data/apo/analysis/compare/figures/` (`rmsd_avg.png`, `rg_avg.png`, `rmsf_avg.png`).
+
+*(For custom directories or external paths, the lower-level `cmda openmm compare --series ...` remains available).*
 
 #### 3.6.3. Frame Counts, Sampling & Stride
 

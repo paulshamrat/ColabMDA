@@ -167,3 +167,35 @@ def test_top_level_subcommands_help():
             text=True,
         )
         assert res.returncode == 0, f"Command {subcmd} --help failed: {res.stderr}"
+
+
+def test_top_level_compare_command(tmp_path, monkeypatch):
+    monkeypatch.setenv("COLABMDA_RUN_ID", "run01")
+    for var in ["WT", "L119R"]:
+        rep_dir = tmp_path / f"data/apo/analysis/run01/{var}/r1"
+        rep_dir.mkdir(parents=True, exist_ok=True)
+        (rep_dir / "rmsd.csv").write_text("Time (ps),RMSD (Å)\n0,1.0\n10,1.2\n")
+        (rep_dir / "rg.csv").write_text("Time (ps),Radius of Gyration (Å)\n0,15.0\n10,15.1\n")
+        (rep_dir / "rmsf.csv").write_text("Residue Index,RMSF (Å)\n1,0.5\n2,0.6\n")
+
+    res = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "colabmda.cli",
+            "compare",
+            "--state",
+            "apo",
+            "--variants",
+            "WT,L119R",
+            "--root",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0, f"Compare failed: {res.stderr}"
+    compare_fig_dir = tmp_path / "data/apo/analysis/run01/compare/figures"
+    assert compare_fig_dir.is_dir()
+    for name in ["rmsd_avg.png", "rg_avg.png", "rmsf_avg.png"]:
+        assert (compare_fig_dir / name).is_file()
