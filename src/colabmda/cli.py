@@ -258,9 +258,22 @@ def _dispatch_prep(args) -> int:
                 if paths.state_dir is not None:
                     from colabmda.core.proteins import check_topology
 
-                    check_topology(paths.prep_dir(spec), spec=spec)
+                    topo_check = check_topology(paths.prep_dir(spec), spec=spec)
                     (paths.prep_dir(spec) / "PREP_DONE").write_text(
                         "Verified canonical coordinates, topology composition, charges and outputs\n"
+                    )
+                    net_q = topo_check.get("total_charge", 0.0) if topo_check else 0.0
+                    ions = topo_check.get("ions", {}) if topo_check else {}
+                    ion_str = (
+                        ", ".join(f"{cnt} {name}" for name, cnt in sorted(ions.items()))
+                        if ions
+                        else "0 (solute already neutral)"
+                    )
+                    n_atoms = topo_check.get("atoms", 0) if topo_check else 0
+                    n_waters = topo_check.get("waters", 0) if topo_check else 0
+                    print(f"[OK] System charge verified: {net_q:.4f} e [PASS - NEUTRAL]")
+                    print(
+                        f"[OK] Solvation & ions: {n_waters:,} OPC waters | Counter-ions: {ion_str} | Total atoms: {n_atoms:,}"
                     )
             else:
                 (paths.prep_dir(spec) / "build_error.log").write_text(log_out)

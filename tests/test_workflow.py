@@ -32,10 +32,10 @@ def test_state_layout_and_existing_run_compatibility(tmp_path, monkeypatch):
     assert legacy.prep_dir(SystemSpec()) == tmp_path / "data/02_simulation/trial01/apo/WT/01_prep"
 
 
-def test_fresh_state_requires_run_id(tmp_path, monkeypatch):
+def test_fresh_state_uses_flat_simulation_tree_without_run_id(tmp_path, monkeypatch):
     monkeypatch.delenv("COLABMDA_RUN_ID", raising=False)
-    with pytest.raises(ValueError, match="COLABMDA_RUN_ID"):
-        ProjectPaths(tmp_path, state="apo").prep_dir(SystemSpec())
+    paths = ProjectPaths(tmp_path, state="apo")
+    assert paths.prep_dir(SystemSpec()) == tmp_path / "data/apo/simulation/WT/01_prep"
 
 
 def test_restraints_exclude_amber_salt_but_include_cofactor():

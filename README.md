@@ -62,21 +62,24 @@ bash scripts/setup.sh
 
 ---
 
-### 1.2. Cloud GPU Installation (Do This Later in Phase 3 on Colab)
+### 1.2. Cloud GPU Provisioning (On-Demand Compute Engine)
 
-> [!IMPORTANT]
-> **Do NOT launch Google Colab yet!**  
-> Fast homology modeling (Modeller), loop completion, and structure preparation with AmberTools `tleap` run locally on your laptop CPU (taking ~20 seconds total).  
-> You will launch your Google Colab GPU instance in **Phase 2 & 3** when your solvated coordinates are ready for molecular dynamics. This prevents idle Colab timeouts and preserves your free cloud compute quota.
+ColabMDA decouples structural modeling from GPU simulation. While Phase 1 (modeling, loop completion, and Amber solvation) runs on your local workstation CPU, heavy molecular dynamics simulations run on cloud GPUs.
 
-When you reach Phase 3, the exact same bootstrap script provisions the cloud environment **unattended in ~90 seconds** with zero license prompts and **zero git cloning**:
+Google Colab instances are ephemeral (they spin up on demand). When you launch your GPU instance in Phase 3, the exact same bootstrap script provisions the cloud environment in ~90 seconds:
 
 ```bash
-# Inside Colab console (Phase 3 — one single command):
+# Provision Cloud GPU Worker (executed inside Colab console during Phase 3):
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 ```
+
+> [!NOTE]
+> **Zero License Prompts on Cloud:**  
+> Because homology modeling is already completed locally on your workstation, MODELLER and PyMOL are automatically excluded on Colab (`WITH_MODELLER=0`). Google Colab only installs Miniforge, OpenMM (CUDA), AmberTools `tleap`, MDAnalysis, and ColabMDA. Setup runs **100% unattended in ~90 seconds with zero interactive prompts**.
+>
+> *Follow the step-by-step workflow below: you will execute this one-liner when you connect to your GPU console in [Phase 3 (Section 3.6)](#36-connect-to-colab-gpu-console).*
 
 ---
 
@@ -313,11 +316,11 @@ In your local terminal:
 colab console -s cmda-example
 ```
 
-Inside the interactive Colab console terminal:
+Inside the interactive Colab console terminal, run the cloud bootstrap (from [Section 1.2](#12-cloud-gpu-provisioning-on-demand-compute-engine)):
 
 ```bash
 # ------------------------------------------------------------------------------
-# A. One-Time Cloud Setup (only run once per new Colab VM instance):
+# A. One-Time Cloud Setup (unattended in ~90s, zero license prompts):
 # ------------------------------------------------------------------------------
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
 

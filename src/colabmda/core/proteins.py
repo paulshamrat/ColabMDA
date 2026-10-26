@@ -536,34 +536,41 @@ def check_topology(folder, name=None, *, spec=None):
         "MG": (1.330, 0.00716930),
     }
     ion_lj = {}
+    ion_counts = {}
+    n_waters = 0
     for residue in topology.topology.residues():
-        if residue.name not in expected_ions:
-            continue
-        atom = next(residue.atoms())
-        _, sigma, epsilon = force.getParticleParameters(atom.index)
-        rmin_half = sigma.value_in_unit(unit.angstrom) * 2 ** (1 / 6) / 2
-        eps = epsilon.value_in_unit(unit.kilocalorie_per_mole)
-        expected_rmin, expected_epsilon = expected_ions[residue.name]
-        if abs(rmin_half - expected_rmin) > 1e-5 or abs(eps - expected_epsilon) > 1e-7:
-            raise ValueError(f"Incomplete or mismatched OPC ion model for {residue.name}")
-        ion_lj[residue.name] = {"rmin_half_angstrom": rmin_half, "epsilon_kcal_mol": eps}
-    save_json(
-        folder / "topology_check.json",
-        {
-            "atoms": system.getNumParticles(),
-            "total_charge": total,
-            "components": components,
-            "ion_model": "OPC Li-Merz 12-6",
-            "ion_lj": ion_lj,
-            "files": {
-                n: digest(folder / n)
-                for n in [
-                    "model.pdb",
-                    "system.prmtop",
-                    "system.inpcrd",
-                    "solvated.pdb",
-                    "prep.json",
-                ]
-            },
+        if residue.name in expected_ions:
+            ion_counts[residue.name] = ion_counts.get(residue.name, 0) + 1
+            if residue.name not in ion_lj:
+                atom = next(residue.atoms())
+                _, sigma, epsilon = force.getParticleParameters(atom.index)
+                rmin_half = sigma.value_in_unit(unit.angstrom) * 2 ** (1 / 6) / 2
+                eps = epsilon.value_in_unit(unit.kilocalorie_per_mole)
+                expected_rmin, expected_epsilon = expected_ions[residue.name]
+                if abs(rmin_half - expected_rmin) > 1e-5 or abs(eps - expected_epsilon) > 1e-7:
+                    raise ValueError(f"Incomplete or mismatched OPC ion model for {residue.name}")
+                ion_lj[residue.name] = {"rmin_half_angstrom": rmin_half, "epsilon_kcal_mol": eps}
+        elif residue.name in {"WAT", "HOH", "TIP3", "OPC"}:
+            n_waters += 1
+
+    summary = {
+        "atoms": system.getNumParticles(),
+        "waters": n_waters,
+        "total_charge": total,
+        "ions": ion_counts,
+        "components": components,
+        "ion_model": "OPC Li-Merz 12-6",
+        "ion_lj": ion_lj,
+        "files": {
+            n: digest(folder / n)
+            for n in [
+                "model.pdb",
+                "system.prmtop",
+                "system.inpcrd",
+                "solvated.pdb",
+                "prep.json",
+            ]
         },
-    )
+    }
+    save_json(folder / "topology_check.json", summary)
+    return summary

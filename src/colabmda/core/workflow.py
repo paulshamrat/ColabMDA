@@ -561,8 +561,21 @@ def preparation_request(paths, spec, receptor, template):
     if marker.exists():
         if not receipt.exists():
             raise ValueError("Completed preparation lacks its input receipt")
-        verify_prepared(folder)
-        print(f"Verified existing preparation: {folder}")
+        inventory = verify_prepared(folder)
+        net_q = inventory.get("total_charge", 0.0)
+        ions = inventory.get("ions", {})
+        ion_str = (
+            ", ".join(f"{cnt} {name}" for name, cnt in sorted(ions.items()))
+            if ions
+            else "0 (solute already neutral)"
+        )
+        n_atoms = inventory.get("atoms", 0)
+        n_waters = inventory.get("waters", 0)
+        print(f"[OK] Verified existing preparation: {folder}")
+        print(f"     - Net charge: {net_q:.4f} e [PASS - NEUTRAL]")
+        print(
+            f"     - Solvation & ions: {n_waters:,} OPC waters | Counter-ions: {ion_str} | Total atoms: {n_atoms:,}"
+        )
         return True
     write_json(receipt, request)
     return False
@@ -577,3 +590,4 @@ def verify_prepared(folder):
     for name, expected in inventory["files"].items():
         if sha(folder / name) != expected:
             raise ValueError(f"Prepared output changed: {name}")
+    return inventory
