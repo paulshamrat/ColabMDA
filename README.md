@@ -8,180 +8,91 @@ from the last completed checkpoint. It supports protein modeling, simulation and
 analysis through terminal commands, with the same workflow available on HPC
 clusters and Linux workstations.
 
-Start with [Platform Setup](#1-platform-setup), then follow the
+Start with [Quick Start](#1-platform-setup), then follow the
 [Simulation Workflow](#3-simulation-protocol-cmda). For a short pilot, use the
 [Short Pilot](#4-short-4bgq-pilot).
 
-## 1. Platform Setup
+## 1. Quick Start <a id="1-platform-setup"></a>
 
-**Platforms:** Linux · Google Colab · Slurm | **Dependencies:** OpenMM · AmberTools · MODELLER · MDAnalysis · MDTraj · PDB2PQR/PROPKA
+**Runtime:** Google Colab GPU (T4 / A100 / L4) | **Persistent Storage:** Google Drive  
+**Scientific Engine:** OpenMM · AmberTools · MODELLER · MDAnalysis · MDTraj · PROPKA
 
-Use the checkout whose instructions you are reading. Public releases use `main`;
-private development stays separate. The tool stays outside the project where
-simulations run.
+Follow these 4 steps in your terminal to launch your Colab GPU session and install ColabMDA:
 
-### 1.1. Google Colab
+---
 
-Use your local terminal to create and manage Colab runtimes with the Colab CLI.
-Run the simulation commands inside its remote console.
+### Step 1: Install & Authenticate the Colab CLI
 
-#### 1.1.1. Terminal and Colab CLI
-
-Prerequisites are Linux/Bash, Git, Python 3.12 or newer for the current Colab CLI,
-internet access and a Colab account. The core ColabMDA package supports Python
-3.10+, but the local Colab control environment must also meet the CLI requirement.
-Complete CLI authentication when requested. Existing installations can activate
-their environment instead of creating another one.
-
-**On your local computer**, clone the public tool and enter its folder.
-A GPU is not required on this computer:
+In your terminal, install the lightweight Colab CLI and authenticate with your Google account:
 
 ```bash
-git clone --branch main https://github.com/paulshamrat/ColabMDA.git
-cd ColabMDA
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e . google-colab-cli
-cmda --help
+# 1. Install the Google Colab CLI
+pip install google-colab-cli
+
+# 2. Authenticate with your Google account (opens one-time browser login)
 colab sessions
 ```
 
-Use a clean, committed checkout before creating the GPU runtime. If you edit
-runtime files, commit those changes before deployment. An idle runtime can expire; a replacement needs
-fresh Drive authentication even when the previous session was mounted.
+---
 
-Then create a GPU runtime, authenticate Drive and deploy the committed tool:
+### Step 2: Configure & Launch Google Colab GPU
+
+Create your GPU cloud instance and attach persistent Google Drive storage:
 
 ```bash
+# 1. Allocate a remote Google Colab GPU session (T4)
 colab new -s colabmda-example --gpu T4
+
+# 2. Mount your Google Drive to keep checkpoints and results safe
 colab drivemount --session colabmda-example
-cmda colab setup -s colabmda-example --local-source
+```
+
+---
+
+### Step 3: Connect to the Colab Console
+
+Open the interactive shell into your Colab GPU instance:
+
+```bash
+# Connect directly to the Colab terminal console
 colab console -s colabmda-example
 ```
 
-Local-source deployment requires a clean, committed Git checkout. Branches and
-release tags are both supported.
-It sends runtime files and example templates with `SNAPSHOT.json` hashes. Run
-these commands serially and wait for setup to finish before entering the console.
-Setup asks whether to install MODELLER; choose it for the CDKL5 modeling steps.
+---
 
-**Inside the Colab console**, activate the installed environment:
+### Step 4: Install ColabMDA & Activate Environment
+
+Now **inside the Colab console**, clone the repository and run the automated installer:
 
 ```bash
+# 1. Clone ColabMDA on the GPU cloud instance
+git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git /content/ColabMDA
+cd /content/ColabMDA
+
+# 2. Run the automated installer (sets up OpenMM, AmberTools, MODELLER, etc.)
+bash scripts/setup.sh
+
+# 3. Activate the scientific environment
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate colabmda
 export MPLBACKEND=Agg
+
+# 4. Verify installation
 cmda --help
 ```
 
-The installed snapshot is `/content/ColabMDA`; persistent project data belongs under
-`/content/drive/MyDrive/research/projects/`. Sections 3 and 4 prepare and run the CDKL5 pilot there. You can also dispatch foreground shell commands from the local
-terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
-
-Each remote exec call starts a new shell. Include environment activation, project
-variables and `cd` in that call; shell state does not carry between invocations.
-A quoted multiline shell block runs in one Bash process and propagates failure.
-
-#### 1.1.2. Crash Recovery & Checkpointing
-
-Keep simulations in the foreground with live output. Sessions can still terminate.
-Keep inputs, completed chunks and checkpoints on Drive. On a replacement runtime,
-remount Drive and restore the recorded software before attempting recovery.
-Checkpoint compatibility across different GPUs or software versions is not assumed.
-Section 3.4 explains restart behavior; section 4 provides a short test.
-
-#### 1.1.3. MODELLER License
-
-Model building and mutation require MODELLER and a valid key. Its registration page
-is [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
-The installer preserves the optional question and hidden key prompt.
-
-```bash
-cmda colab setup -s colabmda-example --local-source --modeller
-```
-
-Automated setup accepts `KEY_MODELLER` or `MODELLER_LICENSE` through the process
-environment. Do not place real keys in commands saved to Git, logs or provenance.
-`--no-modeller` skips the optional remote question. MODELLER uses `modeller_env`;
-section 3.1 explains activating it and installing the same tool checkout there.
+> 🔑 **Modeller License:** During Step 4.2, the installer will pause and prompt for an optional free MODELLER key for protein modeling. If you don't have one, register at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
 
 ---
 
-### 1.2. HPC Clusters (SLURM)
+### 💡 Session Recovery & Checkpointing
 
-#### 1.2.1. Scratch Storage
+If your Colab session times out, your checkpoints and completed chunks are safely preserved on your Google Drive under `/content/drive/MyDrive/research/projects/`:
+1. Re-run **Steps 2 & 3** (`colab new`, `colab drivemount`, `colab console`).
+2. Inside the console, activate the environment (`conda activate colabmda`).
+3. Re-run your simulation command (`cmda sim ...`). ColabMDA automatically detects the saved checkpoints on Drive and resumes from the last completed chunk without lost time.
 
-Install the tool and its Conda dependencies on the cluster according to its software
-policy. Put active simulation outputs in scratch, not the software checkout.
-Activate the selected MD environment on the allocated compute node, then use the same state-based commands below with an explicit project root.
-
-Use the cluster's approved access and deployment tools. Transfer computational
-code and inputs only; keep unrelated private material outside the cluster.
-
-#### 1.2.2. Interactive GPU Allocation
-
-On a generic Slurm cluster, a small interactive request might be:
-
-```bash
-salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --mem=32G --time=01:00:00
-```
-
-Partition, account, GPU flags and environment activation are cluster-specific.
-For Palmetto, obtain the allocation through the approved `hpc` workflow. Validate
-the short WT pilot before designing a production campaign.
-
-#### 1.2.3. Batch Submission
-
-State-based `cmda stage --scripts` generates `eq.slurm`, `prod.slurm` and `chain.sh`. These are
-starting templates for an existing research system, not a scheduler configuration
-for every cluster. Review resources, environment, scratch paths, state, variant,
-replica bounds, scientific settings and QC before submission.
-
-Stage one state/variant at a time when using those shared script names: later stage
-calls replace the shared runner files. Optional `--example` templates are described [separately](docs/examples.md).
-
----
-
-### 1.3. Local Workstation
-
-#### 1.3.1. Installation
-
-**On a Linux workstation with an NVIDIA GPU**, clone the tool and run its
-single installer with local paths. Skip cloning if you already have this checkout. This ensures it installs the current checkout
-and does not try to create a Colab-only `/content` directory:
-
-```bash
-mkdir -p ~/research/tools
-git clone --branch main https://github.com/paulshamrat/ColabMDA.git ~/research/tools/ColabMDA
-cd ~/research/tools/ColabMDA
-export COLABMDA_TOOL="$PWD"
-COLABMDA_SOURCE="$COLABMDA_TOOL" \
-  INSTALL_DIR="$HOME/.local/share/colabmda" \
-  WORK_DIR="$HOME/research" \
-  bash scripts/setup.sh
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate colabmda
-cmda --help
-```
-
-With an existing Conda installation, the core environment can also be created
-from `environment.yml`, followed by `python -m pip install -e .` in the checkout.
-The installer can optionally configure MODELLER and its hidden license prompt.
-On a CPU-only local computer, use section 1.1 to control a remote Colab GPU runtime.
-
-#### 1.3.2. Test Suite
-
-Standard tests run on the developer workstation in an environment containing the
-scientific dependencies and `pytest`:
-
-```bash
-python -m pip install pytest
-python -m pytest tests/ -q
-```
-
-These CPU tests check software behavior. They do not establish physical convergence
-or replace GPU integration testing. Development rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
+> 💡 **HPC Clusters & Local Workstations:** The simulation commands in Sections 3 and 4 are identical across all platforms. Cluster (SLURM) and workstation deployment guides are documented in [`docs/platforms/hpc.md`](docs/platforms/hpc.md).
 
 ---
 
