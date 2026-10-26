@@ -128,15 +128,10 @@ if [[ "${WITH_MODELLER}" != "1" && -t 0 ]]; then
 fi
 
 if [[ "${WITH_MODELLER}" == "1" ]]; then
-  echo "[STEP 4/6] Setting up MODELLER environment (${MODELLER_ENV_NAME})..."
+  echo "[STEP 4/6] Installing MODELLER into ${ENV_NAME}..."
   conda config --add channels salilab || true
-  if conda env list | awk '{print $1}' | grep -qx "$MODELLER_ENV_NAME"; then
-    mamba install -y -q -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
-  else
-    mamba create -y -q -n "$MODELLER_ENV_NAME" -c salilab -c conda-forge python=3.10 modeller biopython
-  fi
-  conda activate "${MODELLER_ENV_NAME}"
-  python -m pip install --upgrade pip
+  mamba install -y -q -n "${ENV_NAME}" -c salilab -c conda-forge modeller
+  conda activate "${ENV_NAME}"
 
   if [[ -z "${KEY_MODELLER:-}" && -n "${MODELLER_LICENSE:-}" ]]; then
     export KEY_MODELLER="${MODELLER_LICENSE}"
@@ -181,8 +176,6 @@ print("[INFO] Private MODELLER environment and license files configured.")
 PY_LICENSE
     echo "[INFO] KEY_MODELLER successfully configured."
   fi
-
-  conda activate "${ENV_NAME}"
 else
   echo "[STEP 4/6] Skipping MODELLER (pass WITH_MODELLER=1 to enable)."
 fi
@@ -196,6 +189,24 @@ if [[ -n "${COLABMDA_SOURCE:-}" ]]; then
   python -m pip install -e "$COLABMDA_SOURCE"
 else
   python -m pip install --upgrade "git+https://github.com/${REPO}.git@${INSTALL_REF}"
+fi
+
+# Register global CLI shortcuts in /usr/local/bin if writable
+if [[ -w "/usr/local/bin" ]]; then
+  ln -sf "${MINIFORGE_DIR}/envs/${ENV_NAME}/bin/cmda" /usr/local/bin/cmda 2>/dev/null || true
+  ln -sf "${MINIFORGE_DIR}/envs/${ENV_NAME}/bin/colabmda" /usr/local/bin/colabmda 2>/dev/null || true
+fi
+
+# Auto-activate in ~/.bashrc so new subshells have cmda immediately available
+if ! grep -q "conda activate ${ENV_NAME}" "${HOME}/.bashrc" 2>/dev/null; then
+  {
+    echo ""
+    echo "# ColabMDA environment auto-activation"
+    echo "if [[ -f \"${MINIFORGE_DIR}/etc/profile.d/conda.sh\" ]]; then"
+    echo "  source \"${MINIFORGE_DIR}/etc/profile.d/conda.sh\""
+    echo "  conda activate ${ENV_NAME}"
+    echo "fi"
+  } >> "${HOME}/.bashrc"
 fi
 
 # ------------------------------------------------------------------------------
@@ -244,5 +255,8 @@ echo " Env Name:       ${ENV_NAME}"
 if [[ -n "${DRIVE_RUNS_DIR}" ]]; then
   echo " Google Drive:   ${DRIVE_RUNS_DIR}"
 fi
-echo " Activate via:   conda activate ${ENV_NAME}"
+echo ""
+echo " IMPORTANT: Activate the environment in this terminal session:"
+echo "   source ${MINIFORGE_DIR}/etc/profile.d/conda.sh"
+echo "   conda activate ${ENV_NAME}"
 echo "=============================================================================="
