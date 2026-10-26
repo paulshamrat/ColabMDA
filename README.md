@@ -376,43 +376,86 @@ cmda compare --state apo --variants WT,L119R
 ### 4.6. Track 2: Holo Dynamics (ATP + $\text{Mg}^{2+}$ Complex)
 **Environment:** `colabmda` | **Directory:** `/content/drive/MyDrive/research/projects/colabmda-example`
 
-To simulate the catalytically active holo kinase complex with ATP and $\text{Mg}^{2+}$ bound in the active site:
+To investigate catalytic active-site geometry, cofactor coordination, and how pathogenic mutations disrupt nucleotide binding, ColabMDA provides **Track 2: Holo Dynamics (`atpmg`)**. This models the protein complexed with one ATP molecule and one $\text{Mg}^{2+}$ ion in the active site pocket.
 
-#### 1. Assemble Holo Complex from Donor Template (PDB 8FP5)
-Transfer ATP and $\text{Mg}^{2+}$ from donor structure [8FP5](https://www.rcsb.org/structure/8FP5) onto your verified WT and mutant models:
+---
+
+#### 4.6.1. Coordinate Transfer & Pose Assembly (`cmda assemble`)
+
+ColabMDA transfers cofactor coordinates from homologous public donor structures using verified structural alignment without requiring manual docking or private files:
 
 ```bash
 # Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
 
-# Assemble Holo WT
+# 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
 cmda assemble --state atpmg --template 8FP5 --variant WT --relax-sidechains
 
-# Assemble Holo Mutant (L119R)
+# 2. Assemble Holo Mutant (L119R) from the same donor pose
 cmda assemble --state atpmg --template 8FP5 --variant L119R --relax-sidechains
 ```
 
-#### 2. Execute Holo Workflow
-Every subsequent command is identical to the apo workflow, simply specifying `--state atpmg`:
+*What happens during coordinate transfer:*
+* **Donor Structure ([8FP5](https://www.rcsb.org/structure/8FP5)):** Downloads the high-resolution CDK2 reference crystal structure containing bound ATP and $\text{Mg}^{2+}$.
+* **Structural Core Alignment:** Aligns the homologous kinase core $\text{C}\alpha$ coordinates (residues 30–220) of CDKL5 to the donor kinase, calculating alignment coverage and RMSD (< 1.0 Å).
+* **Coordinate Transfer:** Superimposes and transfers the exact crystallographic coordinates of ATP and $\text{Mg}^{2+}$ into the CDKL5 catalytic cleft.
+* **Sidechain Relaxation (`--relax-sidechains`):** Freezes the protein backbone, ATP, and $\text{Mg}^{2+}$ in place, then locally minimizes active-site sidechain rotamers using Amber parameters in vacuum to relieve steric clashes.
+* **Outputs Written:** 
+  - `data/atpmg/structure/models/WT/complex.pdb`
+  - `data/atpmg/structure/models/WT/complex.json` (audit log recording fit RMSD, atom counts, and clash energy checks)
+
+---
+
+#### 4.6.2. Holo System Parameterization (`cmda prep`)
+
+Once the complex coordinates are assembled, parameterize the protein-cofactor system:
 
 ```bash
 # Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
 
-# Prep & Solvate
+# Parameterize Holo WT
 cmda prep --state atpmg --variant WT
-cmda prep --state atpmg --variant L119R
 
-# Stage & Equilibrate
+# Parameterize Holo Mutant (L119R)
+cmda prep --state atpmg --variant L119R
+```
+
+*Force field and chemical specifications:*
+* **ATP Parameters:** Assigns the validated Hu et al. B3 force-field parameters (43 atoms, net formal charge −4).
+* **$\text{Mg}^{2+}$ Ion Parameters:** Assigns water-matched Li–Merz 12–6 parameters (formal charge +2) optimized for OPC water.
+* **Solvation & Neutralization:** Solvates the complex with OPC 4-point water in a truncated octahedron (10 Å buffer) and adds 150 mM NaCl to neutralize the net charge.
+* **Outputs:** `data/atpmg/simulation/run01/<variant>/01_prep/` (`system.prmtop`, `system.inpcrd`, `system.pdb`).
+
+---
+
+#### 4.6.3. Holo Equilibration, Production MD & Comparison
+
+Every downstream simulation and analysis command runs identically to the apo track, simply passing `--state atpmg`:
+
+```bash
+# Environment: colabmda | Directory: /content/drive/MyDrive/research/projects/colabmda-example
+
+# 1. Initialize Stage & Shared Equilibration Hub (02_eq/)
 cmda stage --state atpmg --variant WT
 cmda sim eq --state atpmg --variant WT
+cmda sim qc --state atpmg --variant WT
 
-# Production MD
+# 2. Production MD across Triplicates (03_md/r1, r2, r3)
 cmda sim md --state atpmg --variant WT --replica r1 --length-ns 10
+cmda sim md --state atpmg --variant WT --replica r2 --length-ns 10
+cmda sim md --state atpmg --variant WT --replica r3 --length-ns 10
 
-# Merge & Compare
+# 3. Merge & Autoimage Trajectories (preserves protein, ATP, and Mg²⁺)
 cmda merge --state atpmg --variant WT
 cmda merge --state atpmg --variant L119R
+
+# 4. Trajectory Analysis & Direct Overlay Comparison
+cmda analysis --state atpmg --variant WT
+cmda analysis --state atpmg --variant L119R
 cmda compare --state atpmg --variants WT,L119R
 ```
+
+*Results in `data/atpmg/analysis/run01/compare/figures/`:*
+Overlay plots (`rmsd_avg.png`, `rg_avg.png`, `rmsf_avg.png`) comparing Holo WT vs Holo L119R dynamics in the presence of ATP and $\text{Mg}^{2+}$.
 
 ---
 
