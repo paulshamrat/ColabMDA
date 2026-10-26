@@ -254,16 +254,16 @@ class ProjectPaths:
         return v_dir / "prep"
 
     def model_pdb(self, spec: SystemSpec) -> Path:
-        # 1. Check prep folder first if run_id is set
-        if self.run_id:
-            try:
-                p_model = self.prep_dir(spec) / "model.pdb"
-                if p_model.exists():
-                    return p_model
-            except Exception:
-                pass
+        p_model = None
+        try:
+            p_candidate = self.prep_dir(spec) / "model.pdb"
+            if p_candidate.exists():
+                return p_candidate
+            p_model = p_candidate
+        except ValueError:
+            p_model = None
 
-        # 2. Check structure models folder: structure/models/<variant>/complex.pdb or <variant>.pdb
+        # Check structure models folder: structure/models/<variant>/complex.pdb or <variant>.pdb
         if hasattr(self, "structure_dir") and self.structure_dir:
             model_candidate = (
                 self.structure_dir
@@ -277,7 +277,7 @@ class ProjectPaths:
             if alt_candidate.is_file():
                 return alt_candidate
 
-        # 3. Check variants folder: variants/<variant>/model.pdb or variants/<variant>.pdb
+        # Check variants folder: variants/<variant>/model.pdb or variants/<variant>.pdb
         var_dir_model = self.variants_dir / spec.variant / "model.pdb"
         if var_dir_model.exists():
             return var_dir_model
@@ -285,9 +285,14 @@ class ProjectPaths:
         if var_flat.exists():
             return var_flat
 
-        if self.run_id:
-            return self.prep_dir(spec) / "model.pdb"
-        return self.structure_dir / "models" / spec.variant / f"{spec.variant}.pdb"
+        if p_model is not None:
+            return p_model
+        return (
+            self.structure_dir
+            / "models"
+            / spec.variant
+            / ("complex.pdb" if not spec.is_apo else f"{spec.variant}.pdb")
+        )
 
     def prepared_prmtop(self, spec: SystemSpec) -> Path:
         return self.prep_dir(spec) / "system.prmtop"

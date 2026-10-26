@@ -148,7 +148,11 @@ def openmm_status(pdbid_dir: str):
 
     logs = sorted(workdir.glob("prod_*to*ps.log"))
     dcds = sorted(workdir.glob("prod_*to*ps.dcd"))
-    merged_dcd = workdir / "prod_full.dcd"
+    merged_dcd = (
+        workdir / "prod_keep_ligand.dcd"
+        if (workdir / "prod_keep_ligand.dcd").exists()
+        else workdir / "prod_full.dcd"
+    )
     merged_log = workdir / "prod_full.log"
 
     ranges = _parse_chunk_ranges(workdir)
@@ -170,12 +174,23 @@ def openmm_status(pdbid_dir: str):
     chk = workdir / "prod.chk"
     xml = workdir / "system.xml"
     solv = workdir / "solvated.pdb"
-    can_resume = chk.exists() and xml.exists() and solv.exists()
+    if not solv.exists() and (workdir.parent.parent / "01_prep" / "solvated.pdb").exists():
+        solv = workdir.parent.parent / "01_prep" / "solvated.pdb"
+
+    can_resume = (
+        (chk.exists() or (workdir.parent.parent / "02_eq" / "eq_final.chk").exists())
+        and (xml.exists() or (workdir.parent.parent / "02_eq" / "system.xml").exists())
+        and solv.exists()
+    )
 
     topo_pdb = (
         solv
         if solv.exists()
-        else (merged_dcd.with_suffix(".pdb") if merged_dcd.with_suffix(".pdb").exists() else None)
+        else (
+            merged_dcd.with_suffix(".pdb")
+            if merged_dcd.with_suffix(".pdb").exists()
+            else (workdir / "stripped.prmtop" if (workdir / "stripped.prmtop").exists() else None)
+        )
     )
 
     print("\n[STATUS]")

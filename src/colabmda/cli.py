@@ -748,6 +748,46 @@ def _dispatch_compare(args) -> int:
     return 0
 
 
+def _dispatch_status(args) -> int:
+    from colabmda.openmm.commands import openmm_status
+
+    if getattr(args, "state", None):
+        from colabmda.core.project import ProjectPaths, resolve_project_root
+        from colabmda.core.taxonomy import SystemSpec
+
+        if not os.environ.get("COLABMDA_RUN_ID"):
+            os.environ["COLABMDA_RUN_ID"] = "run01"
+
+        root = resolve_project_root(args.root)
+        paths = ProjectPaths(root, state=args.state)
+        spec = SystemSpec.from_tag(args.state, variant=args.variant)
+        rep = getattr(args, "replica", "r1")
+        target_dir = paths.replica_dir(spec, rep)
+        if not target_dir.exists():
+            raise SystemExit(f"ERROR: replica directory not found: {target_dir}")
+        openmm_status(str(target_dir))
+        return 0
+    elif getattr(args, "workdir", None):
+        openmm_status(str(args.workdir))
+        return 0
+    elif getattr(args, "name", None):
+        cwd = Path.cwd()
+        name = args.name
+        replica = getattr(args, "replica", "r1")
+        for candidate in [
+            cwd / "data" / "simulation" / name / replica,
+            cwd / "simulation" / name / replica,
+            cwd / name / replica,
+            cwd / name,
+        ]:
+            if candidate.exists() and candidate.is_dir():
+                openmm_status(str(candidate))
+                return 0
+        raise SystemExit(f"ERROR: could not locate simulation directory for {name}/{replica}")
+    else:
+        raise SystemExit("ERROR: please specify --state and --variant, or --workdir, or --name")
+
+
 def _visual_options(parser, snapshots=False):
     parser.add_argument("--state", help="Project state(s): apo or atpmg; comma-separated for grids")
     parser.add_argument("--variant", default="WT", help="Variant(s), e.g. WT or WT,L119R")
@@ -1410,6 +1450,14 @@ def main():
     p_top_snap = sub.add_parser("snapshots", help="Render a CDKL5 comparison grid")
     _visual_options(p_top_snap, snapshots=True)
 
+    p_top_stat = sub.add_parser("status", help="Sanity-check frames/time/resume readiness")
+    p_top_stat.add_argument("--state", default=None, help="State tag (e.g. apo, atpmg)")
+    p_top_stat.add_argument("--variant", default="WT", help="Variant name (e.g. WT, L119R)")
+    p_top_stat.add_argument("--replica", default="r1", help="Replica (default: r1)")
+    p_top_stat.add_argument("--name", default=None, help="System name (legacy)")
+    p_top_stat.add_argument("--workdir", default=None, help="Explicit simulation directory")
+    p_top_stat.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+
     args = p.parse_args()
 
     if args.tool in {"fetch", "model", "check", "assemble"}:
@@ -1464,6 +1512,9 @@ def main():
 
     elif args.tool == "compare":
         raise SystemExit(_dispatch_compare(args))
+
+    elif args.tool == "status":
+        raise SystemExit(_dispatch_status(args))
 
     elif args.tool == "view":
         from colabmda.openmm.commands import openmm_view
