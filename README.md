@@ -157,26 +157,33 @@ research/projects/colabmda-example/       # Your project root on Google Drive
     │   │       └── L119R/                # Modeled L119R coordinates (L119R.pdb)
     │   │
     │   ├── simulation/
-    │   │   ├── WT/
-    │   │   │   ├── 01_prep/              # Solvated Amber system (prmtop / inpcrd / pdb)
-    │   │   │   ├── 02_eq/                # 24-stage equilibration hub + qc.png
-    │   │   │   ├── r1/                   # Production replica 1 (chunks + full trajectory)
-    │   │   │   ├── r2/                   # Production replica 2 (independent seed from 02_eq)
-    │   │   │   └── r3/                   # Production replica 3 (triplicate simulation)
-    │   │   └── L119R/
-    │   │       ├── 01_prep/
-    │   │       ├── 02_eq/
-    │   │       └── r1/, r2/, r3/
+    │   │   └── run01/                    # Run session (defaults to run01)
+    │   │       ├── WT/
+    │   │       │   ├── 01_prep/          # Solvated Amber system (system.prmtop, system.inpcrd)
+    │   │       │   ├── 02_eq/            # 24-stage equilibration hub + qc.png
+    │   │       │   └── 03_md/            # Production MD replicas
+    │   │       │       ├── r1/           # Replica 1 (chunks + full trajectory)
+    │   │       │       ├── r2/           # Replica 2 (independent seed from 02_eq)
+    │   │       │       └── r3/           # Replica 3 (triplicate simulation)
+    │   │       └── L119R/
+    │   │           ├── 01_prep/
+    │   │           ├── 02_eq/
+    │   │           └── 03_md/{r1, r2, r3}/
     │   │
     │   └── analysis/
-    │       ├── WT/                       # Single-replica reports (RMSD, Rg, RMSF)
-    │       ├── L119R/
-    │       └── compare/figures/          # Triplicate Mean ± SD overlay plots
+    │       └── run01/
+    │           ├── WT/
+    │           │   ├── r1/               # Single-replica reports (RMSD, Rg, RMSF)
+    │           │   ├── r2/
+    │           │   └── r3/
+    │           ├── L119R/
+    │           │   └── {r1, r2, r3}/
+    │           └── compare/figures/      # Triplicate Mean ± SD overlay plots
     │
     └── atpmg/                            # Track 2: Holo state (ATP + Mg²⁺ complex)
-        ├── structure/models/             # Assembled complexes (WT and L119R with ATP + Mg²⁺)
-        ├── simulation/                   # WT/ and L119R/ (01_prep, 02_eq, r1, r2, r3)
-        └── analysis/                     # WT/, L119R/, and compare/figures/
+        ├── structure/models/{WT, L119R}/
+        ├── simulation/run01/{WT, L119R}/{01_prep, 02_eq, 03_md/{r1, r2, r3}}
+        └── analysis/run01/{WT, L119R, compare/figures}
 ```
 
 > 💡 **Why Shared Equilibration (`02_eq/`)?**
@@ -251,7 +258,7 @@ cmda prep --state apo --variant WT
 cmda prep --state apo --variant L119R
 ```
 
-*Key outputs in `data/apo/simulation/<variant>/01_prep/`:*
+*Key outputs in `data/apo/simulation/run01/<variant>/01_prep/`:*
 * `system.prmtop`: Amber topology file containing all atomic parameters.
 * `system.inpcrd`: Solvated, charge-neutralized input coordinates.
 * `system.pdb`: Reference starting coordinate file.
@@ -277,8 +284,8 @@ cmda sim qc --state apo --variant WT
 
 *(You can also run individual modular stages if preferred: `cmda sim em`, `cmda sim nvt`, `cmda sim npt`).*
 
-#### Step 2: Production MD Across Triplicates (`r1`, `r2`, `r3`)
-Replicas fork from `02_eq/` with distinct random velocity seeds:
+#### Step 2: Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
+Replicas fork from `02_eq/` with distinct random velocity seeds into `03_md/`:
 
 ```bash
 # Replica 1 (e.g. 10 ns chunked production run)
@@ -310,7 +317,7 @@ cmda merge --state apo --variant WT
 cmda merge --state apo --variant L119R
 ```
 
-*Key outputs in `data/apo/simulation/<variant>/r1/`:*
+*Key outputs in `data/apo/simulation/run01/<variant>/03_md/r1/`:*
 * `prod_full.dcd`: The final, concatenated, and centered/wrapped trajectory file.
 * `prod_full.pdb`: Matching reference topology PDB file.
 
@@ -338,7 +345,7 @@ Automatically aggregate triplicate statistics and generate publication-grade com
 cmda compare --state apo --variants WT,L119R
 ```
 
-*Publication-grade figures generated in `data/apo/analysis/compare/figures/`:*
+*Publication-grade figures generated in `data/apo/analysis/run01/compare/figures/`:*
 * `rmsd_avg.png`: Backbone RMSD overlay across time (Mean ± SD band).
 * `rg_avg.png`: Radius of gyration ($R_g$) compaction profiles.
 * `rmsf_avg.png`: Per-residue flexibility plot highlighting dynamic differences.
