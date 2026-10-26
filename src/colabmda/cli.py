@@ -129,7 +129,9 @@ def _dispatch_prep(args) -> int:
         os.environ["COLABMDA_RUN_ID"] = "run01"
 
     root = resolve_project_root(args.root)
-    paths = ProjectPaths(root, state=getattr(args, "state", None))
+    paths = ProjectPaths(
+        root, state=getattr(args, "state", None), target=getattr(args, "target", None)
+    )
     paths.init_layout()
 
     if args.state:
@@ -481,7 +483,8 @@ def _dispatch_sim(args) -> int:
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
 
-    raw_stages = [s.strip().lower() for s in args.stage.split(",") if s.strip()]
+    stage_arg = getattr(args, "stage_pos", None) or getattr(args, "stage", None) or "em,nvt,npt,qc"
+    raw_stages = [s.strip().lower() for s in stage_arg.split(",") if s.strip()]
     stages = []
     for s in raw_stages:
         if s in {"eq", "equil", "equilibration"}:
@@ -821,6 +824,9 @@ def main():
     model = sub.add_parser("model", help="Build WT or a variant from checked public project inputs")
     model.add_argument("--state", required=True)
     model.add_argument("--variant", default="WT")
+    model.add_argument(
+        "--target", default=None, help="Target structure subdirectory (e.g. O76039_4BGQ)"
+    )
     model.add_argument("--seed", type=int, default=13031)
     model.add_argument("--root", default=None, help=ROOT_HELP)
 
@@ -829,6 +835,9 @@ def main():
     )
     check.add_argument("--state", required=True)
     check.add_argument("--variant", default="WT")
+    check.add_argument(
+        "--target", default=None, help="Target structure subdirectory (e.g. O76039_4BGQ)"
+    )
     check.add_argument("--model", default=None)
     check.add_argument("--root", default=None, help=ROOT_HELP)
 
@@ -1190,6 +1199,9 @@ def main():
         "--state", default=None, help="State tag (e.g. atp_2mg_eb2, apo, atp_2mg)"
     )
     p_top_prep.add_argument("--variant", default="WT", help="Variant name (default: WT)")
+    p_top_prep.add_argument(
+        "--target", default=None, help="Target structure subdirectory (e.g. O76039_4BGQ)"
+    )
     p_top_prep.add_argument("--protein", default="cdkl5", help="Protein name (default: cdkl5)")
     p_top_prep.add_argument("--receptor", default=None, help="Path to receptor PDB")
     p_top_prep.add_argument(
@@ -1236,6 +1248,12 @@ def main():
 
     # 4. sim
     p_top_sim = sub.add_parser("sim", help="Execute simulation stages (em, nvt, npt, qc, md)")
+    p_top_sim.add_argument(
+        "stage_pos",
+        nargs="?",
+        default=None,
+        help="Optional positional stage (e.g. eq, md, or em,nvt,npt; overrides --stage)",
+    )
     p_top_sim.add_argument("--state", required=True, help="State tag (e.g. atp_2mg_eb2, apo)")
     p_top_sim.add_argument("--variant", default="WT", help="Variant name (default: WT)")
     p_top_sim.add_argument(

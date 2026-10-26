@@ -70,11 +70,14 @@ class ProjectPaths:
 
     root: Path
     state: str | None = None
+    target: str | None = None
 
     def __post_init__(self):
         self.root = Path(self.root).resolve()
         if self.state and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.state):
             raise ValueError("Invalid state")
+        if self.target and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.target):
+            raise ValueError("Invalid target identifier")
         self.run_id = os.environ.get("COLABMDA_RUN_ID", "")
         if self.run_id and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.run_id):
             raise ValueError("Invalid COLABMDA_RUN_ID")
@@ -111,9 +114,34 @@ class ProjectPaths:
 
     @property
     def structure_dir(self) -> Path:
-        """Resolve data/structure, 01_structure, or structure."""
+        """Resolve data/structure, target-specific subdirectories, 01_structure, or structure."""
         if self.state_dir is not None:
-            return self.state_dir / "structure"
+            base = self.state_dir / "structure"
+            if self.target:
+                return base / self.target
+            if base.is_dir():
+                # Direct check: does base itself have flat legacy outputs?
+                if (
+                    (base / "STRUCTURE_DONE").exists()
+                    or (base / "mapping/input.json").exists()
+                    or (base / "raw").exists()
+                ):
+                    return base
+                # Check for target subdirectories (e.g. O76039_4BGQ)
+                targets = [
+                    d
+                    for d in base.iterdir()
+                    if d.is_dir()
+                    and (
+                        (d / "STRUCTURE_DONE").exists()
+                        or (d / "mapping/input.json").exists()
+                        or (d / "models").exists()
+                        or (d / "raw").exists()
+                    )
+                ]
+                if targets:
+                    return sorted(targets, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+            return base
         numbered = self.root / "data/01_structure"
         if self.run_id or numbered.exists():
             return numbered

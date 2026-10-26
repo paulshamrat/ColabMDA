@@ -332,16 +332,20 @@ def _state_views(
                 common = candidate
                 break
         if common is None:
-            candidate = root / "data/apo/structure/models/WT/WT.pdb"
+            p_apo = ProjectPaths(root, state="apo")
+            candidate = p_apo.structure_dir / "models/WT/WT.pdb"
             if candidate.is_file():
                 common = candidate
+            elif (root / "data/apo/structure/models/WT/WT.pdb").is_file():
+                common = root / "data/apo/structure/models/WT/WT.pdb"
     if common is None:
         raise FileNotFoundError("Supply a checked common WT --reference")
     for s, v in specs:
         paths = ProjectPaths(root, state=s)
         spec = SystemSpec.from_tag(s, variant=v)
         prod = paths.replica_dir(spec, replica)
-        if structure:
+        is_structure = structure or not (prod / "stripped.prmtop").is_file()
+        if is_structure:
             topo = paths.model_pdb(spec)
             if not topo.is_file():
                 topo = (
@@ -353,15 +357,16 @@ def _state_views(
             traj = None
         else:
             topo, traj = prod / "stripped.prmtop", prod / "prod_keep_ligand.dcd"
+        mapping_file = paths.structure_dir / "mapping/residues.json"
         u, panels, record = _view_dataset(
             topo,
             traj,
             common,
-            "1" if structure else frames,
+            "1" if is_structure else frames,
             resi,
             v,
-            prod / "prod_full.log",
-            paths.structure_dir / "mapping/residues.json",
+            prod / "prod_full.log" if not is_structure else None,
+            mapping_file if mapping_file.is_file() else None,
         )
         record["source_kind"] = "starting_model" if structure else "trajectory"
         datasets.append((f"{s} · {v}", u, panels, record))
@@ -619,7 +624,11 @@ set_view ({view})
     )
     if not no_launch:
         if not shutil.which("pymol"):
-            raise RuntimeError(f"PyMOL missing; script saved at {pml}")
+            raise RuntimeError(
+                f"PyMOL executable not found in PATH; visualization script saved at {pml}\n"
+                "To launch interactively on your local machine, install PyMOL with:\n"
+                "  conda install -c conda-forge pymol-open-source"
+            )
         subprocess.run(["pymol", str(pml)], check=True)
     print(f"Generated {pml}")
     return 0

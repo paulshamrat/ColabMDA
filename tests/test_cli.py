@@ -199,3 +199,70 @@ def test_top_level_compare_command(tmp_path, monkeypatch):
     assert compare_fig_dir.is_dir()
     for name in ["rmsd_avg.png", "rg_avg.png", "rmsf_avg.png"]:
         assert (compare_fig_dir / name).is_file()
+
+
+def test_sim_positional_stage_argument(monkeypatch):
+    import argparse
+    from unittest.mock import MagicMock
+
+    from colabmda.cli import _dispatch_sim
+
+    def fake_openmm_stages(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("COLABMDA_RUN_ID", "run01")
+    monkeypatch.setattr("colabmda.core.workflow.verify_prepared", lambda *a: True)
+    monkeypatch.setattr("colabmda.openmm.commands.openmm_em", fake_openmm_stages)
+    monkeypatch.setattr("colabmda.openmm.commands.openmm_nvt", fake_openmm_stages)
+    monkeypatch.setattr("colabmda.openmm.commands.openmm_npt", fake_openmm_stages)
+    monkeypatch.setattr("colabmda.openmm.commands.openmm_qc", fake_openmm_stages)
+    monkeypatch.setattr("colabmda.openmm.commands.openmm_md", fake_openmm_stages)
+
+    # 1. Positional 'eq' argument
+    args_eq = argparse.Namespace(
+        root=None,
+        state="apo",
+        variant="WT",
+        stage_pos="eq",
+        stage="em,nvt,npt,qc",
+        engine="openmm",
+        replica="r1",
+        total_ns=100.0,
+        traj_interval=10.0,
+        checkpoint_ps=1000.0,
+        steps=None,
+        equil_time=100.0,
+        protocol="staged",
+        software_test=False,
+    )
+    # Ensure dispatch accepts positional eq without error
+    # (Mock ProjectPaths to avoid filesystem dependency)
+    mock_paths = MagicMock()
+    mock_paths.prepared_prmtop.return_value.exists.return_value = True
+    mock_paths.prepared_inpcrd.return_value.exists.return_value = True
+    mock_paths.eq_dir.return_value = MagicMock()
+    mock_paths.model_pdb.return_value.exists.return_value = False
+    monkeypatch.setattr("colabmda.core.project.ProjectPaths", lambda *a, **k: mock_paths)
+
+    code = _dispatch_sim(args_eq)
+    assert code == 0
+
+
+def test_structure_target_dir_resolution(tmp_path):
+    from colabmda.core.project import ProjectPaths
+
+    # 1. Fresh state directory with no target yet
+    paths = ProjectPaths(tmp_path, state="apo")
+    assert paths.structure_dir == tmp_path / "data/apo/structure"
+
+    # 2. When target subfolder like O76039_4BGQ is populated
+    target_folder = tmp_path / "data/apo/structure/O76039_4BGQ"
+    (target_folder / "models/WT").mkdir(parents=True)
+    (target_folder / "STRUCTURE_DONE").touch()
+
+    paths_auto = ProjectPaths(tmp_path, state="apo")
+    assert paths_auto.structure_dir == target_folder
+
+    # 3. Explicit target override
+    paths_explicit = ProjectPaths(tmp_path, state="apo", target="O76039_4BGQ")
+    assert paths_explicit.structure_dir == target_folder

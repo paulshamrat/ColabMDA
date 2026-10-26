@@ -83,23 +83,60 @@ If your Google Colab session expires:
 
 ---
 
-## 2. Manual / Detailed Installation (Advanced)
+## 2. Local Workstation Setup & Hybrid Cloud Architecture
 
-> ⚠️ **Note:** For standard Google Colab runs, use the **Quick Start (Section 1)** above. This section covers local workstations, HPC clusters, and test verification.
+ColabMDA supports a high-efficiency **Hybrid Workflow**:
+1. **Local Workstation / Laptop (CPU):** Run fast homology modeling with Modeller (~20 seconds) and perform interactive 3D visual inspection in local PyMOL.
+2. **Google Drive Sync:** Push your lightweight modeled structures (`data/`) to Google Drive using `rclone` or desktop sync.
+3. **Google Colab (GPU):** Mount Drive and execute heavy 24-stage equilibration and 100 ns OpenMM MD on free cloud GPUs (NVIDIA T4/A100).
 
-<details>
-<summary><b>💻 A. Local Workstation Setup (Linux with NVIDIA GPU)</b></summary>
+---
 
-ColabMDA works on any Linux workstation with an NVIDIA GPU using the provided `environment.yml`:
+### 2.1. Local Installation (Modeller + PyMOL)
+
+On your local laptop or workstation (macOS, Linux, or Windows WSL):
+
 ```bash
-mamba env create -f environment.yml
-conda activate colabmda
-pip install -e .
+# 1. Create a local environment
+conda create -n colabmda-local python=3.12 -y
+conda activate colabmda-local
+
+# 2. Install MODELLER (CPU homology modeling)
+conda install -c salilab modeller -y
+# When prompted or in ~/.bashrc, set your free academic license:
+# export KEY_MODELLER="YOUR_ACADEMIC_KEY"
+
+# 3. Install Open-Source PyMOL (Free interactive 3D visualization)
+conda install -c conda-forge pymol-open-source -y
+
+# 4. Install ColabMDA CLI
+pip install git+https://github.com/paulshamrat/ColabMDA.git@dev1
 ```
-</details>
+
+*(Alternative PyMOL install: Ubuntu/Debian `sudo apt install pymol`, macOS `brew install brewsci/bio/pymol`).*
+
+---
+
+### 2.2. Transferring Local Data to Google Drive
+
+After generating and inspecting your models locally, transfer the lightweight `data/` folder to Google Drive:
+
+#### Option A: Terminal CLI via `rclone` (Recommended)
+```bash
+# Push local data to Google Drive project workspace:
+rclone copy data/ gdrive:research/projects/colabmda-example/data/ \
+  --exclude ".git/**" --exclude ".~lock.*#" --fast-list -P
+```
+
+#### Option B: Google Drive for Desktop
+Work directly inside or symlink into your Google Drive mount (`~/Google Drive/MyDrive/research/projects/colabmda-example/`). Any file generated locally is automatically uploaded in the background.
+
+---
+
+### 2.3. Advanced Environments & HPC
 
 <details>
-<summary><b>🧪 B. Running the Test Suite</b></summary>
+<summary><b>🧪 Running the Test Suite Locally</b></summary>
 
 Verify code integrity, force field mechanics, and CLI parsing:
 ```bash
@@ -108,7 +145,7 @@ pytest tests/ -v
 </details>
 
 <details>
-<summary><b>🏢 C. HPC Usage (SLURM)</b></summary>
+<summary><b>🏢 HPC Usage (SLURM)</b></summary>
 
 ColabMDA scripts can be integrated directly into SLURM job submission arrays. Because chunked simulations write discrete `.chk` checkpoints, jobs finish cleanly within standard cluster walltime limits.
 </details>
@@ -120,20 +157,22 @@ ColabMDA scripts can be integrated directly into SLURM job submission arrays. Be
 ColabMDA uses a clean, reproducible directory hierarchy stored directly in your Google Drive (or local project directory). Biochemical states (**`apo`** and **`atpmg`**) are organized into parallel branches under `data/`:
 
 ```text
-research/projects/colabmda-example/       # Your project root on Google Drive
+research/projects/colabmda-example/       # Project root (or custom project folder)
 └── data/
     ├── apo/                              # Track 1: Apo state (protein in water)
     │   ├── structure/
-    │   │   ├── raw/                      # Downloaded template (e.g. 4BGQ) and UniProt FASTA
-    │   │   ├── mapping/                  # Residue mapping and missing loop registers
-    │   │   └── models/
-    │   │       ├── WT/                   # Modeled WT coordinates (WT.pdb)
-    │   │       └── L119R/                # Modeled L119R coordinates (L119R.pdb)
+    │   │   └── O76039_4BGQ/              # Biological Target (UniProt) + Structural Template (PDB)
+    │   │       ├── raw/                  # Downloaded archive (4bgq.cif), template.pdb, uniprot.fasta
+    │   │       ├── mapping/              # Residue mapping (residues.json) and manifest (input.json)
+    │   │       ├── models/
+    │   │       │   ├── WT/               # Modeled WT coordinates (WT.pdb)
+    │   │       │   └── L119R/            # Modeled L119R coordinates (L119R.pdb)
+    │   │       └── STRUCTURE_DONE        # Verification completion marker
     │   │
     │   ├── simulation/
-    │   │   └── run01/                    # Run session (defaults to run01)
+    │   │   └── run01/                    # Run session (defaults automatically to run01)
     │   │       ├── WT/
-    │   │       │   ├── 01_prep/          # Solvated Amber system (system.prmtop, system.inpcrd)
+    │   │       │   ├── 01_prep/          # Solvated Amber system (model.pdb, system.prmtop, system.inpcrd)
     │   │       │   ├── 02_eq/            # 24-stage equilibration hub + qc.png
     │   │       │   └── 03_md/            # Production MD replicas
     │   │       │       ├── r1/           # Replica 1 (chunks + full trajectory)
@@ -160,8 +199,11 @@ research/projects/colabmda-example/       # Your project root on Google Drive
         └── analysis/run01/{WT, L119R, compare/figures}
 ```
 
-> 💡 **What is `run01`?**
-> In biomolecular modeling, you may want to test different simulation lengths or physical conditions without overwriting previous results. ColabMDA organizes runs into trial folders (defaulting automatically to `run01`). The CLI manages this automatically behind the scenes—you never need to manually create or configure `run01/`.
+> 💡 **Why `UniProt_PDB` Folders (`O76039_4BGQ/`)?**
+> Organizing structures by `<uniprot>_<pdb>` keeps coordinates, mappings, and models completely separated when comparing alternative templates (e.g. 4BGQ vs 8FP5) or modeling multiple proteins in the same project workspace.
+
+> 💡 **Why `model.pdb` in `01_prep/`?**
+> When you run `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `L119R.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation run (`run01`), guaranteeing full reproducibility even if upstream modeling files are modified later.
 
 > 💡 **Why Shared Equilibration (`02_eq/`)?**
 > The 24-stage equilibration ladder (EM, thermalization, density relaxation) only needs to be calculated once per variant. Replicas (`r1`, `r2`, `r3`) fork from `02_eq/` with distinct random velocity seeds, saving substantial GPU time while guaranteeing true statistical independence.
@@ -171,10 +213,10 @@ research/projects/colabmda-example/       # Your project root on Google Drive
 ## 4. Simulation Workflow
 
 ### Pipeline at a Glance:
-1. **Model:** Fetch template coordinates, map UniProt numbering, and build WT and mutant models.
+1. **Model:** Fetch template coordinates, map UniProt numbering, verify template sequence, and build WT and mutant models.
 2. **Titrate & Prep:** Assign physiological protonation states with PROPKA and solvate with Amber ff19SB/OPC.
 3. **Stage:** Initialize simulation folders under `data/simulation/`.
-4. **Equilibrate:** Run 24-stage equilibration in `02_eq/` with progressive restraint release.
+4. **Equilibrate:** Run 24-stage equilibration in `02_eq/` with progressive restraint release (`cmda sim eq`).
 5. **QC Gate:** Verify equilibration density, temperature, and stability (`qc.png`).
 6. **Production MD:** Execute resume-safe chunked production MD across triplicates (`r1`, `r2`, `r3`).
 7. **Merge:** Combine trajectory chunks into centered, wrapped, solvent-stripped trajectories.
@@ -182,16 +224,17 @@ research/projects/colabmda-example/       # Your project root on Google Drive
 
 > 💡 **Unified Environment & Working Directory:**
 > * **Single Environment:** All modeling, simulation, and analysis commands run in the unified **`colabmda`** conda environment.
-> * **Project Directory:** Always run `cmda` commands from your project root (e.g. `/content/drive/MyDrive/research/projects/colabmda-example`).
+> * **Project Directory:** Always run `cmda` commands from your project root (e.g. `/content/drive/MyDrive/research/projects/colabmda-example` or your custom project folder).
 
 ---
 
 ### Step 0: Create Project Directory & Activate Environment
 
-Before running workflow commands, switch to your Google Drive project workspace and ensure your environment is active:
+Before running workflow commands, switch to your project workspace (on Google Drive or local machine) and ensure your environment is active:
 
 ```bash
 # 1. Create and navigate to your project directory
+# (Replace 'colabmda-example' with your custom project name if desired, e.g. cdkl5-dynamics)
 mkdir -p /content/drive/MyDrive/research/projects/colabmda-example
 cd /content/drive/MyDrive/research/projects/colabmda-example
 
@@ -208,19 +251,40 @@ The modeling workflow enforces strict **Biological UniProt Numbering**, automate
 
 ```bash
 # 1. Fetch template coordinates (PDB 4BGQ) and map UniProt (O76039, residues 1–303)
-cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303
+cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303 --mutations L119R
 
 # 2. Build full Wild-Type model (fills all 27 missing loop residues)
 cmda model --state apo --variant WT
 
 # 3. Build Point Mutant (L119R) on the verified WT backbone
 cmda model --state apo --variant L119R
+
+# 4. (Optional) Interactive Visual Inspection in Local PyMOL
+cmda view --state apo --variant WT
 ```
 
 *What happens behind the scenes:*
-* **`cmda fetch`**: Downloads experimental coordinates (mmCIF/PDB fallback), aligns them to canonical UniProt sequence, identifies missing loop segments, and writes validation manifests (`mapping/input.json`).
+* **`cmda fetch` Output Banner**: Displays experimental resolution, coordinate density, missing loop segments, and template sequence checks:
+  ```text
+  ==============================================================================
+   ColabMDA Structural Mapping & Verification
+  ==============================================================================
+   UniProt Target:   O76039 (Residues 1–303, Total Length: 303 AA)
+   Template PDB:     4BGQ (Chain A, Method: X-RAY, Resolution: 2.10 Å)
+   Coordinate Gate:  276/303 observed residues resolved (91.1% coordinate density)
+   Missing Loops:    27 missing residues identified across 3 loop segment(s):
+                     - Loop 1: Res 45–52 (8 residues)
+                     - Loop 2: Res 168–181 (14 residues)
+                     - Loop 3: Res 299–303 (5 residues)
+   Template Check:   ✓ All 276 observed residues match Canonical UniProt WT
+   Mutation Gate:    ✓ Target variant L119R verified on WT residue L119 (coordinate & UniProt match)
+   Outputs Saved:    data/apo/structure/O76039_4BGQ/
+  ==============================================================================
+  ```
+* **Engineered Template Mutations**: If crystallographers introduced mutations into the PDB template, `cmda fetch` reports them, and Modeller automatically reverts them to canonical UniProt WT during `cmda model WT`.
 * **`cmda model WT`**: Invokes Modeller to build full coordinates for residues 1–303, closing missing loops and preserving author residue numbering.
 * **`cmda model L119R`**: Introduces the point mutation onto the verified WT template and optimizes local sidechain rotamers.
+* **`cmda view`**: Generates a standardized PyMOL visualization script and launches PyMOL with residue highlights (orange) and optimal camera framing.
 * **Pre-built / AlphaFold models:** If you already have pre-built coordinates, verify them directly via `cmda check --state apo --variant WT --model /path/to/model.pdb`.
 
 ---
