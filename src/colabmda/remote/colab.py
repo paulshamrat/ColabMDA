@@ -105,6 +105,133 @@ def _execute_remote(session, code, timeout):
     return status if status else (0 if succeeded else 1)
 
 
+def colab_push(
+    session: str | None = None,
+    root: str | Path | None = None,
+    project: str | None = None,
+    timeout: float = 300,
+) -> int:
+    """Package local data/ and push directly into remote Colab Google Drive."""
+    import tarfile
+
+    local_root = Path(root or os.getcwd()).resolve()
+    data_dir = local_root / "data"
+    if not data_dir.is_dir():
+        print(f"[ERROR] No 'data/' directory found in {local_root}")
+        print("Run local modeling first (cmda fetch, cmda model) before pushing to Colab.")
+        return 1
+
+    project_name = project or local_root.name
+    if project_name in {"research", "projects", "ColabMDA"}:
+        project_name = "colabmda-example"
+    remote_base = f"/content/drive/MyDrive/research/projects/{project_name}"
+
+    print(f"[INFO] Packaging local data/ from {local_root}...")
+    tmp_tar = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
+    tmp_tar.close()
+    try:
+        with tarfile.open(tmp_tar.name, "w:gz") as tar:
+            tar.add(str(data_dir), arcname="data")
+
+        session_name = session or "active"
+        print(f"[INFO] Uploading data archive to Colab session '{session_name}'...")
+        remote_tar = "/content/_cmda_push.tar.gz"
+        upload_cmd = ["colab", "upload", *_session_args(session), tmp_tar.name, remote_tar]
+        res = subprocess.call(upload_cmd)
+        if res != 0:
+            print("[ERROR] colab upload failed. Ensure the session is running and authenticated.")
+            return res
+
+        print(f"[INFO] Extracting directly into Google Drive: {remote_base}/data/ ...")
+        remote_script = (
+            "import os, tarfile\n"
+            "drive_base = '/content/drive/MyDrive'\n"
+            "if not os.path.exists(drive_base):\n"
+            "    raise RuntimeError('Google Drive is not mounted! Run: colab drivemount --session <name>')\n"
+            f"dest = {remote_base!r}\n"
+            "os.makedirs(dest, exist_ok=True)\n"
+            f"with tarfile.open({remote_tar!r}, 'r:gz') as tar:\n"
+            "    tar.extractall(dest)\n"
+            f"if os.path.exists({remote_tar!r}):\n"
+            f"    os.remove({remote_tar!r})\n"
+            f"print('[OK] Synchronized data/ to {{dest}}/data')\n"
+        )
+        status = _execute_remote(session, remote_script, timeout=timeout)
+        if status == 0:
+            print("✔ Successfully pushed local models and structures to Google Drive:")
+            print(f"  {remote_base}/data/")
+        return status
+    finally:
+        Path(tmp_tar.name).unlink(missing_ok=True)
+
+
+def colab_pull(
+    session: str | None = None,
+    root: str | Path | None = None,
+    project: str | None = None,
+    all_files: bool = False,
+    timeout: float = 300,
+) -> int:
+    """Download analysis figures and reports (or full data) from Google Drive back locally."""
+    import tarfile
+
+    local_root = Path(root or os.getcwd()).resolve()
+    project_name = project or local_root.name
+    if project_name in {"research", "projects", "ColabMDA"}:
+        project_name = "colabmda-example"
+    remote_base = f"/content/drive/MyDrive/research/projects/{project_name}"
+    remote_tar = "/content/_cmda_pull.tar.gz"
+
+    session_name = session or "active"
+    print(f"[INFO] Packaging results from Colab session '{session_name}' ({remote_base}/data)...")
+
+    exclude_logic = (
+        ""
+        if all_files
+        else "def filter_heavy(tarinfo):\n"
+        "    if tarinfo.name.endswith(('.dcd', '.chk', '.inpcrd')):\n"
+        "        return None\n"
+        "    return tarinfo\n"
+    )
+    filter_arg = "" if all_files else ", filter=filter_heavy"
+
+    remote_script = (
+        "import os, tarfile\n"
+        f"src = os.path.join({remote_base!r}, 'data')\n"
+        "if not os.path.exists(src):\n"
+        "    raise FileNotFoundError(f'Remote directory not found: {src}')\n"
+        f"{exclude_logic}"
+        f"with tarfile.open({remote_tar!r}, 'w:gz') as tar:\n"
+        f"    tar.add(src, arcname='data'{filter_arg})\n"
+        f"print('[OK] Results packaged to {remote_tar}')\n"
+    )
+    status = _execute_remote(session, remote_script, timeout=timeout)
+    if status != 0:
+        print("[ERROR] Failed to package remote results.")
+        return status
+
+    tmp_tar = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
+    tmp_tar.close()
+    try:
+        print(f"[INFO] Downloading results from Colab session '{session_name}'...")
+        download_cmd = ["colab", "download", *_session_args(session), remote_tar, tmp_tar.name]
+        res = subprocess.call(download_cmd)
+        if res != 0:
+            print("[ERROR] colab download failed.")
+            return res
+
+        print(f"[INFO] Extracting results into {local_root}/data/ ...")
+        with tarfile.open(tmp_tar.name, "r:gz") as tar:
+            tar.extractall(local_root)
+
+        cleanup_cmd = f"import os\nif os.path.exists({remote_tar!r}): os.remove({remote_tar!r})\n"
+        _execute_remote(session, cleanup_cmd, timeout=30)
+        print(f"✔ Successfully pulled results to {local_root}/data/")
+        return 0
+    finally:
+        Path(tmp_tar.name).unlink(missing_ok=True)
+
+
 def colab_manager_cli(argv: list[str] | None = None) -> int:
     """CLI handler for `cmda colab`."""
     repo_root = Path(__file__).resolve().parents[3]
@@ -185,6 +312,63 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_boot.add_argument(
         "--no-modeller", action="store_true", help="Skip the optional interactive MODELLER question"
     )
+
+    # Push data/ to Google Drive
+    p_push = sub.add_parser("push", help="Push local data/ to remote Google Drive via Colab")
+    p_push.add_argument(
+        "-s",
+        "--session",
+        default=None,
+        help="Session name (default: auto-detected if omitted)",
+    )
+    p_push.add_argument(
+        "--root",
+        default=None,
+        help="Local project root (default: current working directory)",
+    )
+    p_push.add_argument(
+        "--project",
+        default=None,
+        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+    )
+    p_push.add_argument(
+        "--timeout",
+        type=float,
+        default=300,
+        help="Push timeout in seconds (default: 300)",
+    )
+
+    # Pull results from Google Drive
+    p_pull = sub.add_parser("pull", help="Pull results from remote Google Drive via Colab")
+    p_pull.add_argument(
+        "-s",
+        "--session",
+        default=None,
+        help="Session name (default: auto-detected if omitted)",
+    )
+    p_pull.add_argument(
+        "--root",
+        default=None,
+        help="Local project root (default: current working directory)",
+    )
+    p_pull.add_argument(
+        "--project",
+        default=None,
+        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+    )
+    p_pull.add_argument(
+        "--all",
+        dest="all_files",
+        action="store_true",
+        help="Download all files including heavy trajectories (.dcd)",
+    )
+    p_pull.add_argument(
+        "--timeout",
+        type=float,
+        default=300,
+        help="Pull timeout in seconds (default: 300)",
+    )
+
     args = parser.parse_args(argv)
 
     if not args.colab_action:
@@ -310,5 +494,22 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
                 license_path.unlink(missing_ok=True)
             if source_zip is not None:
                 source_zip.unlink(missing_ok=True)
+
+    if args.colab_action == "push":
+        return colab_push(
+            session=args.session,
+            root=args.root,
+            project=args.project,
+            timeout=args.timeout,
+        )
+
+    if args.colab_action == "pull":
+        return colab_pull(
+            session=args.session,
+            root=args.root,
+            project=args.project,
+            all_files=args.all_files,
+            timeout=args.timeout,
+        )
 
     return 0

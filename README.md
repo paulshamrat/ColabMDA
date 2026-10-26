@@ -2,54 +2,83 @@
 
 [![Release](https://img.shields.io/github/v/tag/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/tags) [![Python CI](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/paulshamrat/ColabMDA/actions/workflows/python-test.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/paulshamrat/ColabMDA) [![Issues](https://img.shields.io/github/issues/paulshamrat/ColabMDA)](https://github.com/paulshamrat/ColabMDA/issues) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**ColabMDA** is a specialized tool that lets you run high-quality Molecular Dynamics simulations on Google Colab without the fear of losing your work. The biggest problem with Colab is that it disconnects, often destroying hours of simulation data. **ColabMDA fixes this** with a "resume-safe" system that automatically saves your progress to Google Drive. If your session expires, you can resume exactly where you left off with one simple command. From modeling protein mutations to generating publication-ready analysis, ColabMDA handles the complex setup for you, making it the easiest way to get high-quality MD results using free cloud GPUs.
+**ColabMDA** is a specialized framework for running high-quality Molecular Dynamics simulations on Google Colab without the fear of losing your progress. The biggest challenge with Google Colab is session timeouts and disconnections, which frequently destroy hours of simulation work. **ColabMDA fixes this** with a "resume-safe" architecture that continuously saves checkpoints directly to Google Drive. If your session expires, you can resume exactly where you left off with one simple command. From homology modeling and point mutations to 24-stage equilibration and publication-ready comparative figures, ColabMDA handles the entire pipeline using free cloud GPUs.
 
 ---
 
-## 1. Quick Start (Google Colab CLI)
+## 1. Installation & Environment Setup
 
-ColabMDA is designed to be operated directly from your terminal using the official **Google Colab CLI (`google-colab-cli`)**. This eliminates browser disconnects, clunky web editors, and lost tabs by streaming an interactive GPU terminal session directly into your shell.
+ColabMDA uses a **Hybrid Architecture**:
+* **Local Machine (CPU):** Fast homology modeling with Modeller (~20 seconds) and interactive 3D visual inspection in local PyMOL.
+* **Google Colab (GPU):** Heavy Amber parameterization, 24-stage equilibration, and 100 ns OpenMM MD on free cloud GPUs (NVIDIA T4 / A100).
 
-### 1.1. Launch GPU Session & Mount Drive (Local Terminal)
+```mermaid
+flowchart LR
+    A["💻 Local Machine<br/>(Modeller & PyMOL)"] -->|"cmda push<br/>(One Command)"| B["☁️ Google Drive<br/>(/MyDrive/research/projects)"]
+    B <-->|"Mount & Compute"| C["⚡ Google Colab<br/>(GPU MD Simulation)"]
+    B -->|"cmda pull<br/>(One Command)"| A
+```
 
-Run these three commands in your local terminal:
+---
+
+### 1.1. Local Workstation Setup (Modeller + PyMOL + Colab CLI)
+
+Run these commands in your local terminal (macOS, Linux, or Windows WSL):
 
 ```bash
-# 1. Install Colab CLI & authenticate (one-time browser login)
+# 1. Create and activate a local conda environment
+conda create -n colabmda-local python=3.12 -y
+conda activate colabmda-local
+
+# 2. Install MODELLER (CPU homology modeling)
+conda install -c salilab modeller -y
+# In your ~/.bashrc or terminal, configure your free academic license:
+# export KEY_MODELLER="YOUR_ACADEMIC_KEY"
+
+# 3. Install Open-Source PyMOL (Interactive 3D visualization)
+conda install -c conda-forge pymol-open-source -y
+
+# 4. Install Google Colab CLI & authenticate (one-time Google login in browser)
 pip install google-colab-cli
 colab sessions
 
-# 2. Launch Google Colab GPU session & mount Google Drive
-colab new -s colabmda-example --gpu T4
-# Visit the OAuth link printed in terminal to approve Drive access, then press Enter:
-colab drivemount --session colabmda-example
-
-# 3. Connect to the interactive Colab console terminal
-colab console -s colabmda-example
+# 5. Install ColabMDA CLI
+pip install git+https://github.com/paulshamrat/ColabMDA.git@dev1
 ```
 
-> 💡 **Why Colab CLI?**
-> * **No Browser Tab Needed:** You interact with the cloud GPU directly in your native terminal.
-> * **Instant Reconnect:** If your connection drops, simply run `colab console -s colabmda-example` to reattach to the running instance.
-> * **Full Terminal Power:** Native keyboard shortcuts, tmux/screen, and bash history without browser conflicts.
->
-> *(Optional Browser Fallback: If you prefer the Google Colab web interface, select `Runtime` → `Change runtime type` → **T4 GPU**, mount Drive, and click the **⋮** menu → **Terminal**).*
+> [!NOTE]
+> **Modeller Academic License:** Modeller is free for academic use. Get your license key instantly at [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
 
 ---
 
-### 1.2. Install ColabMDA & Activate Environment (Inside Colab Console)
+### 1.2. Google Colab GPU Provisioning
 
-Now that you are attached to the Colab GPU terminal via `colab console`, install the scientific environment:
+ColabMDA is operated directly from your terminal using the official **Google Colab CLI (`google-colab-cli`)**. This eliminates browser disconnects, clunky web editors, and lost tabs by streaming an interactive GPU terminal session directly into your native shell.
+
+In your local terminal:
+
+```bash
+# 1. Launch a persistent Colab GPU instance
+colab new -s colabmda-example --gpu T4
+
+# 2. Mount Google Drive (visit the printed OAuth URL once, then press Enter)
+colab drivemount --session colabmda-example
+
+# 3. Connect to the interactive Colab GPU console
+colab console -s colabmda-example
+```
+
+Inside the interactive Colab console terminal:
 
 ```bash
 # 1. Clone ColabMDA on the cloud GPU instance
 git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git /content/ColabMDA
 cd /content/ColabMDA
 
-# 2. Run the automated installer with MODELLER support
-WITH_MODELLER=1 bash scripts/setup.sh
+# 2. Run the automated cloud installer
+bash scripts/setup.sh
 
-# 3. Activate the scientific environment
+# 3. Activate the unified environment
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate colabmda
 
@@ -57,122 +86,34 @@ conda activate colabmda
 cmda --help
 ```
 
-> [!IMPORTANT]
-> **Modeller License Prompt:** During Step 2, the installer will ask you for your Modeller License Key. Academic licenses are completely free and sent instantly via email from [salilab.org/modeller/registration.html](https://salilab.org/modeller/registration.html).
-> Paste your key and press **Enter** to finish setup.
-
-> 💡 **Environment Activation:** All commands (`cmda` and `colabmda`) run in the single unified **`colabmda`** conda environment. If you ever open a new terminal or reconnect after a timeout, simply activate it:
-> ```bash
-> source /root/miniforge3/etc/profile.d/conda.sh
-> conda activate colabmda
-> ```
-
 ---
 
-### 💡 Tip: How to Resume After a Timeout
-If your Google Colab session expires:
-1. Launch a session and re-mount Drive:
+### 1.3. Resume Safety & Session Recovery
+
+If your Google Colab session expires or disconnects:
+1. Re-launch the session and re-mount Drive from your local terminal:
    ```bash
    colab new -s colabmda-example --gpu T4
    colab drivemount --session colabmda-example
    colab console -s colabmda-example
    ```
-2. Re-run **Step 1.2** to re-provision the environment.
-3. Navigate to your project directory on Drive and run the **exact same `cmda sim md` command**.
-4. ColabMDA automatically detects existing checkpoint files (`.chk`) and resumes without repeating completed work.
+2. Navigate to your project directory on Google Drive:
+   ```bash
+   cd /content/drive/MyDrive/research/projects/colabmda-example
+   source /root/miniforge3/etc/profile.d/conda.sh
+   conda activate colabmda
+   ```
+3. Run the **exact same `cmda sim md` command**.
+4. ColabMDA automatically detects existing checkpoint files (`prod.chk`) and resumes immediately without repeating finished work.
 
 ---
 
-## 2. Local Workstation Setup & Hybrid Cloud Architecture
+## 2. Directory Architecture & Design Principles
 
-ColabMDA supports a high-efficiency **Hybrid Workflow**:
-1. **Local Workstation / Laptop (CPU):** Run fast homology modeling with Modeller (~20 seconds) and perform interactive 3D visual inspection in local PyMOL.
-2. **Google Drive Sync:** Push your lightweight modeled structures (`data/`) to Google Drive using `rclone` or desktop sync.
-3. **Google Colab (GPU):** Mount Drive and execute heavy 24-stage equilibration and 100 ns OpenMM MD on free cloud GPUs (NVIDIA T4/A100).
-
----
-
-### 2.1. Local Installation (Modeller + PyMOL)
-
-On your local laptop or workstation (macOS, Linux, or Windows WSL):
-
-```bash
-# 1. Create a local environment
-conda create -n colabmda-local python=3.12 -y
-conda activate colabmda-local
-
-# 2. Install MODELLER (CPU homology modeling)
-conda install -c salilab modeller -y
-# When prompted or in ~/.bashrc, set your free academic license:
-# export KEY_MODELLER="YOUR_ACADEMIC_KEY"
-
-# 3. Install Open-Source PyMOL (Free interactive 3D visualization)
-conda install -c conda-forge pymol-open-source -y
-
-# 4. Install ColabMDA CLI
-pip install git+https://github.com/paulshamrat/ColabMDA.git@dev1
-```
-
-*(Alternative PyMOL install: Ubuntu/Debian `sudo apt install pymol`, macOS `brew install brewsci/bio/pymol`).*
-
----
-
-### 2.2. Transferring Local Data to Google Drive (Simple & Fast)
-
-Because your modeled coordinates and mappings are lightweight (~5 MB), you don't need complicated cloud tools. Choose whichever method fits your setup:
-
-#### Method 1: Zero-Config CLI via `colab upload` (Recommended)
-Since you already have `colab` CLI installed and authenticated, upload directly using your active session with zero extra setup:
-```bash
-# 1. On your local machine (compress the ~5 MB data folder):
-tar -czf data.tar.gz data/
-
-# 2. Upload directly to your Colab session:
-colab upload -s colabmda-example data.tar.gz /content/data.tar.gz
-
-# 3. Inside your Colab terminal (extract into project folder):
-tar -xzf /content/data.tar.gz -C /content/drive/MyDrive/research/projects/colabmda-example/
-```
-
-#### Method 2: Automatic Sync via Google Drive for Desktop (Zero Commands)
-If you use the [Google Drive for Desktop](https://www.google.com/drive/download/) app (macOS, Windows, or Linux via Insync/FUSE), simply work directly inside your synced Drive folder:
-```bash
-cd ~/Google\ Drive/MyDrive/research/projects/colabmda-example
-```
-All files generated by `cmda fetch` and `cmda model` sync automatically to Google Drive in real-time.
-
-#### Method 3: Browser Drag-and-Drop
-Zip `data/` (`tar -czf data.tar.gz data/` or right-click $\to$ Compress) and drop it into your project folder at [drive.google.com](https://drive.google.com).
-
-*(Advanced / HPC Power Users: If you already have `rclone` configured, you can also use `rclone copy data/ gdrive:research/projects/colabmda-example/data/ --fast-list -P`).*
-
----
-
-### 2.3. Advanced Environments & HPC
-
-<details>
-<summary><b>🧪 Running the Test Suite Locally</b></summary>
-
-Verify code integrity, force field mechanics, and CLI parsing:
-```bash
-pytest tests/ -v
-```
-</details>
-
-<details>
-<summary><b>🏢 HPC Usage (SLURM)</b></summary>
-
-ColabMDA scripts can be integrated directly into SLURM job submission arrays. Because chunked simulations write discrete `.chk` checkpoints, jobs finish cleanly within standard cluster walltime limits.
-</details>
-
----
-
-## 3. Recommended Directory Strategy
-
-ColabMDA uses a clean, reproducible directory hierarchy stored directly in your Google Drive (or local project directory). Biochemical states (**`apo`** and **`atpmg`**) are organized into parallel branches under `data/`:
+ColabMDA maintains a clean, reproducible directory hierarchy organized by biochemical state (**`apo`** and **`atpmg`**):
 
 ```text
-research/projects/colabmda-example/       # Project root (or custom project folder)
+research/projects/colabmda-example/       # Project root in Google Drive / local workspace
 └── data/
     ├── apo/                              # Track 1: Apo state (protein in water)
     │   ├── structure/
@@ -200,25 +141,20 @@ research/projects/colabmda-example/       # Project root (or custom project fold
     │   │
     │   └── analysis/
     │       └── run01/
-    │           ├── WT/
-    │           │   ├── r1/               # Single-replica reports (RMSD, Rg, RMSF)
-    │           │   ├── r2/
-    │           │   └── r3/
-    │           ├── L119R/
-    │           │   └── {r1, r2, r3}/
-    │           └── compare/figures/      # Triplicate Mean ± SD overlay plots
+    │           ├── WT/{r1, r2, r3}/      # Single-replica reports (RMSD, Rg, RMSF)
+    │           ├── L119R/{r1, r2, r3}/
+    │           └── compare/figures/      # Triplicate Mean ± SD overlay plots (300 DPI)
     │
     └── atpmg/                            # Track 2: Holo state (ATP + Mg²⁺ complex)
         ├── structure/
         │   └── O76039_4BGQ/
         │       ├── donors/
-        │       │   └── 8FP5/             # Isolated cofactor donor template folder
-        │       │       └── 8fp5.cif      # Donor crystal archive containing ATP and Mg²⁺
-        │       ├── raw/                  # Inherited target archive and mapping
+        │       │   └── 8FP5/             # Isolated cofactor donor crystal archive (8fp5.cif)
+        │       ├── raw/                  # Inherited target protein template coordinates
         │       ├── models/
         │       │   ├── WT/
         │       │   │   ├── complex.pdb   # Assembled Protein + ATP + Mg²⁺ complex
-        │       │   │   ├── complex.json  # Core RMSD & ATP/Mg fit audit trail
+        │       │   │   ├── complex.json  # Core RMSD & ATP/Mg coordination audit
         │       │   │   └── ASSEMBLY_DONE
         │       │   └── L119R/
         │       │       └── complex.pdb
@@ -228,44 +164,64 @@ research/projects/colabmda-example/       # Project root (or custom project fold
         └── analysis/run01/{WT, L119R, compare/figures}
 ```
 
-> 💡 **Why `UniProt_PDB` Folders (`O76039_4BGQ/`)?**
-> Organizing structures by `<uniprot>_<pdb>` keeps coordinates, mappings, and models completely separated when comparing alternative templates (e.g. 4BGQ vs 8FP5) or modeling multiple proteins in the same project workspace.
+### Core Design Principles:
 
-> 💡 **Why Separate `donors/<template>/` Folders?**
-> In holo simulations, the cofactor donor crystal structure (e.g. 8FP5) is kept in its own dedicated `donors/8FP5/` subfolder. This completely isolates the donor coordinates from the target protein files (`raw/`), preventing any confusion about which PDB provided the backbone vs which provided the ligands.
-
-> 💡 **Why `model.pdb` in `01_prep/`?**
-> When you run `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `complex.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation run (`run01`), guaranteeing full reproducibility even if upstream modeling files are modified later.
-
-> 💡 **Why Shared Equilibration (`02_eq/`)?**
-> The 24-stage equilibration ladder (EM, thermalization, density relaxation) only needs to be calculated once per variant. Replicas (`r1`, `r2`, `r3`) fork from `02_eq/` with distinct random velocity seeds, saving substantial GPU time while guaranteeing true statistical independence.
-
----
-
-## 4. Simulation Workflow: Step-by-Step Execution
-
-ColabMDA divides work logically into three clear phases:
-* **Phase 1 (Local):** Fast CPU homology modeling and interactive PyMOL QA on your workstation (~30 seconds).
-* **Phase 2 (Sync):** Pushing verified coordinates to Google Drive via `rclone copy` (~5 MB).
-* **Phase 3 (Cloud):** Heavy GPU parameterization, 24-stage equilibration, and 100 ns OpenMM MD on Google Colab GPU.
+* **Why `UniProt_PDB` Folders (`O76039_4BGQ/`)?**  
+  Organizing structures by `<uniprot>_<pdb>` keeps coordinates, mappings, and models cleanly isolated when comparing alternative crystal templates (e.g., 4BGQ vs 8FP5) or modeling multiple targets in the same workspace.
+* **Why Dedicated `donors/<template>/` Folders (`donors/8FP5/`)?**  
+  In holo simulations, the cofactor donor crystal structure (e.g. 8FP5) is stored in its own dedicated `donors/8FP5/` subfolder. This completely isolates the donor coordinates from the target protein files (`raw/`), making it immediately obvious which PDB provided the backbone vs which provided the ligands.
+* **Why `model.pdb` in `01_prep/`?**  
+  When running `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `complex.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation run (`run01`), guaranteeing full reproducibility even if upstream modeling files are modified later.
+* **Why Shared Equilibration (`02_eq/`)?**  
+  The 24-stage equilibration ladder (minimization, thermalization, density relaxation) only needs to be run once per variant. Replicas (`r1`, `r2`, `r3`) fork from `02_eq/` with distinct random velocity seeds, saving dozens of GPU hours while guaranteeing true statistical independence.
 
 ---
 
-### 💻 Phase 1: Local Modeling & PyMOL Visual Inspection (Local Workstation)
-*Execute this on your local laptop or workstation (macOS, Linux, or Windows WSL). No GPU is needed.*
+## 3. Step-by-Step Simulation Workflow (4 Phases)
 
-#### 4.1. Initialize Local Project Workspace
+ColabMDA divides work logically into four simple phases:
+
+```mermaid
+flowchart TD
+    subgraph P1 ["💻 Phase 1: Local Modeling (CPU)"]
+        F["cmda fetch"] --> M["cmda model WT & MUT"]
+        M --> V["cmda view (PyMOL QA)"]
+    end
+    subgraph P2 ["🚀 Phase 2: Stream Data to Drive"]
+        P["cmda push -s colabmda-example<br/>(One Single Command)"]
+    end
+    subgraph P3 ["⚡ Phase 3: GPU Simulation (Colab GPU)"]
+        PR["cmda prep"] --> EQ["cmda sim eq & qc"]
+        EQ --> MD["cmda sim md (r1, r2, r3)"]
+        MD --> MR["cmda merge"]
+        MR --> AN["cmda analyze & compare"]
+    end
+    subgraph P4 ["📥 Phase 4: Retrieve Results Locally"]
+        DL["cmda pull -s colabmda-example<br/>(One Single Command)"]
+    end
+
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+```
+
+---
+
+### 💻 Phase 1: Local Modeling & Visual QA (Local Machine)
+*Execute this on your local laptop or workstation. No GPU is required.*
+
+#### 3.1. Initialize Local Project Workspace
 ```bash
-# 1. Create and navigate to your local project directory
-# (Replace 'colabmda-example' with your custom project name if desired, e.g. cdkl5-dynamics)
+# Create and navigate to your project directory
+# (Replace 'colabmda-example' with your custom project name, e.g. cdkl5-dynamics)
 mkdir -p ~/research/projects/colabmda-example
 cd ~/research/projects/colabmda-example
 
-# 2. Activate your local environment
+# Activate local environment
 conda activate colabmda-local
 ```
 
-#### 4.2. Homology Modeling & Point Mutations (Modeller)
+#### 3.2. Homology Modeling & Point Mutations (Modeller)
 The modeling workflow enforces strict **Biological UniProt Numbering**, automated loop completion, and coordinate validation gates:
 
 ```bash
@@ -302,19 +258,7 @@ cmda model --state apo --variant L119R
 * **`cmda model WT`**: Invokes Modeller to build full coordinates for residues 1–303, closing missing loops and preserving author residue numbering.
 * **`cmda model L119R`**: Introduces the point mutation onto the verified WT template and optimizes local sidechain rotamers.
 
-#### 4.3. (Optional) Holo ATP/$\text{Mg}^{2+}$ Coordinate Assembly (Track 2)
-To investigate catalytic active-site geometry and cofactor coordination, assemble ATP and $\text{Mg}^{2+}$ from donor PDB 8FP5 onto your models:
-
-```bash
-# 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
-cmda assemble --state atpmg --variant WT --template 8FP5 --relax-sidechains
-
-# 2. Assemble Holo Mutant (L119R) from the same donor pose
-cmda assemble --state atpmg --variant L119R --template 8FP5 --relax-sidechains
-```
-*What happens:* Downloads `8fp5.cif` into `data/atpmg/structure/O76039_4BGQ/donors/8FP5/`, aligns kinase catalytic core residues (30–220), transfers ATP and $\text{Mg}^{2+}$, relaxes pocket sidechains, and writes `complex.pdb`.
-
-#### 4.4. Visual Quality Assurance in Local PyMOL
+#### 3.3. Visual Quality Assurance in Local PyMOL
 Verify loop closure and mutated residue rotamers interactively:
 
 ```bash
@@ -328,63 +272,51 @@ pymol data/apo/structure/O76039_4BGQ/models/WT/WT.pdb data/apo/structure/O76039_
 
 ---
 
-### 🚀 Phase 2: Push Modeled Structures to Google Drive
-*Transfer the lightweight `data/` directory (~5 MB) to Google Drive using your existing `colab` CLI session or desktop sync:*
+### 🚀 Phase 2: Stream Data to Google Drive in ONE Command
+*Transfer the lightweight `data/` folder (~5 MB) to Google Drive effortlessly:*
 
-#### Method 1: Zero-Config CLI via `colab upload` (Recommended)
-You already have `google-colab-cli` installed and authenticated—no new tools needed!
 ```bash
-# 1. On your local machine (compress the lightweight data folder):
-tar -czf data.tar.gz data/
-
-# 2. Upload directly to your Colab session:
-colab upload -s colabmda-example data.tar.gz /content/data.tar.gz
+cmda push -s colabmda-example
 ```
-*(In Step 4.5 inside your Colab terminal, you will simply run `tar -xzf /content/data.tar.gz` to unpack it).*
 
-#### Method 2: Google Drive for Desktop (Zero Commands)
-If working directly inside your synced `~/Google Drive/MyDrive/research/projects/colabmda-example/` folder, all files are already uploaded in the background.
+> 💡 **What `cmda push` Does Automatically:**
+> 1. Packages your local `data/` directory.
+> 2. Uploads the archive to your active Colab session via `colab upload`.
+> 3. Extracts it directly into `/content/drive/MyDrive/research/projects/colabmda-example/data/`.
+> 4. Automatically deletes the temporary archive.
+>
+> **No manual tar/zip, no rclone configuration, and zero browser drag-and-drop required!**
 
-*(Alternative: Drag & drop `data.tar.gz` into Google Drive at [drive.google.com](https://drive.google.com), or use `rclone copy` if you are an HPC power user).*
+*(Passive Alternative: If you use [Google Drive for Desktop](https://www.google.com/drive/download/) and work inside `~/Google Drive/MyDrive/research/projects/colabmda-example`, your local files sync automatically in real-time with zero commands).*
 
 ---
 
 ### ⚡ Phase 3: GPU Simulation & Analysis (Google Colab Cloud)
-*Now connect to Google Colab to run heavy Amber parameterization and OpenMM molecular dynamics on an NVIDIA T4 / A100 GPU.*
+*Connect to Google Colab to run heavy Amber parameterization and OpenMM molecular dynamics on an NVIDIA GPU.*
 
-#### 4.5. Connect to Colab GPU & Activate Environment
+#### 3.4. Connect to Colab GPU Console
 In your local terminal:
 ```bash
-# Launch Colab session with T4 GPU and mount Google Drive
-colab new -s colabmda-example --gpu T4
-colab drivemount --session colabmda-example
 colab console -s colabmda-example
 ```
 
 Inside the interactive Colab console terminal:
 ```bash
-# 1. Navigate to the synced project workspace on Google Drive
+# Navigate to the project workspace on Google Drive
 cd /content/drive/MyDrive/research/projects/colabmda-example
 
-# (If uploaded via colab upload, extract the data archive):
-[ -f /content/data.tar.gz ] && tar -xzf /content/data.tar.gz && rm /content/data.tar.gz
-
-# 2. Activate the ColabMDA environment
+# Activate the ColabMDA environment
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate colabmda
 ```
 
-#### 4.6. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
+#### 3.5. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
 Assign physiological protonation states at pH 7.4, solvate with OPC water, neutralize with 150 mM NaCl, and build Amber `ff19SB` topologies:
 
 ```bash
 # Track 1: Apo state
 cmda prep --state apo --variant WT
 cmda prep --state apo --variant L119R
-
-# Track 2: Holo state (includes Hu et al. B3 ATP and Li–Merz 12–6 Mg²⁺)
-cmda prep --state atpmg --variant WT
-cmda prep --state atpmg --variant L119R
 ```
 
 *Key outputs in `data/<state>/simulation/run01/<variant>/01_prep/`:*
@@ -392,7 +324,7 @@ cmda prep --state atpmg --variant L119R
 * `system.prmtop`: Amber topology containing all physical parameters.
 * `system.inpcrd`: Solvated, charge-neutralized initial coordinates.
 
-#### 4.7. Simulation Execution: 24-Stage Equilibration & QC Gate
+#### 3.6. Simulation Execution: 24-Stage Equilibration & QC Gate
 Run the 24-stage progressive heating and restraint release ladder (EM, NVT heating, NPT density relaxation) on CUDA GPU:
 
 ```bash
@@ -405,9 +337,8 @@ cmda sim eq --state apo --variant WT
 # 3. Check equilibration stability QC gate (generates qc.png)
 cmda sim qc --state apo --variant WT
 ```
-*(For Holo state, run with `--state atpmg`).*
 
-#### 4.8. Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
+#### 3.7. Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
 Replicas fork from `02_eq/` with distinct random velocity seeds into `03_md/`:
 
 ```bash
@@ -422,9 +353,9 @@ cmda sim md --state apo --variant WT --replica r3 --total-ns 100
 ```
 *(Repeat the same commands for mutant: `cmda stage --state apo --variant L119R`, `cmda sim eq ...`, and `cmda sim md ...`).*
 
-> 🛡️ **Resume Safety:** Production MD saves checkpoints (`prod.chk`) at regular intervals directly to Google Drive. If Colab disconnects, simply re-run the exact same command to resume immediately with zero lost progress.
+> 🛡️ **Resume Safety:** Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive. If Colab disconnects, simply re-run the exact same `cmda sim md` command to resume with zero lost progress.
 
-#### 4.9. Merge Trajectories & Autoimage PBC
+#### 3.8. Merge Trajectories & Autoimage PBC
 Concatenate trajectory chunks, apply periodic boundary condition (PBC) autoimaging, center the protein, and strip solvent:
 
 ```bash
@@ -435,7 +366,7 @@ cmda merge --state apo --variant WT
 cmda merge --state apo --variant L119R
 ```
 
-#### 4.10. Trajectory Analysis & Direct Overlay Comparison
+#### 3.9. Trajectory Analysis & Direct Overlay Comparison
 Calculate backbone metrics and overlay WT vs Mutant triplicate statistics:
 
 ```bash
@@ -448,9 +379,76 @@ cmda compare --state apo --variants WT,L119R
 ```
 
 *Publication-grade figures generated in `data/apo/analysis/run01/compare/figures/`:*
-* `rmsd_avg.png`: Backbone RMSD overlay across time (Mean ± SD band).
+* `rmsd_avg.png`: Backbone RMSD overlay across time (Mean ± SD band, 300 DPI).
 * `rg_avg.png`: Radius of gyration ($R_g$) compaction profiles.
 * `rmsf_avg.png`: Per-residue flexibility plot highlighting dynamic differences.
+
+---
+
+### 📥 Phase 4: Download Results in ONE Command (Local Workstation)
+*When simulations finish, pull the analysis tables, logs, and publication figures back to your laptop in seconds:*
+
+In your local terminal:
+```bash
+cmda pull -s colabmda-example
+```
+
+> 💡 **What `cmda pull` Does Automatically:**
+> 1. Packages analysis CSVs, logs, summary manifests, and 300 DPI PNG plots from Google Drive.
+> 2. Excludes heavy trajectory files (`.dcd`, `.chk`) by default so the download finishes in ~2 seconds.
+> 3. Extracts everything directly into your local `data/` folder.
+> 4. Cleans up temporary cloud archives.
+>
+> *(To download full multi-gigabyte raw trajectories as well, pass `--all`: `cmda pull -s colabmda-example --all`).*
+
+---
+
+## 4. Track 2: Holo Dynamics (ATP + $\text{Mg}^{2+}$ Coordination)
+
+To study catalytic active-site dynamics and cofactor coordination, assemble ATP and $\text{Mg}^{2+}$ from donor PDB 8FP5 onto your modeled kinase structures.
+
+### 4.1. What Happens to the Template and Donor Structures?
+* **Target Coordinates (`raw/`):** PDB 4BGQ provides the sequence and backbone geometry for the target kinase (CDKL5, residues 1–303).
+* **Cofactor Donor Coordinates (`donors/8FP5/`):** PDB 8FP5 (CDK2 in complex with ATP and $\text{Mg}^{2+}$) is downloaded into its own isolated `donors/8FP5/` folder.
+* **Structural Assembly:** ColabMDA aligns the conserved catalytic core kinase motifs (residues 30–220), transfers ATP and $\text{Mg}^{2+}$, relaxes steric clashes in active site sidechains, and writes `complex.pdb` and `complex.json` into `models/WT/` and `models/L119R/`.
+
+### 4.2. Local Holo Assembly (Local Terminal)
+```bash
+# 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
+cmda assemble --state atpmg --variant WT --template 8FP5 --relax-sidechains
+
+# 2. Assemble Holo Mutant (L119R) from the same donor pose
+cmda assemble --state atpmg --variant L119R --template 8FP5 --relax-sidechains
+
+# 3. Push to Google Drive
+cmda push -s colabmda-example
+```
+
+### 4.3. Holo Parameterization & Simulation (Colab Console)
+ColabMDA automatically incorporates the **Hu et al. B3 parameter set** for ATP and the **Li–Merz 12–6 compromise model** for $\text{Mg}^{2+}$:
+
+```bash
+# 1. Solvate and parameterize Holo complexes
+cmda prep --state atpmg --variant WT
+cmda prep --state atpmg --variant L119R
+
+# 2. Stage directories and run 24-stage equilibration
+cmda stage --state atpmg --variant WT
+cmda sim eq --state atpmg --variant WT
+cmda sim qc --state atpmg --variant WT
+
+# 3. Run production MD triplicates
+cmda sim md --state atpmg --variant WT --replica r1 --total-ns 100
+cmda sim md --state atpmg --variant WT --replica r2 --total-ns 100
+cmda sim md --state atpmg --variant WT --replica r3 --total-ns 100
+
+# 4. Merge trajectories and compare WT vs Mutant
+cmda merge --state atpmg --variant WT
+cmda merge --state atpmg --variant L119R
+cmda analyze --state atpmg --variant WT
+cmda analyze --state atpmg --variant L119R
+cmda compare --state atpmg --variants WT,L119R
+```
 
 ---
 
@@ -458,14 +456,7 @@ cmda compare --state apo --variants WT,L119R
 
 Visualize molecular dynamics trajectories in PyMOL with full secondary structure (ribbon/cartoon) and active site sidechains:
 
-### 5.1. Local Setup
-On your local computer or laptop (with PyMOL installed):
-```bash
-# Install ColabMDA lightweight CLI locally
-pip install "git+https://github.com/paulshamrat/ColabMDA.git@dev1"
-```
-
-### 5.2. Launch Trajectory View
+### 5.1. Launch Trajectory View
 ```bash
 # View Wild-Type trajectory frame
 cmda view --state apo --variant WT --replica r1
@@ -473,6 +464,25 @@ cmda view --state apo --variant WT --replica r1
 # Generate 3x8 transition snapshot grids comparing WT vs Mutant
 cmda snapshots --state apo
 ```
+
+---
+
+## 6. Advanced Environments & HPC (SLURM)
+
+<details>
+<summary><b>🧪 Running the Test Suite Locally</b></summary>
+
+Verify code integrity, force field mechanics, and CLI parsing:
+```bash
+pytest tests/ -v
+```
+</details>
+
+<details>
+<summary><b>🏢 HPC Usage (SLURM)</b></summary>
+
+ColabMDA scripts can be integrated directly into SLURM job submission arrays. Because chunked simulations write discrete `.chk` checkpoints, jobs finish cleanly within standard cluster walltime limits.
+</details>
 
 ---
 
@@ -490,7 +500,10 @@ cmda snapshots --state apo
 ## Changelog
 
 ### v0.2.0 (Kinase Architectures, Amber ff19SB & Resilience)
-*   **Unified CLI (`cmda`):** Intuitive top-level commands (`fetch`, `model`, `assemble`, `prep`, `stage`, `sim`, `merge`, `analysis`, `compare`).
+*   **One-Command Sync (`cmda push` & `cmda pull`):** Direct streaming between local workstation and remote Google Drive via Google Colab CLI, eliminating manual archiving and rclone setup.
+*   **Cofactor Donor Isolation:** Dedicated `donors/<template>/` directory hierarchy preserving donor crystal integrity.
+*   **Target Hierarchy (`<uniprot>_<pdb>`):** Clean segregation for multi-template and multi-protein workspaces.
+*   **Unified CLI (`cmda`):** Intuitive top-level commands (`fetch`, `model`, `assemble`, `push`, `prep`, `stage`, `sim`, `merge`, `analysis`, `compare`, `pull`, `view`).
 *   **Dual State Architecture:** Clean separation between unliganded **`apo`** dynamics and catalytic **`atpmg`** holo dynamics.
 *   **Automated Triplicate Comparison:** Single-call `cmda compare --state <state> --variants WT,MUT` generating publication-grade Mean ± SD overlay plots.
 *   **24-Stage Equilibration Hub:** Robust heating and restraint release ladder guaranteeing stable density and temperature.

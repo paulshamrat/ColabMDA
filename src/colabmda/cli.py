@@ -1193,6 +1193,66 @@ def main():
         "colab_args", nargs=argparse.REMAINDER, help="Arguments passed to colab manager"
     )
 
+    # push
+    p_top_push = sub.add_parser(
+        "push", help="Stream local data/ directory to remote Google Drive via Colab"
+    )
+    p_top_push.add_argument(
+        "-s",
+        "--session",
+        default=None,
+        help="Colab session name (e.g. colabmda-example)",
+    )
+    p_top_push.add_argument(
+        "--root",
+        default=None,
+        help="Local project root (default: current working directory)",
+    )
+    p_top_push.add_argument(
+        "--project",
+        default=None,
+        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+    )
+    p_top_push.add_argument(
+        "--timeout",
+        type=float,
+        default=300,
+        help="Push timeout in seconds (default: 300)",
+    )
+
+    # pull
+    p_top_pull = sub.add_parser(
+        "pull", help="Download results and figures from Google Drive via Colab"
+    )
+    p_top_pull.add_argument(
+        "-s",
+        "--session",
+        default=None,
+        help="Colab session name (e.g. colabmda-example)",
+    )
+    p_top_pull.add_argument(
+        "--root",
+        default=None,
+        help="Local project root (default: current working directory)",
+    )
+    p_top_pull.add_argument(
+        "--project",
+        default=None,
+        help="Remote project folder name in Google Drive (default: directory name or colabmda-example)",
+    )
+    p_top_pull.add_argument(
+        "--all",
+        dest="all_files",
+        action="store_true",
+        help="Download all files including heavy trajectories (.dcd)",
+    )
+    p_top_pull.add_argument(
+        "--timeout",
+        type=float,
+        default=300,
+        help="Pull timeout in seconds (default: 300)",
+    )
+
     # 2. prep
     p_top_prep = sub.add_parser("prep", help="Unified model assembly & parameterization")
     p_top_prep.add_argument(
@@ -1361,6 +1421,31 @@ def main():
         from colabmda.remote.colab import colab_manager_cli
 
         raise SystemExit(colab_manager_cli(args.colab_args))
+
+    elif args.tool == "push":
+        from colabmda.remote.colab import colab_push
+
+        raise SystemExit(
+            colab_push(
+                session=args.session,
+                root=args.root,
+                project=args.project,
+                timeout=args.timeout,
+            )
+        )
+
+    elif args.tool == "pull":
+        from colabmda.remote.colab import colab_pull
+
+        raise SystemExit(
+            colab_pull(
+                session=args.session,
+                root=args.root,
+                project=args.project,
+                all_files=args.all_files,
+                timeout=args.timeout,
+            )
+        )
 
     elif args.tool == "prep":
         raise SystemExit(_dispatch_prep(args))

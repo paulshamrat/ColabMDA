@@ -266,3 +266,42 @@ def test_structure_target_dir_resolution(tmp_path):
     # 3. Explicit target override
     paths_explicit = ProjectPaths(tmp_path, state="apo", target="O76039_4BGQ")
     assert paths_explicit.structure_dir == target_folder
+
+
+def test_push_pull_cli_parsers():
+    # 1. Top-level cmda push --help
+    res_push = subprocess.run(
+        [sys.executable, "-m", "colabmda.cli", "push", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert res_push.returncode == 0
+    assert "--session" in res_push.stdout
+    assert "--project" in res_push.stdout
+
+    # 2. Top-level cmda pull --help
+    res_pull = subprocess.run(
+        [sys.executable, "-m", "colabmda.cli", "pull", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert res_pull.returncode == 0
+    assert "--session" in res_pull.stdout
+    assert "--all" in res_pull.stdout
+
+    # 3. cmda colab push and pull
+    res_colab_push = subprocess.run(
+        [sys.executable, "-m", "colabmda.cli", "colab", "push", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert res_colab_push.returncode == 0
+    assert "--session" in res_colab_push.stdout
+
+    res_colab_pull = subprocess.run(
+        [sys.executable, "-m", "colabmda.cli", "colab", "pull", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert res_colab_pull.returncode == 0
+    assert "--all" in res_colab_pull.stdout

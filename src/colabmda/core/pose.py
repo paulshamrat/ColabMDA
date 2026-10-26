@@ -211,7 +211,23 @@ def assemble_public(args):
     )
     if out.exists():
         report = json.loads(out.with_suffix(".json").read_text())
-        archive = paths.structure_dir / "raw" / report["donor"]["archive_filename"]
+        donor_rel = report["donor"].get("archive_path")
+        if donor_rel and (paths.structure_dir / donor_rel).is_file():
+            archive = paths.structure_dir / donor_rel
+        elif (
+            paths.structure_dir
+            / "donors"
+            / report["donor"]["pdb"]
+            / report["donor"]["archive_filename"]
+        ).is_file():
+            archive = (
+                paths.structure_dir
+                / "donors"
+                / report["donor"]["pdb"]
+                / report["donor"]["archive_filename"]
+            )
+        else:
+            archive = paths.structure_dir / "raw" / report["donor"]["archive_filename"]
         if (
             not marker.is_file()
             or report.get("request") != request
@@ -242,8 +258,9 @@ def assemble_public(args):
     receptor.write_bytes(source.read_bytes())
     check(SimpleNamespace(root=str(paths.root), state="atpmg", variant=args.variant, model=None))
     model = PDBParser(QUIET=True).get_structure("target", source)
-    raw = paths.structure_dir / "raw"
-    donor, archive, url = fetch_archive(args.template, raw)
+    donor_dir = paths.structure_dir / "donors" / args.template.upper()
+    donor_dir.mkdir(parents=True, exist_ok=True)
+    donor, archive, url = fetch_archive(args.template, donor_dir)
     if args.chain not in donor[0]:
         raise ValueError("Requested donor chain absent")
     chain = model[0][args.chain]
@@ -299,6 +316,7 @@ def assemble_public(args):
             chain=args.chain,
             archive_url=url,
             archive_filename=archive.name,
+            archive_path=str(archive.relative_to(paths.structure_dir)),
             archive_sha256=sha(archive),
             magnesium_oxygen_distance_angstrom=mg_distance,
         ),
