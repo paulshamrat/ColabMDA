@@ -159,7 +159,10 @@ def colab_push(
         status = _execute_remote(session, remote_script, timeout=timeout)
         if status == 0:
             print("✔ Successfully pushed local models and structures to Google Drive:")
-            print(f"  {remote_base}/data/")
+            print(f"  • Colab Linux Path:   {remote_base}/data/")
+            print(
+                f"  • Google Drive Web:   My Drive > research > projects > {project_name} > data/"
+            )
         return status
     finally:
         Path(tmp_tar.name).unlink(missing_ok=True)
@@ -227,6 +230,8 @@ def colab_pull(
         cleanup_cmd = f"import os\nif os.path.exists({remote_tar!r}): os.remove({remote_tar!r})\n"
         _execute_remote(session, cleanup_cmd, timeout=30)
         print(f"✔ Successfully pulled results to {local_root}/data/")
+        print(f"  • Local Path:         {local_root}/data/")
+        print(f"  • Retrieved From:     My Drive > research > projects > {project_name} > data/")
         return 0
     finally:
         Path(tmp_tar.name).unlink(missing_ok=True)

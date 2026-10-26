@@ -261,13 +261,18 @@ colab drivemount --session cmda-example
 cmda push -s cmda-example
 ```
 
-> 💡 **What `cmda push` Does Automatically:**
-> 1. Packages your local `data/` directory (~5 MB).
-> 2. Uploads the archive to your active Colab session via `colab upload`.
-> 3. Extracts it directly into `/content/drive/MyDrive/research/projects/cmda-example/data/`.
-> 4. Automatically deletes the temporary archive.
+> 💡 **Where does `cmda push` upload your files?**
+> * **Google Drive Web UI ([drive.google.com](https://drive.google.com)):**  
+>   `My Drive` > `research` > `projects` > `cmda-example` > `data/`
+> * **Google Colab Filesystem Path:**  
+>   `/content/drive/MyDrive/research/projects/cmda-example/data/`
+> * **How It Works Under the Hood:**  
+>   1. Takes your local `data/` folder (~5 MB).
+>   2. Streams it through your active Colab VM (`-s cmda-example`).
+>   3. Extracts it directly into your mounted Google Drive project directory.
+>   4. Deletes the temporary transit archive automatically.
 >
-> **No manual tar/zip, no rclone configuration, and zero browser drag-and-drop required!**
+> **No manual tar/zip, no rclone setup, and zero browser drag-and-drop!**
 
 *(Passive Alternative: If you use [Google Drive for Desktop](https://www.google.com/drive/download/) and work inside `~/Google Drive/MyDrive/research/projects/cmda-example`, your local files sync automatically in real-time with zero commands).*
 
