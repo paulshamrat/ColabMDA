@@ -29,6 +29,9 @@ MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 INSTALL_DIR="${INSTALL_DIR:-/content/colabmda}"
 WORK_DIR="${WORK_DIR:-/content/work}"
 DRIVE_RUNS_DIR="${DRIVE_RUNS_DIR:-}"
+if [[ -z "${DRIVE_RUNS_DIR}" ]] && [[ -d "/content/drive/MyDrive" ]]; then
+  DRIVE_RUNS_DIR="/content/drive/MyDrive/research/projects"
+fi
 OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
 ENV_NAME="${ENV_NAME:-colabmda}"
 MODELLER_ENV_NAME="${MODELLER_ENV_NAME:-modeller_env}"
