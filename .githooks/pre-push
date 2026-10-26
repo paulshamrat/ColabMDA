@@ -7,4 +7,23 @@ fi
 scanner="$(git config --get colabmda.gitleaksPath || true)"
 scanner="${scanner:-gitleaks}"
 command -v "$scanner" >/dev/null || { echo "Install Gitleaks before pushing; see CONTRIBUTING.md" >&2; exit 1; }
-exec "$scanner" git --log-opts=--all --redact=100 --no-banner --config .gitleaks.toml .
+
+if [[ ! -t 0 ]]; then
+  has_input=false
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    has_input=true
+    if [[ "$local_sha" != "0000000000000000000000000000000000000000" ]]; then
+      if [[ "$remote_sha" != "0000000000000000000000000000000000000000" ]]; then
+        range="${remote_sha}..${local_sha}"
+      else
+        range="${local_sha}"
+      fi
+      "$scanner" git --log-opts="$range" --redact=100 --no-banner --config .gitleaks.toml .
+    fi
+  done
+  if [[ "$has_input" == false ]]; then
+    "$scanner" git --log-opts="HEAD" --redact=100 --no-banner --config .gitleaks.toml .
+  fi
+else
+  "$scanner" git --log-opts="HEAD" --redact=100 --no-banner --config .gitleaks.toml .
+fi
