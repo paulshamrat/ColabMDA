@@ -47,7 +47,7 @@ def generate_tleap_script(
     water_model: str = "opc",
     protein_ff: str = "ff19SB",
     padding_angstroms: float = 14.0,
-    salt_conc_molar: float = 0.15,
+    salt_conc_molar: float = 0.0,
     salt_type: str = "NaCl",
     solvate: bool = True,
 ) -> str:
@@ -227,7 +227,7 @@ def write_prep_provenance(
     water_model: str = "opc",
     protein_ff: str = "ff19SB",
     padding_angstroms: float = 14.0,
-    salt_conc_molar: float = 0.15,
+    salt_conc_molar: float = 0.0,
     salt_type: str = "NaCl",
     solvate: bool = True,
     extra: dict | None = None,

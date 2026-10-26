@@ -125,9 +125,6 @@ def _dispatch_prep(args) -> int:
     from colabmda.core.taxonomy import SystemSpec
     from colabmda.modeller.substrate import assemble_system_model, fetch_rcsb_pdb
 
-    if not os.environ.get("COLABMDA_RUN_ID"):
-        os.environ["COLABMDA_RUN_ID"] = "run01"
-
     root = resolve_project_root(args.root)
     paths = ProjectPaths(
         root, state=getattr(args, "state", None), target=getattr(args, "target", None)
@@ -244,6 +241,7 @@ def _dispatch_prep(args) -> int:
                 output_prmtop=paths.prepared_prmtop(spec),
                 output_inpcrd=paths.prepared_inpcrd(spec),
                 output_pdb=solvated_out,
+                salt_conc_molar=getattr(args, "salt", 0.0),
             )
             retcode, log_out = run_tleap(
                 script_text,
@@ -283,14 +281,8 @@ def _dispatch_stage(args) -> int:
             raise ValueError("--example requires an explicit --root")
         return install_example(args.example, args.root)
 
-    if not os.environ.get("COLABMDA_RUN_ID"):
-        os.environ["COLABMDA_RUN_ID"] = "run01"
-
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
-
-    if not os.environ.get("COLABMDA_RUN_ID"):
-        os.environ["COLABMDA_RUN_ID"] = "run01"
 
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
@@ -303,12 +295,10 @@ def _dispatch_stage(args) -> int:
     paths.log_dir(spec).mkdir(parents=True, exist_ok=True)
     paths.prep_dir(spec).mkdir(parents=True, exist_ok=True)
     paths.eq_dir(spec).mkdir(parents=True, exist_ok=True)
-    paths.analysis_dir(spec).mkdir(parents=True, exist_ok=True)
 
     replicas = [r.strip() for r in args.replicas.split(",") if r.strip()]
     for rep in replicas:
         paths.replica_dir(spec, rep).mkdir(parents=True, exist_ok=True)
-        paths.replica_analysis_dir(spec, rep).mkdir(parents=True, exist_ok=True)
 
     if not getattr(args, "scripts", False):
         print(f"[OK] Staged {paths.variant_dir(spec)}; use direct cmda commands")
@@ -476,9 +466,6 @@ def _dispatch_sim(args) -> int:
         openmm_qc,
     )
 
-    if not os.environ.get("COLABMDA_RUN_ID"):
-        os.environ["COLABMDA_RUN_ID"] = "run01"
-
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
@@ -640,9 +627,6 @@ def _dispatch_analyze(args) -> int:
     from colabmda.core.taxonomy import SystemSpec
     from colabmda.openmm.commands import openmm_analysis
 
-    if not os.environ.get("COLABMDA_RUN_ID"):
-        os.environ["COLABMDA_RUN_ID"] = "run01"
-
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
@@ -724,9 +708,6 @@ def _dispatch_compare(args) -> int:
     from colabmda.core.taxonomy import SystemSpec
     from colabmda.openmm.figures import openmm_compare
 
-    if not os.environ.get("COLABMDA_RUN_ID"):
-        os.environ["COLABMDA_RUN_ID"] = "run01"
-
     root = resolve_project_root(args.root)
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     variants = [v.strip() for v in args.variants.split(",") if v.strip()]
@@ -754,9 +735,6 @@ def _dispatch_status(args) -> int:
     if getattr(args, "state", None):
         from colabmda.core.project import ProjectPaths, resolve_project_root
         from colabmda.core.taxonomy import SystemSpec
-
-        if not os.environ.get("COLABMDA_RUN_ID"):
-            os.environ["COLABMDA_RUN_ID"] = "run01"
 
         root = resolve_project_root(args.root)
         paths = ProjectPaths(root, state=args.state)
@@ -1317,6 +1295,12 @@ def main():
         "--peptide-name", default=None, help="Substrate peptide name (e.g. eb2, eb1)"
     )
     p_top_prep.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+    p_top_prep.add_argument(
+        "--salt",
+        type=float,
+        default=0.0,
+        help="Optional physiological salt concentration in Molar (default: 0.0 = neutralization only, e.g. --salt 0.15 for 150 mM NaCl)",
+    )
     p_top_prep.add_argument(
         "--no-amber", action="store_true", help="Skip automated tleap topology generation"
     )

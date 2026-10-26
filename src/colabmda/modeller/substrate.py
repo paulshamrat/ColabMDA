@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import tempfile
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -823,8 +824,13 @@ def assemble_system_model(
     if not rec_path.exists():
         raise FileNotFoundError(f"Input receptor PDB not found: {rec_path}")
 
-    w_dir = Path(work_dir).resolve() if work_dir else out_path.parent / "_work_prep"
-    w_dir.mkdir(parents=True, exist_ok=True)
+    created_temp_work = False
+    if work_dir:
+        w_dir = Path(work_dir).resolve()
+        w_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        w_dir = Path(tempfile.mkdtemp(prefix="cmda_prep_"))
+        created_temp_work = True
 
     current_pdb = rec_path
 
@@ -993,6 +999,14 @@ def assemble_system_model(
 
     shutil.copy2(current_pdb, out_path)
     terminate_components(out_path)
+
+    if created_temp_work and w_dir.exists():
+        shutil.rmtree(w_dir, ignore_errors=True)
+
+    legacy_work = out_path.parent / "_work_prep"
+    if legacy_work.exists() and legacy_work.is_dir():
+        shutil.rmtree(legacy_work, ignore_errors=True)
+
     return out_path
 
 

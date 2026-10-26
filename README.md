@@ -98,24 +98,22 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     │   │       └── STRUCTURE_DONE        # Verification completion marker
     │   │
     │   ├── simulation/
-    │   │   └── run01/                    # Run session (defaults automatically to run01)
-    │   │       ├── WT/
-    │   │       │   ├── 01_prep/          # Solvated Amber system (model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
-    │   │       │   ├── 02_eq/            # 24-stage equilibration hub + qc.png
-    │   │       │   └── 03_md/            # Production MD replicas
-    │   │       │       ├── r1/           # Replica 1 (chunks + full trajectory)
-    │   │       │       ├── r2/           # Replica 2 (independent seed from 02_eq)
-    │   │       │       └── r3/           # Replica 3 (triplicate simulation)
-    │   │       └── L119R/
-    │   │           ├── 01_prep/
-    │   │           ├── 02_eq/
-    │   │           └── 03_md/{r1, r2, r3}/
+    │   │   ├── WT/
+    │   │   │   ├── 01_prep/              # Solvated Amber system (model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
+    │   │   │   ├── 02_eq/                # 24-stage equilibration hub + qc.png
+    │   │   │   └── 03_md/                # Production MD replicas
+    │   │   │       ├── r1/               # Replica 1 (chunks + full trajectory)
+    │   │   │       ├── r2/               # Replica 2 (independent seed from 02_eq)
+    │   │   │       └── r3/               # Replica 3 (triplicate simulation)
+    │   │   └── L119R/
+    │   │       ├── 01_prep/
+    │   │       ├── 02_eq/
+    │   │       └── 03_md/{r1, r2, r3}/
     │   │
-    │   └── analysis/
-    │       └── run01/
-    │           ├── WT/{r1, r2, r3}/      # Single-replica reports (RMSD, Rg, RMSF)
-    │           ├── L119R/{r1, r2, r3}/
-    │           └── compare/figures/      # Triplicate Mean ± SD overlay plots (300 DPI)
+    │   └── analysis/                     # Created only when cmda analyze / compare runs!
+    │       ├── WT/{r1, r2, r3}/          # Single-replica reports (RMSD, Rg, RMSF)
+    │       ├── L119R/{r1, r2, r3}/
+    │       └── compare/figures/          # Triplicate Mean ± SD overlay plots (300 DPI)
     │
     └── atpmg/                            # Track 2: Holo state (ATP + Mg²⁺ complex)
         ├── structure/
@@ -132,8 +130,8 @@ research/projects/cmda-example/           # Project root in Google Drive / local
         │       │       └── complex.pdb
         │       └── STRUCTURE_DONE
         │
-        ├── simulation/run01/{WT, L119R}/{01_prep, 02_eq, 03_md/{r1, r2, r3}}
-        └── analysis/run01/{WT, L119R, compare/figures}
+        ├── simulation/{WT, L119R}/{01_prep, 02_eq, 03_md/{r1, r2, r3}}
+        └── analysis/{WT, L119R, compare/figures}
 ```
 
 ### Core Design Principles:
@@ -143,9 +141,9 @@ research/projects/cmda-example/           # Project root in Google Drive / local
 * **Why Dedicated `donors/<template>/` Folders (`donors/8FP5/`)?**  
   In holo simulations, the cofactor donor crystal structure (e.g. 8FP5) is stored in its own dedicated `donors/8FP5/` subfolder. This completely isolates the donor coordinates from the target protein files (`raw/`), making it immediately obvious which PDB provided the backbone vs which provided the ligands.
 * **Why `01_prep/` Runs Locally in Phase 1?**  
-  Running `cmda prep` locally parameterizes the protein with AmberTools `tleap`, adds OPC 4-point water, neutralizes the box with 150 mM NaCl, and creates `solvated.pdb`. This allows visual inspection of the water box and ion distribution in local PyMOL *before* uploading to Google Drive.
+  Running `cmda prep` locally parameterizes the protein with AmberTools `tleap`, adds OPC 4-point water, neutralizes net charge (matching standard published protocols), and creates `solvated.pdb`. This allows visual inspection of the water box in local PyMOL *before* uploading to Google Drive.
 * **Why `model.pdb` in `01_prep/`?**  
-  When running `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `complex.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation run (`run01`), guaranteeing full reproducibility even if upstream modeling files are modified later.
+  When running `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `complex.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation, guaranteeing full reproducibility even if upstream modeling files are modified later.
 * **Why Shared Equilibration (`02_eq/`)?**  
   The 24-stage equilibration ladder (minimization, thermalization, density relaxation) only needs to be run once per variant. Replicas (`r1`, `r2`, `r3`) fork from `02_eq/` with distinct random velocity seeds, saving dozens of GPU hours while guaranteeing true statistical independence.
 
@@ -159,7 +157,7 @@ ColabMDA divides work logically into four sequential phases:
 flowchart TD
     subgraph P1 ["💻 Phase 1: Local Modeling & Prep (CPU — cmda)"]
         F["cmda fetch (pure fetch)"] --> M["cmda model WT & L119R"]
-        M --> PR["cmda prep (tleap + 150 mM NaCl)"]
+        M --> PR["cmda prep (tleap + neutralize charge)"]
         PR --> V["cmda view & PyMOL QA (solvated.pdb)"]
     end
     subgraph P2 ["🚀 Phase 2: Launch GPU & Stream Data to Drive"]
@@ -240,17 +238,20 @@ cmda model --state apo --variant L119R
 * **`cmda model L119R`**: Introduces the point mutation onto the verified WT template and optimizes local sidechain rotamers.
 
 #### 3.4. Structure Preparation & Solvation (AmberTools `tleap` + PROPKA at pH 7.4)
-Prepare the solvated systems locally using CPU-bound AmberTools:
+Prepare the solvated systems locally using CPU-bound AmberTools. By default, ColabMDA neutralizes system charge with counterion(s) only (matching standard published protocols):
 
 ```bash
-# Solvate with OPC water, neutralize with 150 mM NaCl, assign AMBER titratable protonation states
+# Solvate with OPC water, neutralize net charge, assign AMBER titratable protonation states
 cmda prep --state apo --variant WT
 cmda prep --state apo --variant L119R
+
+# Optional: Add 150 mM physiological saline if specifically desired:
+# cmda prep --state apo --variant WT --salt 0.15
 ```
 
-*Key outputs generated in `data/apo/simulation/run01/<variant>/01_prep/`:*
+*Key outputs generated in `data/apo/simulation/<variant>/01_prep/`:*
 * `model.pdb`: Immutable copy of the input coordinate PDB for complete reproducibility.
-* `solvated.pdb`: Solvated coordinate PDB with protein, water box, and neutralized $\text{Na}^+$/$\text{Cl}^-$ ions.
+* `solvated.pdb`: Solvated coordinate PDB with protein, water box, and neutralized counterion(s).
 * `system.prmtop`: Amber topology containing all `ff19SB` physical parameters.
 * `system.inpcrd`: Solvated, charge-neutralized initial coordinates.
 * `protonation_summary.json`: Audit log of explicit protonation states assigned by PROPKA at pH 7.4.
@@ -265,10 +266,10 @@ cmda view --state apo --variant WT
 # 2. Compare WT and Mutant side-by-side in PyMOL:
 pymol data/apo/structure/O76039_4BGQ/models/WT/WT.pdb data/apo/structure/O76039_4BGQ/models/L119R/L119R.pdb
 
-# 3. Inspect the fully solvated system (water box + 150 mM Na+/Cl- ions):
-pymol data/apo/simulation/run01/WT/01_prep/solvated.pdb
+# 3. Inspect the fully solvated system (water box + neutralizing counterions):
+pymol data/apo/simulation/WT/01_prep/solvated.pdb
 ```
-*Visual Check:* Confirm loop 163–173 is closed smoothly, Arg119 points into solvent with zero steric clashes, and the OPC water box has adequate padding (~10 Å).
+*Visual Check:* Confirm loop 163–173 is closed smoothly, Arg119 points into solvent with zero steric clashes, and the OPC water box has adequate padding (~14 Å).
 
 ---
 
@@ -403,7 +404,7 @@ cmda analyze --state apo --variant L119R
 cmda compare --state apo --variants WT,L119R
 ```
 
-*Publication-grade figures generated in `data/apo/analysis/run01/compare/figures/`:*
+*Publication-grade figures generated in `data/apo/analysis/compare/figures/`:*
 * `rmsd_avg.png`: Backbone RMSD overlay across time (Mean ± SD band, 300 DPI).
 * `rg_avg.png`: Radius of gyration ($R_g$) compaction profiles.
 * `rmsf_avg.png`: Per-residue flexibility plot highlighting dynamic differences.
@@ -466,7 +467,7 @@ cmda status --state apo --variant WT --replica r1
 *Comprehensive status report:*
 ```text
 [STATUS]
-  Workdir          : data/apo/simulation/run01/WT/03_md/r1
+  Workdir          : data/apo/simulation/WT/03_md/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
@@ -480,7 +481,7 @@ cmda status --state apo --variant WT --replica r1
 
 Alternatively, query frame counts directly in Python with MDAnalysis:
 ```bash
-python3 -c "import MDAnalysis as mda; u = mda.Universe('data/apo/simulation/run01/WT/03_md/r1/stripped.prmtop', 'data/apo/simulation/run01/WT/03_md/r1/prod_keep_ligand.dcd'); print('Frames:', len(u.trajectory))"
+python3 -c "import MDAnalysis as mda; u = mda.Universe('data/apo/simulation/WT/03_md/r1/stripped.prmtop', 'data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd'); print('Frames:', len(u.trajectory))"
 ```
 
 ---
@@ -515,7 +516,7 @@ Accurate protonation states are critical for biophysical fidelity. ColabMDA nati
 * **Cysteine Residues:**
   * `CYS`: Free neutral thiol form.
   * `CYX`: Disulfide-bridged Cysteine.
-* **Audit Manifest:** Every assignment is permanently recorded in `data/<state>/simulation/run01/<variant>/01_prep/protonation_summary.json`.
+* **Audit Manifest:** Every assignment is permanently recorded in `data/<state>/simulation/<variant>/01_prep/protonation_summary.json`.
 
 ---
 

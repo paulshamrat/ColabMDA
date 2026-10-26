@@ -214,7 +214,8 @@ class ProjectPaths:
     def analysis_base(self) -> Path:
         """Resolve data/analysis, 03_analysis, or analysis."""
         if self.state_dir is not None:
-            return self.state_dir / "analysis" / self.run_id
+            base = self.state_dir / "analysis"
+            return base / self.run_id if self.run_id else base
         p_data = self.root / "data" / "analysis"
         p03 = self.root / "03_analysis"
         p_legacy = self.root / "analysis"
@@ -233,10 +234,6 @@ class ProjectPaths:
     def variant_dir(self, spec: SystemSpec) -> Path:
         """Root directory for a specific state and variant."""
         if self.state_dir is not None:
-            if not self.run_id:
-                raise ValueError(
-                    "Set COLABMDA_RUN_ID to a fresh run name, or its original name to resume"
-                )
             return self.simulation_base / spec.variant
         return self.simulation_base / spec.state_tag / spec.variant
 
@@ -476,7 +473,8 @@ class ProjectPaths:
     def log_dir(self, spec: SystemSpec) -> Path:
         """Execution logs mirror state/run/variant, independently of scientific data."""
         if self.state_dir is not None:
-            return self.root / "logs" / self.state_dir.name / self.run_id / spec.variant
+            base = self.root / "logs" / self.state_dir.name
+            return base / self.run_id / spec.variant if self.run_id else base / spec.variant
         return self.root / "logs" / "02_simulation" / self.run_id / spec.variant
 
     def compare_dir(self, state_tag: str) -> Path:
