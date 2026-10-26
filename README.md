@@ -14,21 +14,21 @@ ColabMDA uses a **Hybrid Architecture** designed to save cloud compute units and
 
 ```mermaid
 flowchart LR
-    A["💻 Local Machine<br/>(cmda-l env)"] -->|"cmda push<br/>(One Command)"| B["☁️ Google Drive<br/>(/MyDrive/research/projects)"]
+    A["💻 Local Machine<br/>(cmda env)"] -->|"cmda push<br/>(One Command)"| B["☁️ Google Drive<br/>(/MyDrive/research/projects)"]
     B <-->|"Mount & Compute"| C["⚡ Google Colab<br/>(cmda env on GPU)"]
     B -->|"cmda pull<br/>(One Command)"| A
 ```
 
 ---
 
-### 1.1. Install Local Environment (`cmda-l`)
+### 1.1. Install Local Environment (`cmda`)
 
 Run these commands in your local terminal (macOS, Linux, or Windows WSL):
 
 ```bash
-# 1. Create and activate the local environment (cmda-l)
-conda create -n cmda-l python=3.12 -y
-conda activate cmda-l
+# 1. Create and activate the conda environment (cmda)
+conda create -n cmda python=3.12 -y
+conda activate cmda
 
 # 2. Install MODELLER (CPU homology modeling)
 conda install -c salilab modeller -y
@@ -131,7 +131,7 @@ ColabMDA divides work logically into four sequential phases:
 
 ```mermaid
 flowchart TD
-    subgraph P1 ["💻 Phase 1: Local Modeling (CPU — cmda-l)"]
+    subgraph P1 ["💻 Phase 1: Local Modeling (CPU — cmda)"]
         F["cmda fetch"] --> M["cmda model WT & MUT"]
         M --> V["cmda view (PyMOL QA)"]
     end
@@ -145,7 +145,7 @@ flowchart TD
         MD --> MR["cmda merge"]
         MR --> AN["cmda analyze & compare"]
     end
-    subgraph P4 ["📥 Phase 4: Retrieve Results Locally (cmda-l)"]
+    subgraph P4 ["📥 Phase 4: Retrieve Results Locally (cmda)"]
         DL["cmda pull -s cmda-example<br/>(One Single Command)"]
     end
 
@@ -156,7 +156,7 @@ flowchart TD
 
 ---
 
-### 💻 Phase 1: Local Modeling & Visual QA (Local Machine — `cmda-l`)
+### 💻 Phase 1: Local Modeling & Visual QA (Local Machine — `cmda`)
 *Execute this on your local laptop or workstation. No GPU is required.*
 
 #### 3.1. Initialize Local Project Workspace
@@ -167,7 +167,7 @@ mkdir -p ~/research/projects/cmda-example
 cd ~/research/projects/cmda-example
 
 # 2. Activate local environment
-conda activate cmda-l
+conda activate cmda
 ```
 
 #### 3.2. Homology Modeling & Point Mutations (Modeller)
@@ -368,7 +368,7 @@ cmda compare --state apo --variants WT,L119R
 
 ---
 
-### 📥 Phase 4: Retrieve Results in ONE Command (Local Workstation — `cmda-l`)
+### 📥 Phase 4: Retrieve Results in ONE Command (Local Workstation — `cmda`)
 *When simulations finish, pull the analysis tables, logs, and publication figures back to your laptop in seconds:*
 
 In your local terminal:
@@ -395,7 +395,7 @@ To study catalytic active-site dynamics and cofactor coordination, assemble ATP 
 * **Cofactor Donor Coordinates (`donors/8FP5/`):** PDB 8FP5 (CDK2 in complex with ATP and $\text{Mg}^{2+}$) is downloaded into its own isolated `donors/8FP5/` folder.
 * **Structural Assembly:** ColabMDA aligns the conserved catalytic core kinase motifs (residues 30–220), transfers ATP and $\text{Mg}^{2+}$, relaxes steric clashes in active site sidechains, and writes `complex.pdb` and `complex.json` into `models/WT/` and `models/L119R/`.
 
-### 4.2. Local Holo Assembly (Local Terminal — `cmda-l`)
+### 4.2. Local Holo Assembly (Local Terminal — `cmda`)
 ```bash
 # 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
 cmda assemble --state atpmg --variant WT --template 8FP5 --relax-sidechains
@@ -439,7 +439,7 @@ cmda compare --state atpmg --variants WT,L119R
 
 Visualize molecular dynamics trajectories in PyMOL with full secondary structure (ribbon/cartoon) and active site sidechains:
 
-### 5.1. Launch Trajectory View (Local Machine — `cmda-l`)
+### 5.1. Launch Trajectory View (Local Machine — `cmda`)
 ```bash
 # View Wild-Type trajectory frame
 cmda view --state apo --variant WT --replica r1
