@@ -75,8 +75,12 @@ def test_model_wrapper_checks_inputs_and_reuses_only_matching_request(tmp_path, 
     calls = []
 
     def build(argv, **kwargs):
+        from pathlib import Path
+
         calls.append(argv)
-        out = folder / "models/WT/WT.pdb"
+        out_dir = Path(argv[argv.index("--outdir") + 1])
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / "WT.pdb"
         out.write_text(
             "ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00  0.00           C\nEND\n"
         )

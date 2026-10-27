@@ -199,7 +199,13 @@ cmda fetch --state <apo|holo> --pdb-id <PDB_ID> --uniprot-id <UNIPROT_ID> --rang
 
 # Example: CDKL5 kinase domain (residues 1–303)
 cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303
+
+# (Optional) Visually inspect the cleaned template in local PyMOL:
+pymol data/apo/structure/O76039_4BGQ/raw/template.pdb
 ```
+
+> [!TIP]
+> **PyMOL Visual Inspection**: Open `template.pdb` in PyMOL to examine the cleaned monomer and clearly see the physical backbone breaks where crystallographers could not resolve electron density (e.g., residues 46–52 and activation loop 163–173). In Section 3.3, MODELLER will automatically reconstruct and close these loops.
 
 This generates the following structured outputs:
 

@@ -198,7 +198,15 @@ def test_fetch_maps_label_offset_and_preserves_insertion(tmp_path, monkeypatch):
         mutations="A2V",
     )
     assert workflow.fetch(args) == 0
-    res_path = (raw.parent / "residues.json") if (raw.parent / "residues.json").exists() else (raw.parent / "mapping/residues.json")
+    res_path = (
+        (raw / "residues.json")
+        if (raw / "residues.json").exists()
+        else (
+            (raw.parent / "residues.json")
+            if (raw.parent / "residues.json").exists()
+            else (raw.parent / "mapping/residues.json")
+        )
+    )
     rows = json.loads(res_path.read_text())
     assert rows[0]["resolved"] is False
     assert rows[1] == {
@@ -272,10 +280,11 @@ def test_fetch_creates_flat_directory_structure(tmp_path, monkeypatch):
     assert workflow.fetch(args) == 0
     folder = tmp_path / "data/apo/structure/TEST_TEST"
     assert (folder / "STRUCTURE_DONE").exists()
-    assert (folder / "raw" / "input.json").exists() or (folder / "input.json").exists()
-    assert (folder / "raw" / "residues.json").exists() or (folder / "residues.json").exists()
-    assert (folder / "raw" / "template.pdb").exists() or (folder / "template.pdb").exists()
-    assert (folder / "raw" / "uniprot.fasta").exists() or (folder / "uniprot.fasta").exists()
+    assert (folder / "raw" / "input.json").exists()
+    assert (folder / "raw" / "residues.json").exists()
+    assert (folder / "raw" / "template.pdb").exists()
+    assert (folder / "raw" / "uniprot.fasta").exists()
+    assert not (folder / "models").exists()
     assert not (folder / "mapping").exists()
 
 

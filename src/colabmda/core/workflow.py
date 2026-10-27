@@ -211,7 +211,6 @@ def fetch(args):
         loop_segments.append((seg_start, seg_end, seg_end - seg_start + 1))
 
     write_json(raw / "residues.json", rows)
-    write_json(folder / "residues.json", rows)
     record_data = {
         "pdb": args.pdb_id,
         "uniprot": args.uniprot_id,
@@ -230,7 +229,6 @@ def fetch(args):
         },
     }
     write_json(raw / "input.json", record_data)
-    write_json(folder / "input.json", record_data)
     marker.write_text(
         "Author mapping, canonical identity and requested mutation density verified\n"
     )
@@ -458,7 +456,7 @@ def model(args):
                 root=str(paths.root), state=args.state, variant=args.variant, model=None
             )
         )
-    if (legacy_parent / "MODEL_DONE").exists():
+    if legacy_parent.exists() and (legacy_parent / "MODEL_DONE").exists():
         if not legacy_receipt.is_file() or json.loads(legacy_receipt.read_text()) != request:
             raise ValueError(
                 "Existing model has different inputs/settings; use a fresh project structure"
@@ -471,21 +469,11 @@ def model(args):
     if parent.exists() and any(parent.iterdir()):
         raise ValueError("Incomplete/nonempty model folder preserved; inspect before retrying")
     parent.mkdir(parents=True, exist_ok=True)
-    legacy_parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [sys.executable, "-m", "colabmda.cli", "modeller", *argv, "--seed", str(args.seed)],
         check=True,
     )
-    import shutil
-
-    out_pdb = parent / f"{args.variant}.pdb"
-    legacy_pdb = legacy_parent / f"{args.variant}.pdb"
-    if legacy_pdb.exists() and not out_pdb.exists():
-        shutil.copy2(legacy_pdb, out_pdb)
-    elif out_pdb.exists() and not legacy_pdb.exists():
-        shutil.copy2(out_pdb, legacy_pdb)
     write_json(receipt, request)
-    write_json(legacy_receipt, request)
     check(SimpleNamespace(root=str(paths.root), state=args.state, variant=args.variant, model=None))
     return 0
 
