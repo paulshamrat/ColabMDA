@@ -155,30 +155,13 @@ research/projects/cmda-example/           # Project root in Google Drive / local
 ColabMDA divides work logically into four sequential phases:
 
 ```mermaid
-flowchart TD
-    subgraph P1 ["💻 Phase 1: Local Modeling & Prep (CPU — cmda)"]
-        F["cmda fetch (pure fetch)"] --> M["cmda model WT & L119R"]
-        M --> PR["cmda prep (tleap + neutralize charge)"]
-        PR --> V["cmda view & PyMOL QA (solvated.pdb)"]
-    end
-    subgraph P2 ["🚀 Phase 2: Launch GPU & Stream Data to Drive"]
-        L["colab new -s cmda-example --gpu T4<br/>colab drivemount -s cmda-example"] --> P["cmda push -s cmda-example<br/>(One Single Command)"]
-    end
-    subgraph P3 ["⚡ Phase 3: Pure GPU Simulation (Colab GPU — cmda)"]
-        C["colab console -s cmda-example"] --> ST["cmda stage"]
-        ST --> EQ["cmda sim eq & qc"]
-        EQ --> MD["cmda sim md (r1, r2, r3)"]
-        MD --> MR["cmda merge"]
-        MR --> AN["cmda analyze & compare"]
-    end
-    subgraph P4 ["📥 Phase 4: Retrieve Results Locally (cmda)"]
-        DL["cmda pull -s cmda-example<br/>(One Single Command)"]
-        DL --> VW["cmda view (Trajectories in PyMOL)"]
-    end
+flowchart LR
+    P1["💻 **Phase 1: Local Prep**<br/>`fetch` • `model` • `prep` • `view`"]
+    P2["🚀 **Phase 2: Cloud Sync**<br/>`colab new` • `cmda push`"]
+    P3["⚡ **Phase 3: GPU Sim**<br/>`stage` • `sim eq/md` • `analyze`"]
+    P4["📥 **Phase 4: Retrieval**<br/>`cmda pull` • `cmda view`"]
 
-    P1 --> P2
-    P2 --> P3
-    P3 --> P4
+    P1 --> P2 --> P3 --> P4
 ```
 
 ---
