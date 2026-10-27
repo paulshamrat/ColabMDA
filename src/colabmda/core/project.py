@@ -123,6 +123,7 @@ class ProjectPaths:
                 # Direct check: does base itself have flat legacy outputs?
                 if (
                     (base / "STRUCTURE_DONE").exists()
+                    or (base / "input.json").exists()
                     or (base / "mapping/input.json").exists()
                     or (base / "raw").exists()
                 ):
@@ -134,6 +135,7 @@ class ProjectPaths:
                     if d.is_dir()
                     and (
                         (d / "STRUCTURE_DONE").exists()
+                        or (d / "input.json").exists()
                         or (d / "mapping/input.json").exists()
                         or (d / "models").exists()
                         or (d / "raw").exists()
@@ -166,6 +168,10 @@ class ProjectPaths:
 
     @property
     def template_dir(self) -> Path:
+        if (self.structure_dir / "raw").exists():
+            return self.structure_dir / "raw"
+        if (self.structure_dir / "template.pdb").exists():
+            return self.structure_dir
         return self.structure_dir / ("raw" if self.state_dir is not None else "template")
 
     @property

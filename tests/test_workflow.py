@@ -198,7 +198,8 @@ def test_fetch_maps_label_offset_and_preserves_insertion(tmp_path, monkeypatch):
         mutations="A2V",
     )
     assert workflow.fetch(args) == 0
-    rows = json.loads((raw.parent / "mapping/residues.json").read_text())
+    res_path = (raw.parent / "residues.json") if (raw.parent / "residues.json").exists() else (raw.parent / "mapping/residues.json")
+    rows = json.loads(res_path.read_text())
     assert rows[0]["resolved"] is False
     assert rows[1] == {
         "uniprot": 2,
@@ -207,7 +208,8 @@ def test_fetch_maps_label_offset_and_preserves_insertion(tmp_path, monkeypatch):
         "author": 42,
         "insertion_code": "A",
     }
-    assert "  42A" in (raw / "template.pdb").read_text()
+    tmpl_path = (raw.parent / "template.pdb") if (raw.parent / "template.pdb").exists() else (raw / "template.pdb")
+    assert "  42A" in tmpl_path.read_text()
     args.mutations = "G1A"
     with pytest.raises(ValueError, match="coordinate gate"):
         workflow.fetch(args)
@@ -225,3 +227,54 @@ def test_preparation_cannot_reuse_changed_inputs(tmp_path, monkeypatch):
     receptor.write_text("changed input")
     with pytest.raises(ValueError, match="fresh COLABMDA_RUN_ID"):
         preparation_request(paths, SystemSpec(), receptor, None)
+
+
+def test_fetch_creates_flat_directory_structure(tmp_path, monkeypatch):
+    import io
+    from colabmda.core import workflow
+
+    archive_content = "synthetic archive\n"
+    pdb = "ATOM      1  CA  ALA A  42A      0.000   0.000   0.000  1.00  0.00           C\nEND\n"
+    structure = PDBParser(QUIET=True).get_structure("test", io.StringIO(pdb))
+
+    def mock_fetch(pdb_id, dest):
+        f = dest / "test.cif"
+        f.write_text(archive_content)
+        return structure, f, "https://example.invalid/test.cif"
+
+    monkeypatch.setattr(workflow, "fetch_archive", mock_fetch)
+    monkeypatch.setattr(workflow, "urlopen", lambda *a, **k: io.BytesIO(b">synthetic\nGA\n"))
+    monkeypatch.setattr(
+        workflow,
+        "MMCIF2Dict",
+        lambda *a: {
+            "_struct_ref_seq.pdbx_strand_id": ["A"],
+            "_struct_ref_seq.pdbx_db_accession": ["TEST"],
+            "_struct_ref_seq.seq_align_beg": ["2"],
+            "_struct_ref_seq.seq_align_end": ["3"],
+            "_struct_ref_seq.db_align_beg": ["1"],
+            "_atom_site.auth_asym_id": ["A"],
+            "_atom_site.label_atom_id": ["CA"],
+            "_atom_site.auth_seq_id": ["42"],
+            "_atom_site.pdbx_PDB_ins_code": ["A"],
+            "_atom_site.label_seq_id": ["3"],
+        },
+    )
+    args = Namespace(
+        root=str(tmp_path),
+        state="apo",
+        pdb_id="TEST",
+        uniprot_id="TEST",
+        chain="A",
+        range=[1, 2],
+        mutations="A2V",
+    )
+    assert workflow.fetch(args) == 0
+    folder = tmp_path / "data/apo/structure/TEST_TEST"
+    assert (folder / "STRUCTURE_DONE").exists()
+    assert (folder / "input.json").exists()
+    assert (folder / "residues.json").exists()
+    assert (folder / "template.pdb").exists()
+    assert (folder / "uniprot.fasta").exists()
+    assert not (folder / "raw").exists()
+    assert not (folder / "mapping").exists()

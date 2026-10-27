@@ -91,8 +91,11 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     ├── apo/                              # Track 1: Apo state (protein in water)
     │   ├── structure/
     │   │   └── O76039_4BGQ/              # Biological Target (UniProt) + Structural Template (PDB)
-    │   │       ├── raw/                  # Downloaded archive (4bgq.cif), template.pdb, uniprot.fasta
-    │   │       ├── mapping/              # Residue mapping (residues.json) and manifest (input.json)
+    │   │       ├── 4bgq.cif              # Downloaded experimental archive
+    │   │       ├── template.pdb          # Cleaned monomer template for MODELLER
+    │   │       ├── uniprot.fasta         # Canonical UniProt target sequence
+    │   │       ├── residues.json         # Residue-by-residue mapping and missing loop manifest
+    │   │       ├── input.json            # Execution parameters and SHA-256 checksums
     │   │       ├── models/
     │   │       │   ├── WT/               # Modeled WT coordinates (WT.pdb)
     │   │       │   └── L119R/            # Modeled L119R coordinates (L119R.pdb)
@@ -194,11 +197,11 @@ This generates the following structured outputs:
 
 | File / Artifact | Type | Description & Purpose |
 | :--- | :--- | :--- |
-| **`raw/<pdb_id>.cif`** | Raw Archive | Unmodified experimental structure directly from RCSB PDB (contains all chains, waters, and crystallization buffers). |
-| **`raw/template.pdb`** | Structure | **Cleaned template for MODELLER:** Isolated target chain within the requested range, stripped of solvent, buffer, and extraneous chains. |
-| **`raw/uniprot.fasta`** | Sequence | Complete canonical sequence from UniProt, used by MODELLER as the target sequence to fill in missing loop residues. |
-| **`mapping/residues.json`** | Metadata | Residue-by-residue mapping of author PDB numbering to canonical UniProt positions, identifying resolved vs. missing loops. |
-| **`mapping/input.json`** | Provenance | Machine-readable record containing execution parameters, timestamps, and SHA-256 integrity checksums. |
+| **`<pdb_id>.cif`** | Raw Archive | Unmodified experimental structure directly from RCSB PDB (contains all chains, waters, and crystallization buffers). |
+| **`template.pdb`** | Structure | **Cleaned template for MODELLER:** Isolated target chain within the requested range, stripped of solvent, buffer, and extraneous chains. |
+| **`uniprot.fasta`** | Sequence | Complete canonical sequence from UniProt, used by MODELLER as the target sequence to fill in missing loop residues. |
+| **`residues.json`** | Metadata | Residue-by-residue mapping of author PDB numbering to canonical UniProt positions, identifying resolved vs. missing loops. |
+| **`input.json`** | Provenance | Machine-readable record containing execution parameters, timestamps, and SHA-256 integrity checksums. |
 | **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming coordinate density and sequence integrity passed all QC gates. |
 
 <details>

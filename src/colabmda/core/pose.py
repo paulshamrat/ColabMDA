@@ -186,7 +186,8 @@ def assemble_public(args):
             "Public mode uses state model paths; do not mix explicit reviewed-pose inputs"
         )
     apo = ProjectPaths(resolve_project_root(args.root), state="apo").structure_dir
-    inputs = json.loads((apo / "mapping/input.json").read_text())
+    input_json = apo / "input.json" if (apo / "input.json").exists() else apo / "mapping/input.json"
+    inputs = json.loads(input_json.read_text())
     target_tag = (
         f"{inputs['uniprot'].upper()}_{inputs['pdb'].upper()}"
         if "uniprot" in inputs and "pdb" in inputs
@@ -200,7 +201,7 @@ def assemble_public(args):
     check(SimpleNamespace(root=str(paths.root), state="apo", variant=args.variant, model=None))
     request = dict(
         model_sha256=sha(source),
-        mapping_sha256=sha(apo / "mapping/input.json"),
+        mapping_sha256=sha(input_json),
         donor=args.template.upper(),
         chain=args.chain,
         core=args.core,
@@ -278,7 +279,8 @@ def assemble_public(args):
     mg_distance = float(np.linalg.norm(np.array(oxygens) - next(iter(mg)).coord, axis=1).min())
     if not 1.5 <= mg_distance <= 3.0:
         raise ValueError("Donor Mg lacks an ATP oxygen contact at 1.5-3 A")
-    rows = json.loads((apo / "mapping/residues.json").read_text())
+    res_json = apo / "residues.json" if (apo / "residues.json").exists() else apo / "mapping/residues.json"
+    rows = json.loads(res_json.read_text())
     rotation, translation, fit = fit_donor(
         chain, donor_chain, {r["uniprot"] for r in rows if r["resolved"]}, args.core
     )
@@ -327,7 +329,7 @@ def assemble_public(args):
         minimum_protein_atp_distance_angstrom=after,
         input_sha256={
             str(source): sha(source),
-            str(apo / "mapping/input.json"): sha(apo / "mapping/input.json"),
+            str(input_json): sha(input_json),
         },
         output_sha256=sha(temporary),
     )

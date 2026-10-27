@@ -33,14 +33,13 @@ def fetch(args):
     target_tag = f"{args.uniprot_id.upper()}_{args.pdb_id.upper()}"
     paths = ProjectPaths(resolve_project_root(args.root), state=args.state, target=target_tag)
     base = paths.state_dir / "structure" if paths.state_dir else paths.structure_dir
-    if (base / "raw").exists() and not (base / target_tag).exists():
+    if ((base / "raw").exists() or (base / "STRUCTURE_DONE").exists()) and not (base / target_tag).exists():
         folder = base
     else:
         folder = base / target_tag
-    raw = folder / "raw"
-    mapping_dir = folder / "mapping"
-    raw.mkdir(parents=True, exist_ok=True)
-    mapping_dir.mkdir(parents=True, exist_ok=True)
+    folder.mkdir(parents=True, exist_ok=True)
+    raw = folder
+    mapping_dir = folder
     marker = folder / "STRUCTURE_DONE"
     marker.unlink(missing_ok=True)
     structure, archive, url = fetch_archive(args.pdb_id, raw)
@@ -296,9 +295,13 @@ def check(args):
         resolve_project_root(args.root), state=args.state, target=getattr(args, "target", None)
     )
     folder = paths.structure_dir
-    record = json.loads((folder / "mapping/input.json").read_text())
+    input_file = folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json"
+    record = json.loads(input_file.read_text())
     for name, expected in record["files"].items():
-        if sha(folder / name) != expected:
+        target_file = folder / name
+        if not target_file.exists() and (folder / Path(name).name).exists():
+            target_file = folder / Path(name).name
+        if sha(target_file) != expected:
             raise ValueError(f"Input changed: {name}")
     sequence = record["sequence"]
     start = record["range"][0]
@@ -319,7 +322,7 @@ def check(args):
         {
             "model": str(model.resolve()),
             "sha256": sha(model),
-            "input_sha256": sha(folder / "mapping/input.json"),
+            "input_sha256": sha(input_file),
             "variant": args.variant,
             "sequence": sequence,
             "range": record["range"],
@@ -345,17 +348,23 @@ def model(args):
     folder = paths.structure_dir
     if not (folder / "STRUCTURE_DONE").is_file():
         raise ValueError("Modeling requires completed cmda fetch (STRUCTURE_DONE)")
-    record = json.loads((folder / "mapping/input.json").read_text())
+    input_file = folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json"
+    record = json.loads(input_file.read_text())
     for name, expected in record["files"].items():
-        if sha(folder / name) != expected:
+        target_file = folder / name
+        if not target_file.exists() and (folder / Path(name).name).exists():
+            target_file = folder / Path(name).name
+        if sha(target_file) != expected:
             raise ValueError(f"Changed structure input: {name}")
     parent = folder / "models" / args.variant
     request = dict(
         variant=args.variant,
         seed=args.seed,
-        mapping_sha256=sha(folder / "mapping/input.json"),
+        mapping_sha256=sha(input_file),
         engine_sha256=sha(Path(__file__).parents[1] / "modeller/engine.py"),
     )
+    template_file = folder / "template.pdb" if (folder / "template.pdb").exists() else folder / "raw/template.pdb"
+    fasta_file = folder / "uniprot.fasta" if (folder / "uniprot.fasta").exists() else folder / "raw/uniprot.fasta"
     if args.variant == "WT":
         argv = [
             "build",
@@ -369,15 +378,16 @@ def model(args):
             *map(str, record["range"]),
             "--uniprot-numbering",
             "--template",
-            str(folder / "raw/template.pdb"),
+            str(template_file),
             "--sequence",
-            str(folder / "raw/uniprot.fasta"),
+            str(fasta_file),
             "--outdir",
             str(parent),
         ]
     else:
         position = int(args.variant[1:-1])
-        rows = json.loads((folder / "mapping/residues.json").read_text())
+        res_file = folder / "residues.json" if (folder / "residues.json").exists() else folder / "mapping/residues.json"
+        rows = json.loads(res_file.read_text())
         row = next((row for row in rows if row["uniprot"] == position), None)
         if not row or not row["resolved"] or row["amino_acid"] != args.variant[0]:
             raise ValueError("Mutation WT/canonical/coordinate density gate failed")
@@ -534,11 +544,18 @@ def preparation_request(paths, spec, receptor, template):
 
     folder = paths.prep_dir(spec)
     folder.mkdir(parents=True, exist_ok=True)
-    mapping = paths.structure_dir / "mapping/input.json"
+    mapping = (
+        paths.structure_dir / "input.json"
+        if (paths.structure_dir / "input.json").exists()
+        else paths.structure_dir / "mapping/input.json"
+    )
     if mapping.exists():
         record = json.loads(mapping.read_text())
         for name, expected in record["files"].items():
-            if sha(paths.structure_dir / name) != expected:
+            target_file = paths.structure_dir / name
+            if not target_file.exists() and (paths.structure_dir / Path(name).name).exists():
+                target_file = paths.structure_dir / Path(name).name
+            if sha(target_file) != expected:
                 raise ValueError(f"Changed structural input: {name}")
         sequence = record["sequence"]
         if spec.variant != "WT":
