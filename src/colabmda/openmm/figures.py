@@ -592,8 +592,7 @@ def openmm_view(
         folder.mkdir(parents=True, exist_ok=True)
         pml = folder / "visualize.pml"
         view = ",".join(map(str, CDKL5_CAMERAS.get(camera, CDKL5_CAMERAS["activation"])))
-        pml.write_text(
-            f"""reinitialize
+        pml.write_text(f"""reinitialize
 load "{target}", molecule
 hide everything
 bg_color white
@@ -608,8 +607,7 @@ color marine, molecule and resn MG
 set orthoscopic, 1
 set_view ({view})
 zoom molecule and polymer.protein, 4
-"""
-        )
+""")
         if not no_launch:
             cmd = ["pymol", str(pml)]
             if subprocess.call(cmd) != 0:
