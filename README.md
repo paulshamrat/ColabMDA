@@ -180,14 +180,30 @@ conda activate cmda
 ```
 
 #### 3.2. Structural Fetching & Biological UniProt Mapping
-The `cmda fetch` command strictly downloads the crystal structure, resolves biological UniProt numbering, and identifies missing loop coordinates:
+The `cmda fetch` command downloads experimental PDB coordinates, maps canonical UniProt residue numbering, and detects unresolved loop coordinates for subsequent modeling:
 
 ```bash
-# Fetch template coordinates (PDB 4BGQ) and map UniProt (O76039, residues 1–303)
+# General syntax
+cmda fetch --state <apo|holo> --pdb-id <PDB_ID> --uniprot-id <UNIPROT_ID> --range <START> <END>
+
+# Example: CDKL5 kinase domain (residues 1–303)
 cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303
 ```
 
-*Terminal Verification Banner:*
+This generates the following structured outputs:
+
+| File / Artifact | Type | Description & Purpose |
+| :--- | :--- | :--- |
+| **`raw/<pdb_id>.cif`** | Raw Archive | Unmodified experimental structure directly from RCSB PDB (contains all chains, waters, and crystallization buffers). |
+| **`raw/template.pdb`** | Structure | **Cleaned template for MODELLER:** Isolated target chain within the requested range, stripped of solvent, buffer, and extraneous chains. |
+| **`raw/uniprot.fasta`** | Sequence | Complete canonical sequence from UniProt, used by MODELLER as the target sequence to fill in missing loop residues. |
+| **`mapping/residues.json`** | Metadata | Residue-by-residue mapping of author PDB numbering to canonical UniProt positions, identifying resolved vs. missing loops. |
+| **`mapping/input.json`** | Provenance | Machine-readable record containing execution parameters, timestamps, and SHA-256 integrity checksums. |
+| **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming coordinate density and sequence integrity passed all QC gates. |
+
+<details>
+<summary>🔍 <b>Click to view example verification banner</b></summary>
+
 ```text
 ==============================================================================
  ColabMDA Structural Mapping & Verification
@@ -204,6 +220,8 @@ cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303
  Outputs Saved:    data/apo/structure/O76039_4BGQ/
 ==============================================================================
 ```
+
+</details>
 
 #### 3.3. Homology Modeling & Point Mutations (Modeller)
 Model the complete Wild-Type coordinates, closing all 27 missing loop residues, then introduce point mutations on the verified WT backbone:
