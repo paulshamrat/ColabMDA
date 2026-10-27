@@ -156,7 +156,25 @@ def _dispatch_prep(args) -> int:
             if legacy_c.is_file():
                 candidate = legacy_c
         if not candidate or not candidate.is_file():
-            raise FileNotFoundError(f"Verified state/variant receptor missing for {spec.variant}")
+            expected = paths.variants_dir / spec.variant / f"{spec.variant}.pdb"
+            if paths.state and paths.state != "apo":
+                guide = (
+                    f"Please build or assemble the model first using:\n"
+                    f"  cmda model --state apo --variant {spec.variant}\n"
+                    f"  cmda assemble --state {paths.state} --variant {spec.variant} --template <DONOR_PDB>"
+                )
+            else:
+                state_arg = f"--state {paths.state} " if paths.state else ""
+                guide = (
+                    f"Please build the model first using:\n"
+                    f"  cmda model {state_arg}--variant {spec.variant}"
+                )
+            raise FileNotFoundError(
+                f"Modeled receptor coordinates missing for variant '{spec.variant}'.\n"
+                f"{guide}\n\n"
+                f"Expected location:\n"
+                f"  {expected}"
+            )
         args.receptor = str(candidate)
     if args.receptor:
         rec_path = Path(args.receptor).resolve()
@@ -221,7 +239,10 @@ def _dispatch_prep(args) -> int:
 
     if paths.state_dir is not None:
         if not rec_path or not rec_path.exists():
-            raise FileNotFoundError("Provide a reviewed --receptor")
+            raise FileNotFoundError(
+                f"Receptor file not found: {rec_path}. "
+                "Please provide a valid --receptor path or generate it with 'cmda model'."
+            )
         from colabmda.core.workflow import preparation_request
 
         if preparation_request(paths, spec, rec_path, tmpl_path):

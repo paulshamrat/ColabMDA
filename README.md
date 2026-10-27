@@ -247,9 +247,20 @@ Model the complete Wild-Type coordinates, closing all 27 missing loop residues, 
 # 1. Build full Wild-Type model (UniProt canonical, fills all 27 missing loop residues)
 cmda model --state apo --variant WT
 
-# 2. Build Point Mutant (L119R) on the verified WT backbone
+# 2. Visually inspect the modeled WT structure in PyMOL:
+pymol data/apo/structure/O76039_4BGQ/variants/WT/WT.pdb
+
+# 3. Build Point Mutant (L119R) on the verified WT backbone
 cmda model --state apo --variant L119R
+
+# 4. Compare WT and Mutant (L119R) side-by-side in PyMOL:
+pymol data/apo/structure/O76039_4BGQ/variants/WT/WT.pdb data/apo/structure/O76039_4BGQ/variants/L119R/L119R.pdb
 ```
+
+> [!TIP]
+> **PyMOL Model Verification**:
+> * **Loop Closure Check**: In `WT.pdb`, confirm that residues 163–173 (activation loop) and 46–52 are modeled continuously as an unbroken cartoon ribbon.
+> * **Mutation Rotamer Check**: In the WT vs. L119R comparison, enter `zoom resi 119` and `show sticks, resi 119` in PyMOL. Verify that Arg119 is oriented outward into solvent without steric clashes with neighboring helices.
 
 *What happens behind the scenes:*
 * **Engineered Template Mutations**: If crystallographers introduced mutations into the PDB template, `cmda fetch` detects them, and Modeller automatically reverts them to canonical UniProt WT during `cmda model WT`.
@@ -264,9 +275,18 @@ Prepare the solvated systems locally using CPU-bound AmberTools. By default, Col
 cmda prep --state apo --variant WT
 cmda prep --state apo --variant L119R
 
+# Visually inspect the solvated system in PyMOL:
+pymol data/apo/simulation/WT/01_prep/solvated.pdb
+
 # Optional: Add 150 mM physiological saline if specifically desired:
 # cmda prep --state apo --variant WT --salt 0.15
 ```
+
+> [!TIP]
+> **PyMOL Solvation & Neutrality Check**:
+> Open `solvated.pdb` in PyMOL to verify box dimensions and ion distribution:
+> * **Water Box Buffer**: Verify the water box provides at least ~14 Å clearance around the protein edges.
+> * **Counterions**: Run `select ions, resn CL- or resn NA+` followed by `show spheres, ions` to ensure neutralizing counterions are solvated in bulk water without steric overlaps.
 
 *Key outputs generated in `data/apo/simulation/<variant>/01_prep/`:*
 * `model.pdb`: Immutable copy of the input coordinate PDB for complete reproducibility.
@@ -283,7 +303,7 @@ Verify loop closure, mutated residue rotamers, and the solvated water box intera
 cmda view --state apo --variant WT
 
 # 2. Compare WT and Mutant side-by-side in PyMOL:
-pymol data/apo/structure/O76039_4BGQ/models/WT/WT.pdb data/apo/structure/O76039_4BGQ/models/L119R/L119R.pdb
+pymol data/apo/structure/O76039_4BGQ/variants/WT/WT.pdb data/apo/structure/O76039_4BGQ/variants/L119R/L119R.pdb
 
 # 3. Inspect the fully solvated system (water box + neutralizing counterions):
 pymol data/apo/simulation/WT/01_prep/solvated.pdb
@@ -546,23 +566,36 @@ To study catalytic active-site dynamics and cofactor coordination, assemble ATP 
 ### 5.1. Template vs Donor Structures
 * **Target Coordinates (`raw/`):** PDB 4BGQ provides the sequence and backbone geometry for the target kinase (CDKL5, residues 1–303).
 * **Cofactor Donor Coordinates (`donors/8FP5/`):** PDB 8FP5 (CDK2 in complex with ATP and $\text{Mg}^{2+}$) is downloaded into its own isolated `donors/8FP5/` folder.
-* **Structural Assembly:** ColabMDA aligns conserved catalytic core motifs (residues 30–220), transfers ATP and $\text{Mg}^{2+}$, relaxes steric clashes in active site sidechains, and writes `complex.pdb` and `complex.json` into `models/WT/` and `models/L119R/`.
+* **Structural Assembly:** ColabMDA aligns conserved catalytic core motifs (residues 30–220), transfers ATP and $\text{Mg}^{2+}$, relaxes steric clashes in active site sidechains, and writes `WT.pdb` / `L119R.pdb` and `complex.json` into `variants/WT/` and `variants/L119R/`.
 
 ### 5.2. Local Holo Assembly & Preparation (Local Terminal — `cmda`)
 ```bash
 # 1. Assemble Holo Wild-Type from CDK2 donor (PDB 8FP5)
 cmda assemble --state atpmg --variant WT --template 8FP5 --relax-sidechains
 
-# 2. Assemble Holo Mutant (L119R) from the same donor pose
+# 2. Visually inspect the assembled Holo complex (ATP + Mg2+) in PyMOL:
+pymol data/atpmg/structure/O76039_4BGQ/variants/WT/WT.pdb
+
+# 3. Assemble Holo Mutant (L119R) from the same donor pose
 cmda assemble --state atpmg --variant L119R --template 8FP5 --relax-sidechains
 
-# 3. Solvate and parameterize locally (Hu et al. B3 ATP / Li-Merz 12-6 Mg²⁺)
+# 4. Solvate and parameterize locally (Hu et al. B3 ATP / Li-Merz 12-6 Mg²⁺)
 cmda prep --state atpmg --variant WT
 cmda prep --state atpmg --variant L119R
 
-# 4. Push prepared holo systems to Google Drive
+# 5. Push prepared holo systems to Google Drive
 cmda push -s cmda-example
 ```
+
+> [!TIP]
+> **PyMOL Active Site Inspection**:
+> Open `variants/WT/WT.pdb` in PyMOL to verify ATP·Mg coordination:
+> ```text
+> select atpmg_pocket, resn ATP or resn MG or (resi 30-220 and within 5.0 of (resn ATP or resn MG))
+> show sticks, atpmg_pocket
+> zoom atpmg_pocket
+> ```
+> Verify that the triphosphate chain coordinates the divalent magnesium ion $\text{Mg}^{2+}$ and key catalytic residues (Lys42, Asp156) without steric clashes.
 
 ### 5.3. Holo GPU Simulation (Colab Console — `cmda`)
 ```bash
