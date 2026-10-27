@@ -158,3 +158,30 @@ def test_opc_preparation_uses_one_complete_ion_potential(tmp_path):
     assert charge.value_in_unit(unit.elementary_charge) == pytest.approx(2)
     assert sigma.value_in_unit(unit.angstrom) * 2 ** (1 / 6) / 2 == pytest.approx(1.330)
     assert epsilon.value_in_unit(unit.kilocalorie_per_mole) == pytest.approx(0.00716930)
+
+
+def test_tleap_script_multi_component(tmp_path):
+    spec = SystemSpec.from_tag("atpmg")
+    script = generate_tleap_script(
+        spec=spec,
+        input_pdb=tmp_path / "model.pdb",
+        output_prmtop=tmp_path / "system.prmtop",
+        output_inpcrd=tmp_path / "system.inpcrd",
+        component_pdbs={
+            "REC": tmp_path / "WT.pdb",
+            "LIG": tmp_path / "atp.pdb",
+            "MG": tmp_path / "mg.pdb",
+        },
+    )
+    assert 'REC = loadpdb "' in script
+    assert 'LIG = loadpdb "' in script
+    assert 'MG = loadpdb "' in script
+    assert "mol = combine { REC LIG MG }" in script
+
+
+def test_apply_hu2024_cmap_safe_on_non_nucleotide(tmp_path):
+    from colabmda.amber.cmap import apply_hu2024_cmap
+    import pytest
+
+    with pytest.raises(FileNotFoundError):
+        apply_hu2024_cmap(tmp_path / "nonexistent.prmtop")

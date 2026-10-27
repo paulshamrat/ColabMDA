@@ -7,6 +7,7 @@ import sys
 from importlib import resources
 from pathlib import Path
 
+from colabmda.amber.cmap import apply_hu2024_cmap
 from colabmda.core.taxonomy import SystemSpec
 
 
@@ -50,6 +51,7 @@ def generate_tleap_script(
     salt_conc_molar: float = 0.0,
     salt_type: str = "NaCl",
     solvate: bool = True,
+    component_pdbs: dict[str, Path] | None = None,
 ) -> str:
     """Generate a clean, self-contained tleap input script for Amber system building.
 
@@ -58,6 +60,7 @@ def generate_tleap_script(
         - phosaa19SB for phosphorylated residues (pY171 / PTR)
         - OPC / TIP3P water models with water-matched Li-Merz 12-6 ions
         - Hu et al. 2024 quantum parameters for ATP, ADP, GDP, GTP
+        - Native multi-component assembly (combine { REC LIG MG ... })
     """
     lines: list[str] = [
         f"# ColabMDA automated tleap script for {spec.state_tag} ({spec.variant})",
@@ -114,15 +117,23 @@ def generate_tleap_script(
             lines.append(f'loadAmberParams "{frcmod_path.resolve()}"')
         lines.append("")
 
-    # 6. Load assembled structure
+    # 6. Load structure (either as separate components or pre-assembled model)
     abs_pdb = Path(input_pdb).resolve()
-    lines.extend(
-        [
-            f'mol = loadpdb "{abs_pdb}"',
-            "charge mol",
-            "",
-        ]
-    )
+    if component_pdbs and len(component_pdbs) > 1:
+        comp_vars = []
+        for name, p in component_pdbs.items():
+            lines.append(f'{name} = loadpdb "{Path(p).resolve()}"')
+            comp_vars.append(name)
+        lines.append(f'mol = combine {{ {" ".join(comp_vars)} }}')
+        lines.extend(["charge mol", ""])
+    else:
+        lines.extend(
+            [
+                f'mol = loadpdb "{abs_pdb}"',
+                "charge mol",
+                "",
+            ]
+        )
 
     if solvate:
         # 7. Solvation box

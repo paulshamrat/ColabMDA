@@ -91,19 +91,20 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     ├── apo/                              # Track 1: Apo state (protein in water)
     │   ├── structure/
     │   │   └── O76039_4BGQ/              # Biological Target (UniProt) + Structural Template (PDB)
-    │   │       ├── 4bgq.cif              # Downloaded experimental archive
-    │   │       ├── template.pdb          # Cleaned monomer template for MODELLER
-    │   │       ├── uniprot.fasta         # Canonical UniProt target sequence
-    │   │       ├── residues.json         # Residue-by-residue mapping and missing loop manifest
-    │   │       ├── input.json            # Execution parameters and SHA-256 checksums
-    │   │       ├── models/
+    │   │       ├── raw/                  # Untouched experimental inputs
+    │   │       │   ├── 4bgq.cif          # Downloaded experimental archive
+    │   │       │   ├── template.pdb      # Cleaned monomer template for MODELLER
+    │   │       │   ├── uniprot.fasta     # Canonical UniProt target sequence
+    │   │       │   ├── residues.json     # Residue-by-residue mapping and loop manifest
+    │   │       │   └── input.json        # Execution parameters and SHA-256 checksums
+    │   │       ├── variants/             # Modeled protein backbones
     │   │       │   ├── WT/               # Modeled WT coordinates (WT.pdb)
     │   │       │   └── L119R/            # Modeled L119R coordinates (L119R.pdb)
     │   │       └── STRUCTURE_DONE        # Verification completion marker
     │   │
     │   ├── simulation/
     │   │   ├── WT/
-    │   │   │   ├── 01_prep/              # Solvated Amber system (model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
+    │   │   │   ├── 01_prep/              # Solvated Amber system (WT.pdb, solvated.pdb, system.prmtop, system.inpcrd)
     │   │   │   ├── 02_eq/                # 24-stage equilibration hub + qc.png
     │   │   │   └── 03_md/                # Production MD replicas
     │   │   │       ├── r1/               # Replica 1 (chunks + full trajectory)
@@ -119,35 +120,42 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     │       ├── L119R/{r1, r2, r3}/
     │       └── compare/figures/          # Triplicate Mean ± SD overlay plots (300 DPI)
     │
-    └── atpmg/                            # Track 2: Holo state (ATP + Mg²⁺ complex)
+    └── atpmg/                            # Track 2: Holo state (Kinase + ATP + Mg²⁺)
         ├── structure/
-        │   └── O76039_4BGQ/
-        │       ├── donors/
-        │       │   └── 8FP5/             # Isolated cofactor donor crystal archive (8fp5.cif)
-        │       ├── raw/                  # Inherited target protein template coordinates
-        │       ├── models/
-        │       │   ├── WT/
-        │       │   │   ├── complex.pdb   # Assembled Protein + ATP + Mg²⁺ complex
-        │       │   │   ├── complex.json  # Core RMSD & ATP/Mg coordination audit
-        │       │   │   └── ASSEMBLY_DONE
-        │       │   └── L119R/
-        │       │       └── complex.pdb
-        │       └── STRUCTURE_DONE
+        │   ├── O76039_4BGQ/
+        │   │   ├── raw/                  # Inherited from apo (or fetched isolatedly)
+        │   │   ├── variants/             # Inherited from apo (or modeled isolatedly)
+        │   │   │   ├── WT/WT.pdb
+        │   │   │   └── L119R/L119R.pdb
+        │   │   └── STRUCTURE_DONE
+        │   │
+        │   └── cofactors/                # Isolated cofactor donor directory
+        │       └── atpmg/                # Sourced from homologous donor (e.g., 8FP5 / CDK2)
+        │           ├── 8FP5.pdb          # Donor crystal structure
+        │           ├── atp.pdb           # Isolated ATP coordinates
+        │           └── mg.pdb            # Isolated Mg²⁺ coordinates
         │
-        ├── simulation/{WT, L119R}/{01_prep, 02_eq, 03_md/{r1, r2, r3}}
+        ├── simulation/
+        │   ├── WT/
+        │   │   ├── 01_prep/              # Native tleap combination { WT.pdb + atp.pdb + mg.pdb }
+        │   │   │                         # + Hu2024 quantum nucleotide parameters + ParmEd CMAP
+        │   │   ├── 02_eq/
+        │   │   └── 03_md/{r1, r2, r3}/
+        │   └── L119R/
+        │       └── ...
         └── analysis/{WT, L119R, compare/figures}
 ```
 
 ### Core Design Principles:
 
-* **Why `UniProt_PDB` Folders (`O76039_4BGQ/`)?**  
-  Organizing structures by `<uniprot>_<pdb>` keeps coordinates, mappings, and models cleanly isolated when comparing alternative crystal templates (e.g., 4BGQ vs 8FP5) or modeling multiple targets in the same workspace.
-* **Why Dedicated `donors/<template>/` Folders (`donors/8FP5/`)?**  
-  In holo simulations, the cofactor donor crystal structure (e.g. 8FP5) is stored in its own dedicated `donors/8FP5/` subfolder. This completely isolates the donor coordinates from the target protein files (`raw/`), making it immediately obvious which PDB provided the backbone vs which provided the ligands.
-* **Why `01_prep/` Runs Locally in Phase 1?**  
-  Running `cmda prep` locally parameterizes the protein with AmberTools `tleap`, adds OPC 4-point water, neutralizes net charge (matching standard published protocols), and creates `solvated.pdb`. This allows visual inspection of the water box in local PyMOL *before* uploading to Google Drive.
-* **Why `model.pdb` in `01_prep/`?**  
-  When running `cmda prep`, ColabMDA retrieves the modeled variant (`WT.pdb` or `complex.pdb`) and copies it into `01_prep/model.pdb`. This creates a self-contained, immutable starting snapshot for that specific simulation, guaranteeing full reproducibility even if upstream modeling files are modified later.
+* **Why `raw/` and `variants/` inside Target Folders?**  
+  Untouched experimental files (`.cif`, `template.pdb`, `uniprot.fasta`, `input.json`, `residues.json`) are preserved in `raw/`, while MODELLER-built coordinates reside in `variants/<variant>/<variant>.pdb`. This guarantees clear separation between experimental ground truth and modeled coordinates.
+* **Why Independent `cofactors/` and `substrates/` Folders?**  
+  In holo or substrate simulations, cofactors (e.g. ATP, $\text{Mg}^{2+}$ from 8FP5) and substrate peptides (e.g. EB2) come from distinct donor structures or partners. Placing them in `structure/cofactors/` and `structure/substrates/` avoids contaminating the target kinase directory with foreign proteins.
+* **Why Cross-State Inheritance?**  
+  Downstream holo and substrate states (`atpmg`, `atp2mg_substrate`) automatically inherit the target sequence, raw template, and variant backbones from `apo`. You model each variant once, eliminating redundant MODELLER runs while ensuring that starting protein coordinates remain 100% identical across states.
+* **Why Native `tleap` Combination & Hu 2024 Parameters?**  
+  In `01_prep/`, `tleap` natively combines the protein variant and cofactors (`combine { REC LIG MG }`), parameterized with Hu et al. 2024 quantum-derived nucleotide RESP charges (`ATP-B3.prepi`, `ATP-B3.frcmod`) and water-matched Li-Merz 12-6 ion parameters, followed by post-LEaP ParmEd CMAP dihedral energy surface correction.
 * **Why Shared Equilibration (`02_eq/`)?**  
   The 24-stage equilibration ladder (minimization, thermalization, density relaxation) only needs to be run once per variant. Replicas (`r1`, `r2`, `r3`) fork from `02_eq/` with distinct random velocity seeds, saving dozens of GPU hours while guaranteeing true statistical independence.
 

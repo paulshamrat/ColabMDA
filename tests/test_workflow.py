@@ -272,9 +272,23 @@ def test_fetch_creates_flat_directory_structure(tmp_path, monkeypatch):
     assert workflow.fetch(args) == 0
     folder = tmp_path / "data/apo/structure/TEST_TEST"
     assert (folder / "STRUCTURE_DONE").exists()
-    assert (folder / "input.json").exists()
-    assert (folder / "residues.json").exists()
-    assert (folder / "template.pdb").exists()
-    assert (folder / "uniprot.fasta").exists()
-    assert not (folder / "raw").exists()
+    assert (folder / "raw" / "input.json").exists() or (folder / "input.json").exists()
+    assert (folder / "raw" / "residues.json").exists() or (folder / "residues.json").exists()
+    assert (folder / "raw" / "template.pdb").exists() or (folder / "template.pdb").exists()
+    assert (folder / "raw" / "uniprot.fasta").exists() or (folder / "uniprot.fasta").exists()
     assert not (folder / "mapping").exists()
+
+
+def test_cross_state_inheritance_find_variant(tmp_path):
+    from colabmda.core.project import ProjectPaths
+
+    apo_wt = tmp_path / "data/apo/structure/O76039_4BGQ/variants/WT/WT.pdb"
+    apo_wt.parent.mkdir(parents=True)
+    apo_wt.write_text("ATOM 1 CA ALA\n")
+
+    # In atpmg, querying WT finds it from apo
+    paths_atpmg = ProjectPaths(tmp_path, state="atpmg", target="O76039_4BGQ")
+    found = paths_atpmg.find_variant("WT")
+    assert found is not None
+    assert found == apo_wt
+    assert found.exists()

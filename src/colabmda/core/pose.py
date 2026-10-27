@@ -186,7 +186,11 @@ def assemble_public(args):
             "Public mode uses state model paths; do not mix explicit reviewed-pose inputs"
         )
     apo = ProjectPaths(resolve_project_root(args.root), state="apo").structure_dir
-    input_json = apo / "input.json" if (apo / "input.json").exists() else apo / "mapping/input.json"
+    input_json = (
+        apo / "raw/input.json"
+        if (apo / "raw/input.json").exists()
+        else (apo / "input.json" if (apo / "input.json").exists() else apo / "mapping/input.json")
+    )
     inputs = json.loads(input_json.read_text())
     target_tag = (
         f"{inputs['uniprot'].upper()}_{inputs['pdb'].upper()}"
@@ -194,10 +198,20 @@ def assemble_public(args):
         else None
     )
     paths = ProjectPaths(resolve_project_root(args.root), state="atpmg", target=target_tag)
-    parent = paths.structure_dir / "models" / args.variant
-    out = parent / "complex.pdb"
+    parent = (
+        paths.structure_dir / "variants" / args.variant
+        if (paths.structure_dir / "variants").exists() or not (paths.structure_dir / "models").exists()
+        else paths.structure_dir / "models" / args.variant
+    )
+    out = parent / f"{args.variant}.pdb"
+    if not out.exists() and (parent / "complex.pdb").exists():
+        out = parent / "complex.pdb"
     marker = parent / "ASSEMBLY_DONE"
-    source = apo / "models" / args.variant / f"{args.variant}.pdb"
+    source = (
+        apo / "variants" / args.variant / f"{args.variant}.pdb"
+        if (apo / "variants" / args.variant / f"{args.variant}.pdb").exists()
+        else apo / "models" / args.variant / f"{args.variant}.pdb"
+    )
     check(SimpleNamespace(root=str(paths.root), state="apo", variant=args.variant, model=None))
     request = dict(
         model_sha256=sha(source),
@@ -335,6 +349,11 @@ def assemble_public(args):
     )
     write_json(out.with_suffix(".json"), record)
     temporary.replace(out)
+    if out.name != "complex.pdb":
+        import shutil
+
+        shutil.copy2(out, parent / "complex.pdb")
+        write_json(parent / "complex.json", record)
     marker.write_text(
         "Public donor fit, fixed backbone/cofactors, finite energy and ATP clash checks passed\n"
     )

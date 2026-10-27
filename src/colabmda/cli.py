@@ -149,10 +149,14 @@ def _dispatch_prep(args) -> int:
 
     # Receptor resolution
     if paths.state_dir is not None and not args.receptor:
-        model = paths.structure_dir / "models" / spec.variant
-        candidate = model / ("complex.pdb" if not spec.is_apo else f"{spec.variant}.pdb")
-        if not candidate.is_file():
-            raise FileNotFoundError(f"Verified state/variant receptor missing: {candidate}")
+        candidate = paths.find_variant(spec.variant)
+        if not candidate or not candidate.is_file():
+            model = paths.structure_dir / "models" / spec.variant
+            legacy_c = model / ("complex.pdb" if not spec.is_apo else f"{spec.variant}.pdb")
+            if legacy_c.is_file():
+                candidate = legacy_c
+        if not candidate or not candidate.is_file():
+            raise FileNotFoundError(f"Verified state/variant receptor missing for {spec.variant}")
         args.receptor = str(candidate)
     if args.receptor:
         rec_path = Path(args.receptor).resolve()
@@ -249,6 +253,16 @@ def _dispatch_prep(args) -> int:
                 keep_script=False,
             )
             if retcode == 0 and paths.prepared_prmtop(spec).exists():
+                if spec.ligand in {"ATP", "ADP", "GDP", "GTP"}:
+                    try:
+                        from colabmda.amber.cmap import apply_hu2024_cmap
+
+                        apply_hu2024_cmap(paths.prepared_prmtop(spec), method="B3LYP")
+                        print(
+                            f"[OK] Applied Hu 2024 B3LYP CMAP topology correction: {paths.prepared_prmtop(spec)}"
+                        )
+                    except Exception as exc:
+                        print(f"[WARN] Hu 2024 CMAP correction skipped: {exc}")
                 write_prep_provenance(spec=spec, dest_json=paths.prep_json(spec))
                 print(f"[OK] Built Amber topology: {paths.prepared_prmtop(spec)}")
                 print(f"[OK] Built Amber coordinates: {paths.prepared_inpcrd(spec)}")

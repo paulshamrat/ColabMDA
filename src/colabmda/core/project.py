@@ -164,7 +164,11 @@ class ProjectPaths:
 
     @property
     def protein_dir(self) -> Path:
-        return self.structure_dir / ("models/WT" if self.state_dir is not None else "protein")
+        if self.state_dir is not None:
+            if (self.structure_dir / "variants/WT").exists():
+                return self.structure_dir / "variants/WT"
+            return self.structure_dir / "models/WT"
+        return self.structure_dir / "protein"
 
     @property
     def template_dir(self) -> Path:
@@ -175,8 +179,42 @@ class ProjectPaths:
         return self.structure_dir / ("raw" if self.state_dir is not None else "template")
 
     @property
+    def raw_dir(self) -> Path:
+        """Raw experimental inputs directory (<target>/raw or flat fallback)."""
+        p = self.structure_dir / "raw"
+        if p.exists():
+            return p
+        if (self.structure_dir / "input.json").exists() or (self.structure_dir / "template.pdb").exists():
+            return self.structure_dir
+        return p
+
+    @property
+    def cofactors_dir(self) -> Path:
+        """Cofactors directory (structure/cofactors or legacy donors)."""
+        if self.state_dir is not None:
+            c = self.state_dir / "structure" / "cofactors"
+            if c.exists():
+                return c
+            if hasattr(self, "structure_dir") and (self.structure_dir.parent / "cofactors").exists():
+                return self.structure_dir.parent / "cofactors"
+        d = self.structure_dir / "donors"
+        return d if d.exists() else (self.state_dir / "structure" / "cofactors" if self.state_dir else d)
+
+    @property
+    def substrates_dir(self) -> Path:
+        """Substrates directory (structure/substrates or legacy peptide)."""
+        if self.state_dir is not None:
+            s = self.state_dir / "structure" / "substrates"
+            if s.exists():
+                return s
+            if hasattr(self, "structure_dir") and (self.structure_dir.parent / "substrates").exists():
+                return self.structure_dir.parent / "substrates"
+        p = self.structure_dir / "peptide"
+        return p if p.exists() else (self.state_dir / "structure" / "substrates" if self.state_dir else p)
+
+    @property
     def donors_dir(self) -> Path:
-        return self.structure_dir / "donors"
+        return self.cofactors_dir
 
     @property
     def ligand_dir(self) -> Path:
@@ -184,11 +222,16 @@ class ProjectPaths:
 
     @property
     def peptide_dir(self) -> Path:
-        return self.structure_dir / "peptide"
+        return self.substrates_dir
 
     @property
     def variants_dir(self) -> Path:
-        return self.structure_dir / ("models" if self.state_dir is not None else "variants")
+        """Variants directory (prefers 'variants', falls back to 'models')."""
+        if (self.structure_dir / "variants").exists():
+            return self.structure_dir / "variants"
+        if (self.structure_dir / "models").exists():
+            return self.structure_dir / "models"
+        return self.structure_dir / ("variants" if self.state_dir is not None else "variants")
 
     @property
     def simulation_base(self) -> Path:
@@ -256,6 +299,46 @@ class ProjectPaths:
             return v_dir / "01_prep"
         return v_dir / "prep"
 
+    def find_variant(self, variant: str) -> Path | None:
+        """Find the modeled variant backbone PDB across variants directories.
+
+        Searches:
+            1. Current state: structure_dir / "variants" / variant / f"{variant}.pdb"
+            2. Current state flat: structure_dir / "variants" / f"{variant}.pdb"
+            3. Current state legacy: structure_dir / "models" / variant / f"{variant}.pdb"
+            4. Cross-state inheritance: if in holo state (e.g. atpmg), check data/apo/structure/...
+            5. Legacy model.pdb fallbacks
+        """
+        candidates: list[Path] = [
+            self.variants_dir / variant / f"{variant}.pdb",
+            self.variants_dir / variant / "model.pdb",
+            self.variants_dir / f"{variant}.pdb",
+            self.structure_dir / "models" / variant / f"{variant}.pdb",
+            self.structure_dir / "models" / variant / "complex.pdb",
+            self.structure_dir / "models" / variant / "model.pdb",
+        ]
+        # Cross-state inheritance from apo if current state is not apo
+        if self.state_dir is not None and self.state not in {"apo", None}:
+            apo_structure = self.root / "data" / "apo" / "structure"
+            target_name = self.structure_dir.name
+            candidates.extend(
+                [
+                    apo_structure / target_name / "variants" / variant / f"{variant}.pdb",
+                    apo_structure / target_name / "variants" / variant / "model.pdb",
+                    apo_structure / target_name / "models" / variant / f"{variant}.pdb",
+                    apo_structure / target_name / "models" / variant / "model.pdb",
+                ]
+            )
+            if apo_structure.is_dir():
+                for t in apo_structure.iterdir():
+                    if t.is_dir():
+                        candidates.append(t / "variants" / variant / f"{variant}.pdb")
+                        candidates.append(t / "models" / variant / f"{variant}.pdb")
+        for c in candidates:
+            if c.is_file():
+                return c
+        return None
+
     def model_pdb(self, spec: SystemSpec) -> Path:
         p_model = None
         try:
@@ -266,36 +349,13 @@ class ProjectPaths:
         except ValueError:
             p_model = None
 
-        # Check structure models folder: structure/models/<variant>/complex.pdb or <variant>.pdb
-        if hasattr(self, "structure_dir") and self.structure_dir:
-            model_candidate = (
-                self.structure_dir
-                / "models"
-                / spec.variant
-                / ("complex.pdb" if not spec.is_apo else f"{spec.variant}.pdb")
-            )
-            if model_candidate.is_file():
-                return model_candidate
-            alt_candidate = self.structure_dir / "models" / spec.variant / "model.pdb"
-            if alt_candidate.is_file():
-                return alt_candidate
-
-        # Check variants folder: variants/<variant>/model.pdb or variants/<variant>.pdb
-        var_dir_model = self.variants_dir / spec.variant / "model.pdb"
-        if var_dir_model.exists():
-            return var_dir_model
-        var_flat = self.variants_dir / f"{spec.variant}.pdb"
-        if var_flat.exists():
-            return var_flat
+        found = self.find_variant(spec.variant)
+        if found:
+            return found
 
         if p_model is not None:
             return p_model
-        return (
-            self.structure_dir
-            / "models"
-            / spec.variant
-            / ("complex.pdb" if not spec.is_apo else f"{spec.variant}.pdb")
-        )
+        return self.variants_dir / spec.variant / f"{spec.variant}.pdb"
 
     def prepared_prmtop(self, spec: SystemSpec) -> Path:
         return self.prep_dir(spec) / "system.prmtop"
@@ -527,8 +587,10 @@ class ProjectPaths:
     def init_layout(self, numbered: bool = True) -> None:
         """Create only the resolved layout; never mirror compatibility trees."""
         if self.state_dir is not None:
-            for folder in ["raw", "mapping", "models"]:
+            for folder in ["raw", "variants"]:
                 (self.structure_dir / folder).mkdir(parents=True, exist_ok=True)
+            if self.state not in {"apo", None}:
+                self.cofactors_dir.mkdir(parents=True, exist_ok=True)
             self.simulation_base.mkdir(parents=True, exist_ok=True)
             return
         for path in [

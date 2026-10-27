@@ -1,5 +1,6 @@
 """AmberTools interface, automated tleap builder, cpptraj stripping, and bundled parameters."""
 
+from colabmda.amber.cmap import apply_hu2024_cmap
 from colabmda.amber.cpptraj import (
     generate_cpptraj_strip_script,
     run_cpptraj,
@@ -12,6 +13,7 @@ from colabmda.amber.leap import (
 )
 
 __all__ = [
+    "apply_hu2024_cmap",
     "generate_tleap_script",
     "run_tleap",
     "write_prep_provenance",

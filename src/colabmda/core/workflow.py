@@ -38,8 +38,9 @@ def fetch(args):
     else:
         folder = base / target_tag
     folder.mkdir(parents=True, exist_ok=True)
-    raw = folder
-    mapping_dir = folder
+    raw = folder / "raw"
+    raw.mkdir(parents=True, exist_ok=True)
+    mapping_dir = raw
     marker = folder / "STRUCTURE_DONE"
     marker.unlink(missing_ok=True)
     structure, archive, url = fetch_archive(args.pdb_id, raw)
@@ -209,27 +210,27 @@ def fetch(args):
                 seg_end = idx
         loop_segments.append((seg_start, seg_end, seg_end - seg_start + 1))
 
-    write_json(mapping_dir / "residues.json", rows)
-    write_json(
-        mapping_dir / "input.json",
-        {
-            "pdb": args.pdb_id,
-            "uniprot": args.uniprot_id,
-            "chain": args.chain,
-            "range": [start, end],
-            "sequence": sequence[start - 1 : end],
-            "source_url": url,
-            "missing_residues": missing_residues,
-            "loop_segments": loop_segments,
-            "template_mismatches": template_mismatches,
-            "resolution": meta_resolution,
-            "method": meta_method,
-            "files": {
-                str(p.relative_to(folder)): sha(p)
-                for p in [archive, fasta, template, mapping_dir / "residues.json"]
-            },
+    write_json(raw / "residues.json", rows)
+    write_json(folder / "residues.json", rows)
+    record_data = {
+        "pdb": args.pdb_id,
+        "uniprot": args.uniprot_id,
+        "chain": args.chain,
+        "range": [start, end],
+        "sequence": sequence[start - 1 : end],
+        "source_url": url,
+        "missing_residues": missing_residues,
+        "loop_segments": loop_segments,
+        "template_mismatches": template_mismatches,
+        "resolution": meta_resolution,
+        "method": meta_method,
+        "files": {
+            str(p.relative_to(folder)): sha(p)
+            for p in [archive, fasta, template, raw / "residues.json"]
         },
-    )
+    }
+    write_json(raw / "input.json", record_data)
+    write_json(folder / "input.json", record_data)
     marker.write_text(
         "Author mapping, canonical identity and requested mutation density verified\n"
     )
@@ -295,12 +296,18 @@ def check(args):
         resolve_project_root(args.root), state=args.state, target=getattr(args, "target", None)
     )
     folder = paths.structure_dir
-    input_file = folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json"
+    input_file = (
+        folder / "raw/input.json"
+        if (folder / "raw/input.json").exists()
+        else (folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json")
+    )
     record = json.loads(input_file.read_text())
     for name, expected in record["files"].items():
         target_file = folder / name
         if not target_file.exists() and (folder / Path(name).name).exists():
             target_file = folder / Path(name).name
+        if not target_file.exists() and (folder / "raw" / Path(name).name).exists():
+            target_file = folder / "raw" / Path(name).name
         if sha(target_file) != expected:
             raise ValueError(f"Input changed: {name}")
     sequence = record["sequence"]
@@ -311,9 +318,16 @@ def check(args):
         if not 0 <= index < len(sequence) or sequence[index] != args.variant[0]:
             raise ValueError("Mutation WT reference mismatch")
         sequence = sequence[:index] + args.variant[-1] + sequence[index + 1 :]
-    model = (
-        Path(args.model) if args.model else folder / "models" / args.variant / f"{args.variant}.pdb"
-    )
+    if args.model:
+        model = Path(args.model)
+    elif (folder / "variants" / args.variant / f"{args.variant}.pdb").exists():
+        model = folder / "variants" / args.variant / f"{args.variant}.pdb"
+    elif (folder / "models" / args.variant / f"{args.variant}.pdb").exists():
+        model = folder / "models" / args.variant / f"{args.variant}.pdb"
+    elif (folder / "models" / args.variant / "complex.pdb").exists():
+        model = folder / "models" / args.variant / "complex.pdb"
+    else:
+        model = folder / "variants" / args.variant / f"{args.variant}.pdb"
     (model.parent / "MODEL_DONE").unlink(missing_ok=True)
     verify_sequence(model, record["chain"], sequence, start)
     out = model.parent / "model_check.json"
@@ -348,23 +362,37 @@ def model(args):
     folder = paths.structure_dir
     if not (folder / "STRUCTURE_DONE").is_file():
         raise ValueError("Modeling requires completed cmda fetch (STRUCTURE_DONE)")
-    input_file = folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json"
+    input_file = (
+        folder / "raw/input.json"
+        if (folder / "raw/input.json").exists()
+        else (folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json")
+    )
     record = json.loads(input_file.read_text())
     for name, expected in record["files"].items():
         target_file = folder / name
         if not target_file.exists() and (folder / Path(name).name).exists():
             target_file = folder / Path(name).name
+        if not target_file.exists() and (folder / "raw" / Path(name).name).exists():
+            target_file = folder / "raw" / Path(name).name
         if sha(target_file) != expected:
             raise ValueError(f"Changed structure input: {name}")
-    parent = folder / "models" / args.variant
+    parent = folder / "variants" / args.variant
     request = dict(
         variant=args.variant,
         seed=args.seed,
         mapping_sha256=sha(input_file),
         engine_sha256=sha(Path(__file__).parents[1] / "modeller/engine.py"),
     )
-    template_file = folder / "template.pdb" if (folder / "template.pdb").exists() else folder / "raw/template.pdb"
-    fasta_file = folder / "uniprot.fasta" if (folder / "uniprot.fasta").exists() else folder / "raw/uniprot.fasta"
+    template_file = (
+        folder / "raw/template.pdb"
+        if (folder / "raw/template.pdb").exists()
+        else (folder / "template.pdb" if (folder / "template.pdb").exists() else folder / "raw/template.pdb")
+    )
+    fasta_file = (
+        folder / "raw/uniprot.fasta"
+        if (folder / "raw/uniprot.fasta").exists()
+        else (folder / "uniprot.fasta" if (folder / "uniprot.fasta").exists() else folder / "raw/uniprot.fasta")
+    )
     if args.variant == "WT":
         argv = [
             "build",
@@ -386,13 +414,25 @@ def model(args):
         ]
     else:
         position = int(args.variant[1:-1])
-        res_file = folder / "residues.json" if (folder / "residues.json").exists() else folder / "mapping/residues.json"
+        res_file = (
+            folder / "raw/residues.json"
+            if (folder / "raw/residues.json").exists()
+            else (folder / "residues.json" if (folder / "residues.json").exists() else folder / "mapping/residues.json")
+        )
         rows = json.loads(res_file.read_text())
         row = next((row for row in rows if row["uniprot"] == position), None)
         if not row or not row["resolved"] or row["amino_acid"] != args.variant[0]:
             raise ValueError("Mutation WT/canonical/coordinate density gate failed")
         check(SimpleNamespace(root=str(paths.root), state=args.state, variant="WT", model=None))
-        wt = folder / "models/WT/WT.pdb"
+        wt = (
+            folder / "variants/WT/WT.pdb"
+            if (folder / "variants/WT/WT.pdb").exists()
+            else folder / "models/WT/WT.pdb"
+        )
+        if not wt.exists() and paths.state_dir is not None and paths.state not in {"apo", None}:
+            apo_wt = paths.find_variant("WT")
+            if apo_wt and apo_wt.exists():
+                wt = apo_wt
         request["wt_sha256"] = sha(wt)
         argv = [
             "mutate",
@@ -406,8 +446,20 @@ def model(args):
             str(parent),
         ]
     receipt = parent / "model_request.json"
+    legacy_parent = folder / "models" / args.variant
+    legacy_receipt = legacy_parent / "model_request.json"
     if (parent / "MODEL_DONE").exists():
         if not receipt.is_file() or json.loads(receipt.read_text()) != request:
+            raise ValueError(
+                "Existing model has different inputs/settings; use a fresh project structure"
+            )
+        return check(
+            SimpleNamespace(
+                root=str(paths.root), state=args.state, variant=args.variant, model=None
+            )
+        )
+    if (legacy_parent / "MODEL_DONE").exists():
+        if not legacy_receipt.is_file() or json.loads(legacy_receipt.read_text()) != request:
             raise ValueError(
                 "Existing model has different inputs/settings; use a fresh project structure"
             )
@@ -419,11 +471,21 @@ def model(args):
     if parent.exists() and any(parent.iterdir()):
         raise ValueError("Incomplete/nonempty model folder preserved; inspect before retrying")
     parent.mkdir(parents=True, exist_ok=True)
+    legacy_parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [sys.executable, "-m", "colabmda.cli", "modeller", *argv, "--seed", str(args.seed)],
         check=True,
     )
+    import shutil
+
+    out_pdb = parent / f"{args.variant}.pdb"
+    legacy_pdb = legacy_parent / f"{args.variant}.pdb"
+    if legacy_pdb.exists() and not out_pdb.exists():
+        shutil.copy2(legacy_pdb, out_pdb)
+    elif out_pdb.exists() and not legacy_pdb.exists():
+        shutil.copy2(out_pdb, legacy_pdb)
     write_json(receipt, request)
+    write_json(legacy_receipt, request)
     check(SimpleNamespace(root=str(paths.root), state=args.state, variant=args.variant, model=None))
     return 0
 
@@ -545,16 +607,37 @@ def preparation_request(paths, spec, receptor, template):
     folder = paths.prep_dir(spec)
     folder.mkdir(parents=True, exist_ok=True)
     mapping = (
-        paths.structure_dir / "input.json"
-        if (paths.structure_dir / "input.json").exists()
-        else paths.structure_dir / "mapping/input.json"
+        paths.structure_dir / "raw/input.json"
+        if (paths.structure_dir / "raw/input.json").exists()
+        else (
+            paths.structure_dir / "input.json"
+            if (paths.structure_dir / "input.json").exists()
+            else paths.structure_dir / "mapping/input.json"
+        )
     )
+    if not mapping.exists() and paths.state_dir is not None and paths.state not in {"apo", None}:
+        apo_input = paths.root / "data/apo/structure" / paths.structure_dir.name / "raw/input.json"
+        if not apo_input.exists():
+            apo_input = paths.root / "data/apo/structure" / paths.structure_dir.name / "input.json"
+        if apo_input.exists():
+            mapping = apo_input
+
     if mapping.exists():
         record = json.loads(mapping.read_text())
         for name, expected in record["files"].items():
             target_file = paths.structure_dir / name
             if not target_file.exists() and (paths.structure_dir / Path(name).name).exists():
                 target_file = paths.structure_dir / Path(name).name
+            if not target_file.exists() and (paths.structure_dir / "raw" / Path(name).name).exists():
+                target_file = paths.structure_dir / "raw" / Path(name).name
+            if not target_file.exists() and paths.state_dir is not None and paths.state not in {"apo", None}:
+                apo_s = paths.root / "data/apo/structure" / paths.structure_dir.name
+                if (apo_s / name).exists():
+                    target_file = apo_s / name
+                elif (apo_s / "raw" / Path(name).name).exists():
+                    target_file = apo_s / "raw" / Path(name).name
+                elif (apo_s / Path(name).name).exists():
+                    target_file = apo_s / Path(name).name
             if sha(target_file) != expected:
                 raise ValueError(f"Changed structural input: {name}")
         sequence = record["sequence"]
