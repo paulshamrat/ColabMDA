@@ -122,8 +122,9 @@ Prepare the solvated systems locally using AmberTools. By default, ColabMDA neut
 cmda prep --state apo --variant WT
 cmda prep --state apo --variant G12D
 
-# Visually inspect the solvated system in PyMOL:
+# Visually inspect the solvated systems in PyMOL (WT and Mutant):
 pymol data/apo/simulation/WT/01_prep/solvated.pdb
+pymol data/apo/simulation/G12D/01_prep/solvated.pdb
 ```
 
 *Key outputs generated in `data/apo/simulation/<variant>/01_prep/`:*
@@ -154,14 +155,16 @@ Accurate protonation states are critical for biophysical fidelity. ColabMDA nati
 Verify coordinates and the solvated water box before uploading:
 
 ```bash
-# 1. Inspect Wild-Type model coordinates:
+# 1. Inspect modeled coordinates (WT and Mutant):
 cmda view --state apo --variant WT
+cmda view --state apo --variant G12D
 
 # 2. Compare WT and Mutant side-by-side in PyMOL:
 pymol data/apo/structure/P01116_4LDJ/variants/WT/WT.pdb data/apo/structure/P01116_4LDJ/variants/G12D/G12D.pdb
 
-# 3. Inspect the fully solvated system (water box + neutralizing counterions):
+# 3. Inspect the fully solvated systems (water box + neutralizing counterions):
 pymol data/apo/simulation/WT/01_prep/solvated.pdb
+pymol data/apo/simulation/G12D/01_prep/solvated.pdb
 ```
 
 ---
@@ -377,8 +380,11 @@ When visualizing or analyzing trajectories, the reference topology file used mus
 
 ### 4.3. Visualizing Trajectories in Local PyMOL
 ```bash
-# View Wild-Type production trajectory in local PyMOL:
+# 1. View Wild-Type production trajectory in local PyMOL:
 cmda view --state apo --variant WT --replica r1
+
+# 2. View Mutant (G12D) production trajectory in local PyMOL:
+cmda view --state apo --variant G12D --replica r1
 
 # Generate comparative 3x8 transition snapshot grids:
 cmda snapshots --state apo

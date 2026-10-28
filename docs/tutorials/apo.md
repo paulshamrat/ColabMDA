@@ -154,8 +154,9 @@ Prepare the solvated systems locally using CPU-bound AmberTools. By default, Col
 cmda prep --state apo --variant WT
 cmda prep --state apo --variant L119R
 
-# Visually inspect the solvated system in PyMOL:
+# Visually inspect the solvated systems in PyMOL (WT and Mutant):
 pymol data/apo/simulation/WT/01_prep/solvated.pdb
+pymol data/apo/simulation/L119R/01_prep/solvated.pdb
 
 # Optional: Add 150 mM physiological saline if specifically desired:
 # cmda prep --state apo --variant WT --salt 0.15
@@ -197,14 +198,16 @@ Accurate protonation states are critical for biophysical fidelity. ColabMDA nati
 Verify coordinates and the solvated water box interactively before uploading:
 
 ```bash
-# 1. Inspect Wild-Type model coordinates:
+# 1. Inspect modeled coordinates (WT and Mutant):
 cmda view --state apo --variant WT
+cmda view --state apo --variant L119R
 
 # 2. Compare WT and Mutant side-by-side in PyMOL:
 pymol data/apo/structure/O76039_4BGQ/variants/WT/WT.pdb data/apo/structure/O76039_4BGQ/variants/L119R/L119R.pdb
 
-# 3. Inspect the fully solvated system (water box + neutralizing counterions):
+# 3. Inspect the fully solvated systems (water box + neutralizing counterions):
 pymol data/apo/simulation/WT/01_prep/solvated.pdb
+pymol data/apo/simulation/L119R/01_prep/solvated.pdb
 ```
 *Visual Check:* Confirm loop 163–173 is closed smoothly, Arg119 points into solvent with zero steric clashes, and the OPC water box has adequate padding (~14 Å).
 
@@ -429,8 +432,11 @@ When visualizing or analyzing trajectories, the reference topology file used mus
 
 ### 4.3. Visualizing Trajectories in Local PyMOL
 ```bash
-# View Wild-Type production trajectory in local PyMOL:
+# 1. View Wild-Type production trajectory in local PyMOL:
 cmda view --state apo --variant WT --replica r1
+
+# 2. View Mutant (L119R) production trajectory in local PyMOL:
+cmda view --state apo --variant L119R --replica r1
 
 # Generate comparative 3x8 transition snapshot grids:
 cmda snapshots --state apo

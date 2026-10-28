@@ -199,9 +199,10 @@ This generates the following structured outputs:
 | **`stripped_holo.prmtop`** | `simulation/WT/01_prep/` | **Stripped Holo topology** (Protein + ATP + $\text{Mg}^{2+}$). Preserved for Phase 4 trajectory pairing! |
 | **`prep.json`** | `simulation/WT/01_prep/` | Provenance manifest with SHA-256 checksums, atom counts, and total charge. |
 
-Visually confirm the solvated water box in PyMOL:
+Visually confirm the solvated water boxes in PyMOL (WT and Mutant):
 ```bash
 pymol data/atpmg/simulation/WT/01_prep/solvated.pdb
+pymol data/atpmg/simulation/L119R/01_prep/solvated.pdb
 ```
 
 ---
@@ -477,6 +478,9 @@ Inspect the Holo trajectory interactively in PyMOL:
 ```bash
 # 1. View Holo Wild-Type trajectory in PyMOL
 cmda view --state atpmg --variant WT --replica r1
+
+# 2. View Holo Mutant (L119R) trajectory in PyMOL
+cmda view --state atpmg --variant L119R --replica r1
 ```
 
 In the PyMOL terminal, zoom into the active-site pocket:
