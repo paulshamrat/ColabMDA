@@ -216,7 +216,11 @@ def test_fetch_maps_label_offset_and_preserves_insertion(tmp_path, monkeypatch):
         "author": 42,
         "insertion_code": "A",
     }
-    tmpl_path = (raw.parent / "template.pdb") if (raw.parent / "template.pdb").exists() else (raw / "template.pdb")
+    tmpl_path = (
+        (raw.parent / "template.pdb")
+        if (raw.parent / "template.pdb").exists()
+        else (raw / "template.pdb")
+    )
     assert "  42A" in tmpl_path.read_text()
     args.mutations = "G1A"
     with pytest.raises(ValueError, match="coordinate gate"):
@@ -239,6 +243,7 @@ def test_preparation_cannot_reuse_changed_inputs(tmp_path, monkeypatch):
 
 def test_fetch_creates_flat_directory_structure(tmp_path, monkeypatch):
     import io
+
     from colabmda.core import workflow
 
     archive_content = "synthetic archive\n"

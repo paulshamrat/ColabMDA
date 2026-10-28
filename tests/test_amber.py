@@ -180,8 +180,9 @@ def test_tleap_script_multi_component(tmp_path):
 
 
 def test_apply_hu2024_cmap_safe_on_non_nucleotide(tmp_path):
-    from colabmda.amber.cmap import apply_hu2024_cmap
     import pytest
+
+    from colabmda.amber.cmap import apply_hu2024_cmap
 
     with pytest.raises(FileNotFoundError):
         apply_hu2024_cmap(tmp_path / "nonexistent.prmtop")

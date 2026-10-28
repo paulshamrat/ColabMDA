@@ -200,7 +200,8 @@ def assemble_public(args):
     paths = ProjectPaths(resolve_project_root(args.root), state="atpmg", target=target_tag)
     parent = (
         paths.structure_dir / "variants" / args.variant
-        if (paths.structure_dir / "variants").exists() or not (paths.structure_dir / "models").exists()
+        if (paths.structure_dir / "variants").exists()
+        or not (paths.structure_dir / "models").exists()
         else paths.structure_dir / "models" / args.variant
     )
     out = parent / f"{args.variant}.pdb"
@@ -293,7 +294,9 @@ def assemble_public(args):
     mg_distance = float(np.linalg.norm(np.array(oxygens) - next(iter(mg)).coord, axis=1).min())
     if not 1.5 <= mg_distance <= 3.0:
         raise ValueError("Donor Mg lacks an ATP oxygen contact at 1.5-3 A")
-    res_json = apo / "residues.json" if (apo / "residues.json").exists() else apo / "mapping/residues.json"
+    res_json = (
+        apo / "residues.json" if (apo / "residues.json").exists() else apo / "mapping/residues.json"
+    )
     rows = json.loads(res_json.read_text())
     rotation, translation, fit = fit_donor(
         chain, donor_chain, {r["uniprot"] for r in rows if r["resolved"]}, args.core

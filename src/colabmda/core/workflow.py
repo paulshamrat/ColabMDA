@@ -33,14 +33,15 @@ def fetch(args):
     target_tag = f"{args.uniprot_id.upper()}_{args.pdb_id.upper()}"
     paths = ProjectPaths(resolve_project_root(args.root), state=args.state, target=target_tag)
     base = paths.state_dir / "structure" if paths.state_dir else paths.structure_dir
-    if ((base / "raw").exists() or (base / "STRUCTURE_DONE").exists()) and not (base / target_tag).exists():
+    if ((base / "raw").exists() or (base / "STRUCTURE_DONE").exists()) and not (
+        base / target_tag
+    ).exists():
         folder = base
     else:
         folder = base / target_tag
     folder.mkdir(parents=True, exist_ok=True)
     raw = folder / "raw"
     raw.mkdir(parents=True, exist_ok=True)
-    mapping_dir = raw
     marker = folder / "STRUCTURE_DONE"
     marker.unlink(missing_ok=True)
     structure, archive, url = fetch_archive(args.pdb_id, raw)
@@ -297,7 +298,11 @@ def check(args):
     input_file = (
         folder / "raw/input.json"
         if (folder / "raw/input.json").exists()
-        else (folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json")
+        else (
+            folder / "input.json"
+            if (folder / "input.json").exists()
+            else folder / "mapping/input.json"
+        )
     )
     record = json.loads(input_file.read_text())
     for name, expected in record["files"].items():
@@ -363,7 +368,11 @@ def model(args):
     input_file = (
         folder / "raw/input.json"
         if (folder / "raw/input.json").exists()
-        else (folder / "input.json" if (folder / "input.json").exists() else folder / "mapping/input.json")
+        else (
+            folder / "input.json"
+            if (folder / "input.json").exists()
+            else folder / "mapping/input.json"
+        )
     )
     record = json.loads(input_file.read_text())
     for name, expected in record["files"].items():
@@ -384,12 +393,20 @@ def model(args):
     template_file = (
         folder / "raw/template.pdb"
         if (folder / "raw/template.pdb").exists()
-        else (folder / "template.pdb" if (folder / "template.pdb").exists() else folder / "raw/template.pdb")
+        else (
+            folder / "template.pdb"
+            if (folder / "template.pdb").exists()
+            else folder / "raw/template.pdb"
+        )
     )
     fasta_file = (
         folder / "raw/uniprot.fasta"
         if (folder / "raw/uniprot.fasta").exists()
-        else (folder / "uniprot.fasta" if (folder / "uniprot.fasta").exists() else folder / "raw/uniprot.fasta")
+        else (
+            folder / "uniprot.fasta"
+            if (folder / "uniprot.fasta").exists()
+            else folder / "raw/uniprot.fasta"
+        )
     )
     if args.variant == "WT":
         argv = [
@@ -415,7 +432,11 @@ def model(args):
         res_file = (
             folder / "raw/residues.json"
             if (folder / "raw/residues.json").exists()
-            else (folder / "residues.json" if (folder / "residues.json").exists() else folder / "mapping/residues.json")
+            else (
+                folder / "residues.json"
+                if (folder / "residues.json").exists()
+                else folder / "mapping/residues.json"
+            )
         )
         rows = json.loads(res_file.read_text())
         row = next((row for row in rows if row["uniprot"] == position), None)
@@ -616,9 +637,16 @@ def preparation_request(paths, spec, receptor, template):
             target_file = paths.structure_dir / name
             if not target_file.exists() and (paths.structure_dir / Path(name).name).exists():
                 target_file = paths.structure_dir / Path(name).name
-            if not target_file.exists() and (paths.structure_dir / "raw" / Path(name).name).exists():
+            if (
+                not target_file.exists()
+                and (paths.structure_dir / "raw" / Path(name).name).exists()
+            ):
                 target_file = paths.structure_dir / "raw" / Path(name).name
-            if not target_file.exists() and paths.state_dir is not None and paths.state not in {"apo", None}:
+            if (
+                not target_file.exists()
+                and paths.state_dir is not None
+                and paths.state not in {"apo", None}
+            ):
                 apo_s = paths.root / "data/apo/structure" / paths.structure_dir.name
                 if (apo_s / name).exists():
                     target_file = apo_s / name

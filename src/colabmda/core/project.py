@@ -184,7 +184,9 @@ class ProjectPaths:
         p = self.structure_dir / "raw"
         if p.exists():
             return p
-        if (self.structure_dir / "input.json").exists() or (self.structure_dir / "template.pdb").exists():
+        if (self.structure_dir / "input.json").exists() or (
+            self.structure_dir / "template.pdb"
+        ).exists():
             return self.structure_dir
         return p
 
@@ -195,10 +197,17 @@ class ProjectPaths:
             c = self.state_dir / "structure" / "cofactors"
             if c.exists():
                 return c
-            if hasattr(self, "structure_dir") and (self.structure_dir.parent / "cofactors").exists():
+            if (
+                hasattr(self, "structure_dir")
+                and (self.structure_dir.parent / "cofactors").exists()
+            ):
                 return self.structure_dir.parent / "cofactors"
         d = self.structure_dir / "donors"
-        return d if d.exists() else (self.state_dir / "structure" / "cofactors" if self.state_dir else d)
+        return (
+            d
+            if d.exists()
+            else (self.state_dir / "structure" / "cofactors" if self.state_dir else d)
+        )
 
     @property
     def substrates_dir(self) -> Path:
@@ -207,10 +216,17 @@ class ProjectPaths:
             s = self.state_dir / "structure" / "substrates"
             if s.exists():
                 return s
-            if hasattr(self, "structure_dir") and (self.structure_dir.parent / "substrates").exists():
+            if (
+                hasattr(self, "structure_dir")
+                and (self.structure_dir.parent / "substrates").exists()
+            ):
                 return self.structure_dir.parent / "substrates"
         p = self.structure_dir / "peptide"
-        return p if p.exists() else (self.state_dir / "structure" / "substrates" if self.state_dir else p)
+        return (
+            p
+            if p.exists()
+            else (self.state_dir / "structure" / "substrates" if self.state_dir else p)
+        )
 
     @property
     def donors_dir(self) -> Path:

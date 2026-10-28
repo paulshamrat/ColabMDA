@@ -7,7 +7,6 @@ import sys
 from importlib import resources
 from pathlib import Path
 
-from colabmda.amber.cmap import apply_hu2024_cmap
 from colabmda.core.taxonomy import SystemSpec
 
 
