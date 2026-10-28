@@ -1,6 +1,6 @@
 # HPC and Slurm
 
-Use this platform guide with [apo](../apo.md) or [ATP/Mg](../atpmg.md).
+Use this platform guide with [apo](../tutorials/apo.md) or [ATP/Mg](../tutorials/atpmg.md).
 The scientific commands are identical to Colab. Slurm allocates resources;
 active coordinates, trajectories and checkpoints belong in scratch.
 
@@ -24,7 +24,7 @@ Replace `/scratch/$USER` if your cluster uses another scratch location. On an
 existing checkout, use a reviewed commit or release tag. Record its commit/hash
 with the run and keep it fixed while jobs are active.
 
-Use the [installer](../../README.md#131-installation) with this tool path, or
+Use the [installer](../installation.md) with this tool path, or
 create the core environment with an existing Conda installation:
 
 ```bash

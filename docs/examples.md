@@ -10,7 +10,7 @@ structure/model/preparation checks. They are not steps in the CDKL5 workflow.
 ### 1. Create and Fetch Trp-cage
 
 The 20-residue Trp-cage example tests software behavior quickly without replacing
-the full research workflows in the main README. **On Colab after the [main setup](../README.md#11-google-colab)**, run:
+the full research workflows in the main README. **On Colab after the [main setup](installation.md)**, run:
 
 ```bash
 cmda stage --example trpcage \
@@ -145,8 +145,8 @@ console to your local terminal, detach with **Ctrl-B, then D**. This does not st
 the runtime. With the local ColabMDA environment active, download and verify the
 compact reports below. Set RUN_ID, STATE and VARIANT to the completed system.
 The commands below retrieve the Trp-cage run. CDKL5 uses the state-based paths
-in the [apo](apo.md#7-retrieve-compact-results) and
-[ATP/Mg](atpmg.md#7-retrieve-compact-results) collection instructions:
+in the [apo](tutorials/apo.md) and
+[ATP/Mg](tutorials/atpmg.md) collection instructions:
 
 ```bash
 RUN_ID=run01

@@ -1,6 +1,6 @@
 # Google Colab
 
-Use this platform setup with [apo](../apo.md) or [ATP/Mg](../atpmg.md).
+Use this platform setup with [apo](../tutorials/apo.md) or [ATP/Mg](../tutorials/atpmg.md).
 The scientific commands and data layout are shared with HPC. Use your local
 terminal to manage runtimes with the Colab CLI and its remote console to run
 simulation commands.

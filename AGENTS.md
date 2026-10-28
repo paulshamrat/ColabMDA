@@ -12,7 +12,7 @@
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
 - `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
   Main README retains its complete baseline. Shared CDKL5 scientific commands live
-  in docs/apo.md and docs/atpmg.md; docs/platforms/{colab,hpc}.md owns platform
+  in docs/tutorials/apo.md and docs/tutorials/atpmg.md; docs/platforms/{colab,hpc}.md owns platform
   setup and execution. Keep one scientific workflow across platforms; no user YAML.
   examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
   examples/hpc/analyze.slurm runs shared merge/analysis on CPUs without a GPU.
@@ -111,7 +111,7 @@ sections. Make focused updates; do not replace the full guide with a quickstart
 or reorganize it without an explicit user request.
 
 The root README's main workflow uses CDKL5 WT/L119R for apo and ATP/one-Mg,
-matching docs/apo.md and docs/atpmg.md. Keep the existing section order and use
+matching docs/tutorials/apo.md and docs/tutorials/atpmg.md. Keep the existing section order and use
 simple, direct, concise language. Trp-cage remains the optional quick test;
 FKBP12/H-Ras templates and historical evidence remain available. Do not claim
 L119R GPU validation from its CPU model/preparation checks. The default walkthrough

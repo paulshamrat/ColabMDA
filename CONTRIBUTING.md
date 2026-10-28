@@ -1,7 +1,7 @@
 # Contributing to ColabMDA
 
 The [README](README.md) is the complete user guide. Scientific walkthroughs are
-[protein in water](docs/apo.md) and [ATP/Mg](docs/atpmg.md); platform setup is in
+[protein in water](docs/tutorials/apo.md) and [ATP/Mg](docs/tutorials/atpmg.md); platform setup is in
 [Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
 
 ## Development
@@ -107,7 +107,7 @@ below the title, followed by Colab interruption recovery and the starting path.
 Platform/dependency details belong in Platform Setup, architecture in section 2,
 and one compact command reference near the end.
 
-Shared scientific guides live in docs/apo.md and docs/atpmg.md; nested platform
+Shared scientific guides live in docs/tutorials/apo.md and docs/tutorials/atpmg.md; nested platform
 guides own installation and execution. Optional small-protein tutorials stay in
 one separate guide. Use terminal commands for Colab; do not recreate notebook
 instructions or a separate documentation site. Check local links, shell blocks
