@@ -12,6 +12,9 @@ flowchart LR
     P1 --> P2 --> P3 --> P4
 ```
 
+> [!NOTE]
+> **Prerequisites & Installation:** Before beginning, ensure the `cmda` conda environment is installed on your local machine. For full multi-platform installation instructions, see the [Installation Guide](../installation.md).
+
 ---
 
 ## 📁 Apo Directory Architecture Map
@@ -242,7 +245,7 @@ In your local terminal:
 colab console -s cmda-example
 ```
 
-Inside the interactive Colab console terminal, run the cloud bootstrap:
+Inside the interactive Colab console terminal, run the cloud bootstrap *(see the [Installation Guide](../installation.md#4-cloud-gpu-worker-provisioning-google-colab) for details)*:
 
 ```bash
 # A. One-Time Cloud Setup (unattended in ~90s, zero license prompts):

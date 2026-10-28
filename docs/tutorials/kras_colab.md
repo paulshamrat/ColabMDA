@@ -198,7 +198,7 @@ In your local terminal:
 colab console -s kras-sim
 ```
 
-Inside the Colab console terminal, run the environment setup:
+Inside the Colab console terminal, run the environment setup *(see the [Installation Guide](../installation.md#4-cloud-gpu-worker-provisioning-google-colab) for details)*:
 
 ```bash
 # A. Cloud environment setup (unattended, no license prompts):
