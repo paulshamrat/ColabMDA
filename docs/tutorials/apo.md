@@ -245,7 +245,7 @@ In your local terminal:
 colab console -s cmda-example
 ```
 
-Inside the interactive Colab console terminal, run the cloud bootstrap *(see the [Installation Guide](../installation.md#4-cloud-gpu-worker-provisioning-google-colab) for details)*:
+Inside the interactive Colab console terminal, run the cloud bootstrap *(see the [Installation Guide](../installation.md#2-cloud-gpu-worker-provisioning-google-colab) for details)*:
 
 ```bash
 # A. One-Time Cloud Setup (unattended in ~90s, zero license prompts):
