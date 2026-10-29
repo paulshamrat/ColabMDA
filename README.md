@@ -68,14 +68,14 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     │   │       └── STRUCTURE_DONE        # Verification completion marker
     │   ├── simulation/
     │   │   ├── WT/
-    │   │   │   ├── 01_prep/              # Solvated Amber system (system.prmtop, system.inpcrd)
-    │   │   │   ├── 02_eq/                # 24-stage equilibration hub + qc.png
-    │   │   │   └── 03_md/                # Production MD replicas (r1, r2, r3)
+    │   │   │   ├── 01_prep/              # Solvated OpenMM system (model.pdb, system.xml, integrator.xml)
+    │   │   │   ├── 02_eq/                # 24-stage equilibration hub (eq.pdb, state.xml, qc.png, stages/)
+    │   │   │   └── 03_md/                # Production MD replicas (md.dcd, md.log, state.xml, chunks/)
     │   │   └── L119R/
     │   │       ├── 01_prep/
     │   │       ├── 02_eq/
     │   │       └── 03_md/{r1, r2, r3}/
-    │   └── analysis/                     # Single-replica reports & compare/ overlay plots
+    │   └── analysis/                     # Mirrored single-replica reports & flat compare/ (rmsd.png, summary.txt)
     │
     └── atpmg/                            # Track 2: Holo state (Kinase + ATP + Mg²⁺)
         ├── structure/

@@ -344,8 +344,8 @@ cmda status --state apo --variant WT --replica r1
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
                      └─ (169 protein, 8170 water, 49 ions)
-  Trajectory File  : prod_keep_ligand.dcd (10000 frames)
-  Log File         : prod_full.log (10000 frames)
+  Trajectory File  : md.dcd (10000 frames)
+  Log File         : md.log (10000 frames)
   Frames (from logs): 10000
   Sim time (ps/ns) : 100000.00 ps / 100.0000 ns (from chunk names)
   Resume-ready     : YES (needs prod.chk, system.xml, solvated.pdb)
@@ -372,9 +372,9 @@ cmda merge --state apo --variant L119R
 ```
 
 *What `cmda merge` outputs in `data/apo/simulation/<variant>/03_md/<replica>/`:*
-* `prod_keep_ligand.dcd`: Clean, PBC-centered trajectory with OPC water removed.
-* `stripped.prmtop`: Matching topology file (~2,600 atoms) paired with `prod_keep_ligand.dcd`.
-* `prod_ca.dcd` & `ca.prmtop`: $C_\alpha$-only coordinates for high-throughput essential dynamics.
+* `md.dcd`: Clean continuous trajectory merged from `chunks/0001.dcd` ... `chunks/0100.dcd`.
+* `md.log`: Continuous merged thermodynamic log table.
+* `state.xml`: Final OpenMM physical restart state.
 
 ---
 
@@ -390,10 +390,11 @@ cmda analyze --state apo --variant L119R
 cmda compare --state apo --variants WT,L119R
 ```
 
-Outputs saved in `data/apo/analysis/compare/figures/`:
-* `rmsd_comparison.png` (300 DPI comparative time-series with Mean ± SD band)
-* `rg_comparison.png` (Radius of Gyration compactness comparison)
-* `rmsf_comparison.png` (Residue-by-residue fluctuation profiles highlighting loop flexibility)
+Outputs saved directly in `data/apo/analysis/compare/`:
+* `summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
+* `rmsd.png` (300 DPI comparative time-series with Mean ± SD band)
+* `rg.png` (Radius of Gyration compactness comparison)
+* `rmsf.png` (Residue-by-residue fluctuation profiles highlighting loop flexibility)
 
 ---
 

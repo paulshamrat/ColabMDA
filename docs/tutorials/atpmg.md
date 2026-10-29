@@ -40,9 +40,9 @@ research/projects/cmda-example/
         │   │   ├── 01_prep/              # Phase 1.2: Native tleap combination: { WT.pdb + atp.pdb + mg.pdb }
         │   │   │                         # + Hu et al. 2024 quantum nucleotide parameters (ATP-B3)
         │   │   │                         # + Li-Merz 12-6 Mg²⁺ + ParmEd CMAP correction
-        │   │   ├── 02_eq/                # Phase 3.2: 24-stage eq with nucleotide positional restraints
-        │   │   └── 03_md/                # Phase 3.3: Production replicas
-        │   │       ├── r1/               # chunk_*.dcd, prod.chk, prod_clean.dcd
+        │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, qc.png, qc.txt, stages/
+        │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, chunks/0001.dcd
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── L119R/
@@ -51,9 +51,9 @@ research/projects/cmda-example/
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/{r1, r2, r3}/          # Holo single-replica reports (RMSD, Rg, RMSF)
-            ├── L119R/{r1, r2, r3}/
-            └── compare/figures/          # Holo WT vs L119R comparative overlay plots
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), 03_md/ (r1, r2, r3)
+            ├── L119R/
+            └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```
 
 > [!NOTE]
@@ -341,8 +341,8 @@ cmda status --state atpmg --variant WT --replica r1
   Topology File    : solvated.pdb
                      └─ 45862 atoms, 13952 residues
                      └─ (303 protein, 1 ATP, 1 MG, 13648 water, 82 ions)
-  Trajectory File  : prod_clean.dcd (10000 frames)
-  Log File         : prod_full.log (10000 frames)
+  Trajectory File  : md.dcd (10000 frames)
+  Log File         : md.log (10000 frames)
   Frames (from logs): 10000
   Sim time (ps/ns) : 100000.00 ps / 100.0000 ns (from chunk names)
   Resume-ready     : YES (needs prod.chk, system.xml, solvated.pdb)
@@ -454,11 +454,15 @@ cmda analyze --state atpmg --variant L119R
 cmda compare --state atpmg --variants WT,L119R
 ```
 
-This generates publication-ready 300 DPI figures under `data/atpmg/analysis/compare/figures/`:
+This generates publication-ready 300 DPI figures under `data/atpmg/analysis/compare/`:
+* `summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
+* `rmsd.png` (Backbone and ligand stability time-series overlay)
+* `rg.png` (Radius of Gyration domain closure comparison)
+* `rmsf.png` (Per-residue fluctuation profiles highlighting P-loop stiffening)
 
 #### How to Interpret the Comparative Figures:
 
-1. **Backbone & Ligand RMSD Profiles (`rmsd_avg.png`):**
+1. **Backbone & Ligand RMSD Profiles (`rmsd.png`):**
    * **Active Site Fidelity:** Assesses whether ATP remains firmly bound within the catalytic pocket. A stable Holo complex displays a plateaued ligand RMSD ($< 1.8\text{ Å}$ relative to the initial superposed pose).
    * **Comparative Drift:** If the L119R mutant destabilizes the binding cleft, the ligand RMSD will exhibit increased drift or large standard-deviation fluctuations.
 

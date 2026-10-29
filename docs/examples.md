@@ -159,7 +159,7 @@ files=(
   summary.json provenance.json production.json RUN_DONE
   "$SYSTEM/01_prep/prep.json"
   "$SYSTEM/02_eq/equilibration_qc.json" "$SYSTEM/02_eq/figures/equilibration_qc.png"
-  "$SYSTEM/02_eq/nvt.log" "$SYSTEM/02_eq/npt.log" "$SYSTEM/03_md/r1/prod_full.log"
+  "$SYSTEM/02_eq/nvt.log" "$SYSTEM/02_eq/npt.log" "$SYSTEM/03_md/r1/md.log"
   "$SYSTEM/04_analysis/analysis.json"
   "$SYSTEM/04_analysis/rmsd.csv" "$SYSTEM/04_analysis/rg.csv" "$SYSTEM/04_analysis/rmsf.csv"
   "$SYSTEM/04_analysis/figures/rmsd_vs_time.png"

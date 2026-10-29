@@ -296,8 +296,8 @@ cmda status --state apo --variant WT --replica r1
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
                      └─ (169 protein, 8170 water, 49 ions)
-  Trajectory File  : prod_keep_ligand.dcd (10000 frames)
-  Log File         : prod_full.log (10000 frames)
+  Trajectory File  : md.dcd (10000 frames)
+  Log File         : md.log (10000 frames)
   Frames (from logs): 10000
   Sim time (ps/ns) : 100000.00 ps / 100.0000 ns (from chunk names)
   Resume-ready     : YES (needs prod.chk, system.xml, solvated.pdb)
@@ -435,8 +435,8 @@ reinitialize
 bg_color white
 
 # 2. Load merged trajectory files
-load prod_full.pdb, kras
-load_traj prod_full.dcd, kras
+load eq.pdb, kras
+load_traj md.dcd, kras
 
 # 2b. Align trajectory to crystal reference (e.g., 4ldj_wt.pdb)
 load 4ldj_wt.pdb, crystal_ref
