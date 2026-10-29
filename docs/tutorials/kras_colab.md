@@ -234,6 +234,42 @@ cmda sim qc --state apo --variant G12D
 
 ---
 
+### 3.2.1. Intermediate Inspection Gate: Pull & PyMOL Visual Verification (Local Machine)
+*Before committing cloud compute to 100 ns production runs, verify that the 24-stage equilibration completed stably and that the protein maintained its folded conformation.*
+
+#### Step 1: Pull Equilibration Deliverables to Local Machine
+From your **local workstation terminal**:
+```bash
+cd ~/research/projects/kras-example
+cmda pull -s kras-sim
+```
+*This downloads the lightweight `02_eq/` deliverables (`eq.pdb`, `qc.png`, `qc.txt`) to your workstation in seconds.*
+
+#### Step 2: Inspect Convergence Plot & Statistics
+Review the gatekeeper outputs:
+* Open `data/apo/simulation/WT/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged to explicit-solvent range ($1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
+* Inspect `data/apo/simulation/WT/02_eq/qc.txt`: Confirms `Status: PASSED`.
+
+#### Step 3: Inspect Backbone Relaxation in PyMOL (GUI)
+Open PyMOL to verify that the protein relaxed without unfolding:
+1. Launch PyMOL: `pymol`
+2. **Load initial and equilibrated structures via menu**:
+   * **`File`** $\to$ **`Open...`** $\to$ select `data/apo/simulation/WT/01_prep/model.pdb`
+   * **`File`** $\to$ **`Open...`** $\to$ select `data/apo/simulation/WT/02_eq/eq.pdb`
+3. **Clean up display (right panel buttons)**:
+   * Next to `(all)`: click **`H`** (Hide) $\to$ **`waters`**
+   * Next to `(all)`: click **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
+4. **Distinguish structures by color**:
+   * Next to `model`: click **`C`** (Color) $\to$ **`reds`** $\to$ **`salmon`**
+   * Next to `eq`: click **`C`** (Color) $\to$ **`cyans`** $\to$ **`cyan`**
+5. **Align them**:
+   * Next to `eq`: click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ choose **`model`**
+6. *Visual Check:* Confirm that the post-equilibration structure (`eq`, cyan) closely overlaps the starting model (`model`, salmon), indicating stable equilibration with preserved secondary structure.
+
+*Once verified, proceed to launch Production MD (Section 3.3).*
+
+---
+
 ### 3.3. Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
 Replicas fork from `02_eq/` with distinct random velocity seeds into `03_md/`:
 
