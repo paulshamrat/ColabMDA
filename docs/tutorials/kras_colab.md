@@ -176,19 +176,19 @@ In your local terminal:
 
 ```bash
 # 1. Launch a Colab GPU instance
-colab new -s kras-sim --gpu T4
+colab new -s cmda --gpu T4
 
 # 2. Mount Google Drive (visit the printed authorization link once, then press Enter)
-colab drivemount --session kras-sim
+colab drivemount --session cmda
 
 # 3. Stream local data/ directly to Google Drive:
-cmda push -s kras-sim
+cmda push -s cmda
 ```
 
 > [!TIP]
 > **Data Destination on Google Drive:**
 > * **Google Drive Filesystem Path:** `/content/drive/MyDrive/research/projects/kras-example/data/`
-> * **Mechanism:** `cmda push` packages your local `data/` folder, streams it to your active Colab VM (`-s kras-sim`), and extracts it directly into your mounted Google Drive project directory without manual file uploading.
+> * **Mechanism:** `cmda push` packages your local `data/` folder, streams it to your active Colab VM (`-s cmda`), and extracts it directly into your mounted Google Drive project directory without manual file uploading.
 
 ---
 
@@ -198,7 +198,7 @@ cmda push -s kras-sim
 ### 3.1. Connect to Colab GPU Console
 In your local terminal:
 ```bash
-colab console -s kras-sim
+colab console -s cmda
 ```
 
 Inside the Colab console terminal, run the environment setup *(see the [Installation Guide](../installation.md#2-cloud-gpu-worker-provisioning-google-colab) for details)*:
@@ -242,25 +242,35 @@ cmda sim eq --state apo --variant G12D
 #### 1. Pull Deliverables to Local Machine (Terminal)
 ```bash
 cd ~/research/projects/kras-example
-cmda pull -s kras-sim
 
-# Tip: To pull only equilibration deliverables for WT:
-# cmda pull -s kras-sim --stage eq --variant WT
+# Pull lightweight equilibration deliverables (~2 MB):
+cmda pull -s cmda --stage eq
+
+# Or pull only a specific variant:
+# cmda pull -s cmda --stage eq --variant WT
 ```
+
+> [!TIP]
+> **GPU vs. CPU Session for Retrieval:**
+> * **Active Session:** If your GPU session is still running, pull directly.
+> * **Session Ended / Timed Out:** You **do not** need a GPU to pull results. Simply launch an instant, free CPU runtime (`colab new -s cmda`), mount Drive (`colab drivemount --session cmda`), and run `cmda pull`.
 
 #### 2. Verify Status in 1 Second (Terminal)
 ```bash
 cat data/apo/analysis/WT/02_eq/qc.txt
 cat data/apo/analysis/G12D/02_eq/qc.txt
 ```
-*Expected Output:* `Status: PASSED` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, potential energy stable).
+*Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
-#### 3. Glance at Convergence Plot in 5 Seconds
-Open the gating plots in any image viewer:
+#### 3. Glance at 6-Panel QC Plot in 5 Seconds
+Open the unified 7-inch publication plot in any image viewer:
 * `data/apo/analysis/WT/02_eq/qc.png`
 * `data/apo/analysis/G12D/02_eq/qc.png`
 
-*Expected Visual:* Temperature is flat at **$300\text{ K}$**; density is flat with zero drift at **$\sim 1.01\text{ g/mL}$**.
+*Expected Visual:*
+* **Panels A–D (Thermodynamics):** Temperature is flat at **$300\text{ K}$**; density is flat at **$\sim 1.01\text{ g/mL}$**; potential energy and volume are stable.
+* **Panel E (Per-Residue C$\alpha$ Drift):** Core secondary structures stay flat at **$< 0.5\text{ \AA}$**; loop peaks remain below threshold ($< 1.2\text{ \AA}$).
+* **Panel F (3D Backbone Alignment):** Solid cyan equilibrated fold matches semi-transparent salmon starting model ($\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$).
 
 #### 4. Quick 3D Fold Check in PyMOL in 30 Seconds
 Launch PyMOL with both starting and equilibrated coordinates:
@@ -274,38 +284,31 @@ In the PyMOL right panel:
 *Expected Visual:* Cyan equilibrated backbone (`eq`) overlays closely onto starting model (`model`). No unfolded helices or broken loops ($\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$). Repeat for G12D.
 
 <details>
-<summary><b>🔍 Advanced PyMOL GUI Inspection (Solvent Box, Periodic Boundaries & Ions)</b></summary>
+<summary><b>🔍 Advanced PyMOL GUI Inspection (Periodic Box & Ions)</b></summary>
 
-##### Mode A: Solvent-Stripped Structural Superposition (Backbone Fold Stability)
-1. **Clean up display (Right Control Panel)**:
-   * Next to `(all)`: Click **`H`** (Hide) $\to$ **`waters`**
-   * Next to `(all)`: Click **`H`** (Hide) $\to$ **`nonbonded`**
-   * Next to `(all)`: Click **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
-2. **Distinguish structures by color**:
-   * Next to `model`: Click **`C`** (Color) $\to$ **`reds`** $\to$ **`salmon`**
-   * Next to `eq`: Click **`C`** (Color) $\to$ **`cyans`** $\to$ **`cyan`**
-3. **Superimpose backbones**:
-   * Next to `eq`: Click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ select **`model`**
-4. **Acceptance Criteria**:
-   * Confirm that the equilibrated backbone (`eq`, cyan) closely superimposes on the starting model (`model`, salmon) with typical $\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$. Core secondary structure elements remain intact without unphysical distortion.
+#### Fast PyMOL Inspection Commands
+Type these commands directly into the PyMOL command prompt (`PyMOL>`):
 
-##### Mode B: Explicit Solvation Cage & Periodic Boundary Inspection (PBC Integrity)
-1. **Display solvent water molecules (Right Control Panel)**:
-   * Next to `eq`: Click **`S`** (Show) $\to$ **`lines`**
-2. **Display ions as spheres**:
-   * Next to `eq`: Click **`S`** (Show) $\to$ **`nonbonded`** (or **`spheres`**)
-3. **Color atoms by chemical element**:
-   * Next to `(all)`: Click **`C`** (Color) $\to$ **`by element`** $\to$ choose any element palette
-4. **Display periodic unit cell boundary box**:
-   * In top PyMOL menu: **`Setting`** $\to$ **`Edit All...`** $\to$ type `cell` in the filter and set `show_cell` to **`1`**  
-     *(Shortcut: type `show cell` into the top command line)*
-5. **Acceptance Criteria**:
-   * Confirm the protein is centered within the periodic unit cell with a minimum $\ge 10\text{ \AA}$ solvent buffer to each boundary face.
-   * Verify that water molecules pack uniformly without vacuum cavities or unphysical clashes.
+```pml
+# 1. Clean view & align backbones (salmon = starting model, cyan = equilibrated)
+hide (resn HOH,WAT)
+show cartoon
+color salmon, model_
+color cyan, eq
+align eq, model_
+
+# 2. Display the periodic unit cell boundary box wireframe
+show cell
+
+# 3. Display counter-ions and cofactors/ligands (if present)
+show spheres, (resn NA,CL,MG)
+show sticks, (organic or resn ATP)
+```
 
 > [!NOTE]
-> **Static Coordinate Snapshot vs. Time-Dependent Trajectory Dynamics:**  
-> `eq.pdb` is a **static 3D coordinate snapshot** capturing the final relaxed geometry after stage 24—it does not contain multiple frames and will not animate. Real-time **conformational dynamics and trajectory animation** are recorded during **Phase 3.3 (Production MD)** as the multi-frame trajectory (**`md.dcd`**, 10,000 frames) and animated in **Section 4.3** via `cmda view`.
+> **Why are waters seen outside the cyan box in `eq.pdb`?**  
+> OpenMM and AMBER integrate in continuous Cartesian space. Molecules diffusing across boundaries remain unwrapped in raw coordinate snapshots. In **Phase 4.2**, **`cmda merge`** automatically runs PBC autoimaging (folding all molecules back inside the unit cell) and solvent stripping for clean trajectory animation.  
+> *(Note: `eq.pdb` is a static 3D coordinate snapshot; multi-frame animation is recorded in Phase 3.3 and viewed via `cmda view`).*
 
 </details>
 
@@ -342,9 +345,9 @@ Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive.
 
 1. Re-launch the session and re-mount Drive from your local terminal:
    ```bash
-   colab new -s kras-sim --gpu T4
-   colab drivemount --session kras-sim
-   colab console -s kras-sim
+   colab new -s cmda --gpu T4
+   colab drivemount --session cmda
+   colab console -s cmda
    ```
 2. In the Colab console, re-activate the environment:
    ```bash
@@ -431,10 +434,10 @@ Outputs saved directly in `data/apo/analysis/compare/`:
 Download analyzed figures, summary tables, and reports:
 
 ```bash
-cmda pull -s kras-sim
+cmda pull -s cmda
 
 # To also pull post-processed stripped trajectories for PyMOL inspection:
-# cmda pull -s kras-sim --traj
+# cmda pull -s cmda --traj
 ```
 
 > [!TIP]

@@ -331,10 +331,9 @@ def test_colab_pull_dispatch_and_fast_path(monkeypatch, tmp_path):
 
     monkeypatch.setattr("subprocess.call", mock_subprocess_call)
 
-    # Fast single-file download path
+    # Fast single-file download path (testing default session='cmda')
     dummy_file = "data/apo/analysis/WT/02_eq/qc.png"
     status = colab_pull(
-        session="kras-sim",
         root=tmp_path,
         project="kras-example",
         path=dummy_file,
@@ -344,7 +343,7 @@ def test_colab_pull_dispatch_and_fast_path(monkeypatch, tmp_path):
     assert calls[0][0] == "colab"
     assert calls[0][1] == "download"
     assert "-s" in calls[0]
-    assert "kras-sim" in calls[0]
+    assert "cmda" in calls[0]
     assert (
         "/content/drive/MyDrive/research/projects/kras-example/data/apo/analysis/WT/02_eq/qc.png"
         in calls[0]
@@ -360,7 +359,7 @@ def test_colab_pull_dispatch_and_fast_path(monkeypatch, tmp_path):
     monkeypatch.setattr("colabmda.remote.colab._execute_remote", mock_execute_remote)
 
     status_filter = colab_pull(
-        session="kras-sim",
+        session="cmda",
         root=tmp_path,
         project="kras-example",
         stage="eq",

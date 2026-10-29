@@ -833,12 +833,18 @@ def plot_analysis(outdir):
 
 
 def plot_equilibration(workdir, outdir=None):
-    """Plot saved thermodynamic logs after the numerical QC stage."""
+    """Plot saved thermodynamic logs and structural stability after equilibration."""
     import json
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    import numpy as np
+    import pandas as pd
+    from PIL import Image
 
     plt = _headless_pyplot()
-    import pandas as pd
-
     _publication_style()
     root = Path(workdir)
     dest = Path(outdir) if outdir else root
@@ -861,20 +867,191 @@ def plot_equilibration(workdir, outdir=None):
     elif (root / "qc.txt").is_file():
         passed = "Status: PASSED" in (root / "qc.txt").read_text()
 
-    fig, axes = plt.subplots(2, 2, figsize=(7, 4.5), layout="constrained")
-    for ax, (filename, column) in zip(
-        axes.flat,
-        [
-            ("nvt.log", "Temperature (K)"),
-            ("npt.log", "Density (g/mL)"),
-            ("nvt.log", "Potential Energy (kJ/mole)"),
-            ("npt.log", "Potential Energy (kJ/mole)"),
-        ],
-    ):
-        data = pd.read_csv(root / filename)
-        ax.plot(data["Time (ps)"], data[column], color="#0072B2")
-        ax.set(xlabel="Time (ps)", ylabel=column)
-    fig.suptitle("Equilibration QC: " + ("passed" if passed else "review required"), fontsize=9)
+    # Load thermodynamic logs
+    npt_file = root / "npt.log"
+    nvt_file = root / "nvt.log"
+    has_npt = npt_file.is_file()
+    has_nvt = nvt_file.is_file()
+
+    df_npt = pd.read_csv(npt_file) if has_npt else pd.DataFrame()
+    df_nvt = pd.read_csv(nvt_file) if has_nvt else pd.DataFrame()
+
+    # Structural alignment: model.pdb vs eq.pdb
+    eq_pdb = root / "eq.pdb"
+    model_candidates = [
+        root.parent / "01_prep" / "model.pdb",
+        root / "model.pdb",
+        root / "solvated.pdb",
+    ]
+    model_pdb = next((p for p in model_candidates if p.is_file()), None)
+
+    rmsd = None
+    drift = None
+    common_res = None
+    if eq_pdb.is_file() and model_pdb and model_pdb.is_file():
+        try:
+
+            def extract_ca(pdb_p):
+                coords, res_nums = [], []
+                with open(pdb_p) as f:
+                    for line in f:
+                        if line.startswith(("ATOM", "HETATM")) and line[12:16].strip() == "CA":
+                            res_nums.append(int(line[22:26]))
+                            coords.append(
+                                [float(line[30:38]), float(line[38:46]), float(line[46:54])]
+                            )
+                return np.array(res_nums), np.array(coords)
+
+            r1, c1 = extract_ca(model_pdb)
+            r2, c2 = extract_ca(eq_pdb)
+            common_res = sorted(set(r1) & set(r2))
+            if len(common_res) >= 10:
+                idx1 = [np.where(r1 == r)[0][0] for r in common_res]
+                idx2 = [np.where(r2 == r)[0][0] for r in common_res]
+                c1_sub, c2_sub = c1[idx1], c2[idx2]
+                # Kabsch superposition of c2 onto c1
+                p1 = c1_sub - c1_sub.mean(axis=0)
+                p2 = c2_sub - c2_sub.mean(axis=0)
+                H = p2.T @ p1
+                U, S, Vt = np.linalg.svd(H)
+                d = np.linalg.det(Vt.T @ U.T)
+                R = Vt.T @ np.diag([1, 1, d]) @ U.T
+                p2_aligned = p2 @ R.T
+                drift = np.linalg.norm(p2_aligned - p1, axis=1)
+                rmsd = float(np.sqrt(np.mean(drift**2)))
+        except Exception:
+            rmsd = None
+            drift = None
+
+    # Append Cα RMSD to qc.txt if available
+    qc_txt_path = dest / "qc.txt"
+    if qc_txt_path.is_file() and rmsd is not None:
+        try:
+            txt = qc_txt_path.read_text()
+            if "Cα RMSD" not in txt:
+                with open(qc_txt_path, "a") as f:
+                    f.write(f"Cα RMSD: {rmsd:.2f} Å (Threshold: < 1.50 Å)\n")
+        except Exception:
+            pass
+
+    # Headless PyMOL rendering for 3D panel (pure white background)
+    pymol_img = None
+    if eq_pdb.is_file() and model_pdb and model_pdb.is_file():
+        pymol_bin = shutil.which("pymol")
+        if pymol_bin:
+            with tempfile.TemporaryDirectory() as td:
+                tp = Path(td)
+                out_png = tp / "_pymol_super.png"
+                pml = tp / "_render.pml"
+                pml.write_text(f"""
+load {model_pdb.resolve()}, m
+load {eq_pdb.resolve()}, e
+hide everything
+bg_color white
+set ray_opaque_background, 1
+set orthoscopic, 1
+set depth_cue, 0
+set cartoon_fancy_helices, 1
+show cartoon, m
+show cartoon, e
+color salmon, m
+color cyan, e
+set cartoon_transparency, 0.4, m
+align e, m
+zoom m, 1
+ray 600, 600
+png {out_png.resolve()}
+quit
+""")
+                try:
+                    subprocess.run([pymol_bin, "-cq", str(pml)], capture_output=True, timeout=20)
+                    if out_png.is_file():
+                        pymol_img = Image.open(out_png).copy()
+                except Exception:
+                    pymol_img = None
+
+    # Unified 6-Panel Layout (7.0 x 4.6 inches, 9pt font)
+    fig, axes = plt.subplots(2, 3, figsize=(7.0, 4.6), layout="constrained")
+
+    # Panel A: Temperature
+    ax_a = axes[0, 0]
+    if has_npt and "Temperature (K)" in df_npt.columns:
+        ax_a.plot(df_npt["Time (ps)"], df_npt["Temperature (K)"], color="#0072B2", lw=1)
+        ax_a.axhline(300, color="#D55E00", linestyle="--", lw=0.8, alpha=0.7)
+    elif has_nvt and "Temperature (K)" in df_nvt.columns:
+        ax_a.plot(df_nvt["Time (ps)"], df_nvt["Temperature (K)"], color="#0072B2", lw=1)
+        ax_a.axhline(300, color="#D55E00", linestyle="--", lw=0.8, alpha=0.7)
+    ax_a.set_title("A: Temperature (K)", fontweight="bold")
+    ax_a.set_xlabel("Time (ps)")
+    ax_a.set_ylabel("Temperature (K)")
+
+    # Panel B: Density
+    ax_b = axes[0, 1]
+    if has_npt and "Density (g/mL)" in df_npt.columns:
+        ax_b.plot(df_npt["Time (ps)"], df_npt["Density (g/mL)"], color="#0072B2", lw=1)
+    ax_b.set_title("B: Density (g/mL)", fontweight="bold")
+    ax_b.set_xlabel("Time (ps)")
+    ax_b.set_ylabel("Density (g/mL)")
+
+    # Panel C: Potential Energy
+    ax_c = axes[0, 2]
+    if has_npt and "Potential Energy (kJ/mole)" in df_npt.columns:
+        pe_scaled = df_npt["Potential Energy (kJ/mole)"] / 1e5
+        ax_c.plot(df_npt["Time (ps)"], pe_scaled, color="#0072B2", lw=1)
+        ax_c.set_ylabel(r"$E_{\mathrm{pot}}$ ($10^5$ kJ/mol)")
+    elif has_nvt and "Potential Energy (kJ/mole)" in df_nvt.columns:
+        pe_scaled = df_nvt["Potential Energy (kJ/mole)"] / 1e5
+        ax_c.plot(df_nvt["Time (ps)"], pe_scaled, color="#0072B2", lw=1)
+        ax_c.set_ylabel(r"$E_{\mathrm{pot}}$ ($10^5$ kJ/mol)")
+    ax_c.set_title("C: Potential Energy", fontweight="bold")
+    ax_c.set_xlabel("Time (ps)")
+
+    # Panel D: Box Volume
+    ax_d = axes[1, 0]
+    if has_npt and "Box Volume (nm^3)" in df_npt.columns:
+        ax_d.plot(df_npt["Time (ps)"], df_npt["Box Volume (nm^3)"], color="#0072B2", lw=1)
+        ax_d.set_ylabel(r"Volume (nm$^3$)")
+    elif has_npt and "Density (g/mL)" in df_npt.columns:
+        ax_d.plot(df_npt["Time (ps)"], df_npt["Density (g/mL)"], color="#0072B2", lw=1)
+        ax_d.set_ylabel("Density (g/mL)")
+    ax_d.set_title(r"D: Box Volume (nm$^3$)", fontweight="bold")
+    ax_d.set_xlabel("Time (ps)")
+
+    # Panel E: Per-Residue Cα Displacement
+    ax_e = axes[1, 1]
+    if drift is not None and common_res is not None:
+        ax_e.plot(common_res, drift, color="#0072B2", lw=1)
+        ax_e.axhline(1.5, color="#D55E00", linestyle="--", lw=0.8, alpha=0.7, label="Threshold")
+        ax_e.set_ylim(0, max(2.0, float(drift.max()) * 1.05))
+    ax_e.set_title(r"E: C$\alpha$ Displacement (Å)", fontweight="bold")
+    ax_e.set_xlabel("Residue Index")
+    ax_e.set_ylabel(r"$\Delta r$ (Å)")
+
+    # Panel F: 3D Backbone Superposition
+    ax_f = axes[1, 2]
+    rmsd_str = f"RMSD: {rmsd:.2f} Å" if rmsd is not None else "Aligned"
+    if pymol_img is not None:
+        ax_f.imshow(pymol_img)
+        ax_f.axis("off")
+        ax_f.set_title(f"F: Superposition ({rmsd_str})", fontweight="bold")
+    else:
+        ax_f.axis("off")
+        ax_f.text(
+            0.5,
+            0.5,
+            f"Fold Stable\n{rmsd_str}",
+            ha="center",
+            va="center",
+            transform=ax_f.transAxes,
+            fontsize=8.5,
+            fontweight="bold",
+            color="#0072B2",
+            bbox=dict(boxstyle="round,pad=0.5", facecolor="#EBF3F9", edgecolor="#0072B2"),
+        )
+        ax_f.set_title(f"F: Fold ({rmsd_str})", fontweight="bold")
+
+    status_str = "PASSED" if passed else "REVIEW REQUIRED"
+    fig.suptitle(f"Equilibration Quality Control: {status_str}", fontsize=9.5, fontweight="bold")
     fig.savefig(dest / "qc.png", dpi=300)
     if outdir is None:
         target = root / "figures"

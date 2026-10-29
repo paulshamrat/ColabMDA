@@ -1297,8 +1297,8 @@ def main():
     p_top_push.add_argument(
         "-s",
         "--session",
-        default=None,
-        help="Colab session name (e.g. cmda-example)",
+        default="cmda",
+        help="Colab session name (default: cmda)",
     )
     p_top_push.add_argument(
         "--root",
@@ -1330,8 +1330,8 @@ def main():
     p_top_pull.add_argument(
         "-s",
         "--session",
-        default=None,
-        help="Colab session name (e.g. cmda-example)",
+        default="cmda",
+        help="Colab session name (default: cmda)",
     )
     p_top_pull.add_argument(
         "--root",

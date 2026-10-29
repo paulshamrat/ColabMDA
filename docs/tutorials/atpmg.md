@@ -214,13 +214,13 @@ In your local terminal:
 
 ```bash
 # 1. Launch a persistent Colab GPU instance
-colab new -s cmda-example --gpu T4
+colab new -s cmda --gpu T4
 
 # 2. Mount Google Drive (visit the printed OAuth URL once, then press Enter)
-colab drivemount --session cmda-example
+colab drivemount --session cmda
 
 # 3. Stream local data/ directly to Google Drive in ONE single command:
-cmda push -s cmda-example
+cmda push -s cmda
 ```
 
 > [!TIP]
@@ -229,7 +229,7 @@ cmda push -s cmda-example
 >   `My Drive` > `research` > `projects` > `cmda-example` > `data/atpmg/`
 > * **Google Colab Filesystem Path:**  
 >   `/content/drive/MyDrive/research/projects/cmda-example/data/atpmg/`
-> * **How It Works Under the Hood:** Packages your local `data/` folder (~15 MB), streams it through your active Colab VM (`-s cmda-example`), and extracts it directly into your mounted Google Drive project directory in ~3 seconds with zero browser drag-and-drop.
+> * **How It Works Under the Hood:** Packages your local `data/` folder (~15 MB), streams it through your active Colab VM (`-s cmda`), and extracts it directly into your mounted Google Drive project directory in ~3 seconds with zero browser drag-and-drop.
 
 ---
 
@@ -239,7 +239,7 @@ cmda push -s cmda-example
 ### 3.1. Connect to Colab GPU Console
 In your local terminal:
 ```bash
-colab console -s cmda-example
+colab console -s cmda
 ```
 
 Inside the interactive Colab console terminal, run the cloud bootstrap *(see the [Installation Guide](../installation.md#2-cloud-gpu-worker-provisioning-google-colab) for details)*:
@@ -293,25 +293,35 @@ cmda sim eq --state atpmg --variant L119R
 #### 1. Pull Deliverables to Local Machine (Terminal)
 ```bash
 cd ~/research/projects/cmda-example
-cmda pull -s cmda-example
 
-# Tip: To pull only equilibration deliverables for WT:
-# cmda pull -s cmda-example --stage eq --variant WT
+# Pull lightweight equilibration deliverables (~2 MB):
+cmda pull -s cmda --stage eq
+
+# Or pull only a specific variant:
+# cmda pull -s cmda --stage eq --variant WT
 ```
+
+> [!TIP]
+> **GPU vs. CPU Session for Retrieval:**
+> * **Active Session:** If your GPU session is still running, pull directly.
+> * **Session Ended / Timed Out:** You **do not** need a GPU to pull results. Simply launch an instant, free CPU runtime (`colab new -s cmda`), mount Drive (`colab drivemount --session cmda`), and run `cmda pull`.
 
 #### 2. Verify Status in 1 Second (Terminal)
 ```bash
 cat data/atpmg/analysis/WT/02_eq/qc.txt
 cat data/atpmg/analysis/L119R/02_eq/qc.txt
 ```
-*Expected Output:* `Status: PASSED` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, potential energy stable).
+*Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
-#### 3. Glance at Convergence Plot in 5 Seconds
-Open the gating plots in any image viewer:
+#### 3. Glance at 6-Panel QC Plot in 5 Seconds
+Open the unified 7-inch publication plot in any image viewer:
 * `data/atpmg/analysis/WT/02_eq/qc.png`
 * `data/atpmg/analysis/L119R/02_eq/qc.png`
 
-*Expected Visual:* Temperature is flat at **$300\text{ K}$**; density is flat with zero drift at **$\sim 1.01\text{ g/mL}$**.
+*Expected Visual:*
+* **Panels A–D (Thermodynamics):** Temperature is flat at **$300\text{ K}$**; density is flat at **$\sim 1.01\text{ g/mL}$**; potential energy and volume are stable.
+* **Panel E (Per-Residue C$\alpha$ Drift):** Core secondary structures stay flat at **$< 0.5\text{ \AA}$**; loop peaks remain below threshold ($< 1.2\text{ \AA}$).
+* **Panel F (3D Backbone Alignment):** Solid cyan equilibrated fold matches semi-transparent salmon starting model ($\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$).
 
 #### 4. Quick 3D Fold & Active Site Check in PyMOL in 30 Seconds
 Launch PyMOL with both starting and equilibrated coordinates:
@@ -326,44 +336,31 @@ In the PyMOL right panel:
 *Expected Visual:* Cyan kinase backbone (`eq`) overlays closely onto starting model (`model`). ATP and $\text{Mg}^{2+}$ remain stably bound in the catalytic cleft without displacement ($\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$). Repeat for L119R.
 
 <details>
-<summary><b>🔍 Advanced PyMOL GUI Inspection (Solvent Box, Periodic Boundaries & Ions)</b></summary>
+<summary><b>🔍 Advanced PyMOL GUI Inspection (Periodic Box & Ions)</b></summary>
 
-##### Mode A: Solvent-Stripped Structural Superposition & Active Site Coordination
-1. **Clean up display (Right Control Panel)**:
-   * Next to `(all)`: Click **`H`** (Hide) $\to$ **`waters`**
-   * Next to `(all)`: Click **`H`** (Hide) $\to$ **`nonbonded`**
-   * Next to `(all)`: Click **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
-2. **Display nucleotide and catalytic metal ion**:
-   * Next to `(all)`: Click **`S`** (Show) $\to$ **`organic`** $\to$ **`sticks`** (displays ATP)
-   * Next to `(all)`: Click **`S`** (Show) $\to$ **`spheres`** (displays catalytic $\text{Mg}^{2+}$)
-3. **Distinguish structures by color**:
-   * Next to `model`: Click **`C`** (Color) $\to$ **`reds`** $\to$ **`salmon`** (initial modeled reference)
-   * Next to `eq`: Click **`C`** (Color) $\to$ **`cyans`** $\to$ **`cyan`** (equilibrated geometry)
-4. **Superimpose backbones**:
-   * Next to `eq`: Click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ select **`model`**
-5. **Acceptance Criteria**:
-   * Confirm that the kinase lobes (`eq`, cyan) superimpose on the starting model (`model`, salmon) with $\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$.
-   * Verify that ATP remains stably coordinated in the hinge binding cleft with $\text{Mg}^{2+}$ bridging the triphosphate oxygens, without steric displacement.
+#### Fast PyMOL Inspection Commands
+Type these commands directly into the PyMOL command prompt (`PyMOL>`):
 
-##### Mode B: Explicit Solvation Cage & Periodic Boundary Inspection (PBC Integrity)
-1. **Display solvent water molecules (Right Control Panel)**:
-   * Next to `eq`: Click **`S`** (Show) $\to$ **`lines`**
-2. **Display ions as spheres**:
-   * Next to `eq`: Click **`S`** (Show) $\to$ **`nonbonded`** (or **`spheres`**)
-3. **Color atoms by chemical element**:
-   * Next to `(all)`: Click **`C`** (Color) $\to$ **`by element`** $\to$ choose any element palette (heteroatoms and ions are colored automatically)
-4. **Display periodic unit cell boundary box**:
-   * In top PyMOL menu: **`Setting`** $\to$ **`Edit All...`** $\to$ type `cell` in the filter and set `show_cell` to **`1`**  
-     *(Shortcut: type `show cell` into the top command line)*
-5. **Acceptance Criteria**:
-   * Confirm the kinase complex is centered within the periodic unit cell with a minimum $\ge 10\text{ \AA}$ solvent buffer to each boundary face.
-   * Verify that water molecules pack uniformly around the protein surface without vacuum gaps, cavitation bubbles, or atomic clashes.
+```pml
+# 1. Clean view & align backbones (salmon = starting model, cyan = equilibrated)
+hide (resn HOH,WAT)
+show cartoon
+color salmon, model_
+color cyan, eq
+align eq, model_
+
+# 2. Display the periodic unit cell boundary box wireframe
+show cell
+
+# 3. Display counter-ions and cofactors/ligands (ATP + Mg2+)
+show spheres, (resn NA,CL,MG)
+show sticks, (organic or resn ATP)
+```
 
 > [!NOTE]
-> **Static Coordinate Snapshot vs. Time-Dependent Trajectory Dynamics:**  
-> `eq.pdb` is a **static 3D coordinate snapshot** capturing the final minimized and relaxed geometry at the end of the 24-stage equilibration protocol. It contains a single coordinate frame, so it does not exhibit motion or time-series trajectory playback.  
-> 
-> Real-time **conformational dynamics, thermal fluctuations, and loop flexibility** are recorded during **Phase 3.3 (Production MD)** as the multi-frame binary trajectory (**`md.dcd`**, 10,000 frames) and can be animated via PyMOL trajectory playback controls as described in **Section 4.3** (`cmda view`).
+> **Why are waters seen outside the cyan box in `eq.pdb`?**  
+> OpenMM and AMBER integrate in continuous Cartesian space. Molecules diffusing across boundaries remain unwrapped in raw coordinate snapshots. In **Phase 4.2**, **`cmda merge`** automatically runs PBC autoimaging (folding all molecules back inside the unit cell) and solvent stripping for clean trajectory animation.  
+> *(Note: `eq.pdb` is a static 3D coordinate snapshot; multi-frame animation is recorded in Phase 3.3 and viewed via `cmda view`).*
 
 </details>
 
@@ -439,9 +436,9 @@ Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive.
 
 1. Re-launch the session and re-mount Drive from your local terminal:
    ```bash
-   colab new -s cmda-example --gpu T4
-   colab drivemount --session cmda-example
-   colab console -s cmda-example
+   colab new -s cmda --gpu T4
+   colab drivemount --session cmda
+   colab console -s cmda
    ```
 2. Re-run the exact same production command:
    ```bash
@@ -484,13 +481,13 @@ assert 1.8 <= coord_dist <= 2.4, "ALERT: Magnesium drifted from ATP triphosphate
 In your local terminal:
 ```bash
 # Pull analysis results, figures, and logs in seconds:
-cmda pull -s cmda-example
+cmda pull -s cmda
 
 # To also pull post-processed stripped trajectories for PyMOL inspection:
-# cmda pull -s cmda-example --traj
+# cmda pull -s cmda --traj
 
 # (Optional: to pull full raw simulation chunks as well):
-# cmda pull -s cmda-example --all
+# cmda pull -s cmda --all
 ```
 
 ---

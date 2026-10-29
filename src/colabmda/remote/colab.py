@@ -106,7 +106,7 @@ def _execute_remote(session, code, timeout):
 
 
 def colab_push(
-    session: str | None = None,
+    session: str | None = "cmda",
     root: str | Path | None = None,
     project: str | None = None,
     timeout: float = 300,
@@ -133,7 +133,7 @@ def colab_push(
         with tarfile.open(tmp_tar.name, "w:gz") as tar:
             tar.add(str(data_dir), arcname="data")
 
-        session_name = session or "active"
+        session_name = session or "cmda"
         print(f"[INFO] Uploading data archive to Colab session '{session_name}'...")
         remote_tar = "/content/_cmda_push.tar.gz"
         upload_cmd = ["colab", "upload", *_session_args(session), tmp_tar.name, remote_tar]
@@ -169,7 +169,7 @@ def colab_push(
 
 
 def colab_pull(
-    session: str | None = None,
+    session: str | None = "cmda",
     root: str | Path | None = None,
     project: str | None = None,
     path: str | None = None,
@@ -191,7 +191,7 @@ def colab_pull(
     remote_base = f"/content/drive/MyDrive/research/projects/{project_name}"
     remote_tar = "/content/_cmda_pull.tar.gz"
 
-    session_name = session or "active"
+    session_name = session or "cmda"
 
     # Fast-path: single known file direct download
     known_exts = (
@@ -414,8 +414,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_push.add_argument(
         "-s",
         "--session",
-        default=None,
-        help="Session name (default: auto-detected if omitted)",
+        default="cmda",
+        help="Session name (default: cmda)",
     )
     p_push.add_argument(
         "--root",
@@ -445,8 +445,8 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_pull.add_argument(
         "-s",
         "--session",
-        default=None,
-        help="Session name (default: auto-detected if omitted)",
+        default="cmda",
+        help="Session name (default: cmda)",
     )
     p_pull.add_argument(
         "--root",

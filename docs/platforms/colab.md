@@ -40,10 +40,10 @@ fresh Drive authentication even when the previous session was mounted.
 Then create a GPU runtime, authenticate Drive and deploy the committed tool:
 
 ```bash
-colab new -s colabmda-example --gpu T4
-colab drivemount --session colabmda-example
-cmda colab setup -s colabmda-example --local-source --modeller
-colab console -s colabmda-example
+colab new -s cmda --gpu T4
+colab drivemount --session cmda
+cmda colab setup -s cmda --local-source --modeller
+colab console -s cmda
 ```
 
 Local-source deployment requires a clean, committed Git checkout. Branches and
@@ -63,7 +63,7 @@ cmda --help
 
 The installed snapshot is `/content/ColabMDA`; persistent project data belongs under
 `/content/drive/MyDrive/research/projects/`. Continue with the linked CDKL5 workflow after setup. You can also dispatch foreground shell commands from the local
-terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
+terminal using `cmda colab exec -s cmda --timeout 21600 'COMMAND'`.
 
 ### Pulling Results Locally (`cmda pull`)
 
@@ -71,10 +71,19 @@ Lightweight simulation deliverables (`01_prep/model.pdb`, `02_eq/eq.pdb`, `analy
 
 ```bash
 # Pull all lightweight deliverables across all variants:
-cmda pull -s colabmda-example
+cmda pull -s cmda
 ```
 
 Large binary trajectories (`.dcd`), restart checkpoints (`.chk`), and raw coordinate files are skipped by default, so deliverables download in seconds.
+
+> [!TIP]
+> **GPU vs. CPU Session for Retrieval:**
+> If your simulation finishes and the GPU session ends or times out, you **do not** need a GPU runtime or compute quota to pull deliverables. Simply launch an instant, free CPU session:
+> ```bash
+> colab new -s cmda          # Omit --gpu for instant CPU instance
+> colab drivemount --session cmda
+> ```
+> and run `cmda pull`.
 
 #### Targeted Pulling Options
 
@@ -82,11 +91,11 @@ Large binary trajectories (`.dcd`), restart checkpoints (`.chk`), and raw coordi
 
 | Command | Deliverables Pulled | Typical Size |
 | :--- | :--- | :--- |
-| `cmda pull -s colabmda-example` | All lightweight deliverables (`model.pdb`, `eq.pdb`, `qc.png`, `qc.txt`, analysis figures) across all variants. Skips heavy trajectories and checkpoints. | ~5–20 MB |
-| `cmda pull -s colabmda-example --stage eq --variant WT` | Equilibration deliverables for a specific variant. | ~2 MB |
-| `cmda pull -s colabmda-example --traj` | Analysis deliverables plus post-processed solvent-stripped trajectories (`prod_keep_ligand.dcd`, `stripped.prmtop`) for PyMOL inspection. Skips raw solvent chunks. | ~100–300 MB |
-| `cmda pull -s colabmda-example data/.../qc.png` | Fast single-file download directly from Google Drive. | < 100 KB |
-| `cmda pull -s colabmda-example --all` | Full archive including raw simulation chunks (`chunks/*.dcd`) and checkpoints (`*.chk`). | 5–50+ GB |
+| `cmda pull -s cmda` | All lightweight deliverables (`model.pdb`, `eq.pdb`, `qc.png`, `qc.txt`, analysis figures) across all variants. Skips heavy trajectories and checkpoints. | ~5–20 MB |
+| `cmda pull -s cmda --stage eq --variant WT` | Equilibration deliverables for a specific variant. | ~2 MB |
+| `cmda pull -s cmda --traj` | Analysis deliverables plus post-processed solvent-stripped trajectories (`prod_keep_ligand.dcd`, `stripped.prmtop`) for PyMOL inspection. Skips raw solvent chunks. | ~100–300 MB |
+| `cmda pull -s cmda data/.../qc.png` | Fast single-file download directly from Google Drive. | < 100 KB |
+| `cmda pull -s cmda --all` | Full archive including raw simulation chunks (`chunks/*.dcd`) and checkpoints (`*.chk`). | 5–50+ GB |
 
 > [!NOTE]
 > **Non-Destructive & Incremental Extraction:**
@@ -102,9 +111,9 @@ The selected scientific guide explains restart behavior.
 
 An exec connection error does not prove the remote calculation stopped. Check
 the foreground console, process and log before retrying, so two writers cannot
-target the same run. Use `colab console -s colabmda-example` for long foreground
+target the same run. Use `colab console -s cmda` for long foreground
 commands. If the runtime connection fails after computation has ended,
-`colab restart-kernel -s colabmda-example` can restore control; verify Drive is
+`colab restart-kernel -s cmda` can restore control; verify Drive is
 still mounted before collection. Do not restart a kernel during an active job.
 
 ### MODELLER License
@@ -114,7 +123,7 @@ is [salilab.org/modeller/registration.html](https://salilab.org/modeller/registr
 The installer preserves the optional question and hidden key prompt.
 
 ```bash
-cmda colab setup -s colabmda-example --local-source --modeller
+cmda colab setup -s cmda --local-source --modeller
 ```
 
 Automated setup accepts `KEY_MODELLER` or `MODELLER_LICENSE` through the process
