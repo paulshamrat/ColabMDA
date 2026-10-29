@@ -247,16 +247,18 @@ if [[ -w "/usr/local/bin" ]]; then
   ln -sf "${MINIFORGE_DIR}/envs/${ENV_NAME}/bin/colabmda" /usr/local/bin/colabmda 2>/dev/null || true
 fi
 
-# Auto-activate in ~/.bashrc so new subshells have cmda immediately available
-if ! grep -q "conda activate ${ENV_NAME}" "${HOME}/.bashrc" 2>/dev/null; then
-  {
-    echo ""
-    echo "# ColabMDA environment auto-activation"
-    echo "if [[ -f \"${MINIFORGE_DIR}/etc/profile.d/conda.sh\" ]]; then"
-    echo "  source \"${MINIFORGE_DIR}/etc/profile.d/conda.sh\""
-    echo "  conda activate ${ENV_NAME}"
-    echo "fi"
-  } >> "${HOME}/.bashrc"
+# Auto-activate in ~/.bashrc on Google Colab so cloud subshells have cmda immediately available
+if [[ "${IS_COLAB}" == "1" ]]; then
+  if ! grep -q "conda activate ${ENV_NAME}" "${HOME}/.bashrc" 2>/dev/null; then
+    {
+      echo ""
+      echo "# ColabMDA environment auto-activation"
+      echo "if [[ -f \"${MINIFORGE_DIR}/etc/profile.d/conda.sh\" ]]; then"
+      echo "  source \"${MINIFORGE_DIR}/etc/profile.d/conda.sh\""
+      echo "  conda activate ${ENV_NAME}"
+      echo "fi"
+    } >> "${HOME}/.bashrc"
+  fi
 fi
 
 # ------------------------------------------------------------------------------
