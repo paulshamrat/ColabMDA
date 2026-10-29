@@ -236,77 +236,73 @@ cmda sim eq --state apo --variant G12D
 
 ---
 
-### 3.2.1. Intermediate Inspection Gate: Pull & PyMOL Visual Verification (Local Machine)
-*Before committing cloud compute to 100 ns production runs, verify that the 24-stage equilibration completed stably and that the protein maintained its folded conformation.*
+### 3.2.1. Intermediate Inspection Gate: Minimal Verification Checklist (Local Machine)
+*Before committing cloud compute to 100 ns production runs, verify that equilibration completed stably in 4 minimal steps:*
 
-#### Step 1: Pull Equilibration Deliverables to Local Machine
-From your **local workstation terminal**:
+#### 1. Pull Deliverables to Local Machine (Terminal)
 ```bash
 cd ~/research/projects/kras-example
 cmda pull -s kras-sim
 ```
-*This downloads the lightweight deliverables (`eq.pdb` from simulation, and `qc.png`, `qc.txt` from analysis) to your workstation in seconds.*
 
-#### Step 2: Inspect Convergence Plot & Statistics
-Review the gatekeeper outputs for both variants (located in `data/apo/analysis/<variant>/02_eq/`):
-* **Wild-Type (WT):**
-  * Open `data/apo/analysis/WT/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged to explicit-solvent range ($1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
-  * Inspect `data/apo/analysis/WT/02_eq/qc.txt`: Confirms `Status: PASSED`.
-* **Mutant (G12D):**
-  * Open `data/apo/analysis/G12D/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged ($1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
-  * Inspect `data/apo/analysis/G12D/02_eq/qc.txt`: Confirms `Status: PASSED`.
+#### 2. Verify Status in 1 Second (Terminal)
+```bash
+cat data/apo/analysis/WT/02_eq/qc.txt
+cat data/apo/analysis/G12D/02_eq/qc.txt
+```
+*Expected Output:* `Status: PASSED` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, potential energy stable).
 
-#### Step 3: Structural Inspection in PyMOL (GUI)
+#### 3. Glance at Convergence Plot in 5 Seconds
+Open the gating plots in any image viewer:
+* `data/apo/analysis/WT/02_eq/qc.png`
+* `data/apo/analysis/G12D/02_eq/qc.png`
+
+*Expected Visual:* Temperature is flat at **$300\text{ K}$**; density is flat with zero drift at **$\sim 1.01\text{ g/mL}$**.
+
+#### 4. Quick 3D Fold Check in PyMOL in 30 Seconds
+Launch PyMOL with both starting and equilibrated coordinates:
+```bash
+pymol data/apo/simulation/WT/01_prep/model.pdb data/apo/simulation/WT/02_eq/eq.pdb
+```
+In the PyMOL right panel:
+1. Next to **`(all)`**: Click **`H`** (Hide) $\to$ **`waters`**, then **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
+2. Next to **`eq`**: Click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ choose **`model`**
+
+*Expected Visual:* Cyan equilibrated backbone (`eq`) overlays closely onto starting model (`model`). No unfolded helices or broken loops ($\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$). Repeat for G12D.
 
 <details>
-<summary><b>👁️ Click to expand PyMOL GUI inspection guide (Modes A & B)</b></summary>
-
-Launch PyMOL on your local computer (`pymol`) and load the pre- and post-equilibration coordinates:
-* **WT**: **`File`** $\to$ **`Open...`** $\to$ select `data/apo/simulation/WT/01_prep/model.pdb` and `data/apo/simulation/WT/02_eq/eq.pdb`
-* **G12D**: **`File`** $\to$ **`Open...`** $\to$ select `data/apo/simulation/G12D/01_prep/model.pdb` and `data/apo/simulation/G12D/02_eq/eq.pdb`
-
----
+<summary><b>🔍 Advanced PyMOL GUI Inspection (Solvent Box, Periodic Boundaries & Ions)</b></summary>
 
 ##### Mode A: Solvent-Stripped Structural Superposition (Backbone Fold Stability)
-*Purpose: Verify secondary structure retention and evaluate backbone convergence against the initial modeled coordinates.*
-
 1. **Clean up display (Right Control Panel)**:
    * Next to `(all)`: Click **`H`** (Hide) $\to$ **`waters`**
    * Next to `(all)`: Click **`H`** (Hide) $\to$ **`nonbonded`**
    * Next to `(all)`: Click **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
 2. **Distinguish structures by color**:
-   * Next to `model`: Click **`C`** (Color) $\to$ **`reds`** $\to$ **`salmon`** (initial modeled reference)
-   * Next to `eq`: Click **`C`** (Color) $\to$ **`cyans`** $\to$ **`cyan`** (equilibrated geometry)
+   * Next to `model`: Click **`C`** (Color) $\to$ **`reds`** $\to$ **`salmon`**
+   * Next to `eq`: Click **`C`** (Color) $\to$ **`cyans`** $\to$ **`cyan`**
 3. **Superimpose backbones**:
    * Next to `eq`: Click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ select **`model`**
 4. **Acceptance Criteria**:
-   * Confirm that the equilibrated backbone (`eq`, cyan) closely superimposes on the starting model (`model`, salmon) with typical $\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$. Core secondary structure elements ($\alpha$-helices and $\beta$-sheets) must remain fully intact without local unfolding or unphysical distortions.
-
----
+   * Confirm that the equilibrated backbone (`eq`, cyan) closely superimposes on the starting model (`model`, salmon) with typical $\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$. Core secondary structure elements remain intact without unphysical distortion.
 
 ##### Mode B: Explicit Solvation Cage & Periodic Boundary Inspection (PBC Integrity)
-*Purpose: Verify unit cell boundaries, solvent packing, and counterion distribution.*
-
 1. **Display solvent water molecules (Right Control Panel)**:
    * Next to `eq`: Click **`S`** (Show) $\to$ **`lines`**
 2. **Display ions as spheres**:
    * Next to `eq`: Click **`S`** (Show) $\to$ **`nonbonded`** (or **`spheres`**)
 3. **Color atoms by chemical element**:
-   * Next to `(all)`: Click **`C`** (Color) $\to$ **`by element`** $\to$ choose any element palette (heteroatoms and ions are colored automatically)
+   * Next to `(all)`: Click **`C`** (Color) $\to$ **`by element`** $\to$ choose any element palette
 4. **Display periodic unit cell boundary box**:
    * In top PyMOL menu: **`Setting`** $\to$ **`Edit All...`** $\to$ type `cell` in the filter and set `show_cell` to **`1`**  
      *(Shortcut: type `show cell` into the top command line)*
 5. **Acceptance Criteria**:
    * Confirm the protein is centered within the periodic unit cell with a minimum $\ge 10\text{ \AA}$ solvent buffer to each boundary face.
-   * Verify that water molecules pack uniformly around the protein surface without vacuum gaps, cavitation bubbles, or atomic clashes.
-
----
+   * Verify that water molecules pack uniformly without vacuum cavities or unphysical clashes.
 
 > [!NOTE]
 > **Static Coordinate Snapshot vs. Time-Dependent Trajectory Dynamics:**  
-> `eq.pdb` is a **static 3D coordinate snapshot** capturing the final minimized and relaxed geometry at the end of the 24-stage equilibration protocol. It contains a single coordinate frame, so it does not exhibit motion or time-series trajectory playback.  
-> 
-> Real-time **conformational dynamics, thermal fluctuations, and loop flexibility** are recorded during **Phase 3.3 (Production MD)** as the multi-frame binary trajectory (**`md.dcd`**, 10,000 frames) and can be animated via PyMOL trajectory playback controls as described in **Section 4.3** (`cmda view`).
+> `eq.pdb` is a **static 3D coordinate snapshot** capturing the final relaxed geometry after stage 24—it does not contain multiple frames and will not animate. Real-time **conformational dynamics and trajectory animation** are recorded during **Phase 3.3 (Production MD)** as the multi-frame trajectory (**`md.dcd`**, 10,000 frames) and animated in **Section 4.3** via `cmda view`.
 
 </details>
 

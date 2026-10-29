@@ -287,40 +287,45 @@ cmda sim eq --state atpmg --variant L119R
 
 ---
 
-### 3.2.1. Intermediate Inspection Gate: Pull & PyMOL Visual Verification (Local Machine)
-*Before committing cloud compute to 100 ns production runs, verify that the 24-stage equilibration completed stably and that both protein and cofactor (ATP + Mg²⁺) remained stably coordinated.*
+### 3.2.1. Intermediate Inspection Gate: Minimal Verification Checklist (Local Machine)
+*Before committing cloud compute to 100 ns production runs, verify that equilibration completed stably in 4 minimal steps:*
 
-#### Step 1: Pull Equilibration Deliverables to Local Machine
-From your **local workstation terminal**:
+#### 1. Pull Deliverables to Local Machine (Terminal)
 ```bash
 cd ~/research/projects/cmda-example
 cmda pull -s cmda-example
 ```
-*This downloads the lightweight deliverables (`eq.pdb` from simulation, and `qc.png`, `qc.txt` from analysis) to your workstation in seconds.*
 
-#### Step 2: Inspect Convergence Plot & Statistics
-Review the gatekeeper outputs for both variants (located in `data/atpmg/analysis/<variant>/02_eq/`):
-* **Wild-Type (WT):**
-  * Open `data/atpmg/analysis/WT/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged to $\sim 1.00\text{--}1.02\text{ g/mL}$ with a flat slope.
-  * Inspect `data/atpmg/analysis/WT/02_eq/qc.txt`: Confirms `Status: PASSED`.
-* **Mutant (L119R):**
-  * Open `data/atpmg/analysis/L119R/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged ($\sim 1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
-  * Inspect `data/atpmg/analysis/L119R/02_eq/qc.txt`: Confirms `Status: PASSED`.
+#### 2. Verify Status in 1 Second (Terminal)
+```bash
+cat data/atpmg/analysis/WT/02_eq/qc.txt
+cat data/atpmg/analysis/L119R/02_eq/qc.txt
+```
+*Expected Output:* `Status: PASSED` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, potential energy stable).
 
-#### Step 3: Structural Inspection in PyMOL (GUI)
+#### 3. Glance at Convergence Plot in 5 Seconds
+Open the gating plots in any image viewer:
+* `data/atpmg/analysis/WT/02_eq/qc.png`
+* `data/atpmg/analysis/L119R/02_eq/qc.png`
+
+*Expected Visual:* Temperature is flat at **$300\text{ K}$**; density is flat with zero drift at **$\sim 1.01\text{ g/mL}$**.
+
+#### 4. Quick 3D Fold & Active Site Check in PyMOL in 30 Seconds
+Launch PyMOL with both starting and equilibrated coordinates:
+```bash
+pymol data/atpmg/simulation/WT/01_prep/model.pdb data/atpmg/simulation/WT/02_eq/eq.pdb
+```
+In the PyMOL right panel:
+1. Next to **`(all)`**: Click **`H`** (Hide) $\to$ **`waters`**, then **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
+2. Next to **`(all)`**: Click **`S`** (Show) $\to$ **`organic`** $\to$ **`sticks`** (ATP), then **`S`** (Show) $\to$ **`spheres`** ($\text{Mg}^{2+}$)
+3. Next to **`eq`**: Click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ choose **`model`**
+
+*Expected Visual:* Cyan kinase backbone (`eq`) overlays closely onto starting model (`model`). ATP and $\text{Mg}^{2+}$ remain stably bound in the catalytic cleft without displacement ($\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$). Repeat for L119R.
 
 <details>
-<summary><b>👁️ Click to expand PyMOL GUI inspection guide (Modes A & B)</b></summary>
-
-Launch PyMOL on your local computer (`pymol`) and load the pre- and post-equilibration coordinates:
-* **WT**: **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/01_prep/model.pdb` and `data/atpmg/simulation/WT/02_eq/eq.pdb`
-* **L119R**: **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/L119R/01_prep/model.pdb` and `data/atpmg/simulation/L119R/02_eq/eq.pdb`
-
----
+<summary><b>🔍 Advanced PyMOL GUI Inspection (Solvent Box, Periodic Boundaries & Ions)</b></summary>
 
 ##### Mode A: Solvent-Stripped Structural Superposition & Active Site Coordination
-*Purpose: Verify secondary structure retention and evaluate ATP/$\text{Mg}^{2+}$ coordination stability against the initial modeled coordinates.*
-
 1. **Clean up display (Right Control Panel)**:
    * Next to `(all)`: Click **`H`** (Hide) $\to$ **`waters`**
    * Next to `(all)`: Click **`H`** (Hide) $\to$ **`nonbonded`**
@@ -337,11 +342,7 @@ Launch PyMOL on your local computer (`pymol`) and load the pre- and post-equilib
    * Confirm that the kinase lobes (`eq`, cyan) superimpose on the starting model (`model`, salmon) with $\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$.
    * Verify that ATP remains stably coordinated in the hinge binding cleft with $\text{Mg}^{2+}$ bridging the triphosphate oxygens, without steric displacement.
 
----
-
 ##### Mode B: Explicit Solvation Cage & Periodic Boundary Inspection (PBC Integrity)
-*Purpose: Verify unit cell boundaries, solvent packing, and counterion distribution.*
-
 1. **Display solvent water molecules (Right Control Panel)**:
    * Next to `eq`: Click **`S`** (Show) $\to$ **`lines`**
 2. **Display ions as spheres**:
@@ -354,8 +355,6 @@ Launch PyMOL on your local computer (`pymol`) and load the pre- and post-equilib
 5. **Acceptance Criteria**:
    * Confirm the kinase complex is centered within the periodic unit cell with a minimum $\ge 10\text{ \AA}$ solvent buffer to each boundary face.
    * Verify that water molecules pack uniformly around the protein surface without vacuum gaps, cavitation bubbles, or atomic clashes.
-
----
 
 > [!NOTE]
 > **Static Coordinate Snapshot vs. Time-Dependent Trajectory Dynamics:**  
