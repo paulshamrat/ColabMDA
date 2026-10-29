@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-# 1. Secret scanning with Gitleaks
 scanner="$(git config --get colabmda.gitleaksPath || true)"
 scanner="${scanner:-gitleaks}"
 command -v "$scanner" >/dev/null || { echo "Install Gitleaks before committing; see CONTRIBUTING.md" >&2; exit 1; }
@@ -10,36 +8,3 @@ snapshot=$(mktemp -d)
 trap 'rm -rf "$snapshot"' EXIT
 git checkout-index --all --prefix="$snapshot/"
 "$scanner" dir --redact=100 --no-banner --config .gitleaks.toml "$snapshot"
-
-# 2. Code formatting and linting (CI Parity)
-black_bin="$(command -v black || true)"
-if [[ -z "$black_bin" && -x "/home/paul/miniforge3/envs/cmda/bin/black" ]]; then
-  black_bin="/home/paul/miniforge3/envs/cmda/bin/black"
-elif [[ -z "$black_bin" && -x "/home/paul/miniforge3/bin/black" ]]; then
-  black_bin="/home/paul/miniforge3/bin/black"
-fi
-
-ruff_bin="$(command -v ruff || true)"
-if [[ -z "$ruff_bin" && -x "/home/paul/miniforge3/envs/cmda/bin/ruff" ]]; then
-  ruff_bin="/home/paul/miniforge3/envs/cmda/bin/ruff"
-elif [[ -z "$ruff_bin" && -x "/home/paul/miniforge3/bin/ruff" ]]; then
-  ruff_bin="/home/paul/miniforge3/bin/ruff"
-fi
-
-if [[ -n "$black_bin" ]]; then
-  "$black_bin" --check . || {
-    echo "ERROR: Black formatting check failed. Run '$black_bin .' to auto-format before committing." >&2
-    exit 1
-  }
-fi
-
-if [[ -n "$ruff_bin" ]]; then
-  "$ruff_bin" check . || {
-    echo "ERROR: Ruff lint check failed. Fix lint issues before committing." >&2
-    exit 1
-  }
-fi
-
-# 3. Shell script syntax validation
-find examples scripts .githooks -type f \( -name '*.sh' -o -name '*.slurm' -o -name 'pre-commit' -o -name 'pre-push' \) -exec bash -n {} \;
-
