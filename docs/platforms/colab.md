@@ -70,15 +70,27 @@ terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
 Lightweight simulation deliverables (`01_prep/model.pdb`, `02_eq/eq.pdb`, `analysis/<variant>/02_eq/qc.png`, `analysis/<variant>/02_eq/qc.txt`, and `analysis/` figures) can be pulled from Google Drive to your local workstation at any time with a single command:
 
 ```bash
-# On your local workstation:
+# Pull all lightweight deliverables across all variants:
 cmda pull -s colabmda-example
 ```
 
-Large binary trajectories (`.dcd`), restart checkpoints (`.chk`), and raw coordinate files are skipped by default, so deliverables download in seconds. To download full trajectories for external rendering, add `--all`:
+Large binary trajectories (`.dcd`), restart checkpoints (`.chk`), and raw coordinate files are skipped by default, so deliverables download in seconds.
 
-```bash
-cmda pull -s colabmda-example --all
-```
+#### Targeted Pulling Options
+
+`cmda pull` supports targeted filtering so you only pull what you need:
+
+| Command | Deliverables Pulled | Typical Size |
+| :--- | :--- | :--- |
+| `cmda pull -s colabmda-example` | All lightweight deliverables (`model.pdb`, `eq.pdb`, `qc.png`, `qc.txt`, analysis figures) across all variants. Skips heavy trajectories and checkpoints. | ~5–20 MB |
+| `cmda pull -s colabmda-example --stage eq --variant WT` | Equilibration deliverables for a specific variant. | ~2 MB |
+| `cmda pull -s colabmda-example --traj` | Analysis deliverables plus post-processed solvent-stripped trajectories (`prod_keep_ligand.dcd`, `stripped.prmtop`) for PyMOL inspection. Skips raw solvent chunks. | ~100–300 MB |
+| `cmda pull -s colabmda-example data/.../qc.png` | Fast single-file download directly from Google Drive. | < 100 KB |
+| `cmda pull -s colabmda-example --all` | Full archive including raw simulation chunks (`chunks/*.dcd`) and checkpoints (`*.chk`). | 5–50+ GB |
+
+> [!NOTE]
+> **Non-Destructive & Incremental Extraction:**
+> Pulling deliverables into `data/` is non-destructive. Downloading one variant (e.g. `G12D`) will never delete or overwrite existing local files from other variants (e.g. `WT`). Existing files of identical size are preserved.
 
 ### Crash Recovery & Checkpointing
 

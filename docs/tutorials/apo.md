@@ -291,6 +291,9 @@ cmda sim eq --state apo --variant L119R
 ```bash
 cd ~/research/projects/cmda-example
 cmda pull -s cmda-example
+
+# Tip: To pull only equilibration deliverables for WT:
+# cmda pull -s cmda-example --stage eq --variant WT
 ```
 
 #### 2. Verify Status in 1 Second (Terminal)
@@ -478,20 +481,21 @@ Outputs saved directly in `data/apo/analysis/compare/`:
 *Switch back to your local workstation terminal.*
 
 ### 4.1. Pull Analyzed Data from Cloud
-Download all analyzed figures, JSON metrics, and lightweight stripped trajectories:
+Download all analyzed figures, summary tables, and reports:
 
 ```bash
 cmda pull -s cmda-example
+
+# To also pull post-processed stripped trajectories for PyMOL inspection:
+# cmda pull -s cmda-example --traj
 ```
 
 > [!TIP]
 > **What `cmda pull` Does Automatically:**
 > 1. Packages analysis CSVs, logs, summary manifests, and 300 DPI PNG plots from Google Drive.
-> 2. Excludes heavy raw trajectory files (`.dcd`, `.chk`) by default so the download finishes in ~2 seconds.
-> 3. Extracts everything directly into your local `data/` folder.
+> 2. Excludes heavy raw trajectory files (`chunks/*.dcd`, `.chk`) by default so the download finishes in seconds. Pass `--traj` to include stripped trajectories (`prod_keep_ligand.dcd`), or `--all` for full raw simulation chunks.
+> 3. Extracts everything non-destructively into your local `data/` folder.
 > 4. Cleans up temporary cloud archives.
->
-> *(To download full multi-gigabyte raw trajectories as well, pass `--all`: `cmda pull -s cmda-example --all`).*
 
 ### 4.2. In-Context Reference: Topology Pairing Guidelines
 

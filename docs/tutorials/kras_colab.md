@@ -243,6 +243,9 @@ cmda sim eq --state apo --variant G12D
 ```bash
 cd ~/research/projects/kras-example
 cmda pull -s kras-sim
+
+# Tip: To pull only equilibration deliverables for WT:
+# cmda pull -s kras-sim --stage eq --variant WT
 ```
 
 #### 2. Verify Status in 1 Second (Terminal)
@@ -425,18 +428,20 @@ Outputs saved directly in `data/apo/analysis/compare/`:
 *Switch back to your local workstation terminal.*
 
 ### 4.1. Pull Analyzed Data from Cloud
-Download analyzed figures, JSON metrics, and stripped trajectories:
+Download analyzed figures, summary tables, and reports:
 
 ```bash
 cmda pull -s kras-sim
+
+# To also pull post-processed stripped trajectories for PyMOL inspection:
+# cmda pull -s kras-sim --traj
 ```
 
 > [!TIP]
 > **What `cmda pull` Does:**
 > 1. Packages analysis CSVs, logs, summary manifests, and PNG plots from Google Drive.
-> 2. Excludes heavy raw trajectory files (`.dcd`, `.chk`) by default so the download completes quickly.
-> 3. Extracts files directly into your local `data/` folder.
-> *(To download full raw trajectories as well, pass `--all`: `cmda pull -s kras-sim --all`).*
+> 2. Excludes heavy raw trajectory files (`chunks/*.dcd`, `.chk`) by default so the download completes quickly. Pass `--traj` to include stripped trajectories (`prod_keep_ligand.dcd`), or `--all` for full raw simulation chunks.
+> 3. Extracts files non-destructively into your local `data/` folder.
 
 ---
 

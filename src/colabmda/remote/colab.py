@@ -172,6 +172,12 @@ def colab_pull(
     session: str | None = None,
     root: str | Path | None = None,
     project: str | None = None,
+    path: str | None = None,
+    stage: str | None = None,
+    variant: str | None = None,
+    state: str | None = None,
+    replica: str | None = None,
+    traj: bool = False,
     all_files: bool = False,
     timeout: float = 300,
 ) -> int:
@@ -186,27 +192,97 @@ def colab_pull(
     remote_tar = "/content/_cmda_pull.tar.gz"
 
     session_name = session or "active"
-    print(f"[INFO] Packaging results from Colab session '{session_name}' ({remote_base}/data)...")
 
-    exclude_logic = (
-        ""
-        if all_files
-        else "def filter_heavy(tarinfo):\n"
-        "    if tarinfo.name.endswith(('.dcd', '.chk', '.inpcrd')):\n"
-        "        return None\n"
-        "    return tarinfo\n"
+    # Fast-path: single known file direct download
+    known_exts = (
+        ".png",
+        ".txt",
+        ".pdb",
+        ".csv",
+        ".dcd",
+        ".xml",
+        ".chk",
+        ".log",
+        ".prmtop",
+        ".inpcrd",
     )
-    filter_arg = "" if all_files else ", filter=filter_heavy"
+    if (
+        path
+        and any(path.endswith(ext) for ext in known_exts)
+        and not any(k in path for k in ("*", "?"))
+    ):
+        if path.startswith("/content/drive/"):
+            remote_file = path
+            rel_part = path.split("/data/", 1)[-1] if "/data/" in path else Path(path).name
+            local_file = local_root / "data" / rel_part
+        elif path.startswith("data/"):
+            remote_file = f"{remote_base}/{path}"
+            local_file = local_root / path
+        else:
+            remote_file = f"{remote_base}/data/{path}"
+            local_file = local_root / "data" / path
+
+        local_file.parent.mkdir(parents=True, exist_ok=True)
+        print(f"[INFO] Direct download: {remote_file} -> {local_file}")
+        download_cmd = ["colab", "download", *_session_args(session), remote_file, str(local_file)]
+        res = subprocess.call(download_cmd)
+        if res == 0:
+            print(f"✔ Successfully pulled {local_file}")
+            return 0
+        print("[INFO] Direct download did not complete, falling back to archive packaging...")
+
+    print(f"[INFO] Packaging results from Colab session '{session_name}' ({remote_base}/data)...")
 
     remote_script = (
         "import os, tarfile\n"
         f"src = os.path.join({remote_base!r}, 'data')\n"
         "if not os.path.exists(src):\n"
         "    raise FileNotFoundError(f'Remote directory not found: {src}')\n"
-        f"{exclude_logic}"
-        f"with tarfile.open({remote_tar!r}, 'w:gz') as tar:\n"
-        f"    tar.add(src, arcname='data'{filter_arg})\n"
-        f"print('[OK] Results packaged to {remote_tar}')\n"
+        f"subpath = {path!r}\n"
+        f"stage = {stage!r}\n"
+        f"variant = {variant!r}\n"
+        f"state = {state!r}\n"
+        f"replica = {replica!r}\n"
+        f"traj = {traj!r}\n"
+        f"all_files = {all_files!r}\n"
+        "\n"
+        "stage_map = {'prep': ['01_prep', 'prep'], 'eq': ['02_eq', 'eq'], 'md': ['03_md', 'md'], 'analysis': ['analysis', 'qc']}\n"
+        "target_stages = stage_map.get(stage.lower(), [stage.lower()]) if stage else None\n"
+        "\n"
+        "matched_files = []\n"
+        "for root, dirs, files in os.walk(src):\n"
+        "    for f in sorted(files):\n"
+        "        full_path = os.path.join(root, f)\n"
+        "        rel_path = os.path.relpath(full_path, os.path.dirname(src))\n"
+        "        parts = rel_path.split(os.sep)\n"
+        "        if subpath and subpath not in rel_path:\n"
+        "            continue\n"
+        "        if variant and variant not in parts:\n"
+        "            continue\n"
+        "        if state and state not in parts:\n"
+        "            continue\n"
+        "        if replica and replica not in parts:\n"
+        "            continue\n"
+        "        if target_stages and not any(s in parts for s in target_stages):\n"
+        "            continue\n"
+        "        if not all_files:\n"
+        "            if f.endswith(('.chk', '.inpcrd')):\n"
+        "                continue\n"
+        "            if f.endswith('.dcd'):\n"
+        "                if not traj:\n"
+        "                    continue\n"
+        "                if 'chunks' in parts or 'raw' in parts or 'prod_raw' in f:\n"
+        "                    continue\n"
+        "        matched_files.append((full_path, rel_path))\n"
+        "\n"
+        "if not matched_files:\n"
+        "    print('[WARN] No deliverables matched the specified filter criteria.')\n"
+        f"    if os.path.exists({remote_tar!r}): os.remove({remote_tar!r})\n"
+        "else:\n"
+        f"    with tarfile.open({remote_tar!r}, 'w:gz') as tar:\n"
+        "        for full_p, arc_p in matched_files:\n"
+        "            tar.add(full_p, arcname=arc_p)\n"
+        f"    print(f'[OK] Packaged {{len(matched_files)}} deliverables to {remote_tar}')\n"
     )
     status = _execute_remote(session, remote_script, timeout=timeout)
     if status != 0:
@@ -224,12 +300,18 @@ def colab_pull(
             return res
 
         print(f"[INFO] Extracting results into {local_root}/data/ ...")
+        count = 0
         with tarfile.open(tmp_tar.name, "r:gz") as tar:
-            tar.extractall(local_root)
+            members = tar.getmembers()
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(local_root, filter="data")
+            else:
+                tar.extractall(local_root)
+            count = sum(1 for m in members if m.isfile())
 
         cleanup_cmd = f"import os\nif os.path.exists({remote_tar!r}): os.remove({remote_tar!r})\n"
         _execute_remote(session, cleanup_cmd, timeout=30)
-        print(f"✔ Successfully pulled results to {local_root}/data/")
+        print(f"✔ Successfully pulled {count} deliverable(s) to {local_root}/data/")
         print(f"  • Local Path:         {local_root}/data/")
         print(f"  • Retrieved From:     My Drive > research > projects > {project_name} > data/")
         return 0
@@ -355,6 +437,12 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     # Pull results from Google Drive
     p_pull = sub.add_parser("pull", help="Pull results from remote Google Drive via Colab")
     p_pull.add_argument(
+        "path",
+        nargs="?",
+        default=None,
+        help="Optional specific remote file or subfolder to pull",
+    )
+    p_pull.add_argument(
         "-s",
         "--session",
         default=None,
@@ -369,6 +457,31 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
         "--project",
         default=None,
         help="Remote project folder name in Google Drive (default: directory name or cmda-example)",
+    )
+    p_pull.add_argument(
+        "--stage",
+        default=None,
+        help="Filter deliverables by simulation stage (prep, eq, md, analysis)",
+    )
+    p_pull.add_argument(
+        "--variant",
+        default=None,
+        help="Filter deliverables by variant (e.g. WT, G12D)",
+    )
+    p_pull.add_argument(
+        "--state",
+        default=None,
+        help="Filter deliverables by state (e.g. apo, atp_2mg)",
+    )
+    p_pull.add_argument(
+        "--replica",
+        default=None,
+        help="Filter deliverables by replica (e.g. r1, r2)",
+    )
+    p_pull.add_argument(
+        "--traj",
+        action="store_true",
+        help="Download post-processed stripped trajectories (prod_keep_ligand.dcd) while skipping raw chunks",
     )
     p_pull.add_argument(
         "--all",
@@ -522,6 +635,12 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
             session=args.session,
             root=args.root,
             project=args.project,
+            path=args.path,
+            stage=args.stage,
+            variant=args.variant,
+            state=args.state,
+            replica=args.replica,
+            traj=args.traj,
             all_files=args.all_files,
             timeout=args.timeout,
         )

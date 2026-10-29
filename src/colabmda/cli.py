@@ -1322,6 +1322,12 @@ def main():
         "pull", help="Download results and figures from Google Drive via Colab"
     )
     p_top_pull.add_argument(
+        "path",
+        nargs="?",
+        default=None,
+        help="Optional specific remote file or subfolder to pull (e.g. data/apo/analysis/WT/02_eq/qc.png)",
+    )
+    p_top_pull.add_argument(
         "-s",
         "--session",
         default=None,
@@ -1336,6 +1342,31 @@ def main():
         "--project",
         default=None,
         help="Remote project folder name in Google Drive (default: directory name or cmda-example)",
+    )
+    p_top_pull.add_argument(
+        "--stage",
+        default=None,
+        help="Filter deliverables by simulation stage (prep, eq, md, analysis)",
+    )
+    p_top_pull.add_argument(
+        "--variant",
+        default=None,
+        help="Filter deliverables by variant (e.g. WT, G12D)",
+    )
+    p_top_pull.add_argument(
+        "--state",
+        default=None,
+        help="Filter deliverables by state (e.g. apo, atp_2mg)",
+    )
+    p_top_pull.add_argument(
+        "--replica",
+        default=None,
+        help="Filter deliverables by replica (e.g. r1, r2)",
+    )
+    p_top_pull.add_argument(
+        "--traj",
+        action="store_true",
+        help="Download post-processed stripped trajectories (prod_keep_ligand.dcd) while skipping raw chunks",
     )
     p_top_pull.add_argument(
         "--all",
@@ -1553,6 +1584,12 @@ def main():
                 session=args.session,
                 root=args.root,
                 project=args.project,
+                path=args.path,
+                stage=args.stage,
+                variant=args.variant,
+                state=args.state,
+                replica=args.replica,
+                traj=args.traj,
                 all_files=args.all_files,
                 timeout=args.timeout,
             )

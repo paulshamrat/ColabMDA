@@ -287,6 +287,9 @@ def test_push_pull_cli_parsers():
     )
     assert res_pull.returncode == 0
     assert "--session" in res_pull.stdout
+    assert "--stage" in res_pull.stdout
+    assert "--variant" in res_pull.stdout
+    assert "--traj" in res_pull.stdout
     assert "--all" in res_pull.stdout
 
     # 3. cmda colab push and pull
@@ -304,4 +307,68 @@ def test_push_pull_cli_parsers():
         text=True,
     )
     assert res_colab_pull.returncode == 0
+    assert "--stage" in res_colab_pull.stdout
+    assert "--variant" in res_colab_pull.stdout
+    assert "--traj" in res_colab_pull.stdout
     assert "--all" in res_colab_pull.stdout
+
+
+def test_colab_pull_dispatch_and_fast_path(monkeypatch, tmp_path):
+    from colabmda.remote.colab import colab_pull
+
+    calls = []
+
+    def mock_subprocess_call(cmd):
+        calls.append(cmd)
+        if len(cmd) > 1 and cmd[0] == "colab" and cmd[1] == "download":
+            dest = cmd[-1]
+            if dest.endswith(".tar.gz"):
+                import tarfile
+
+                with tarfile.open(dest, "w:gz"):
+                    pass
+        return 0
+
+    monkeypatch.setattr("subprocess.call", mock_subprocess_call)
+
+    # Fast single-file download path
+    dummy_file = "data/apo/analysis/WT/02_eq/qc.png"
+    status = colab_pull(
+        session="kras-sim",
+        root=tmp_path,
+        project="kras-example",
+        path=dummy_file,
+    )
+    assert status == 0
+    assert len(calls) == 1
+    assert calls[0][0] == "colab"
+    assert calls[0][1] == "download"
+    assert "-s" in calls[0]
+    assert "kras-sim" in calls[0]
+    assert (
+        "/content/drive/MyDrive/research/projects/kras-example/data/apo/analysis/WT/02_eq/qc.png"
+        in calls[0]
+    )
+
+    # Filtered packaging path
+    exec_calls = []
+
+    def mock_execute_remote(session, script, timeout=300):
+        exec_calls.append((session, script))
+        return 0
+
+    monkeypatch.setattr("colabmda.remote.colab._execute_remote", mock_execute_remote)
+
+    status_filter = colab_pull(
+        session="kras-sim",
+        root=tmp_path,
+        project="kras-example",
+        stage="eq",
+        variant="WT",
+    )
+    assert status_filter == 0
+    assert len(exec_calls) >= 1
+    packaging_script = exec_calls[0][1]
+    assert "stage = 'eq'" in packaging_script
+    assert "variant = 'WT'" in packaging_script
+    assert "target_stages" in packaging_script

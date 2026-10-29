@@ -294,6 +294,9 @@ cmda sim eq --state atpmg --variant L119R
 ```bash
 cd ~/research/projects/cmda-example
 cmda pull -s cmda-example
+
+# Tip: To pull only equilibration deliverables for WT:
+# cmda pull -s cmda-example --stage eq --variant WT
 ```
 
 #### 2. Verify Status in 1 Second (Terminal)
@@ -480,10 +483,13 @@ assert 1.8 <= coord_dist <= 2.4, "ALERT: Magnesium drifted from ATP triphosphate
 
 In your local terminal:
 ```bash
-# Pull analysis results, figures, and logs in ~2 seconds:
+# Pull analysis results, figures, and logs in seconds:
 cmda pull -s cmda-example
 
-# (Optional: to pull full 5.5 GB raw trajectories as well):
+# To also pull post-processed stripped trajectories for PyMOL inspection:
+# cmda pull -s cmda-example --traj
+
+# (Optional: to pull full raw simulation chunks as well):
 # cmda pull -s cmda-example --all
 ```
 
