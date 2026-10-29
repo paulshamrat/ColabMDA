@@ -307,25 +307,63 @@ Review the gatekeeper outputs for both variants (located in `data/atpmg/analysis
   * Open `data/atpmg/analysis/L119R/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged ($\sim 1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
   * Inspect `data/atpmg/analysis/L119R/02_eq/qc.txt`: Confirms `Status: PASSED`.
 
-#### Step 3: Inspect Backbone & Pocket Stability in PyMOL (GUI)
-Open PyMOL to verify that the protein and nucleotide complex relaxed without distortion:
-1. Launch PyMOL on your local computer: `pymol`
-2. **Load initial and equilibrated structures via menu**:
-   * For **WT**:
-     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/01_prep/model.pdb`
-     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/02_eq/eq.pdb`
-   * For **L119R**:
-     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/L119R/01_prep/model.pdb`
-     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/L119R/02_eq/eq.pdb`
-3. **Clean up display (right panel buttons)**:
-   * Next to `(all)`: click **`H`** (Hide) $\to$ **`waters`**
-   * Next to `(all)`: click **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
-4. **Show ATP and Mg²⁺ as sticks and spheres**:
-   * In the selection panel: click **`S`** (Show) $\to$ **`organic`** $\to$ **`sticks`** (shows ATP)
-   * Show ions: click **`S`** (Show) $\to$ **`non-protein`** $\to$ choose spheres for $\text{Mg}^{2+}$
-5. **Align them**:
-   * Next to `eq`: click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ choose **`model`**
-6. *Visual Check:* Confirm that ATP remains coordinated within the catalytic pocket and the kinase lobes retain their active fold. Repeat for L119R.
+#### Step 3: Structural Inspection in PyMOL (GUI)
+
+<details>
+<summary><b>👁️ Click to expand PyMOL GUI inspection guide (Modes A & B)</b></summary>
+
+Launch PyMOL on your local computer (`pymol`) and load the pre- and post-equilibration coordinates:
+* **WT**: **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/01_prep/model.pdb` and `data/atpmg/simulation/WT/02_eq/eq.pdb`
+* **L119R**: **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/L119R/01_prep/model.pdb` and `data/atpmg/simulation/L119R/02_eq/eq.pdb`
+
+---
+
+##### Mode A: Solvent-Stripped Structural Superposition & Active Site Coordination
+*Purpose: Verify secondary structure retention and evaluate ATP/$\text{Mg}^{2+}$ coordination stability against the initial modeled coordinates.*
+
+1. **Clean up display (Right Control Panel)**:
+   * Next to `(all)`: Click **`H`** (Hide) $\to$ **`waters`**
+   * Next to `(all)`: Click **`H`** (Hide) $\to$ **`nonbonded`**
+   * Next to `(all)`: Click **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
+2. **Display nucleotide and catalytic metal ion**:
+   * Next to `(all)`: Click **`S`** (Show) $\to$ **`organic`** $\to$ **`sticks`** (displays ATP)
+   * Next to `(all)`: Click **`S`** (Show) $\to$ **`spheres`** (displays catalytic $\text{Mg}^{2+}$)
+3. **Distinguish structures by color**:
+   * Next to `model`: Click **`C`** (Color) $\to$ **`reds`** $\to$ **`salmon`** (initial modeled reference)
+   * Next to `eq`: Click **`C`** (Color) $\to$ **`cyans`** $\to$ **`cyan`** (equilibrated geometry)
+4. **Superimpose backbones**:
+   * Next to `eq`: Click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ select **`model`**
+5. **Acceptance Criteria**:
+   * Confirm that the kinase lobes (`eq`, cyan) superimpose on the starting model (`model`, salmon) with $\text{C}_\alpha\text{ RMSD} < 1.5\text{ \AA}$.
+   * Verify that ATP remains stably coordinated in the hinge binding cleft with $\text{Mg}^{2+}$ bridging the triphosphate oxygens, without steric displacement.
+
+---
+
+##### Mode B: Explicit Solvation Cage & Periodic Boundary Inspection (PBC Integrity)
+*Purpose: Verify unit cell boundaries, solvent packing, and counterion distribution.*
+
+1. **Display solvent water molecules (Right Control Panel)**:
+   * Next to `eq`: Click **`S`** (Show) $\to$ **`lines`**
+2. **Display ions as spheres**:
+   * Next to `eq`: Click **`S`** (Show) $\to$ **`nonbonded`** (or **`spheres`**)
+3. **Color atoms by chemical element**:
+   * Next to `(all)`: Click **`C`** (Color) $\to$ **`by element`** $\to$ choose any element palette (heteroatoms and ions are colored automatically)
+4. **Display periodic unit cell boundary box**:
+   * In top PyMOL menu: **`Setting`** $\to$ **`Edit All...`** $\to$ type `cell` in the filter and set `show_cell` to **`1`**  
+     *(Shortcut: type `show cell` into the top command line)*
+5. **Acceptance Criteria**:
+   * Confirm the kinase complex is centered within the periodic unit cell with a minimum $\ge 10\text{ \AA}$ solvent buffer to each boundary face.
+   * Verify that water molecules pack uniformly around the protein surface without vacuum gaps, cavitation bubbles, or atomic clashes.
+
+---
+
+> [!NOTE]
+> **Static Coordinate Snapshot vs. Time-Dependent Trajectory Dynamics:**  
+> `eq.pdb` is a **static 3D coordinate snapshot** capturing the final minimized and relaxed geometry at the end of the 24-stage equilibration protocol. It contains a single coordinate frame, so it does not exhibit motion or time-series trajectory playback.  
+> 
+> Real-time **conformational dynamics, thermal fluctuations, and loop flexibility** are recorded during **Phase 3.3 (Production MD)** as the multi-frame binary trajectory (**`md.dcd`**, 10,000 frames) and can be animated via PyMOL trajectory playback controls as described in **Section 4.3** (`cmda view`).
+
+</details>
 
 *Once verified, proceed to launch Production MD (Section 3.3).*
 
