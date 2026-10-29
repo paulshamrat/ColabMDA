@@ -272,15 +272,17 @@ ColabMDA executes a **24-stage progressive equilibration ladder**:
 | **22–24** | Unrestrained Final Relaxation | **$0.0\text{ kcal/mol}\cdot\text{Å}^2$** (Fully unrestrained) | NPT (300 K, 1 bar) | 100 ps unrestrained MD; ready for production |
 
 ```bash
-# 1. Stage directories and run full 24-stage equilibration for WT
+# 1. Stage directories and run full 24-stage equilibration for WT (includes QC gating)
 cmda stage --state atpmg --variant WT
 cmda sim eq --state atpmg --variant WT
-cmda sim qc --state atpmg --variant WT
 
-# 2. Stage directories and run full 24-stage equilibration for L119R
+# 2. Stage directories and run full 24-stage equilibration for L119R (includes QC gating)
 cmda stage --state atpmg --variant L119R
 cmda sim eq --state atpmg --variant L119R
-cmda sim qc --state atpmg --variant L119R
+
+# (Optional) Re-run standalone QC gating without re-simulating:
+# cmda sim qc --state atpmg --variant WT
+# cmda sim qc --state atpmg --variant L119R
 ```
 
 ---

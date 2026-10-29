@@ -223,13 +223,15 @@ Stage simulation directories and execute the 24-stage progressive heating and re
 cmda stage --state apo --variant WT
 cmda stage --state apo --variant G12D
 
-# 2. Run equilibration and QC gating for WT
+# 2. Run equilibration for WT (automatically executes EM -> NVT -> NPT -> QC)
 cmda sim eq --state apo --variant WT
-cmda sim qc --state apo --variant WT
 
-# 3. Run equilibration and QC gating for G12D
+# 3. Run equilibration for G12D (automatically executes EM -> NVT -> NPT -> QC)
 cmda sim eq --state apo --variant G12D
-cmda sim qc --state apo --variant G12D
+
+# (Optional) Re-run standalone QC gating without re-simulating:
+# cmda sim qc --state apo --variant WT
+# cmda sim qc --state apo --variant G12D
 ```
 
 ---

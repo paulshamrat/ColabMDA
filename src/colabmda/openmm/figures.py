@@ -863,4 +863,5 @@ def plot_equilibration(workdir):
     target = root / "figures"
     target.mkdir(exist_ok=True)
     fig.savefig(target / "equilibration_qc.png", dpi=300)
+    fig.savefig(root / "qc.png", dpi=300)
     plt.close(fig)

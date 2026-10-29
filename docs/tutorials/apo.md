@@ -271,13 +271,15 @@ Stage the simulation directories and execute the 24-stage progressive heating an
 cmda stage --state apo --variant WT
 cmda stage --state apo --variant L119R
 
-# 2. Run full 24-stage equilibration for WT
+# 2. Run full 24-stage equilibration for WT (automatically executes EM -> NVT -> NPT -> QC)
 cmda sim eq --state apo --variant WT
-cmda sim qc --state apo --variant WT
 
-# 3. Run full 24-stage equilibration for L119R
+# 3. Run full 24-stage equilibration for L119R (automatically executes EM -> NVT -> NPT -> QC)
 cmda sim eq --state apo --variant L119R
-cmda sim qc --state apo --variant L119R
+
+# (Optional) Re-run standalone QC gating without re-simulating:
+# cmda sim qc --state apo --variant WT
+# cmda sim qc --state apo --variant L119R
 ```
 
 ---
