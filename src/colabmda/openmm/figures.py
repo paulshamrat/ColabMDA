@@ -832,7 +832,7 @@ def plot_analysis(outdir):
             plt.close(fig)
 
 
-def plot_equilibration(workdir):
+def plot_equilibration(workdir, outdir=None):
     """Plot saved thermodynamic logs after the numerical QC stage."""
     import json
 
@@ -841,9 +841,22 @@ def plot_equilibration(workdir):
 
     _publication_style()
     root = Path(workdir)
-    if not (root / "equilibration_qc.json").exists():
-        return
-    qc = json.loads((root / "equilibration_qc.json").read_text())
+    dest = Path(outdir) if outdir else root
+    dest.mkdir(parents=True, exist_ok=True)
+
+    qc_candidates = [
+        dest / "equilibration_qc.json",
+        root / "equilibration_qc.json",
+    ]
+    qc_file = next((p for p in qc_candidates if p.is_file()), None)
+    passed = True
+    if qc_file:
+        try:
+            qc = json.loads(qc_file.read_text())
+            passed = qc.get("passed", False)
+        except Exception:
+            pass
+
     fig, axes = plt.subplots(2, 2, figsize=(7, 4.5), layout="constrained")
     for ax, (filename, column) in zip(
         axes.flat,
@@ -857,11 +870,10 @@ def plot_equilibration(workdir):
         data = pd.read_csv(root / filename)
         ax.plot(data["Time (ps)"], data[column], color="#0072B2")
         ax.set(xlabel="Time (ps)", ylabel=column)
-    fig.suptitle(
-        "Equilibration QC: " + ("passed" if qc["passed"] else "review required"), fontsize=9
-    )
-    target = root / "figures"
-    target.mkdir(exist_ok=True)
-    fig.savefig(target / "equilibration_qc.png", dpi=300)
-    fig.savefig(root / "qc.png", dpi=300)
+    fig.suptitle("Equilibration QC: " + ("passed" if passed else "review required"), fontsize=9)
+    fig.savefig(dest / "qc.png", dpi=300)
+    if outdir is None:
+        target = root / "figures"
+        target.mkdir(exist_ok=True)
+        fig.savefig(target / "equilibration_qc.png", dpi=300)
     plt.close(fig)

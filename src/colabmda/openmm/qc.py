@@ -14,8 +14,10 @@ def parse_em_log(workdir):
     return "Minimized" if os.path.exists(os.path.join(workdir, "em.chk")) else "Failed"
 
 
-def analyze_logs(workdir, strict=False, protocol=None):
+def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
     workdir = os.path.abspath(workdir)
+    out_target = os.path.abspath(outdir) if outdir else workdir
+    os.makedirs(out_target, exist_ok=True)
     old_cwd = os.getcwd()
     try:
         os.chdir(workdir)
@@ -173,11 +175,11 @@ def analyze_logs(workdir, strict=False, protocol=None):
             if varmdyn_stages_missing:
                 qc_data["varmdyn_missing_stages"] = varmdyn_stages_missing
 
-        with open("equilibration_qc.json", "w") as handle:
+        with open(os.path.join(out_target, "equilibration_qc.json"), "w") as handle:
             json.dump(qc_data, handle, indent=2)
             handle.write("\n")
 
-        with open("qc.txt", "w") as f:
+        with open(os.path.join(out_target, "qc.txt"), "w") as f:
             f.write(f"Status: {'PASSED' if passed else 'FAILED'}\n")
             f.write(f"Temperature: {avg_temp:.2f} +/- {std_temp:.2f} K\n")
             f.write(f"Density: {avg_dens:.4f} g/mL (slope: {slope:.6f} g/mL/ps)\n")

@@ -151,14 +151,6 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     sim.saveCheckpoint(chk_out)
     save_stage_state(sim, state_out)
     print("✔ NPT complete (npt.state.xml and eq.pdb saved)")
-
-    # Generate automated QC report if possible
-    try:
-        from colabmda.openmm.qc import analyze_logs
-
-        analyze_logs(workdir, strict=False, protocol=protocol)
-    except Exception:
-        pass
     return True
 
 

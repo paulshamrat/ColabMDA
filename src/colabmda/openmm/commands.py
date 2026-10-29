@@ -512,13 +512,18 @@ def openmm_npt(
         raise SystemExit(1)
 
 
-def openmm_qc(workdir: str, strict: bool = True, protocol: str | None = None):
+def openmm_qc(
+    workdir: str,
+    strict: bool = True,
+    protocol: str | None = None,
+    outdir: str | Path | None = None,
+):
     from colabmda.openmm.qc import analyze_logs
 
-    passed = analyze_logs(workdir, strict=strict, protocol=protocol)
+    passed = analyze_logs(workdir, strict=strict, protocol=protocol, outdir=outdir)
     from colabmda.openmm.figures import plot_equilibration
 
-    plot_equilibration(workdir)
+    plot_equilibration(workdir, outdir=outdir)
     if strict and not passed:
         raise SystemExit(
             "Equilibration QC failed; inspect equilibration_qc.json/PNG before production"

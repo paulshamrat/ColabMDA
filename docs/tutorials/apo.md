@@ -293,16 +293,16 @@ From your **local workstation terminal**:
 cd ~/research/projects/cmda-example
 cmda pull -s cmda-example
 ```
-*This downloads the lightweight `02_eq/` deliverables (`eq.pdb`, `qc.png`, `qc.txt`) to your workstation in seconds.*
+*This downloads the lightweight deliverables (`eq.pdb` from simulation, and `qc.png`, `qc.txt` from analysis) to your workstation in seconds.*
 
 #### Step 2: Inspect Convergence Plot & Statistics
-Review the gatekeeper outputs for both variants:
+Review the gatekeeper outputs for both variants (located in `data/apo/analysis/<variant>/02_eq/`):
 * **Wild-Type (WT):**
-  * Open `data/apo/simulation/WT/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged to explicit-solvent range ($1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
-  * Inspect `data/apo/simulation/WT/02_eq/qc.txt`: Confirms `Status: PASSED`.
+  * Open `data/apo/analysis/WT/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged to explicit-solvent range ($1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
+  * Inspect `data/apo/analysis/WT/02_eq/qc.txt`: Confirms `Status: PASSED`.
 * **Mutant (L119R):**
-  * Open `data/apo/simulation/L119R/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged ($1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
-  * Inspect `data/apo/simulation/L119R/02_eq/qc.txt`: Confirms `Status: PASSED`.
+  * Open `data/apo/analysis/L119R/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged ($1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
+  * Inspect `data/apo/analysis/L119R/02_eq/qc.txt`: Confirms `Status: PASSED`.
 
 #### Step 3: Inspect Backbone Relaxation in PyMOL (GUI)
 Open PyMOL to verify that each protein relaxed without unfolding or distortion:

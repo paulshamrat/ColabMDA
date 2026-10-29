@@ -584,7 +584,9 @@ def _dispatch_sim(args) -> int:
                 protocol=protocol,
             )
         elif stage in ["qc", "check-equil"]:
-            openmm_qc(eq_dir, strict=not software_test, protocol=protocol)
+            eq_analysis = paths.analysis_dir(spec) / "02_eq"
+            eq_analysis.mkdir(parents=True, exist_ok=True)
+            openmm_qc(eq_dir, strict=not software_test, protocol=protocol, outdir=eq_analysis)
         elif stage == "md":
             if not software_test:
                 import json
@@ -595,7 +597,9 @@ def _dispatch_sim(args) -> int:
                     or json.loads(recorded.read_text()).get("protocol") != "varmdyn"
                 ):
                     raise SystemExit("Research production requires completed staged equilibration")
-                openmm_qc(eq_dir, strict=True, protocol="varmdyn")
+                eq_analysis = paths.analysis_dir(spec) / "02_eq"
+                eq_analysis.mkdir(parents=True, exist_ok=True)
+                openmm_qc(eq_dir, strict=True, protocol="varmdyn", outdir=eq_analysis)
             replicas = [r.strip() for r in args.replica.split(",") if r.strip()]
             for rep in replicas:
                 rep_dir = str(paths.replica_dir(spec, rep))
@@ -634,8 +638,8 @@ def _dispatch_sim(args) -> int:
             f"  1. Pull deliverables to local workstation:\n"
             f"       cmda pull -s <session>\n"
             f"  2. Inspect equilibration stability:\n"
-            f"       Open: data/{spec.state_tag}/simulation/{spec.variant}/02_eq/qc.png\n"
-            f"       Read: data/{spec.state_tag}/simulation/{spec.variant}/02_eq/qc.txt\n"
+            f"       Open: data/{spec.state_tag}/analysis/{spec.variant}/02_eq/qc.png\n"
+            f"       Read: data/{spec.state_tag}/analysis/{spec.variant}/02_eq/qc.txt\n"
             f"  3. Visually verify in PyMOL GUI:\n"
             f"       File -> Open:\n"
             f"         • data/{spec.state_tag}/simulation/{spec.variant}/01_prep/model.pdb\n"
