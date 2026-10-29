@@ -34,7 +34,7 @@ research/projects/cmda-example/
         ├── simulation/
         │   ├── WT/
         │   │   ├── 01_prep/              # Step 1: system.xml, integrator.xml, model.pdb
-        │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, qc.png, qc.txt, stages/
+        │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
         │   │       ├── r1/               # md.dcd, md.log, state.xml, chunks/0001.dcd
         │   │       ├── r2/               # Independent velocity seed

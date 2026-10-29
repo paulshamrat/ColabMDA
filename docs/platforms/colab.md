@@ -67,7 +67,7 @@ terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
 
 ### Pulling Results Locally (`cmda pull`)
 
-Lightweight simulation deliverables (`01_prep/model.pdb`, `02_eq/eq.pdb`, `02_eq/qc.png`, `02_eq/qc.txt`, and `04_analysis/` figures) can be pulled from Google Drive to your local workstation at any time with a single command:
+Lightweight simulation deliverables (`01_prep/model.pdb`, `02_eq/eq.pdb`, `analysis/<variant>/02_eq/qc.png`, `analysis/<variant>/02_eq/qc.txt`, and `analysis/` figures) can be pulled from Google Drive to your local workstation at any time with a single command:
 
 ```bash
 # On your local workstation:

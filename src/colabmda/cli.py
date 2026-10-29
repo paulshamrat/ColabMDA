@@ -589,14 +589,14 @@ def _dispatch_sim(args) -> int:
             openmm_qc(eq_dir, strict=not software_test, protocol=protocol, outdir=eq_analysis)
         elif stage == "md":
             if not software_test:
-                import json
+                from colabmda.openmm.common import find_highest_completed_stage
 
-                recorded = Path(eq_dir) / "npt_protocol.json"
-                if (
-                    not recorded.exists()
-                    or json.loads(recorded.read_text()).get("protocol") != "varmdyn"
-                ):
-                    raise SystemExit("Research production requires completed staged equilibration")
+                completed_stage, _ = find_highest_completed_stage(eq_dir, 19, 24)
+                has_npt_state = (Path(eq_dir) / "npt.state.xml").exists()
+                if completed_stage != 24 or not has_npt_state:
+                    raise SystemExit(
+                        "Research production requires completed staged equilibration (all 24 stages)"
+                    )
                 eq_analysis = paths.analysis_dir(spec) / "02_eq"
                 eq_analysis.mkdir(parents=True, exist_ok=True)
                 openmm_qc(eq_dir, strict=True, protocol="varmdyn", outdir=eq_analysis)

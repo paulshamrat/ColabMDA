@@ -69,13 +69,13 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     │   ├── simulation/
     │   │   ├── WT/
     │   │   │   ├── 01_prep/              # Solvated OpenMM system (model.pdb, system.xml, integrator.xml)
-    │   │   │   ├── 02_eq/                # 24-stage equilibration hub (eq.pdb, state.xml, qc.png, stages/)
+    │   │   │   ├── 02_eq/                # 24-stage equilibration hub (eq.pdb, state.xml, stages/)
     │   │   │   └── 03_md/                # Production MD replicas (md.dcd, md.log, state.xml, chunks/)
     │   │   └── L119R/
     │   │       ├── 01_prep/
     │   │       ├── 02_eq/
     │   │       └── 03_md/{r1, r2, r3}/
-    │   └── analysis/                     # Mirrored single-replica reports & flat compare/ (rmsd.png, summary.txt)
+    │   └── analysis/                     # Mirrored reports (<variant>/02_eq/qc.png, qc.txt) & flat compare/
     │
     └── atpmg/                            # Track 2: Holo state (Kinase + ATP + Mg²⁺)
         ├── structure/
