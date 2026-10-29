@@ -856,6 +856,10 @@ def plot_equilibration(workdir, outdir=None):
             passed = qc.get("passed", False)
         except Exception:
             pass
+    elif (dest / "qc.txt").is_file():
+        passed = "Status: PASSED" in (dest / "qc.txt").read_text()
+    elif (root / "qc.txt").is_file():
+        passed = "Status: PASSED" in (root / "qc.txt").read_text()
 
     fig, axes = plt.subplots(2, 2, figsize=(7, 4.5), layout="constrained")
     for ax, (filename, column) in zip(

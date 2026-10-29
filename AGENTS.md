@@ -46,14 +46,16 @@
 
 ### Standard simulation and analysis architecture
 
-- **Zero JSON clutter in simulation**: OpenMM directories (`01_prep`, `02_eq`, `03_md`)
-  contain strictly native OpenMM files (`.pdb`, `.xml`, `.log`, `.dcd`). Redundant
-  `.json` protocol receipts (`nvt_protocol.json`, `npt_protocol.json`, `stage_XX.json`)
-  are eliminated.
+- **Zero JSON policy in simulation and analysis**: Neither `simulation/` nor `analysis/`
+  shall contain `.json` files. OpenMM simulation directories (`01_prep`, `02_eq`, `03_md`)
+  contain strictly native OpenMM files (`.pdb`, `.xml`, `.log`, `.dcd`, `.chk`). Analysis
+  directories contain standard graphical and text deliverables (`.png`, `.txt`).
+  Redundant `.json` receipts (`equilibration_qc.json`, `parameterization.json`,
+  `nvt_protocol.json`, `npt_protocol.json`, `stage_XX.json`) are strictly prohibited.
 - **Equilibration (`02_eq`)**: Final relaxed coordinates are saved exclusively as
   `eq.pdb` (duplicate `equilibrated.pdb` eliminated). Intermediate restart states
-  are saved into `stages/` as `state_01.xml` ... `state_24.xml`. Gatekeeper outputs
-  are `qc.png` and `qc.txt`.
+  are saved into `stages/` as `state_01.xml` ... `state_24.xml`. All QC deliverables
+  belong in `analysis/<variant>/02_eq/` as `qc.png` and `qc.txt`.
 - **Production MD (`03_md/<replica>`)**: Continuous merged trajectory is `md.dcd`,
   continuous merged log is `md.log`, and latest checkpoint snapshot is `state.xml`.
   Raw crash-recovery chunks are strictly isolated in `chunks/{idx:04d}.dcd` and
@@ -61,7 +63,7 @@
 - **Analysis and comparison (`analysis/`)**: Analysis symmetrically mirrors simulation
   (`analysis/<variant>/02_eq/` for `qc.png` and `qc.txt`; `analysis/<variant>/03_md/<replica>/`
   for replica metrics). Cross-variant comparison lives flat in `analysis/compare/`
-  (`summary.txt`, `rmsd.png`, `rg.png`, `rmsf.png`).
+  (`summary.txt`, `rmsd.png`, `rg.png`, `rmsf.png`). Zero `.json` files in `analysis/`.
 
 ## Scientific and recovery invariants
 

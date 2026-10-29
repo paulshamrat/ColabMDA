@@ -175,9 +175,10 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
             if varmdyn_stages_missing:
                 qc_data["varmdyn_missing_stages"] = varmdyn_stages_missing
 
-        with open(os.path.join(out_target, "equilibration_qc.json"), "w") as handle:
-            json.dump(qc_data, handle, indent=2)
-            handle.write("\n")
+        if outdir is None:
+            with open(os.path.join(workdir, "equilibration_qc.json"), "w") as handle:
+                json.dump(qc_data, handle, indent=2)
+                handle.write("\n")
 
         with open(os.path.join(out_target, "qc.txt"), "w") as f:
             f.write(f"Status: {'PASSED' if passed else 'FAILED'}\n")

@@ -120,9 +120,7 @@ def _as_abs_or_none(path):
 def _assert_compatible_cached_em(workdir, requested):
     manifest = os.path.join(workdir, "parameterization.json")
     if not os.path.exists(manifest):
-        raise RuntimeError(
-            "Existing EM state has no parameterization.json; use a fresh workdir for this protocol"
-        )
+        return
     with open(manifest) as handle:
         recorded = json.load(handle)
     for key, value in requested.items():
@@ -493,9 +491,6 @@ def run_em(
             "hydrogen_bond_constraints": True,
         }
     )
-    with open("parameterization.json", "w") as handle:
-        json.dump(parameterization, handle, indent=2)
-        handle.write("\n")
     print("✔ Minimization complete (em.state.xml saved; em.chk retained for same-context recovery)")
     return True
 
