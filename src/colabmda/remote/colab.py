@@ -241,7 +241,11 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     """CLI handler for `cmda colab`."""
     repo_root = Path(__file__).resolve().parents[3]
     if not (repo_root / "scripts" / "setup.sh").is_file():
-        for candidate in [Path.cwd(), Path.home() / "ColabMDA", Path(__file__).resolve().parents[4]]:
+        for candidate in [
+            Path.cwd(),
+            Path.home() / "ColabMDA",
+            Path(__file__).resolve().parents[4],
+        ]:
             if (candidate / "scripts" / "setup.sh").is_file():
                 repo_root = candidate
                 break

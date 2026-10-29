@@ -92,12 +92,26 @@
   output; use CPU-only sessions for Drive cleanup when possible.
 - Stop dedicated sessions after verified retrieval; heavy trajectories stay on Drive.
 
-## Verification
+## Verification and CI Standards
 
-Before commits, run Black (one file per process if multiprocessing hangs),
-ruff format --check, ruff check, Python compilation and pytest tests/.
-Run bash -n on changed shell scripts. Test project creation, conflict/symlink
-protection, argument forwarding, wheel resources and hidden MODELLER prompting.
+### Zero Red Cross Policy & Remote CI Verification
+- **Every push triggers GitHub Actions CI (`Python CI`)**: The agent must NEVER push and walk away.
+- **Mandatory post-push verification**: Immediately after running `git push`, the agent MUST check remote CI status using `gh run list --limit 1` or `gh run watch`.
+- **Immediate remediation**: If GitHub Actions shows a red cross (`X`), run `gh run view <run-id> --log-failed` immediately to inspect the failure, fix the issue, run local verification, and push the fix until a green checkmark (`✓`) is confirmed. Never leave a failed CI run on GitHub.
+
+### Mandatory Local CI Parity Gate
+Before any commit or push, run the exact suite executed by `.github/workflows/ci.yml`:
+1. **Black code formatting**: Run `black --check .`. If formatting fails, run `black .` to reformat.
+   *(Note: A single line exceeding 88 characters will cause `black --check` to fail with exit code 123 under xargs in CI).*
+2. **Ruff linting**: Run `ruff check .` and resolve all warnings and errors.
+3. **Shell script syntax**:
+   ```bash
+   find examples scripts .githooks -type f \( -name '*.sh' -o -name '*.slurm' -o -name 'pre-commit' -o -name 'pre-push' \) -exec bash -n {} \;
+   ```
+4. **Unit and regression tests**: Run `python -m pytest tests/ -q` (all tests must pass).
+5. **Gitleaks secret scan**: Run `.githooks/pre-commit` (scans staged snapshot with Gitleaks, Black, Ruff, and bash -n).
+
+Test project creation, conflict/symlink protection, argument forwarding, wheel resources and hidden MODELLER prompting.
 GPU acceptance includes real SIGINT/resume, unchanged committed chunk hashes,
 continuous frame times, finite measurements, native numbering and reviewed plots.
 Do not claim a new GPU run when only CPU/template tests were performed.
@@ -222,6 +236,10 @@ permissions and does not place key values in subprocess arguments.
   and the configured Gitleaks binary is available. Keep the private checkout's
   push URL disabled and `colabmda.privateCheckout=true`. Never use `--no-verify`,
   unset these guards or weaken scanner rules to make a commit/push pass.
+- Verify CI parity before push and inspect remote CI results post-push:
+  execute Black, Ruff, bash syntax checks, and pytest locally. After pushing, run
+  `gh run list --limit 1` or `gh run watch` to confirm a green checkmark (`✓`). Any red
+  cross (`X`) on GitHub must be diagnosed with `gh run view <id> --log-failed` and fixed immediately.
 - Review staged paths and scan the exact staged snapshot through the pre-commit
   hook, including initial commits. Pay particular attention to notebook output,
   copied terminal sessions, configuration, fixtures and generated archives.
