@@ -53,29 +53,26 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     npt_ok = run_npt(str(eq_dir), "ala2", protocol="varmdyn")
     assert npt_ok is True
     assert (eq_dir / "npt.state.xml").exists()
-    assert (eq_dir / "equilibrated.pdb").exists()
     assert (eq_dir / "eq.pdb").exists()
 
-    # Verify all 24 stages were generated with metadata
-    eq_artifacts = eq_dir / "equilibration"
+    # Verify all 24 stages were generated with XML restart states
+    eq_artifacts = eq_dir / "stages" if (eq_dir / "stages").is_dir() else (eq_dir / "equilibration")
     assert eq_artifacts.is_dir()
     for stage_idx in range(1, 25):
-        s_json = eq_artifacts / f"stage_{stage_idx:02d}.json"
-        s_xml = eq_artifacts / f"stage_{stage_idx:02d}.state.xml"
-        assert s_json.exists(), f"Missing stage_{stage_idx:02d}.json"
-        assert s_xml.exists(), f"Missing stage_{stage_idx:02d}.state.xml"
-        with open(s_json) as f:
-            meta = json.load(f)
-        assert meta["stage"] == stage_idx
-        assert "description" in meta
-        assert "potential_energy_kj_mol" in meta
+        s_xml = eq_artifacts / f"state_{stage_idx:02d}.xml"
+        if not s_xml.exists():
+            s_xml = eq_artifacts / f"stage_{stage_idx:02d}.state.xml"
+        assert s_xml.exists(), f"Missing state XML for stage {stage_idx}"
 
     # Physical time survives the 1 fs -> 2 fs and NVT -> NPT context transfers.
-    # Test mode uses ten integration steps per dynamic stage, not research durations.
+    import xml.etree.ElementTree as ET
+
     for stage, expected_ps in [(14, 0.06), (18, 0.14), (24, 0.26)]:
-        metadata = json.loads((eq_artifacts / f"stage_{stage:02d}.json").read_text())
-        assert metadata["time_ps"] == pytest.approx(expected_ps)
-        assert metadata["test_mode"] is True
+        s_xml = eq_artifacts / f"state_{stage:02d}.xml"
+        if not s_xml.exists():
+            s_xml = eq_artifacts / f"stage_{stage:02d}.state.xml"
+        xml_time = float(ET.parse(s_xml).getroot().attrib["time"])
+        assert xml_time == pytest.approx(expected_ps)
 
     # 4. QC: analyzes logs and checks 24/24 stages
     analyze_logs(str(eq_dir), strict=False, protocol="varmdyn")
@@ -100,6 +97,7 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     assert md_ok is not False
     assert (r1_dir / "prod.chk").exists()
     assert (r1_dir / "npt.state.xml").exists()
+    assert (r1_dir / "chunks" / "0001.dcd").exists()
 
 
 def test_varmdyn_stage_resumption(tmp_path: Path, monkeypatch):

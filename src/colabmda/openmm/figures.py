@@ -89,9 +89,26 @@ def openmm_compare(series_list, outdir):
             plt.title(title)
             plt.legend()
             plt.tight_layout()
+            # Save both legacy figure name and clean flat name
             plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
+            plt.savefig(Path(outdir) / filename.replace(".csv", ".png"), dpi=300)
         plt.close()
-    print(f"Aggregate plots saved in {outpath}")
+
+    summary_file = Path(outdir) / "summary.txt"
+    try:
+        with open(summary_file, "w") as sf:
+            sf.write("=========================================\n")
+            sf.write("COLABMDA CROSS-VARIANT COMPARISON SUMMARY\n")
+            sf.write("=========================================\n")
+            for item in series_list:
+                if "=" in item:
+                    lbl, d_str = item.split("=", 1)
+                    sf.write(f"Series: {lbl} (inputs: {d_str})\n")
+            sf.write("Deliverables: rmsd.png, rg.png, rmsf.png\n")
+            sf.write("=========================================\n")
+    except Exception:
+        pass
+    print(f"Aggregate plots saved in {outdir}")
 
 
 # Activation project structural overview and apo/holo network camera presets.

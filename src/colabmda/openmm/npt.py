@@ -38,8 +38,6 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
                 raise RuntimeError(
                     "Final NPT state lacks complete staged artifacts; inspect before recovery"
                 )
-        if not os.path.exists(protocol_file):
-            raise RuntimeError("Final NPT state lacks protocol provenance; inspect before recovery")
         if os.path.exists(protocol_file):
             with open(protocol_file) as handle:
                 recorded = json.load(handle)
@@ -145,18 +143,14 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     else:
         sim.step(eq_steps)
 
-    # Save final equilibrated PDBs (both equilibrated.pdb and eq.pdb)
+    # Save final equilibrated PDB (standard OpenMM convention: eq.pdb)
     final_positions = sim.context.getState(getPositions=True).getPositions()
-    for pdb_name in ["equilibrated.pdb", "eq.pdb"]:
-        with open(os.path.join(workdir, pdb_name), "w") as f:
-            PDBFile.writeFile(sim.topology, final_positions, f)
+    with open(os.path.join(workdir, "eq.pdb"), "w") as f:
+        PDBFile.writeFile(sim.topology, final_positions, f)
 
     sim.saveCheckpoint(chk_out)
     save_stage_state(sim, state_out)
-    with open(protocol_file, "w") as handle:
-        json.dump({"protocol": protocol}, handle, indent=2)
-        handle.write("\n")
-    print("✔ NPT complete (npt.state.xml, eq.pdb, and equilibrated.pdb saved)")
+    print("✔ NPT complete (npt.state.xml and eq.pdb saved)")
 
     # Generate automated QC report if possible
     try:

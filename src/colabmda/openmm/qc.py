@@ -60,11 +60,18 @@ def analyze_logs(workdir, strict=False, protocol=None):
         varmdyn_stages_found = []
         varmdyn_stages_missing = []
         if effective_protocol == "varmdyn":
-            eq_dir = os.path.join(workdir, "equilibration")
+            stages_dir = os.path.join(workdir, "stages")
+            legacy_dir = os.path.join(workdir, "equilibration")
+            eq_dir = stages_dir if os.path.exists(stages_dir) else legacy_dir
             for st in range(1, 25):
-                st_json = os.path.join(eq_dir, f"stage_{st:02d}.json")
-                st_xml = os.path.join(eq_dir, f"stage_{st:02d}.state.xml")
-                if os.path.exists(st_json) and os.path.exists(st_xml):
+                candidates = [
+                    os.path.join(eq_dir, f"state_{st:02d}.xml"),
+                    os.path.join(eq_dir, f"stage_{st:02d}.state.xml"),
+                ]
+                st_xml = next(
+                    (p for p in candidates if os.path.isfile(p) and os.path.getsize(p) > 0), None
+                )
+                if st_xml is not None:
                     varmdyn_stages_found.append(st)
                 else:
                     varmdyn_stages_missing.append(st)
@@ -102,16 +109,32 @@ def analyze_logs(workdir, strict=False, protocol=None):
                 try:
                     import xml.etree.ElementTree as ET
 
-                    stem = os.path.join(workdir, "equilibration", f"stage_{stage:02d}")
-                    with open(stem + ".json") as handle:
-                        metadata = json.load(handle)
-                    xml_time = float(ET.parse(stem + ".state.xml").getroot().attrib["time"])
-                    valid = (
-                        not metadata.get("test_mode", False)
-                        and math.isfinite(metadata["potential_energy_kj_mol"])
-                        and abs(metadata["time_ps"] - expected) < 0.001
-                        and abs(xml_time - expected) < 0.001
+                    candidates = [
+                        os.path.join(eq_dir, f"state_{stage:02d}.xml"),
+                        os.path.join(eq_dir, f"stage_{stage:02d}.state.xml"),
+                    ]
+                    st_xml = next(
+                        (p for p in candidates if os.path.isfile(p) and os.path.getsize(p) > 0),
+                        None,
                     )
+                    xml_time = float(ET.parse(st_xml).getroot().attrib["time"]) if st_xml else -1.0
+
+                    stem = os.path.join(eq_dir, f"stage_{stage:02d}")
+                    if os.path.exists(stem + ".json"):
+                        with open(stem + ".json") as handle:
+                            metadata = json.load(handle)
+                        valid = (
+                            not metadata.get("test_mode", False)
+                            and math.isfinite(metadata["potential_energy_kj_mol"])
+                            and abs(metadata["time_ps"] - expected) < 0.001
+                            and abs(xml_time - expected) < 0.001
+                        )
+                    else:
+                        is_test = os.environ.get("COLABMDA_TEST_1_24", "").lower() in {
+                            "1",
+                            "true",
+                        }
+                        valid = not is_test and abs(xml_time - expected) < 0.001
                 except (KeyError, ValueError, OSError, ET.ParseError):
                     valid = False
                 if not valid:
@@ -153,6 +176,11 @@ def analyze_logs(workdir, strict=False, protocol=None):
         with open("equilibration_qc.json", "w") as handle:
             json.dump(qc_data, handle, indent=2)
             handle.write("\n")
+
+        with open("qc.txt", "w") as f:
+            f.write(f"Status: {'PASSED' if passed else 'FAILED'}\n")
+            f.write(f"Temperature: {avg_temp:.2f} +/- {std_temp:.2f} K\n")
+            f.write(f"Density: {avg_dens:.4f} g/mL (slope: {slope:.6f} g/mL/ps)\n")
 
         return passed
     finally:

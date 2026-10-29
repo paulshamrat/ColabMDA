@@ -137,27 +137,11 @@ def set_restraint_strength(context, parameter_name, kcal_per_mol_a2):
 
 
 def save_stage_artifacts(simulation, workdir, stage, description):
-    """Write a compact, auditable artifact pair for one equilibration stage."""
-    stage_dir = os.path.join(workdir, "equilibration")
+    """Write an OpenMM physical restart state for one equilibration stage."""
+    stage_dir = os.path.join(workdir, "stages")
     os.makedirs(stage_dir, exist_ok=True)
-    stem = os.path.join(stage_dir, f"stage_{int(stage):02d}")
-    save_stage_state(simulation, stem + ".state.xml")
-    state = simulation.context.getState(getEnergy=True)
-    record = {
-        "stage": int(stage),
-        "test_mode": os.environ.get("COLABMDA_TEST_1_24", "").lower() in {"1", "true"},
-        "description": description,
-        "step": int(state.getStepCount()),
-        "time_ps": state.getTime().value_in_unit(unit.picoseconds),
-        "potential_energy_kj_mol": state.getPotentialEnergy().value_in_unit(
-            unit.kilojoules_per_mole
-        ),
-    }
-    summary_path = stem + ".json"
-    with open(summary_path + ".tmp", "w") as handle:
-        json.dump(record, handle, indent=2)
-        handle.write("\n")
-    os.replace(summary_path + ".tmp", summary_path)
+    state_path = os.path.join(stage_dir, f"state_{int(stage):02d}.xml")
+    save_stage_state(simulation, state_path)
 
 
 def atomic_rename(tmp_path, final_path):
@@ -176,23 +160,31 @@ def safe_remove_if_empty(path):
 def find_highest_completed_stage(
     workdir: str, start_stage: int = 1, end_stage: int = 24
 ) -> tuple[int, str | None]:
-    """Scan workdir/equilibration to find the highest completed stage.
+    """Scan workdir/stages or workdir/equilibration to find the highest completed stage.
 
     Returns:
         (highest_stage_number, path_to_highest_state_xml)
-        e.g., (23, ".../equilibration/stage_23.state.xml")
+        e.g., (23, ".../stages/state_23.xml")
         If no stage completed, returns (0, None).
     """
-    eq_dir = os.path.join(workdir, "equilibration")
+    stages_dir = os.path.join(workdir, "stages")
+    legacy_dir = os.path.join(workdir, "equilibration")
+    eq_dir = stages_dir if os.path.exists(stages_dir) else legacy_dir
     if not os.path.exists(eq_dir):
         return 0, None
 
     highest, latest = 0, None
     gap = False
     for stage_num in range(start_stage, end_stage + 1):
-        state_file = os.path.join(eq_dir, f"stage_{stage_num:02d}.state.xml")
+        candidates = [
+            os.path.join(eq_dir, f"state_{stage_num:02d}.xml"),
+            os.path.join(eq_dir, f"stage_{stage_num:02d}.state.xml"),
+        ]
+        state_file = next(
+            (p for p in candidates if os.path.isfile(p) and os.path.getsize(p) > 0), None
+        )
         json_file = os.path.join(eq_dir, f"stage_{stage_num:02d}.json")
-        complete = all(os.path.isfile(p) and os.path.getsize(p) for p in [state_file, json_file])
+        complete = state_file is not None
         if not complete:
             gap = True
             continue
@@ -200,9 +192,13 @@ def find_highest_completed_stage(
             raise RuntimeError(
                 "Non-contiguous equilibration stages; inspect artifacts before recovery"
             )
-        with open(json_file) as handle:
-            if json.load(handle).get("stage") != stage_num:
-                raise RuntimeError(f"Incorrect equilibration stage metadata: {json_file}")
+        if os.path.isfile(json_file):
+            try:
+                with open(json_file) as handle:
+                    if json.load(handle).get("stage") != stage_num:
+                        raise RuntimeError(f"Incorrect equilibration stage metadata: {json_file}")
+            except (json.JSONDecodeError, OSError):
+                pass
         highest, latest = stage_num, state_file
     return highest, latest
 
@@ -223,9 +219,13 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
         "npt.state.xml",
         "npt_protocol.json",
         "parameterization.json",
-        "equilibrated.pdb",
         "eq.pdb",
+        "equilibrated.pdb",
+        "state.xml",
+        "md.dcd",
+        "md.log",
         "qc.png",
+        "qc.txt",
         "qc.json",
         "prod.chk",
         "nvt.log",
@@ -241,6 +241,7 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
                 shutil.copy2(src, os.path.join(sync_dir, fn))
             except Exception:
                 pass
-    stage_dir = os.path.join(workdir, "equilibration")
-    if os.path.isdir(stage_dir):
-        shutil.copytree(stage_dir, os.path.join(sync_dir, "equilibration"), dirs_exist_ok=True)
+    for folder in ["stages", "equilibration", "chunks"]:
+        src_folder = os.path.join(workdir, folder)
+        if os.path.isdir(src_folder):
+            shutil.copytree(src_folder, os.path.join(sync_dir, folder), dirs_exist_ok=True)

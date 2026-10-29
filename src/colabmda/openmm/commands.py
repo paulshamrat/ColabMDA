@@ -60,6 +60,23 @@ def _parse_last_step_time(log_path: Path):
 
 def _parse_chunk_ranges(workdir: Path):
     ranges = []
+    chunks_dir = workdir / "chunks"
+    if chunks_dir.is_dir():
+        dcd_files = sorted(
+            [
+                f
+                for f in chunks_dir.glob("*.dcd")
+                if not f.name.endswith(".tmp") and f.stat().st_size > 0
+            ],
+            key=lambda f: (
+                int(re.search(r"\d+", f.stem).group()) if re.search(r"\d+", f.stem) else f.name
+            ),
+        )
+        for idx in range(len(dcd_files)):
+            ranges.append((idx * 1000, (idx + 1) * 1000))
+        if ranges:
+            return ranges
+
     rx = re.compile(r"^prod_(\d+)to(\d+)ps\.(?:dcd|log)$")
     for p in workdir.iterdir():
         m = rx.match(p.name)
@@ -146,14 +163,34 @@ def openmm_status(pdbid_dir: str):
     if not workdir.exists():
         raise SystemExit(f"ERROR: directory not found: {workdir}")
 
-    logs = sorted(workdir.glob("prod_*to*ps.log"))
-    dcds = sorted(workdir.glob("prod_*to*ps.dcd"))
+    chunks_dir = workdir / "chunks"
+    if chunks_dir.is_dir():
+        logs = sorted(
+            [f for f in chunks_dir.glob("*.log") if not f.name.endswith(".tmp")],
+            key=lambda f: (
+                int(re.search(r"\d+", f.stem).group()) if re.search(r"\d+", f.stem) else f.name
+            ),
+        )
+        dcds = sorted(
+            [f for f in chunks_dir.glob("*.dcd") if not f.name.endswith(".tmp")],
+            key=lambda f: (
+                int(re.search(r"\d+", f.stem).group()) if re.search(r"\d+", f.stem) else f.name
+            ),
+        )
+    else:
+        logs = sorted(workdir.glob("prod_*to*ps.log"))
+        dcds = sorted(workdir.glob("prod_*to*ps.dcd"))
+
     merged_dcd = (
-        workdir / "prod_keep_ligand.dcd"
-        if (workdir / "prod_keep_ligand.dcd").exists()
-        else workdir / "prod_full.dcd"
+        workdir / "md.dcd"
+        if (workdir / "md.dcd").exists()
+        else (
+            workdir / "prod_keep_ligand.dcd"
+            if (workdir / "prod_keep_ligand.dcd").exists()
+            else workdir / "prod_full.dcd"
+        )
     )
-    merged_log = workdir / "prod_full.log"
+    merged_log = workdir / "md.log" if (workdir / "md.log").exists() else workdir / "prod_full.log"
 
     ranges = _parse_chunk_ranges(workdir)
     gaps = _range_gaps(ranges)

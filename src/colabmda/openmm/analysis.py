@@ -33,7 +33,11 @@ def _data_lines(path):
 
 
 def _infer_interval(sim_dir, n_frames):
-    merged_log = os.path.join(sim_dir, "prod_full.log")
+    merged_log = (
+        os.path.join(sim_dir, "md.log")
+        if os.path.isfile(os.path.join(sim_dir, "md.log"))
+        else os.path.join(sim_dir, "prod_full.log")
+    )
     if os.path.isfile(merged_log):
         times = []
         for s in _data_lines(merged_log):
@@ -134,7 +138,11 @@ def run_trajectory_analysis(
     if not replica_dirs:
         # Single mode
         topo = topology or os.path.join(sim_dir, "solvated.pdb")
-        traj = trajectory or os.path.join(sim_dir, "prod_full.dcd")
+        traj = trajectory or (
+            os.path.join(sim_dir, "md.dcd")
+            if os.path.exists(os.path.join(sim_dir, "md.dcd"))
+            else os.path.join(sim_dir, "prod_full.dcd")
+        )
         if os.path.exists(traj):
             results.append(analyze_single(sim_dir, topo, traj, interval, reference))
             labels.append("Sim")
@@ -147,7 +155,11 @@ def run_trajectory_analysis(
         )
         for rd in replica_dirs:
             topo = os.path.join(rd, "solvated.pdb")
-            traj = os.path.join(rd, "prod_full.dcd")
+            traj = (
+                os.path.join(rd, "md.dcd")
+                if os.path.exists(os.path.join(rd, "md.dcd"))
+                else os.path.join(rd, "prod_full.dcd")
+            )
             if os.path.exists(traj):
                 results.append(analyze_single(rd, topo, traj, interval, reference))
                 rep_name = os.path.basename(rd)

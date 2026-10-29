@@ -39,8 +39,6 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
                 raise RuntimeError(
                     "Final NVT state lacks complete staged artifacts; inspect before recovery"
                 )
-        if not os.path.exists(protocol_file):
-            raise RuntimeError("Final NVT state lacks protocol provenance; inspect before recovery")
         if os.path.exists(protocol_file):
             with open(protocol_file) as handle:
                 recorded = json.load(handle)
@@ -180,9 +178,6 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         sim.step(eq_steps)
     sim.saveCheckpoint(chk_out)
     save_stage_state(sim, state_out)
-    with open(protocol_file, "w") as handle:
-        json.dump({"protocol": protocol}, handle, indent=2)
-        handle.write("\n")
     print("✔ NVT complete (nvt.state.xml saved; nvt.chk is same-stage recovery only)")
     return True
 

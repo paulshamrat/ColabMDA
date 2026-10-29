@@ -13,8 +13,8 @@ Positional arguments:
 
 Optional arguments:
   -t, --topology PATH    Path to topology PDB (default: <pdbid>/solvated.pdb)
-  -o, --out-traj FILE    Merged trajectory filename (default: prod_full.dcd)
-  -l, --out-log FILE     Merged log CSV filename (default: prod_full.log)
+  -o, --out-traj FILE    Merged trajectory filename (default: md.dcd)
+  -l, --out-log FILE     Merged log CSV filename (default: md.log)
   -s, --stride INT       Keep every Nth frame/row while merging (default: 1)
 """
 
@@ -23,6 +23,7 @@ import glob
 import os
 import re
 import sys
+from pathlib import Path
 
 
 def parse_args():
@@ -31,8 +32,8 @@ def parse_args():
     p.add_argument(
         "-t", "--topology", default=None, help="Topology PDB (default: <pdbid>/solvated.pdb)"
     )
-    p.add_argument("-o", "--out-traj", default="prod_full.dcd", help="Output merged trajectory")
-    p.add_argument("-l", "--out-log", default="prod_full.log", help="Output merged log CSV")
+    p.add_argument("-o", "--out-traj", default="md.dcd", help="Output merged trajectory")
+    p.add_argument("-l", "--out-log", default="md.log", help="Output merged log CSV")
     p.add_argument(
         "-s", "--stride", type=int, default=1, help="Keep every Nth frame/row while merging"
     )
@@ -58,6 +59,36 @@ def extract_start_ps(filename):
     return float(m.group(1)) if m else float("inf")
 
 
+def find_chunk_files(directory, ext=".dcd"):
+    directory = os.path.abspath(directory)
+    chunks_sub = os.path.join(directory, "chunks")
+    if os.path.isdir(chunks_sub):
+        cand = glob.glob(os.path.join(chunks_sub, f"*{ext}"))
+        files = [
+            f
+            for f in cand
+            if os.path.isfile(f) and os.path.getsize(f) > 0 and not f.endswith(".tmp")
+        ]
+        if files:
+
+            def sort_key(p):
+                stem = Path(p).stem
+                m = re.search(r"\d+", stem)
+                return int(m.group()) if m else stem
+
+            return sorted(files, key=sort_key)
+    # Legacy fallback: root dir prod_*to*ps
+    cand = glob.glob(os.path.join(directory, f"prod_*to*ps{ext}"))
+    files = [
+        f for f in cand if os.path.isfile(f) and os.path.getsize(f) > 0 and not f.endswith(".tmp")
+    ]
+    if files:
+        if ext == ".log":
+            return sorted(files, key=lambda f: extract_start_ps(f.replace(".log", ".dcd")))
+        return sorted(files, key=extract_start_ps)
+    return []
+
+
 def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=False):
     import mdtraj as md
 
@@ -71,11 +102,7 @@ def merge_trajectories(pdbid, topology, out_traj, stride=1, center=False, wrap=F
 
     start_dir = os.getcwd()
     os.chdir(pdbid)
-    # find candidate chunks
-    candidates = glob.glob("prod_*to*ps.dcd")
-    # filter to only existing non-empty files
-    dcd_files = [f for f in candidates if os.path.isfile(f) and os.path.getsize(f) > 0]
-    dcd_files.sort(key=extract_start_ps)
+    dcd_files = find_chunk_files(pdbid, ext=".dcd")
     if not dcd_files:
         os.chdir(start_dir)
         sys.exit("Error: no valid .dcd chunk files found.")
@@ -148,9 +175,7 @@ def merge_logs(pdbid, out_log, stride=1):
     out_log = os.path.abspath(out_log)
     start_dir = os.getcwd()
     os.chdir(pdbid)
-    log_files = sorted(
-        glob.glob("prod_*to*ps.log"), key=lambda f: extract_start_ps(f.replace(".log", ".dcd"))
-    )
+    log_files = find_chunk_files(pdbid, ext=".log")
     if not log_files:
         os.chdir(start_dir)
         sys.exit("Error: no .log chunk files found.")
@@ -206,9 +231,7 @@ def merge_trajectories_mda(
 
     start_dir = os.getcwd()
     os.chdir(pdbid)
-    candidates = glob.glob("prod_*to*ps.dcd")
-    dcd_files = [f for f in candidates if os.path.isfile(f) and os.path.getsize(f) > 0]
-    dcd_files.sort(key=extract_start_ps)
+    dcd_files = find_chunk_files(pdbid, ext=".dcd")
     if not dcd_files:
         os.chdir(start_dir)
         sys.exit("Error: no valid .dcd chunk files found.")

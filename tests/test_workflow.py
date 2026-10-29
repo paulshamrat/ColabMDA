@@ -306,3 +306,27 @@ def test_cross_state_inheritance_find_variant(tmp_path):
     assert found is not None
     assert found == apo_wt
     assert found.exists()
+
+
+def test_chunk_discovery_and_merge_logs(tmp_path):
+    from colabmda.openmm.merge import find_chunk_files, merge_logs
+
+    chunks_dir = tmp_path / "chunks"
+    chunks_dir.mkdir()
+    (chunks_dir / "0002.log").write_text("#header\n200,300,10,1.0\n")
+    (chunks_dir / "0001.log").write_text("#header\n100,300,10,1.0\n")
+    (chunks_dir / "0002.dcd").write_text("dcd2")
+    (chunks_dir / "0001.dcd").write_text("dcd1")
+
+    dcd_found = find_chunk_files(str(tmp_path), ext=".dcd")
+    assert len(dcd_found) == 2
+    assert dcd_found[0].endswith("0001.dcd")
+    assert dcd_found[1].endswith("0002.dcd")
+
+    out_log = tmp_path / "md.log"
+    merge_logs(str(tmp_path), str(out_log))
+    assert out_log.is_file()
+    lines = out_log.read_text().splitlines()
+    assert len(lines) == 3
+    assert "100" in lines[1]
+    assert "200" in lines[2]

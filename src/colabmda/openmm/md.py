@@ -12,6 +12,7 @@ from colabmda.openmm.common import (
     load_stage_state,
     make_sim,
     offset_seed,
+    save_stage_state,
     sync_outputs,
 )
 
@@ -129,19 +130,24 @@ def _run_md(
     # Start checkpoint is the rollback point for an interrupted first chunk.
     if not os.path.exists(chk_file):
         sim.saveCheckpoint(chk_file)
+
+    chunks_dir = os.path.join(workdir, "chunks")
+    os.makedirs(chunks_dir, exist_ok=True)
+
     # Production loop
     while steps_done < total_steps:
         steps_to_run = min(chk_steps, total_steps - steps_done)
-        ps_start = steps_done * dt_ps
-        ps_end = (steps_done + steps_to_run) * dt_ps
-        tag = f"{_format_ps(ps_start)}to{_format_ps(ps_end)}ps"
+        chunk_idx = (steps_done // chk_steps) + 1
+        tag = f"{chunk_idx:04d}"
 
-        print(f"▶ Running chunk {tag} …")
+        print(
+            f"▶ Running chunk {tag} ({steps_done * dt_ps:.1f} to {(steps_done + steps_to_run) * dt_ps:.1f} ps) …"
+        )
 
-        dcd_tmp = f"prod_{tag}.dcd.tmp"
-        log_tmp = f"prod_{tag}.log.tmp"
-        dcd_fin = f"prod_{tag}.dcd"
-        log_fin = f"prod_{tag}.log"
+        dcd_tmp = os.path.join(chunks_dir, f"{tag}.dcd.tmp")
+        log_tmp = os.path.join(chunks_dir, f"{tag}.log.tmp")
+        dcd_fin = os.path.join(chunks_dir, f"{tag}.dcd")
+        log_fin = os.path.join(chunks_dir, f"{tag}.log")
 
         sim.reporters = []
         sim.reporters.append(DCDReporter(dcd_tmp, snapshot_steps))
@@ -185,7 +191,8 @@ def _run_md(
             atomic_rename(log_tmp, log_fin)
             sim.saveCheckpoint(chk_file + ".tmp")
             atomic_rename(chk_file + ".tmp", chk_file)
-            sync_outputs(workdir, sync_dir, extra_files=[dcd_fin, log_fin])
+            save_stage_state(sim, os.path.join(workdir, "state.xml"))
+            sync_outputs(workdir, sync_dir, extra_files=[dcd_fin, log_fin, "state.xml"])
 
         steps_done = new_steps
         print(f"  ✔ Reached step {steps_done}/{total_steps}")
