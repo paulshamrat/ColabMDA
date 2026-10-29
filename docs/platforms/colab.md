@@ -65,6 +65,21 @@ The installed snapshot is `/content/ColabMDA`; persistent project data belongs u
 `/content/drive/MyDrive/research/projects/`. Continue with the linked CDKL5 workflow after setup. You can also dispatch foreground shell commands from the local
 terminal using `cmda colab exec -s colabmda-example --timeout 21600 'COMMAND'`.
 
+### Pulling Results Locally (`cmda pull`)
+
+Lightweight simulation deliverables (`01_prep/model.pdb`, `02_eq/eq.pdb`, `02_eq/qc.png`, `02_eq/qc.txt`, and `04_analysis/` figures) can be pulled from Google Drive to your local workstation at any time with a single command:
+
+```bash
+# On your local workstation:
+cmda pull -s colabmda-example
+```
+
+Large binary trajectories (`.dcd`), restart checkpoints (`.chk`), and raw coordinate files are skipped by default, so deliverables download in seconds. To download full trajectories for external rendering, add `--all`:
+
+```bash
+cmda pull -s colabmda-example --all
+```
+
 ### Crash Recovery & Checkpointing
 
 Keep simulations in the foreground with live output. Sessions can still terminate.

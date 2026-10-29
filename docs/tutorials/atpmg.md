@@ -297,25 +297,33 @@ cmda pull -s cmda-example
 *This downloads the lightweight `02_eq/` deliverables (`eq.pdb`, `qc.png`, `qc.txt`) to your workstation in seconds.*
 
 #### Step 2: Inspect Convergence Plot & Statistics
-Review the gatekeeper outputs:
-* Open `data/atpmg/simulation/WT/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged to $\sim 1.00\text{--}1.02\text{ g/mL}$ with a flat slope.
-* Inspect `data/atpmg/simulation/WT/02_eq/qc.txt`: Confirms `Status: PASSED`.
+Review the gatekeeper outputs for both variants:
+* **Wild-Type (WT):**
+  * Open `data/atpmg/simulation/WT/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged to $\sim 1.00\text{--}1.02\text{ g/mL}$ with a flat slope.
+  * Inspect `data/atpmg/simulation/WT/02_eq/qc.txt`: Confirms `Status: PASSED`.
+* **Mutant (L119R):**
+  * Open `data/atpmg/simulation/L119R/02_eq/qc.png`: Confirms temperature stabilized at $300\text{ K}$ and system density converged ($\sim 1.00\text{--}1.02\text{ g/mL}$) with a flat slope.
+  * Inspect `data/atpmg/simulation/L119R/02_eq/qc.txt`: Confirms `Status: PASSED`.
 
 #### Step 3: Inspect Backbone & Pocket Stability in PyMOL (GUI)
 Open PyMOL to verify that the protein and nucleotide complex relaxed without distortion:
-1. Launch PyMOL: `pymol`
+1. Launch PyMOL on your local computer: `pymol`
 2. **Load initial and equilibrated structures via menu**:
-   * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/01_prep/model.pdb`
-   * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/02_eq/eq.pdb`
+   * For **WT**:
+     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/01_prep/model.pdb`
+     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/WT/02_eq/eq.pdb`
+   * For **L119R**:
+     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/L119R/01_prep/model.pdb`
+     * **`File`** $\to$ **`Open...`** $\to$ select `data/atpmg/simulation/L119R/02_eq/eq.pdb`
 3. **Clean up display (right panel buttons)**:
    * Next to `(all)`: click **`H`** (Hide) $\to$ **`waters`**
    * Next to `(all)`: click **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
 4. **Show ATP and Mg²⁺ as sticks and spheres**:
-   * In the sequence bar or selection panel, select `resn ATP` $\to$ click **`S`** (Show) $\to$ **`sticks`**
-   * Select `resn MG` $\to$ click **`S`** (Show) $\to$ **`spheres`**
+   * In the selection panel: click **`S`** (Show) $\to$ **`organic`** $\to$ **`sticks`** (shows ATP)
+   * Show ions: click **`S`** (Show) $\to$ **`non-protein`** $\to$ choose spheres for $\text{Mg}^{2+}$
 5. **Align them**:
    * Next to `eq`: click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ choose **`model`**
-6. *Visual Check:* Confirm that ATP remains coordinated within the catalytic pocket and the kinase lobes retain their active fold.
+6. *Visual Check:* Confirm that ATP remains coordinated within the catalytic pocket and the kinase lobes retain their active fold. Repeat for L119R.
 
 *Once verified, proceed to launch Production MD (Section 3.3).*
 

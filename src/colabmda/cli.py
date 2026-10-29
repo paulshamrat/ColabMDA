@@ -623,6 +623,33 @@ def _dispatch_sim(args) -> int:
                     traj_interval=traj_interval,
                     checkpoint_ps=args.checkpoint_ps,
                 )
+
+    if any(s in stages for s in ["eq", "npt", "qc"]) and not any(s == "md" for s in stages):
+        print(
+            f"\n"
+            f"================================================================================\n"
+            f"✔ Equilibration & QC complete for {spec.state_tag}/{spec.variant}!\n"
+            f"--------------------------------------------------------------------------------\n"
+            f"Next Steps (Local Machine):\n"
+            f"  1. Pull deliverables to local workstation:\n"
+            f"       cmda pull -s <session>\n"
+            f"  2. Inspect equilibration stability:\n"
+            f"       Open: data/{spec.state_tag}/simulation/{spec.variant}/02_eq/qc.png\n"
+            f"       Read: data/{spec.state_tag}/simulation/{spec.variant}/02_eq/qc.txt\n"
+            f"  3. Visually verify in PyMOL GUI:\n"
+            f"       File -> Open:\n"
+            f"         • data/{spec.state_tag}/simulation/{spec.variant}/01_prep/model.pdb\n"
+            f"         • data/{spec.state_tag}/simulation/{spec.variant}/02_eq/eq.pdb\n"
+            f"       In PyMOL:\n"
+            f"         • Hide waters: (all) -> H -> waters\n"
+            f"         • Show cartoon: (all) -> S -> as -> cartoon\n"
+            f"         • Distinguish colors: model (salmon), eq (cyan)\n"
+            f"         • Align: eq -> A -> align -> to molecule -> model\n"
+            f"       Visual check: Confirm eq closely overlaps model (folded & stable).\n"
+            f"  4. Proceed to production MD:\n"
+            f"       cmda sim md --state {spec.state_tag} --variant {spec.variant} --replica r1\n"
+            f"================================================================================\n"
+        )
     return 0
 
 
@@ -1855,6 +1882,12 @@ def main():
             if getattr(args, "equil_only", False):
                 print(
                     "✔ Shared equilibration complete. Stopping before production MD as requested by --equil-only."
+                )
+                print(
+                    "\nNext Steps (Local Machine):\n"
+                    "  1. Pull deliverables: cmda pull -s <session>\n"
+                    "  2. Inspect in PyMOL: File -> Open model.pdb & eq.pdb -> Align eq to model\n"
+                    "  3. Proceed to Production MD: cmda sim md --state <state> --variant <variant> --replica r1\n"
                 )
                 return
 
