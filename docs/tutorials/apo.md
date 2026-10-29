@@ -33,10 +33,10 @@ research/projects/cmda-example/
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # Phase 1.4: system.prmtop, system.inpcrd, solvated.pdb
-        │   │   ├── 02_eq/                # Phase 3.2: 24-stage equilibration checkpoints & qc.png
-        │   │   └── 03_md/                # Phase 3.3: Production replicas
-        │   │       ├── r1/               # chunk_*.dcd, prod.chk, prod_clean.dcd
+        │   │   ├── 01_prep/              # Step 1: system.xml, integrator.xml, model.pdb
+        │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, qc.png, qc.txt, stages/
+        │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, chunks/0001.dcd
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── L119R/
@@ -45,9 +45,9 @@ research/projects/cmda-example/
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/{r1, r2, r3}/          # Per-replica CSVs (RMSD, Rg, RMSF)
-            ├── L119R/{r1, r2, r3}/
-            └── compare/figures/          # Triplicate Mean ± SD overlay plots & PyMOL grids
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), 03_md/ (r1, r2, r3)
+            ├── L119R/
+            └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```
 
 > [!NOTE]

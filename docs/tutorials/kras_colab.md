@@ -33,10 +33,10 @@ research/projects/kras-example/
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # Phase 1.4: system.prmtop, system.inpcrd, solvated.pdb
-        │   │   ├── 02_eq/                # Phase 3.2: 24-stage equilibration checkpoints & qc.png
-        │   │   └── 03_md/                # Phase 3.3: Production replicas (100 ns)
-        │   │       ├── r1/               # chunk_*.dcd, prod.chk, prod_clean.dcd
+        │   │   ├── 01_prep/              # Step 1: system.xml, integrator.xml, model.pdb
+        │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, qc.png, qc.txt, stages/
+        │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, chunks/0001.dcd
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── G12D/
@@ -45,9 +45,9 @@ research/projects/kras-example/
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/{r1, r2, r3}/          # Per-replica metrics (RMSD, Rg, RMSF)
-            ├── G12D/{r1, r2, r3}/
-            └── compare/figures/          # Triplicate Mean ± SD overlay plots & PyMOL grids
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), 03_md/ (r1, r2, r3)
+            ├── G12D/
+            └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```
 
 ---
@@ -319,9 +319,9 @@ cmda merge --state apo --variant G12D
 ```
 
 *What `cmda merge` outputs in `data/apo/simulation/<variant>/03_md/<replica>/`:*
-* `prod_keep_ligand.dcd`: Clean, PBC-centered trajectory with OPC water removed.
-* `stripped.prmtop`: Matching topology file (~2,600 atoms) paired with `prod_keep_ligand.dcd`.
-* `prod_ca.dcd` & `ca.prmtop`: $C_\alpha$-only coordinates for essential dynamics analysis.
+* `md.dcd`: Clean continuous trajectory merged from `chunks/0001.dcd` ... `chunks/0100.dcd`.
+* `md.log`: Continuous merged thermodynamic log table.
+* `state.xml`: Final OpenMM physical restart state.
 
 ---
 
@@ -337,10 +337,11 @@ cmda analyze --state apo --variant G12D
 cmda compare --state apo --variants WT,G12D
 ```
 
-Outputs saved in `data/apo/analysis/compare/figures/`:
-* `rmsd_comparison.png` (Comparative time-series with Mean ± SD band)
-* `rg_comparison.png` (Radius of Gyration compactness comparison)
-* `rmsf_comparison.png` (Residue fluctuation profiles highlighting Switch I and Switch II loop flexibility)
+Outputs saved directly in `data/apo/analysis/compare/`:
+* `summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
+* `rmsd.png` (Comparative time-series with Mean ± SD band)
+* `rg.png` (Radius of Gyration compactness comparison)
+* `rmsf.png` (Residue fluctuation profiles highlighting Switch I and Switch II loop flexibility)
 
 ---
 
