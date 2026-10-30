@@ -52,13 +52,9 @@ It sends runtime files and example templates with `SNAPSHOT.json` hashes. Run
 these commands serially and wait for setup to finish before entering the console.
 Setup asks whether to install MODELLER; CDKL5 model building and mutation require it.
 
-**Inside the Colab console**, run the bootstrap script (~90 seconds) and activate the environment:
+**Inside the Colab console**, activate the installed environment:
 
 ```bash
-# Run one-line cloud setup:
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
-
-# Activate environment:
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 export MPLBACKEND=Agg
