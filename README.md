@@ -29,14 +29,20 @@ colab sessions
 > **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
 > `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
 
-### Google Colab (Cloud GPU)
-Run this once inside the Colab terminal during **Phase 3** before starting simulations (~90 seconds):
+### Google Colab (Cloud)
+Run this once inside your Colab terminal (GPU or CPU runtime) in ~90 seconds:
 
 ```bash
+# 1. Install cmda, OpenMM (CUDA/CPU), and AmberTools:
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+
+# 2. Activate environment:
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 ```
+
+> [!TIP]
+> **GPU vs. CPU Runtime:** Use a GPU runtime for running simulations (`cmda sim`). For pulling deliverables (`cmda pull`) or running quick checks, you can launch an instant, free CPU session without waiting for GPU quota.
 
 <details>
 <summary><b>🛠️ Install from Source & Run Tests</b></summary>
