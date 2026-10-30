@@ -8,10 +8,7 @@
 
 ## 1. Installation
 
-ColabMDA divides work between your local computer and Google Colab:
-
-### Local Workstation
-Run this one-time setup in your terminal (Linux or Windows WSL):
+Run this one-time setup on your local machine (Linux or Windows WSL):
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
@@ -29,20 +26,8 @@ colab sessions
 > **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
 > `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
 
-### Google Colab (Cloud)
-Run this once inside your Colab terminal (GPU or CPU runtime) in ~90 seconds:
-
-```bash
-# 1. Install cmda, OpenMM (CUDA/CPU), and AmberTools:
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
-
-# 2. Activate environment:
-source /root/miniforge3/etc/profile.d/conda.sh
-conda activate cmda
-```
-
-> [!TIP]
-> **GPU vs. CPU Runtime:** Use a GPU runtime for running simulations (`cmda sim`). For pulling deliverables (`cmda pull`) or running quick checks, you can launch an instant, free CPU session without waiting for GPU quota.
+> [!NOTE]
+> **Cloud Setup:** Google Colab instances are configured on demand during simulations in Phase 3 (see the [Google Colab Guide](docs/platforms/colab.md)).
 
 <details>
 <summary><b>🛠️ Install from Source & Run Tests</b></summary>
