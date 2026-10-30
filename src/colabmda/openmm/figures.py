@@ -847,7 +847,17 @@ def plot_equilibration(workdir, outdir=None):
     plt = _headless_pyplot()
     _publication_style()
     root = Path(workdir)
-    dest = Path(outdir) if outdir else root
+    if outdir:
+        dest = Path(outdir)
+    else:
+        parts = root.resolve().parts
+        if "simulation" in parts:
+            idx = parts.index("simulation")
+            analysis_parts = list(parts)
+            analysis_parts[idx] = "analysis"
+            dest = Path(*analysis_parts)
+        else:
+            dest = root
     dest.mkdir(parents=True, exist_ok=True)
 
     qc_candidates = [
@@ -1053,7 +1063,7 @@ quit
     status_str = "PASSED" if passed else "REVIEW REQUIRED"
     fig.suptitle(f"Equilibration Quality Control: {status_str}", fontsize=9.5, fontweight="bold")
     fig.savefig(dest / "qc.png", dpi=300)
-    if outdir is None:
+    if outdir is None and "simulation" not in root.resolve().parts:
         target = root / "figures"
         target.mkdir(exist_ok=True)
         fig.savefig(target / "equilibration_qc.png", dpi=300)

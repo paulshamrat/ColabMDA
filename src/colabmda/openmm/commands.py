@@ -518,7 +518,18 @@ def openmm_qc(
     protocol: str | None = None,
     outdir: str | Path | None = None,
 ):
+    from pathlib import Path
+
     from colabmda.openmm.qc import analyze_logs
+
+    if outdir is None:
+        work_p = Path(workdir).resolve()
+        parts = work_p.parts
+        if "simulation" in parts:
+            idx = parts.index("simulation")
+            analysis_parts = list(parts)
+            analysis_parts[idx] = "analysis"
+            outdir = Path(*analysis_parts)
 
     passed = analyze_logs(workdir, strict=strict, protocol=protocol, outdir=outdir)
     from colabmda.openmm.figures import plot_equilibration

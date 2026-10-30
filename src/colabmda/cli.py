@@ -529,14 +529,14 @@ def _dispatch_sim(args) -> int:
     eq_dir = str(paths.eq_dir(spec))
     paths.eq_dir(spec).mkdir(parents=True, exist_ok=True)
 
+    prmtop = str(paths.prepared_prmtop(spec)) if paths.prepared_prmtop(spec).exists() else None
+    inpcrd = str(paths.prepared_inpcrd(spec)) if paths.prepared_inpcrd(spec).exists() else None
+
     model_src = paths.model_pdb(spec)
     name = f"{spec.state_tag}_{spec.variant}"
     eq_clean = paths.eq_dir(spec) / f"{name}_cleaned.pdb"
-    if model_src.exists() and not eq_clean.exists():
+    if not (prmtop and inpcrd) and model_src.exists() and not eq_clean.exists():
         shutil.copy2(model_src, eq_clean)
-
-    prmtop = str(paths.prepared_prmtop(spec)) if paths.prepared_prmtop(spec).exists() else None
-    inpcrd = str(paths.prepared_inpcrd(spec)) if paths.prepared_inpcrd(spec).exists() else None
 
     protocol = _normalize_equil_protocol(getattr(args, "protocol", "staged"))
     software_test = getattr(args, "software_test", False)
@@ -610,7 +610,7 @@ def _dispatch_sim(args) -> int:
                     if eq_art.exists() and not rep_art.exists():
                         shutil.copy2(eq_art, rep_art)
                 rep_clean = paths.replica_dir(spec, rep) / f"{name}_cleaned.pdb"
-                if eq_clean.exists() and not rep_clean.exists():
+                if not (prmtop and inpcrd) and eq_clean.exists() and not rep_clean.exists():
                     shutil.copy2(eq_clean, rep_clean)
 
                 total_ns = args.total_ns

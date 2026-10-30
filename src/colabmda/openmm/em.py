@@ -149,7 +149,7 @@ def run_em(
     os.chdir(workdir)
 
     cleaned_pdb = os.path.join(workdir, f"{pdbid}_cleaned.pdb")
-    if not os.path.exists(cleaned_pdb):
+    if not (amber_prmtop and amber_inpcrd) and not os.path.exists(cleaned_pdb):
         parent_candidate = os.path.join(os.path.dirname(workdir), f"{pdbid}_cleaned.pdb")
         if os.path.exists(parent_candidate):
             import shutil
