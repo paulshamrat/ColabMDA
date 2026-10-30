@@ -45,14 +45,14 @@ bash scripts/setup.sh
 
 All in-depth scientific tutorials, protonation tables, parameters, and platform deployment guides are modularized in `docs/`:
 
-| Guide | Description | Link |
-| :--- | :--- | :--- |
-| **Installation** | Local workstation & Google Colab GPU setup | [`docs/installation.md`](docs/installation.md) |
-| **KRAS Walkthrough** | Quick-start GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_colab.md`](docs/tutorials/kras_colab.md) |
-| **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/apo.md`](docs/tutorials/apo.md) |
-| **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/atpmg.md`](docs/tutorials/atpmg.md) |
-| **Google Colab** | Cloud GPU provisioning & Drive sync | [`docs/platforms/colab.md`](docs/platforms/colab.md) |
-| **HPC & SLURM** | Cluster submission & batch arrays | [`docs/platforms/hpc.md`](docs/platforms/hpc.md) |
+| # | Guide | Description | Link |
+| :-: | :--- | :--- | :--- |
+| 01 | **Installation** | Local workstation & Google Colab GPU setup | [`docs/installation.md`](docs/installation.md) |
+| 02 | **KRAS Apo** | Protein-only GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_colab.md`](docs/tutorials/kras_colab.md) |
+| 03 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/apo.md`](docs/tutorials/apo.md) |
+| 04 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/atpmg.md`](docs/tutorials/atpmg.md) |
+| 05 | **Google Colab** | Cloud GPU provisioning & Drive sync | [`docs/platforms/colab.md`](docs/platforms/colab.md) |
+| 06 | **HPC & SLURM** | Cluster submission & batch arrays | [`docs/platforms/hpc.md`](docs/platforms/hpc.md) |
 
 ---
 
