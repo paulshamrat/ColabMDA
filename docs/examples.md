@@ -145,8 +145,8 @@ console to your local terminal, detach with **Ctrl-B, then D**. This does not st
 the runtime. With the local ColabMDA environment active, download and verify the
 compact reports below. Set RUN_ID, STATE and VARIANT to the completed system.
 The commands below retrieve the Trp-cage run. CDKL5 uses the state-based paths
-in the [apo](tutorials/apo.md) and
-[ATP/Mg](tutorials/atpmg.md) collection instructions:
+in the [apo](tutorials/cdkl5_apo.md) and
+[ATP/Mg](tutorials/cdkl5_atpmg.md) collection instructions:
 
 ```bash
 RUN_ID=run01

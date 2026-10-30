@@ -4,9 +4,6 @@ This tutorial provides the complete, end-to-end simulation workflow for **Track 
 
 To assemble this complex with crystallographic accuracy, ColabMDA transfers cofactor coordinates from a high-resolution homologous kinase donor structure (**CDK2**, PDB **8FP5** at 1.45 Å resolution) onto your modeled CDKL5 structures, parameterizes the active site using quantum-derived nucleotide force fields, and executes unrestrained molecular dynamics across triplicates.
 
-> [!NOTE]
-> **Prerequisites & Installation:** Before beginning, ensure the `cmda` conda environment is installed on your local machine. For full installation instructions, see the [README](../../README.md#1-installation).
-
 ---
 
 ## 📁 Holo Directory Architecture Map
@@ -59,6 +56,28 @@ research/projects/cmda-example/
 
 ## 💻 Phase 1: Local Holo Assembly & Structure Preparation (Local Machine)
 *Execute this phase on your local laptop or workstation CPU. No GPU is required.*
+
+### 1.0. Local Machine Setup (One-Time)
+Run this one-time setup in your terminal (Linux or Windows WSL):
+
+```bash
+# 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
+
+# 2. Activate environment:
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate cmda
+
+# 3. Log in to Google Colab (one-time browser login):
+colab sessions
+
+# 4. Navigate to project directory:
+cd ~/research/projects/cmda-example
+```
+
+> [!TIP]
+> **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
+> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
 
 ### 1.1. Structural Assembly: Homologous Cofactor Transfer from CDK2 (8FP5)
 
@@ -218,17 +237,14 @@ cmda push -s cmda
 ```
 
 > [!TIP]
-> **Where does `cmda push` upload your files?**
-> * **Google Drive Web UI ([drive.google.com](https://drive.google.com)):**  
->   `My Drive` > `research` > `projects` > `cmda-example` > `data/atpmg/`
-> * **Google Colab Filesystem Path:**  
->   `/content/drive/MyDrive/research/projects/cmda-example/data/atpmg/`
-> * **How It Works Under the Hood:** Packages your local `data/` folder (~15 MB), streams it through your active Colab VM (`-s cmda`), and extracts it directly into your mounted Google Drive project directory in ~3 seconds with zero browser drag-and-drop.
+> **Data Destination on Google Drive:**
+> * **Google Drive Filesystem Path:** `/content/drive/MyDrive/research/projects/cmda-example/data/atpmg/`
+> * **Mechanism:** `cmda push` packages your local `data/` folder, streams it to your active Colab VM (`-s cmda`), and extracts it directly into your mounted Google Drive project directory.
 
 ---
 
 ## ⚡ Phase 3: Cloud GPU Simulation & Analysis (Google Colab)
-*Connect to Google Colab to run heavy OpenMM molecular dynamics simulations on an NVIDIA GPU.*
+*Connect to Google Colab to run OpenMM molecular dynamics simulations on an NVIDIA GPU.*
 
 ### 3.1. Connect to Colab GPU Console
 In your local terminal:
@@ -236,16 +252,15 @@ In your local terminal:
 colab console -s cmda
 ```
 
-Inside the interactive Colab console terminal, run the cloud bootstrap *(see the [README](../../README.md#google-colab-cloud-gpu) for details)*:
+Inside the Colab console terminal, run the cloud setup (~90 seconds) and navigate to the project directory:
 
 ```bash
-# A. One-Time Cloud Setup (unattended in ~90s, zero license prompts):
+# 1. Install cmda, OpenMM (CUDA/CPU), and AmberTools:
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
 
-# B. Activate Cloud Environment & Navigate to Drive Project:
+# 2. Activate environment & navigate to Drive project directory:
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
-
 cd /content/drive/MyDrive/research/projects/cmda-example
 ```
 
@@ -439,7 +454,7 @@ Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive.
    cd /content/drive/MyDrive/research/projects/cmda-example
    cmda sim md --state atpmg --variant WT --replica r1 --total-ns 100
    ```
-   *ColabMDA automatically detects the last valid `prod.chk` checkpoint on Google Drive and seamlessly resumes from the exact frame where it stopped!*
+   *ColabMDA detects the existing `prod.chk` checkpoint on Google Drive and resumes from the last saved checkpoint.*
 
 #### Python Trajectory & Catalytic Coordination Health Check
 
@@ -602,7 +617,7 @@ Run with:
 cmda snapshots --config camera_config_holo.json
 ```
 
-Verify that the divalent magnesium ion remains chelated between the $\beta$-/$\gamma$-phosphates and Asp156 throughout the entire 100 ns trajectory!
+Verify that the divalent magnesium ion remains chelated between the $\beta$-/$\gamma$-phosphates and Asp156 across the trajectory.
 
 ---
 
