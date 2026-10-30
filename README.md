@@ -8,25 +8,29 @@
 
 ## 1. Quick Installation
 
-A single bootstrap script sets up Miniforge, the `cmda` conda environment, Modeller, PyMOL, AmberTools, MDAnalysis, and `google-colab-cli` automatically—**without requiring you to clone the git repository**:
+Run this one-time setup on your local machine (Linux, macOS, WSL2):
 
 ```bash
-# 1. Run the universal bootstrap script (runs in-memory, leaves no files behind):
+# 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
 
-# 2. Activate the environment
+# 2. Activate environment:
 source ~/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 
-# 3. Authenticate Google Colab CLI (one-time browser login)
+# 3. Log in to Google Colab (one-time browser login):
 colab sessions
 ```
 
+> [!TIP]
+> **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
+> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
+
 > [!NOTE]
-> **Modeller Academic License:** Modeller is free for academic use ([registration](https://salilab.org/modeller/registration.html)). During setup, provide your key via prompt or beforehand: `export KEY_MODELLER="YOUR_KEY"`.
+> **Cloud Setup:** Google Colab GPU instances are configured during Phase 3. See [`docs/installation.md`](docs/installation.md).
 
 <details>
-<summary><b>🛠️ Developer Alternative: Clone from Source</b></summary>
+<summary><b>🛠️ Install from Source</b></summary>
 
 ```bash
 git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
