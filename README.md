@@ -6,9 +6,12 @@
 
 ---
 
-## 1. Quick Installation
+## 1. Installation
 
-Run this one-time setup on your local machine (Linux, macOS, WSL2):
+ColabMDA divides work between your local computer and Google Colab:
+
+### Local Machine (Linux, macOS, WSL2)
+Run this one-time setup in your local terminal:
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
@@ -26,16 +29,25 @@ colab sessions
 > **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
 > `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
 
-> [!NOTE]
-> **Cloud Setup:** Google Colab GPU instances are configured during Phase 3. See [`docs/installation.md`](docs/installation.md).
+### Google Colab (Cloud GPU)
+Run this once inside the Colab terminal during **Phase 3** before starting simulations (~90 seconds):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+source /root/miniforge3/etc/profile.d/conda.sh
+conda activate cmda
+```
 
 <details>
-<summary><b>🛠️ Install from Source</b></summary>
+<summary><b>🛠️ Install from Source & Run Tests</b></summary>
 
 ```bash
 git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
 cd ~/ColabMDA
 bash scripts/setup.sh
+
+# Run test suite:
+pytest tests/ -v
 ```
 </details>
 
@@ -47,12 +59,11 @@ All in-depth scientific tutorials, protonation tables, parameters, and platform 
 
 | # | Guide | Description | Link |
 | :-: | :--- | :--- | :--- |
-| 01 | **Installation** | Local workstation & Google Colab GPU setup | [`docs/installation.md`](docs/installation.md) |
-| 02 | **KRAS Apo** | Protein-only GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_colab.md`](docs/tutorials/kras_colab.md) |
-| 03 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/apo.md`](docs/tutorials/apo.md) |
-| 04 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/atpmg.md`](docs/tutorials/atpmg.md) |
-| 05 | **Google Colab** | Cloud GPU provisioning & Drive sync | [`docs/platforms/colab.md`](docs/platforms/colab.md) |
-| 06 | **HPC & SLURM** | Cluster submission & batch arrays | [`docs/platforms/hpc.md`](docs/platforms/hpc.md) |
+| 01 | **KRAS Apo** | Protein-only GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_colab.md`](docs/tutorials/kras_colab.md) |
+| 02 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/apo.md`](docs/tutorials/apo.md) |
+| 03 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/atpmg.md`](docs/tutorials/atpmg.md) |
+| 04 | **Google Colab** | Cloud GPU provisioning & Drive sync | [`docs/platforms/colab.md`](docs/platforms/colab.md) |
+| 05 | **HPC & SLURM** | Cluster submission & batch arrays | [`docs/platforms/hpc.md`](docs/platforms/hpc.md) |
 
 ---
 

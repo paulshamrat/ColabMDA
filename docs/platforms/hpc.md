@@ -24,7 +24,7 @@ Replace `/scratch/$USER` if your cluster uses another scratch location. On an
 existing checkout, use a reviewed commit or release tag. Record its commit/hash
 with the run and keep it fixed while jobs are active.
 
-Use the [installer](../installation.md) with this tool path, or
+Use the [installer](../../README.md#1-installation) with this tool path, or
 create the core environment with an existing Conda installation:
 
 ```bash

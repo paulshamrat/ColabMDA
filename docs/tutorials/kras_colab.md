@@ -13,7 +13,7 @@ flowchart LR
 ```
 
 > [!NOTE]
-> **Prerequisites & Installation:** Before beginning, ensure the `cmda` conda environment is installed on your local machine. For full multi-platform installation instructions, see the [Installation Guide](../installation.md).
+> **Prerequisites & Installation:** Before beginning, ensure the `cmda` conda environment is installed on your local machine. For full installation instructions, see the [README](../../README.md#1-installation).
 
 ---
 
@@ -201,7 +201,7 @@ In your local terminal:
 colab console -s cmda
 ```
 
-Inside the Colab console terminal, run the environment setup *(see the [Installation Guide](../installation.md#2-cloud-gpu-worker-provisioning-google-colab) for details)*:
+Inside the Colab console terminal, run the environment setup *(see the [README](../../README.md#google-colab-cloud-gpu) for details)*:
 
 ```bash
 # A. Cloud environment setup (unattended, no license prompts):

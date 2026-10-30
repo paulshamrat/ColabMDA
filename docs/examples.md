@@ -10,7 +10,7 @@ structure/model/preparation checks. They are not steps in the CDKL5 workflow.
 ### 1. Create and Fetch Trp-cage
 
 The 20-residue Trp-cage example tests software behavior quickly without replacing
-the full research workflows in the main README. **On Colab after the [main setup](installation.md)**, run:
+the full research workflows in the main README. **On Colab after the [main setup](../README.md#1-installation)**, run:
 
 ```bash
 cmda stage --example trpcage \
