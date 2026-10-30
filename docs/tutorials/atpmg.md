@@ -4,12 +4,6 @@ This tutorial provides the complete, end-to-end simulation workflow for **Track 
 
 To assemble this complex with crystallographic accuracy, ColabMDA transfers cofactor coordinates from a high-resolution homologous kinase donor structure (**CDK2**, PDB **8FP5** at 1.45 Å resolution) onto your modeled CDKL5 structures, parameterizes the active site using quantum-derived nucleotide force fields, and executes unrestrained molecular dynamics across triplicates.
 
-```mermaid
-flowchart LR
-    P1["💻 **Phase 1: Local Assembly**<br/>`assemble` • `prep` • `view`"] --> P2["🚀 **Phase 2: Cloud Sync**<br/>`colab new` • `cmda push`"]
-    P2 --> P3["⚡ **Phase 3: GPU Sim**<br/>`stage` • `sim eq/md` • `status`"] --> P4["📥 **Phase 4: Retrieval & QA**<br/>`cmda pull` • `cmda merge` • `compare`"]
-```
-
 > [!NOTE]
 > **Prerequisites & Installation:** Before beginning, ensure the `cmda` conda environment is installed on your local machine. For full installation instructions, see the [README](../../README.md#1-installation).
 

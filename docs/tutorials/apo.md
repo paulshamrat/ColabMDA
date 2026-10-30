@@ -2,16 +2,6 @@
 
 This tutorial provides the complete, end-to-end simulation workflow for the **Apo state** (unliganded protein in water) using human cyclin-dependent kinase-like 5 (**CDKL5**, UniProt **O76039**, PDB **4BGQ** Chain A, residues **1–303**) with Wild-Type (WT) and the disease-associated mutant **L119R** as the comparative pair.
 
-```mermaid
-flowchart LR
-    P1["💻 **Phase 1: Local Prep**<br/>`fetch` • `model` • `prep` • `view`"]
-    P2["🚀 **Phase 2: Cloud Sync**<br/>`colab new` • `cmda push`"]
-    P3["⚡ **Phase 3: GPU Sim**<br/>`stage` • `sim eq/md` • `analyze`"]
-    P4["📥 **Phase 4: Retrieval**<br/>`cmda pull` • `cmda view`"]
-
-    P1 --> P2 --> P3 --> P4
-```
-
 > [!NOTE]
 > **Prerequisites & Installation:** Before beginning, ensure the `cmda` conda environment is installed on your local machine. For full installation instructions, see the [README](../../README.md#1-installation).
 

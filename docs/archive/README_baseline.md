@@ -15,13 +15,6 @@ ColabMDA uses a **Hybrid Architecture** designed to preserve free cloud compute 
 | **1. Local Environment (`cmda`)** | Your Laptop / Workstation (macOS, Linux, WSL) | Python, MODELLER, Open-Source PyMOL, AmberTools (`tleap`), MDAnalysis, `google-colab-cli`, ColabMDA CLI | **Do this right now (one-time setup).** Used for Phase 1 (Modeling, Structure Prep, Solvation, PyMOL QA, Cloud Management) and Phase 4 (Inspection). |
 | **2. Cloud GPU Environment (`cmda`)** | Google Colab Cloud VM (NVIDIA T4 / A100 / L4) | Miniforge, OpenMM (CUDA), AmberTools `tleap`, MDAnalysis, ColabMDA CLI | **Do this in Phase 3** (only after launching your GPU instance). Runs 100% unattended in ~90 seconds with zero license prompts. |
 
-```mermaid
-flowchart LR
-    A["💻 Local Machine<br/>(cmda env: Modeller, tleap & PyMOL)"] -->|"cmda push<br/>(One Single Command)"| B["☁️ Google Drive<br/>(/MyDrive/research/projects)"]
-    B <-->|"Mount & Compute"| C["⚡ Google Colab<br/>(cmda env: OpenMM CUDA GPU)"]
-    B -->|"cmda pull<br/>(One Single Command)"| A
-```
-
 ---
 
 ### 1.1. Local Installation (Do This Now on Your Workstation)
@@ -164,16 +157,6 @@ research/projects/cmda-example/           # Project root in Google Drive / local
 ## 3. Step-by-Step Simulation Workflow (4 Phases)
 
 ColabMDA divides work logically into four sequential phases:
-
-```mermaid
-flowchart LR
-    P1["💻 **Phase 1: Local Prep**<br/>`fetch` • `model` • `prep` • `view`"]
-    P2["🚀 **Phase 2: Cloud Sync**<br/>`colab new` • `cmda push`"]
-    P3["⚡ **Phase 3: GPU Sim**<br/>`stage` • `sim eq/md` • `analyze`"]
-    P4["📥 **Phase 4: Retrieval**<br/>`cmda pull` • `cmda view`"]
-
-    P1 --> P2 --> P3 --> P4
-```
 
 ---
 
