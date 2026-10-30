@@ -11,9 +11,8 @@
   core dependency specification. Optional MODELLER stays separate for license
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
 - `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
-  Main README retains its complete baseline. Shared CDKL5 scientific commands live
-  in docs/tutorials/apo.md and docs/tutorials/atpmg.md; docs/platforms/{colab,hpc}.md owns platform
-  setup and execution. Keep one scientific workflow across platforms; no user YAML.
+  Main README retains its complete baseline. Complete scientific commands and workflows live
+  in docs/tutorials/ (kras_colab.md, apo.md, atpmg.md). Keep one scientific workflow across platforms; no user YAML.
   examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
   examples/hpc/analyze.slurm runs shared merge/analysis on CPUs without a GPU.
 - `cmda stage --example trpcage --root ...` installs templates and records hashes

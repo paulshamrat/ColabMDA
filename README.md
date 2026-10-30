@@ -59,17 +59,15 @@ pytest tests/ -v
 
 ---
 
-## 2. Documentation & Standalone Guides
+## 2. Tutorials & Walkthroughs
 
-All in-depth scientific tutorials, protonation tables, parameters, and platform deployment guides are modularized in `docs/`:
+All in-depth scientific tutorials, protonation tables, and simulation parameters are modularized in `docs/tutorials/`:
 
 | # | Guide | Description | Link |
 | :-: | :--- | :--- | :--- |
 | 01 | **KRAS Apo** | Protein-only GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_colab.md`](docs/tutorials/kras_colab.md) |
 | 02 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/apo.md`](docs/tutorials/apo.md) |
 | 03 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/atpmg.md`](docs/tutorials/atpmg.md) |
-| 04 | **Google Colab** | Cloud GPU provisioning & Drive sync | [`docs/platforms/colab.md`](docs/platforms/colab.md) |
-| 05 | **HPC & SLURM** | Cluster submission & batch arrays | [`docs/platforms/hpc.md`](docs/platforms/hpc.md) |
 
 ---
 

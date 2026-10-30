@@ -1,8 +1,6 @@
 # Contributing to ColabMDA
 
-The [README](README.md) is the complete user guide. Scientific walkthroughs are
-[protein in water](docs/tutorials/apo.md) and [ATP/Mg](docs/tutorials/atpmg.md); platform setup is in
-[Colab](docs/platforms/colab.md) and [HPC](docs/platforms/hpc.md).
+The [README](README.md) is the complete user guide. Scientific walkthroughs are available in [`docs/tutorials/`](docs/tutorials/) (KRAS Apo, CDKL5 Apo, and CDKL5 Holo).
 
 ## Development
 
