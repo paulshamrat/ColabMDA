@@ -1,51 +1,49 @@
-# Installation & Environment Setup
+# Installation & Setup
 
-ColabMDA uses a **Hybrid Architecture** designed to preserve free cloud compute units and avoid session timeouts. To keep workflows simple and consistent, the conda environment is named **`cmda`** across both local and cloud environments:
+ColabMDA divides work between your local computer and Google Colab:
+* **Local machine (`cmda`):** Structure modeling, protonation, and PyMOL inspection.
+* **Google Colab (`cmda`):** GPU molecular dynamics simulations.
 
-| Environment | Where It Runs | What Gets Installed | When To Install & Use |
+| Environment | Where It Runs | What Gets Installed | When To Use |
 | :--- | :--- | :--- | :--- |
-| **1. Local Environment (`cmda`)** | Your Laptop / Workstation (macOS, Linux, WSL) | Python, MODELLER, Open-Source PyMOL, AmberTools (`tleap`), MDAnalysis, `google-colab-cli`, ColabMDA CLI | **Do this right now (one-time setup).** Used for Phase 1 (Modeling, Structure Prep, Solvation, PyMOL QA, Cloud Management) and Phase 4 (Inspection). |
-| **2. Cloud GPU Environment (`cmda`)** | Google Colab Cloud VM (NVIDIA T4 / A100 / L4) | Miniforge, OpenMM (CUDA), AmberTools `tleap`, MDAnalysis, ColabMDA CLI | **Do this in Phase 3** (only after launching your GPU instance). Runs 100% unattended in ~90 seconds with zero license prompts. |
+| **Local (`cmda`)** | Linux, macOS, WSL2 | OpenMM, PyMOL, Modeller, AmberTools, `cmda` CLI | Phase 1 (Prep) & Phase 4 (Analysis) |
+| **Cloud (`cmda`)** | Google Colab | OpenMM (CUDA), AmberTools, `cmda` CLI | Phase 3 (Simulation) |
 
 ---
 
-## 1. Local Workstation Installation
+## 1. Local Workstation Setup
 
-A single bootstrap script sets up Miniforge, the `cmda` conda environment, Modeller, PyMOL, AmberTools, MDAnalysis, and `google-colab-cli` automatically—**without requiring you to clone the git repository**:
+Run this one-time setup on your local machine:
 
 ```bash
-# 1. Run the universal bootstrap script (runs in-memory, leaves no files behind):
+# 1. Run the setup script:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
 
-# 2. Activate the environment
+# 2. Activate environment:
 source ~/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 
-# 3. Authenticate Google Colab CLI (one-time browser login)
+# 3. Log in to Google Colab (one-time browser login):
 colab sessions
 ```
 
-> [!NOTE]
-> **Modeller Academic License:** Modeller is completely free for academic research ([registration](https://salilab.org/modeller/registration.html)). During setup, the installer will pause and prompt you to enter your license key, or you can provide it beforehand:
-> ```bash
-> KEY_MODELLER="YOUR_ACADEMIC_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
-> ```
+> [!TIP]
+> **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
+> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
 
 <details>
-<summary><b>🛠️ Developer Alternative: Clone from Source</b></summary>
+<summary><b>🛠️ Install from Source</b></summary>
 
-If you are developing new features or contributing code to ColabMDA, clone and install locally:
 ```bash
 git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
 cd ~/ColabMDA
-KEY_MODELLER="YOUR_ACADEMIC_KEY" bash scripts/setup.sh
+KEY_MODELLER="YOUR_KEY" bash scripts/setup.sh
 ```
 </details>
 
 <details>
-<summary><b>🧪 Running the Test Suite Locally</b></summary>
+<summary><b>🧪 Run Test Suite</b></summary>
 
-Verify code integrity, force field mechanics, and CLI parsing (`cmda` env required):
 ```bash
 conda activate cmda
 pytest tests/ -v
@@ -54,19 +52,17 @@ pytest tests/ -v
 
 ---
 
-## 2. Cloud GPU Worker Provisioning (Google Colab)
+## 2. Google Colab Setup
 
-> 💡 **Where to run this:** Do not run this locally. Execute this inside your Google Colab instance (via `colab console` or the web terminal) during **Phase 3** of your workflow after launching a GPU runtime.
+> 💡 **Where to run:** Inside your Colab terminal or `colab console` during **Phase 3**.
 
-Google Colab instances are ephemeral (they spin up on demand). When you launch your GPU instance in Phase 3, the exact same bootstrap script provisions the cloud environment in ~90 seconds:
+Run this command once inside Colab to install OpenMM and AmberTools (~90 seconds):
 
 ```bash
-# Provision Cloud GPU Worker (executed inside Colab console):
 curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 ```
 
 > [!NOTE]
-> **Zero License Prompts on Cloud:**  
-> Because homology modeling and coordinate building are already completed locally on your workstation, MODELLER and PyMOL are automatically excluded on Colab (`WITH_MODELLER=0`). Google Colab only installs Miniforge, OpenMM (CUDA), AmberTools `tleap`, MDAnalysis, and ColabMDA. Setup runs **100% unattended in ~90 seconds with zero interactive prompts**.
+> Modeller and PyMOL are automatically skipped on Google Colab (`WITH_MODELLER=0`). Setup runs completely unattended with no prompts.
