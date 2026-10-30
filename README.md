@@ -41,16 +41,14 @@ bash scripts/setup.sh
 
 All in-depth scientific tutorials, protonation tables, parameters, and platform deployment guides are modularized in `docs/`:
 
-| Topic | What It Covers | Standalone Guide |
+| Guide | Description | Link |
 | :--- | :--- | :--- |
-| **🚀 Universal Installation** | 1-Command setup for local workstations & Colab GPU workers | [📖 `docs/installation.md`](docs/installation.md) |
-| **💧 Apo Kinase (CDKL5)** | Complete protein-in-water workflow (Phases 1–4, in-context protonation & math) | [💧 `docs/tutorials/apo.md`](docs/tutorials/apo.md) |
-| **⚡ Holo Kinase (ATP + 1 Mg²⁺)** | Track 2: Catalytic active-site dynamics, CDK2 donor transfer & quantum parameters | [⚡ `docs/tutorials/atpmg.md`](docs/tutorials/atpmg.md) |
-| **🧬 KRAS Apo Walkthrough** | Complete 4-phase workflow simulating KRAS GTPase (4LDJ WT vs G12D) | [🧬 `docs/tutorials/kras_colab.md`](docs/tutorials/kras_colab.md) |
-| **🧪 Examples & Smoke Tests** | Trp-cage, FKBP12, and H-Ras quick verification scripts | [🧪 `docs/examples.md`](docs/examples.md) |
-| **☁️ Google Colab Platform** | Ephemeral GPU setup, Google Drive persistence & `cmda push` | [☁️ `docs/platforms/colab.md`](docs/platforms/colab.md) |
-| **🖥️ HPC & SLURM Platform** | Submitting SLURM batch job arrays, GPU partitions & scratch storage | [🖥️ `docs/platforms/hpc.md`](docs/platforms/hpc.md) |
-| **📜 Complete Baseline Manual** | The original, unedited 739-line reference manual | [📜 `docs/archive/README_baseline.md`](docs/archive/README_baseline.md) |
+| **Installation** | Local workstation & Google Colab GPU setup | [`docs/installation.md`](docs/installation.md) |
+| **KRAS Walkthrough** | Quick-start GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_colab.md`](docs/tutorials/kras_colab.md) |
+| **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/apo.md`](docs/tutorials/apo.md) |
+| **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/atpmg.md`](docs/tutorials/atpmg.md) |
+| **Google Colab** | Cloud GPU provisioning & Drive sync | [`docs/platforms/colab.md`](docs/platforms/colab.md) |
+| **HPC & SLURM** | Cluster submission & batch arrays | [`docs/platforms/hpc.md`](docs/platforms/hpc.md) |
 
 ---
 
