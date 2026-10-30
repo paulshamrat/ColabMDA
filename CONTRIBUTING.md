@@ -1,6 +1,6 @@
 # Contributing to ColabMDA
 
-The [README](README.md) is the complete user guide. Scientific walkthroughs are available in [`docs/tutorials/`](docs/tutorials/) (KRAS Apo, CDKL5 Apo, and CDKL5 Holo).
+The [README](README.md) is the complete user guide. Scientific walkthroughs are available in [`docs/tutorials/`](docs/tutorials/) (Trp-Cage Quickstart, KRAS Apo, CDKL5 Apo, and CDKL5 Holo).
 
 ## Development
 
@@ -105,7 +105,7 @@ below the title, followed by Colab interruption recovery and the starting path.
 Platform/dependency details belong in Platform Setup, architecture in section 2,
 and one compact command reference near the end.
 
-Shared scientific guides live in docs/tutorials/ (kras_apo.md, cdkl5_apo.md, cdkl5_atpmg.md). Use terminal commands for Colab; do not recreate notebook
+Shared scientific guides live in docs/tutorials/ (trpcage_apo.md, kras_apo.md, cdkl5_apo.md, cdkl5_atpmg.md). Use terminal commands for Colab; do not recreate notebook
 instructions or a separate documentation site. Check local links, shell blocks
 and CLI arguments after guide changes. Keep account-specific deployment records
 in the private execution project. Record unreleased changes without announcing

@@ -65,9 +65,10 @@ All in-depth scientific tutorials, protonation tables, and simulation parameters
 
 | # | Guide | Description | Link |
 | :-: | :--- | :--- | :--- |
-| 01 | **KRAS Apo** | Protein-only GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_apo.md`](docs/tutorials/kras_apo.md) |
-| 02 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/cdkl5_apo.md`](docs/tutorials/cdkl5_apo.md) |
-| 03 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/cdkl5_atpmg.md`](docs/tutorials/cdkl5_atpmg.md) |
+| 01 | **Trp-Cage Quickstart** | 5-minute smoke test & GPU verification (`1L2Y`) | [`docs/tutorials/trpcage_apo.md`](docs/tutorials/trpcage_apo.md) |
+| 02 | **KRAS Apo** | Protein-only GTPase tutorial (WT vs G12D) | [`docs/tutorials/kras_apo.md`](docs/tutorials/kras_apo.md) |
+| 03 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/cdkl5_apo.md`](docs/tutorials/cdkl5_apo.md) |
+| 04 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/cdkl5_atpmg.md`](docs/tutorials/cdkl5_atpmg.md) |
 
 ---
 

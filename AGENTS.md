@@ -12,7 +12,7 @@
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
 - `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
   Main README retains its complete baseline. Complete scientific commands and workflows live
-  in docs/tutorials/ (kras_apo.md, cdkl5_apo.md, cdkl5_atpmg.md). Keep one scientific workflow across platforms; no user YAML.
+  in docs/tutorials/ (trpcage_apo.md, kras_apo.md, cdkl5_apo.md, cdkl5_atpmg.md). Keep one scientific workflow across platforms; no user YAML.
   examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
   examples/hpc/analyze.slurm runs shared merge/analysis on CPUs without a GPU.
 - `cmda stage --example trpcage --root ...` installs templates and records hashes
@@ -156,7 +156,7 @@ diagnostics separate from the main command sequence. Preserve historical study
 models and pilot evidence when adding the public-input route.
 
 Keep architecture consolidated in README section 2: tool repository, then shared
-simulation project. The optional Trp-cage tutorial and layout belong in docs/examples.md; section 4
+simulation project. The Trp-cage quickstart tutorial belongs in docs/tutorials/trpcage_apo.md; section 4
 is the short 4BGQ pilot.
 State guides link to the shared layout instead of repeating its tree. Keep one
 compact command reference near the end (section 5), with options available through
