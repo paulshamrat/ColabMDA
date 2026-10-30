@@ -10,8 +10,8 @@
 
 ColabMDA divides work between your local computer and Google Colab:
 
-### Local Machine (Linux, macOS, WSL2)
-Run this one-time setup in your local terminal:
+### Local Workstation
+Run this one-time setup in your terminal (Linux or Windows WSL):
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
