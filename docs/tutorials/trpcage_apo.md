@@ -20,7 +20,7 @@ research/projects/trpcage-example/
         │
         ├── simulation/
         │   └── WT/
-        │       ├── 01_prep/              # Step 1: model.pdb, solvated.pdb, system.prmtop, system.inpcrd, prep.json
+        │       ├── 01_prep/              # Step 1: system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
         │       ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/
         │       └── 03_md/                # Step 3: Production replica (1 ns smoke test)
         │           └── r1/               # stripped.prmtop, prod_keep_ligand.dcd, prod_full.log, chunks/
