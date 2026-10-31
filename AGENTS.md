@@ -12,7 +12,7 @@
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
 - `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
   Main README retains its complete baseline. Complete scientific commands and workflows live
-  in docs/tutorials/ (trpcage_apo.md, kras_apo.md, cdkl5_apo.md, cdkl5_atpmg.md). Keep one scientific workflow across platforms; no user YAML.
+  in docs/tutorials/ (trpcage_apo.md, kras_apo.md, kras_apo_colab.md, cdkl5_apo.md, cdkl5_atpmg.md). Keep one scientific workflow across platforms; no user YAML.
   examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
   examples/hpc/analyze.slurm runs shared merge/analysis on CPUs without a GPU.
 - `cmda stage --example trpcage --root ...` installs templates and records hashes

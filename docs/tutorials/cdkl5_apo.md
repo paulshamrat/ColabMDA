@@ -49,7 +49,7 @@ research/projects/cmda-example/
 *Execute this phase on your local laptop or workstation CPU. No GPU is required.*
 
 ### 1.0. Local Machine Setup (One-Time)
-Run this one-time setup in your terminal (Linux or Windows WSL):
+Run this one-time setup in your terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:

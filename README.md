@@ -66,8 +66,8 @@ All in-depth scientific tutorials, protonation tables, and simulation parameters
 | # | Guide | Description | Link |
 | :-: | :--- | :--- | :--- |
 | 01 | **Trp-Cage Quickstart** | 5-minute smoke test & GPU verification (`1L2Y`) | [`docs/tutorials/trpcage_apo.md`](docs/tutorials/trpcage_apo.md) |
-| 02 | **KRAS Apo (Colab-First)** | Pure Google Colab CLI workflow (WT vs G12D) | [`docs/tutorials/kras_apo_colab.md`](docs/tutorials/kras_apo_colab.md) |
-| 03 | **KRAS Apo (Workstation)** | Local modeling + Cloud GPU hybrid workflow | [`docs/tutorials/kras_apo.md`](docs/tutorials/kras_apo.md) |
+| 02 | **KRAS Apo (Google Colab)** | Cloud GPU CLI walkthrough on Google Drive (WT vs G12D) | [`docs/tutorials/kras_apo_colab.md`](docs/tutorials/kras_apo_colab.md) |
+| 03 | **KRAS Apo (Hybrid)** | Local preparation + Cloud GPU hybrid workflow | [`docs/tutorials/kras_apo.md`](docs/tutorials/kras_apo.md) |
 | 04 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/cdkl5_apo.md`](docs/tutorials/cdkl5_apo.md) |
 | 05 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/cdkl5_atpmg.md`](docs/tutorials/cdkl5_atpmg.md) |
 
