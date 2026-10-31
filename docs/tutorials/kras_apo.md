@@ -465,7 +465,15 @@ cmda view --state apo --variant G12D --replica r1 --resi 12
 
 # Or launch directly with native PyMOL command:
 pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
+```
 
+#### Interactive PyMOL GUI (Desktop App)
+If opening PyMOL from your desktop application:
+1. **Load Topology:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/stripped.prmtop`.
+2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd` (ensure **Load into object** matches the loaded protein).
+3. **Play:** Use `S` (Show) → `as cartoon` and click `▶` on the bottom-right movie controls.
+
+```bash
 # Generate comparative 3x8 transition snapshot grids:
 cmda snapshots --state apo
 ```

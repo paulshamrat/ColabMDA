@@ -321,6 +321,12 @@ Open the topology and trajectory directly from your terminal:
 pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
 ```
 
+#### Option C: Interactive PyMOL GUI (Desktop App)
+If opening PyMOL from your desktop application:
+1. **Load Topology:** Go to **File → Open...** (or drag and drop) and select `data/apo/simulation/WT/03_md/r1/stripped.prmtop` (or `WT.pdb`).
+2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd`. Ensure **Load into object** is set to the already-loaded protein object.
+3. **Play & Format:** Use the right-hand panel buttons (`S` Show → `as cartoon`, `C` Color → `cyan`) and click `▶` on the bottom-right movie controls to play.
+
 #### Inside PyMOL (Quick Commands):
 Enter these commands in the PyMOL command bar to clean up and play the simulation:
 
