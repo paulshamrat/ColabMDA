@@ -11,17 +11,7 @@
 ColabMDA divides work between your local computer and Google Colab:
 
 ### Local Workstation
-ColabMDA runs on **native Linux** (Ubuntu, Debian, Fedora, Arch), **macOS**, or **Windows via WSL2**.
-
-> [!TIP]
-> **Windows Users (WSL2 Setup):**
-> If you are on Windows, install WSL2 with Ubuntu from PowerShell or Windows Terminal (run as Administrator):
-> ```powershell
-> wsl --install -d Ubuntu
-> ```
-> Restart your computer if prompted. For step-by-step guidance and troubleshooting, visit Microsoft's official [WSL2 Installation Guide](https://learn.microsoft.com/en-us/windows/wsl/install). Once inside your **Ubuntu terminal**, proceed with the commands below.
-
-Run this one-time setup in your terminal:
+Run this one-time setup in your terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
