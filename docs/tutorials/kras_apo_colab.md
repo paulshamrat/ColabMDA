@@ -162,8 +162,15 @@ cat data/apo/analysis/G12D/02_eq/qc.txt
 
 ## 6. Production MD Across Triplicates (100 ns)
 
-Fork production replicas directly from `02_eq/` with distinct random velocity seeds:
+### Why Triplicates (`r1`, `r2`, `r3`)?
+Molecular dynamics is inherently stochastic. A single 100 ns trajectory can easily become trapped in a metastable conformational sub-state. Running **triplicates** ($N=3$ independent trajectories) ensures conformational sampling convergence, allowing you to compute true **Mean ± SD** statistical error bands for RMSD, Radius of Gyration, and residue fluctuations.
 
+> 💡 **Why Shared `02_eq/`? (From `main`)**
+> Equilibration only needs to be run **once** per system. Replicas (`r1`, `r2`, `r3`) fork directly from the final relaxed coordinates in `02_eq/state.xml` using distinct Maxwell-Boltzmann random velocity seeds. This eliminates redundant equilibration, saving hours of GPU time on Google Colab while guaranteeing strict statistical independence.
+
+### Running the Replicas:
+
+#### Option A: Run Sequentially
 ```bash
 # Wild-Type Triplicates (100 ns each):
 cmda sim md --state apo --variant WT --replica r1 --total-ns 100
@@ -174,6 +181,17 @@ cmda sim md --state apo --variant WT --replica r3 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r2 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
+```
+
+#### Option B: Automated Loop (Hands-Off)
+To run all triplicates across WT and G12D continuously without manual intervention:
+```bash
+for variant in WT G12D; do
+  for rep in r1 r2 r3; do
+    echo "=== Launching ${variant} replica ${rep} (100 ns) ==="
+    cmda sim md --state apo --variant "${variant}" --replica "${rep}" --total-ns 100
+  done
+done
 ```
 
 > [!TIP]
