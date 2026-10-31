@@ -188,18 +188,22 @@ cmda sim md --state apo --variant WT --replica r1 --total-ns 100
 ```
 
 > [!IMPORTANT]
-> **💡 How to Resume After a Google Colab Disconnection:**
-> Google Colab GPU sessions have continuous runtime limits (typically 4–12 hours) and will eventually disconnect. **Your progress is completely safe on Google Drive.**
+> **💡 How to Resume After a Session Disconnection or Timeout:**
+> Google Colab GPU sessions have runtime limits (typically 4–12 hours) before the instance is recycled. Because a recycled Colab instance starts with a fresh filesystem, **you must reinstall the environment on the new instance**. Your simulation progress and checkpoints remain safe on Google Drive.
 >
-> If your Colab session times out or disconnects:
-> 1. **Reconnect from your local workstation:**
+> If your session times out or disconnects:
+> 1. **Launch a new session & mount Drive (Local Terminal):**
 >    ```bash
->    # Re-enter console (or launch a new instance if expired: colab new -s cmda --gpu T4 && colab drivemount -s cmda)
+>    colab new -s cmda --gpu T4
+>    colab drivemount --session cmda
 >    colab console -s cmda
 >    ```
-> 2. **Reactivate environment on Colab:**
+> 2. **Reinstall environment & navigate to Drive (Colab Console, ~90 seconds):**
 >    ```bash
->    source /root/miniforge3/etc/profile.d/conda.sh && conda activate cmda
+>    export KEY_MODELLER="YOUR_MODELLER_KEY"
+>    curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+>    source /root/miniforge3/etc/profile.d/conda.sh
+>    conda activate cmda
 >    cd /content/drive/MyDrive/research/projects/kras-example
 >    ```
 > 3. **Re-run the exact same command:**
@@ -301,19 +305,50 @@ When visualizing or analyzing trajectories, the reference topology file used mus
 ---
 
 ### 8.3. PyMOL Trajectory Visualization
-Open trajectories directly in local PyMOL:
+
+To inspect trajectories, always open the solvent-stripped topology (`stripped.prmtop`) paired with the stripped trajectory (`prod_keep_ligand.dcd`):
+
+#### Option A: Quick Launch via CLI
+The `cmda view` command automatically generates a PyMOL script with backbone fitting and launches the GUI:
 
 ```bash
-# 1. View Wild-Type production trajectory in PyMOL:
+# View Wild-Type trajectory:
 cmda view --state apo --variant WT --replica r1
 
-# 2. View Mutant (G12D) production trajectory in PyMOL:
-cmda view --state apo --variant G12D --replica r1
+# View Mutant trajectory (highlighting mutated residue 12):
+cmda view --state apo --variant G12D --replica r1 --resi 12
+```
 
-# Or launch directly with native PyMOL command:
+#### Option B: Launch Directly with Native PyMOL
+Open the topology and trajectory directly from your terminal:
+
+```bash
 pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
+```
 
-# 3. Generate comparative 3x8 transition snapshot grids:
+#### Inside PyMOL (Quick Commands):
+Enter these commands in the PyMOL command bar to clean up and play the simulation:
+
+```text
+# 1. Fit backbone frame-by-frame (eliminates tumbling & drift):
+intra_fit all and name CA
+
+# 2. Show clean secondary structure cartoon:
+show cartoon, all
+color cyan, all and name C*
+
+# 3. Highlight residue 12 as yellow sticks:
+show sticks, resi 12 and not name N+C+O+H
+color yellow, resi 12
+
+# 4. Play trajectory:
+# Use the ▶ button in the bottom-right movie controls, or Left/Right arrow keys.
+```
+
+#### Render Comparative Snapshot Grids:
+Render 3×8 transition snapshot grids comparing structural conformations across time:
+
+```bash
 cmda snapshots --state apo
 ```
 
