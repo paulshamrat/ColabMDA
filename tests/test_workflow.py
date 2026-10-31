@@ -330,3 +330,59 @@ def test_chunk_discovery_and_merge_logs(tmp_path):
     assert len(lines) == 3
     assert "100" in lines[1]
     assert "200" in lines[2]
+
+
+def test_fetch_synthetic_pdb_without_uniprot(tmp_path, monkeypatch):
+    """Verify cmda fetch can extract direct PDB structures without UniProt mapping (e.g. Trp-cage 1L2Y)."""
+    from types import SimpleNamespace
+
+    from Bio.PDB import Atom, Chain, Model, Residue, Structure
+
+    from colabmda.core.workflow import fetch
+
+    # Mock fetch_archive to avoid network calls
+    def mock_fetch_archive(pdb_id, dest_dir):
+        s = Structure.Structure("1L2Y")
+        m = Model.Model(0)
+        c = Chain.Chain("A")
+        # 3-residue dummy
+        for i, (resname, atom_name) in enumerate([("ASN", "CA"), ("LEU", "CA"), ("TYR", "CA")], 1):
+            r = Residue.Residue((" ", i, " "), resname, "")
+            a = Atom.Atom(
+                atom_name, np.array([float(i), 0.0, 0.0]), 20.0, 1.0, " ", atom_name, i, "C"
+            )
+            r.add(a)
+            c.add(r)
+        m.add(c)
+        s.add(m)
+        cif_file = dest_dir / f"{pdb_id}.cif"
+        cif_file.write_text("data_1L2Y\n# mock cif\n")
+        return s, cif_file, f"https://mock/{pdb_id}.cif"
+
+    monkeypatch.setattr("colabmda.core.workflow.fetch_archive", mock_fetch_archive)
+
+    args = SimpleNamespace(
+        pdb_id="1L2Y",
+        uniprot_id=None,
+        chain="A",
+        range=None,
+        mutations="",
+        state="apo",
+        root=str(tmp_path),
+    )
+    fetch(args)
+
+    target_dir = tmp_path / "data/apo/structure/1L2Y"
+    assert (target_dir / "STRUCTURE_DONE").exists()
+    assert (target_dir / "raw/template.pdb").exists()
+    assert (target_dir / "raw/uniprot.fasta").exists()
+    assert (target_dir / "raw/residues.json").exists()
+    assert (target_dir / "raw/input.json").exists()
+    assert (target_dir / "variants/WT/WT.pdb").exists()
+    assert (target_dir / "variants/WT/MODEL_DONE").exists()
+
+    input_data = json.loads((target_dir / "raw/input.json").read_text())
+    assert input_data["pdb"] == "1L2Y"
+    assert input_data["uniprot"] == "1L2Y"
+    assert input_data["sequence"] == "NLY"
+    assert input_data["range"] == [1, 3]

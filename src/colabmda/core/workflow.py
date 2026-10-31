@@ -30,7 +30,12 @@ def write_json(path, record):
 
 
 def fetch(args):
-    target_tag = f"{args.uniprot_id.upper()}_{args.pdb_id.upper()}"
+    uniprot_id = getattr(args, "uniprot_id", None)
+    if uniprot_id and uniprot_id.upper() in {"NONE", "PDB", "SELF"}:
+        uniprot_id = None
+    target_tag = (
+        f"{uniprot_id.upper()}_{args.pdb_id.upper()}" if uniprot_id else args.pdb_id.upper()
+    )
     paths = ProjectPaths(resolve_project_root(args.root), state=args.state, target=target_tag)
     base = paths.state_dir / "structure" if paths.state_dir else paths.structure_dir
     if ((base / "raw").exists() or (base / "STRUCTURE_DONE").exists()) and not (
@@ -47,82 +52,119 @@ def fetch(args):
     structure, archive, url = fetch_archive(args.pdb_id, raw)
     chain = next(iter(structure))[args.chain]
     fasta = raw / "uniprot.fasta"
-    payload = urlopen(
-        f"https://rest.uniprot.org/uniprotkb/{args.uniprot_id}.fasta", timeout=60
-    ).read()
-    if fasta.exists() and fasta.read_bytes() != payload:
-        raise ValueError("Different existing UniProt sequence preserved")
-    fasta.write_bytes(payload)
-    sequence = str(SeqIO.read(io.StringIO(payload.decode()), "fasta").seq)
-    start, end = args.range
-    if not 1 <= start <= end <= len(sequence):
-        raise ValueError("Requested UniProt range is outside the sequence")
 
     meta_method = "X-RAY"
     meta_resolution = None
     author_to_uni = {}
-    if archive.suffix == ".cif":
-        d = MMCIF2Dict(str(archive))
-        refs = zip(
-            d["_struct_ref_seq.pdbx_strand_id"],
-            d["_struct_ref_seq.pdbx_db_accession"],
-            d["_struct_ref_seq.seq_align_beg"],
-            d["_struct_ref_seq.seq_align_end"],
-            d["_struct_ref_seq.db_align_beg"],
-        )
-        blocks = [
-            (int(a), int(b), int(c))
-            for chains, accession, a, b, c in refs
-            if args.chain in chains.split(",") and accession == args.uniprot_id
-        ]
-        if not blocks:
-            raise ValueError("No matching mmCIF chain/UniProt reference mapping")
-        rows = zip(
-            d["_atom_site.auth_asym_id"],
-            d["_atom_site.label_atom_id"],
-            d["_atom_site.auth_seq_id"],
-            d["_atom_site.pdbx_PDB_ins_code"],
-            d["_atom_site.label_seq_id"],
-        )
-        for ch, atom, author, insertion, label in rows:
-            if ch != args.chain or atom != "CA" or not label.isdigit():
-                continue
-            for lo, hi, db in blocks:
-                if lo <= int(label) <= hi:
-                    key = (int(author), "" if insertion in {".", "?"} else insertion)
-                    value = db + int(label) - lo
-                    if key in author_to_uni and author_to_uni[key] != value:
-                        raise ValueError("Ambiguous archive reference mapping")
-                    author_to_uni[key] = value
 
-        m = d.get("_exptl.method")
-        if isinstance(m, list) and m:
-            meta_method = str(m[0])
-        elif isinstance(m, str):
-            meta_method = m
-        r_val = (
-            d.get("_refine.ls_d_res_high")
-            or d.get("_reflns.d_resolution_high")
-            or d.get("_em_3d_reconstruction.resolution")
-        )
-        if isinstance(r_val, list) and r_val:
-            r_val = r_val[0]
-        if r_val and str(r_val).strip() not in {".", "?"}:
-            try:
-                meta_resolution = float(r_val)
-            except (ValueError, TypeError):
-                pass
+    if uniprot_id:
+        payload = urlopen(
+            f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta", timeout=60
+        ).read()
+        if fasta.exists() and fasta.read_bytes() != payload:
+            raise ValueError("Different existing UniProt sequence preserved")
+        fasta.write_bytes(payload)
+        sequence = str(SeqIO.read(io.StringIO(payload.decode()), "fasta").seq)
+        start, end = args.range if getattr(args, "range", None) else (1, len(sequence))
+        if not 1 <= start <= end <= len(sequence):
+            raise ValueError("Requested UniProt range is outside the sequence")
+
+        if archive.suffix == ".cif":
+            d = MMCIF2Dict(str(archive))
+            refs = zip(
+                d["_struct_ref_seq.pdbx_strand_id"],
+                d["_struct_ref_seq.pdbx_db_accession"],
+                d["_struct_ref_seq.seq_align_beg"],
+                d["_struct_ref_seq.seq_align_end"],
+                d["_struct_ref_seq.db_align_beg"],
+            )
+            blocks = [
+                (int(a), int(b), int(c))
+                for chains, accession, a, b, c in refs
+                if args.chain in chains.split(",") and accession == uniprot_id
+            ]
+            if not blocks:
+                raise ValueError("No matching mmCIF chain/UniProt reference mapping")
+            rows = zip(
+                d["_atom_site.auth_asym_id"],
+                d["_atom_site.label_atom_id"],
+                d["_atom_site.auth_seq_id"],
+                d["_atom_site.pdbx_PDB_ins_code"],
+                d["_atom_site.label_seq_id"],
+            )
+            for ch, atom, author, insertion, label in rows:
+                if ch != args.chain or atom != "CA" or not label.isdigit():
+                    continue
+                for lo, hi, db in blocks:
+                    if lo <= int(label) <= hi:
+                        key = (int(author), "" if insertion in {".", "?"} else insertion)
+                        value = db + int(label) - lo
+                        if key in author_to_uni and author_to_uni[key] != value:
+                            raise ValueError("Ambiguous archive reference mapping")
+                        author_to_uni[key] = value
+
+            m = d.get("_exptl.method")
+            if isinstance(m, list) and m:
+                meta_method = str(m[0])
+            elif isinstance(m, str):
+                meta_method = m
+            r_val = (
+                d.get("_refine.ls_d_res_high")
+                or d.get("_reflns.d_resolution_high")
+                or d.get("_em_3d_reconstruction.resolution")
+            )
+            if isinstance(r_val, list) and r_val:
+                r_val = r_val[0]
+            if r_val and str(r_val).strip() not in {".", "?"}:
+                try:
+                    meta_resolution = float(r_val)
+                except (ValueError, TypeError):
+                    pass
+        else:
+            for line in archive.read_text().splitlines():
+                if (
+                    line.startswith("DBREF ")
+                    and line[12] == args.chain
+                    and line[33:41].strip() == uniprot_id
+                ):
+                    lo, hi, db = int(line[14:18]), int(line[20:24]), int(line[55:60])
+                    author_to_uni.update({(i, ""): db + i - lo for i in range(lo, hi + 1)})
+            if not author_to_uni:
+                raise ValueError("No matching PDB DBREF mapping")
     else:
-        for line in archive.read_text().splitlines():
-            if (
-                line.startswith("DBREF ")
-                and line[12] == args.chain
-                and line[33:41].strip() == args.uniprot_id
-            ):
-                lo, hi, db = int(line[14:18]), int(line[20:24]), int(line[55:60])
-                author_to_uni.update({(i, ""): db + i - lo for i in range(lo, hi + 1)})
-        if not author_to_uni:
-            raise ValueError("No matching PDB DBREF mapping")
+        # Direct PDB archive extraction (synthetic, designed, or unannotated structures)
+        residues_in_chain = [r for r in chain if r.id[0] == " " and "CA" in r]
+        sequence = "".join(seq1(r.resname) for r in residues_in_chain)
+        payload = f">{args.pdb_id.upper()}_{args.chain}\n{sequence}\n".encode()
+        if fasta.exists() and fasta.read_bytes() != payload:
+            raise ValueError("Different existing sequence preserved")
+        fasta.write_bytes(payload)
+        start, end = args.range if getattr(args, "range", None) else (1, len(sequence))
+        if not 1 <= start <= end <= len(sequence):
+            raise ValueError("Requested range is outside the sequence")
+
+        for idx, res in enumerate(residues_in_chain, start=1):
+            author_to_uni[(res.id[1], res.id[2].strip())] = idx
+
+        if archive.suffix == ".cif":
+            d = MMCIF2Dict(str(archive))
+            m = d.get("_exptl.method")
+            if isinstance(m, list) and m:
+                meta_method = str(m[0])
+            elif isinstance(m, str):
+                meta_method = m
+            r_val = (
+                d.get("_refine.ls_d_res_high")
+                or d.get("_reflns.d_resolution_high")
+                or d.get("_em_3d_reconstruction.resolution")
+            )
+            if isinstance(r_val, list) and r_val:
+                r_val = r_val[0]
+            if r_val and str(r_val).strip() not in {".", "?"}:
+                try:
+                    meta_resolution = float(r_val)
+                except (ValueError, TypeError):
+                    pass
 
     if meta_resolution is None and hasattr(structure, "header") and structure.header:
         meta_resolution = structure.header.get("resolution")
@@ -187,6 +229,26 @@ def fetch(args):
     if template.exists() and template.read_text() != data:
         raise ValueError("Different existing template preserved")
     template.write_text(data)
+
+    if not uniprot_id:
+        variants_wt = folder / "variants" / "WT"
+        variants_wt.mkdir(parents=True, exist_ok=True)
+        wt_pdb = variants_wt / "WT.pdb"
+        wt_pdb.write_text(data)
+        (variants_wt / "MODEL_DONE").write_text("Clean coordinate extraction complete\n")
+        engine_py = Path(__file__).parents[1] / "modeller/engine.py"
+        eng_sha = sha(engine_py) if engine_py.exists() else ""
+        # Temporary seed/request record for model integrity checking
+        write_json(
+            variants_wt / "model_request.json",
+            dict(
+                variant="WT",
+                seed=0,
+                mapping_sha256="",
+                engine_sha256=eng_sha,
+            ),
+        )
+
     rows = [
         {
             "uniprot": i,
@@ -214,7 +276,7 @@ def fetch(args):
     write_json(raw / "residues.json", rows)
     record_data = {
         "pdb": args.pdb_id,
-        "uniprot": args.uniprot_id,
+        "uniprot": uniprot_id or args.pdb_id,
         "chain": args.chain,
         "range": [start, end],
         "sequence": sequence[start - 1 : end],
@@ -230,6 +292,18 @@ def fetch(args):
         },
     }
     write_json(raw / "input.json", record_data)
+    if not uniprot_id:
+        engine_py = Path(__file__).parents[1] / "modeller/engine.py"
+        eng_sha = sha(engine_py) if engine_py.exists() else ""
+        write_json(
+            folder / "variants" / "WT" / "model_request.json",
+            dict(
+                variant="WT",
+                seed=0,
+                mapping_sha256=sha(raw / "input.json"),
+                engine_sha256=eng_sha,
+            ),
+        )
     marker.write_text(
         "Author mapping, canonical identity and requested mutation density verified\n"
     )
@@ -245,8 +319,9 @@ def fetch(args):
     print("=" * 78)
     print(" ColabMDA Structural Mapping & Verification")
     print("=" * 78)
+    target_display = uniprot_id if uniprot_id else f"{args.pdb_id.upper()} (PDB Direct)"
     print(
-        f" UniProt Target:   {args.uniprot_id} (Residues {start}–{end}, Total Length: {len(sequence)} AA)"
+        f" Target:           {target_display} (Residues {start}–{end}, Total Length: {len(sequence)} AA)"
     )
     print(
         f" Template PDB:     {args.pdb_id.upper()} (Chain {args.chain}, Method: {meta_method}{res_str})"

@@ -6,35 +6,34 @@ This tutorial provides a lightweight, 5-minute simulation walkthrough using the 
 
 ## 📁 Trp-Cage Directory Architecture Map
 
-ColabMDA organizes the Trp-cage project files within a deterministic hierarchy across all four workflow phases:
+ColabMDA manages project files within a standardized hierarchy under `data/apo/` across all four workflow phases:
 
 ```text
-research/projects/colabmda-example/
-├── scripts/                      # Staged fast runner scripts
-│   ├── 01_structure/
-│   │   └── 01_fetch.py           # Fetch & validate 1L2Y NMR coordinates
-│   └── 02_simulation/
-│       ├── common.sh             # Environment variables & run ID management
-│       ├── 01_prepare.sh         # Solvation & AMBER parameterization (cmda prep)
-│       ├── 02_equilibrate.sh     # Quick 100 ps heating & equilibration (cmda sim eq)
-│       ├── 03_production.sh      # 1 ns checkpointed production MD (cmda sim md)
-│       ├── 04_analysis.sh        # Trajectory merge, autoimaging, and analysis
-│       └── 05_check.py           # Strict frame and thermodynamic audit (touches RUN_DONE)
+research/projects/trpcage-example/
 └── data/
-    ├── 00_setup/example.json     # Staging metadata & integrity checksums
-    ├── 01_structure/trpcage/     # 1l2y.cif, WT.pdb (20 residues), input.json, STRUCTURE_DONE
-    └── 02_simulation/<run>/
-        ├── provenance.json       # Environment, GPU, and package manifest
-        └── apo/WT/
-            ├── 01_prep/          # system.prmtop, system.inpcrd, solvated.pdb, PREP_DONE
-            ├── 02_eq/            # system.xml, npt.state.xml, equilibration_qc.json, EQ_DONE
-            ├── 03_md/r1/         # md.dcd, md.log, prod.chk, MD_DONE, chunks/
-            └── 04_analysis/      # rmsd.csv, rg.csv, rmsf.csv, figures/, ANALYSIS_DONE
+    └── apo/
+        ├── structure/
+        │   └── 1L2Y/                     # Target: NMR PDB 1L2Y
+        │       ├── raw/                  # Phase 1.2: 1l2y.cif, template.pdb, uniprot.fasta, residues.json
+        │       ├── variants/             # Phase 1.3: Modeled coordinates (WT/WT.pdb)
+        │       └── STRUCTURE_DONE        # Verification QC gate marker
+        │
+        ├── simulation/
+        │   └── WT/
+        │       ├── 01_prep/              # Step 1: system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
+        │       ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/
+        │       └── 03_md/                # Step 3: Production replica (1 ns smoke test)
+        │           └── r1/               # md.dcd, md.log, state.xml, prod.chk, chunks/
+        │
+        └── analysis/                     # Phase 4: Generated during merge, analyze & compare
+            └── WT/
+                ├── 02_eq/                # qc.png, qc.txt (thermodynamic & structural convergence)
+                └── 03_md/r1/             # rmsd.png, rg.png, rmsf.png, summary.txt
 ```
 
 ---
 
-## 💻 Phase 1: Local Setup & Structure Preparation (Local Machine)
+## 💻 Phase 1: Local Modeling & Structure Preparation (Local Machine)
 *Execute this phase on your local laptop or workstation CPU. No GPU compute units are required.*
 
 ### 1.0. Local Machine Setup (One-Time)
@@ -58,20 +57,13 @@ colab sessions
 
 ---
 
-### 1.1. Project Workspace & Example Staging
-Create and navigate to your project directory, then stage the Trp-cage runner scripts:
+### 1.1. Project Workspace
+Create and navigate to your project directory:
 
 ```bash
-mkdir -p ~/research/projects/colabmda-example
-cd ~/research/projects/colabmda-example
-
-# Stage Trp-cage runner scripts and verified baseline hashes:
-cmda stage --example trpcage
+mkdir -p ~/research/projects/trpcage-example
+cd ~/research/projects/trpcage-example
 ```
-
-*What `cmda stage` generates:*
-* `scripts/`: Staged execution scripts for structure fetching, preparation, equilibration, production, and analysis.
-* `data/00_setup/example.json`: Checksum manifest recording script hashes to prevent accidental overwrites.
 
 ---
 
@@ -79,25 +71,35 @@ cmda stage --example trpcage
 Fetch the 20-residue NMR structure (Model 1, Chain A of 1L2Y):
 
 ```bash
-# Fetch and validate coordinates using the staged script:
-python scripts/01_structure/01_fetch.py
+# Fetch and validate coordinates directly using cmda fetch:
+cmda fetch --state apo --pdb-id 1L2Y --chain A
 
-# (Optional) Direct CLI alternative:
-# cmda fetch --state apo --pdb-id 1L2Y --chain A --range 1 20
+# (Optional) Visually inspect the cleaned template in local PyMOL:
+pymol data/apo/structure/1L2Y/raw/template.pdb
 ```
 
-*What `01_fetch.py` generates in `data/01_structure/trpcage/`:*
+*What `cmda fetch` generates in `data/apo/structure/1L2Y/`:*
 
 | File | Purpose | Scientific Role |
 | :--- | :--- | :--- |
 | **`1l2y.cif`** | Archive Copy | Raw crystallographic/NMR record directly from the RCSB PDB archive. |
-| **`WT.pdb`** | Standard Model | 20-residue clean coordinates (`NLYIQWLKDGGPSSGRPPPS`) with NMR ensemble tags stripped. |
+| **`template.pdb`** | Standard Model | 20-residue clean coordinates (`NLYIQWLKDGGPSSGRPPPS`) with NMR ensemble tags stripped. |
+| **`uniprot.fasta`** | Sequence Record | Clean FASTA sequence used for coordinate mapping. |
+| **`residues.json`** | Coordinate Metadata | Residue-by-residue mapping verifying 100% full coordinate density (20/20 resolved). |
 | **`input.json`** | Provenance Record | Machine-readable log containing parameters, timestamps, and SHA-256 hashes. |
 | **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming all 20 Cα atoms and the sequence match exactly. |
 
-#### Visual Inspection in PyMOL:
+---
+
+### 1.3. Homology Model & Coordinate Verification (`cmda model`)
+Verify the canonical Wild-Type coordinates:
+
 ```bash
-pymol data/01_structure/trpcage/WT.pdb
+# Verify the canonical Wild-Type model:
+cmda model --state apo --variant WT
+
+# Inspect the modeled WT structure in PyMOL:
+pymol data/apo/structure/1L2Y/variants/WT/WT.pdb
 ```
 
 > [!TIP]
@@ -108,20 +110,18 @@ pymol data/01_structure/trpcage/WT.pdb
 
 ---
 
-### 1.3. Structure Preparation & Solvation (`tleap` + PROPKA at pH 7.4)
+### 1.4. Structure Preparation & Solvation (`tleap` + PROPKA at pH 7.4)
 Solvate the miniprotein with OPC water, neutralize net charge with counterions, and assign AMBER physical parameters:
 
 ```bash
-export COLABMDA_RUN_ID=run01
+# Solvate with OPC water, neutralize net charge, and assign AMBER parameters
+cmda prep --state apo --variant WT
 
-# Execute preparation:
-bash scripts/02_simulation/01_prepare.sh
-
-# (Optional) Direct CLI equivalent:
-# cmda prep --state apo --variant WT --receptor data/01_structure/trpcage/WT.pdb
+# Visually inspect the solvated system in PyMOL:
+pymol data/apo/simulation/WT/01_prep/solvated.pdb
 ```
 
-*Key outputs generated in `data/02_simulation/run01/apo/WT/01_prep/`:*
+*Key outputs generated in `data/apo/simulation/WT/01_prep/`:*
 * `model.pdb`: Exact copy of input coordinates for provenance.
 * `solvated.pdb`: Solvated coordinate PDB (~1,800 OPC waters + neutralizing Cl⁻ counterion).
 * `system.prmtop`: Amber topology containing all `ff19SB` physical force-field parameters.
@@ -146,11 +146,15 @@ ColabMDA automatically invokes **PROPKA 3** during `cmda prep` to evaluate 3D el
 
 ---
 
-### 1.4. Visual Quality Assurance in Local PyMOL
+### 1.5. Visual Quality Assurance in Local PyMOL
 Verify the solvated unit cell and counterions locally before uploading:
 
 ```bash
-pymol data/02_simulation/run01/apo/WT/01_prep/solvated.pdb
+# 1. Inspect modeled coordinates:
+cmda view --state apo --variant WT
+
+# 2. Inspect the fully solvated system (water box + neutralizing counterion):
+pymol data/apo/simulation/WT/01_prep/solvated.pdb
 ```
 
 Inside PyMOL:
@@ -178,7 +182,7 @@ cmda push -s cmda
 
 > [!TIP]
 > **Data Destination on Google Drive:**
-> * **Google Drive Filesystem Path:** `/content/drive/MyDrive/research/projects/colabmda-example/data/`
+> * **Google Drive Filesystem Path:** `/content/drive/MyDrive/research/projects/trpcage-example/data/`
 > * **Mechanism:** `cmda push` packages your local `data/` folder, streams it to your active Colab VM (`-s cmda`), and extracts it directly into your mounted Google Drive project directory without manual file uploading.
 
 ---
@@ -201,28 +205,26 @@ curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/s
 # 2. Activate environment & navigate to Drive project directory:
 source /root/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
-cd /content/drive/MyDrive/research/projects/colabmda-example
+cd /content/drive/MyDrive/research/projects/trpcage-example
 ```
 
 ---
 
-### 3.2. Fast Equilibration (~30 Seconds)
-Execute energy minimization and a fast 100 ps NPT equilibration smoke test:
+### 3.2. Stage Simulation Hubs & Equilibration (~30 Seconds)
+Stage simulation directories and execute the equilibration smoke test:
 
 ```bash
-export COLABMDA_RUN_ID=run01
+# 1. Initialize simulation directories:
+cmda stage --state apo --variant WT
 
-# Run fast equilibration:
-bash scripts/02_simulation/02_equilibrate.sh
-
-# (Optional) Direct CLI equivalent:
-# cmda sim --software-test --state apo --variant WT --stage eq --protocol quick --equil-time 100
+# 2. Run quick equilibration (automatically executes EM -> NVT -> NPT -> QC):
+cmda sim eq --state apo --variant WT --protocol quick
 ```
 
-*What `02_equilibrate.sh` generates in `data/02_simulation/run01/apo/WT/02_eq/`:*
+*What `cmda sim eq` generates in `data/apo/simulation/WT/02_eq/`:*
+* `eq.pdb`: Relaxed coordinate snapshot.
 * `system.xml`: Serialized OpenMM system definition.
-* `npt.state.xml`: Final relaxed thermodynamic state (velocities, coordinates, box vectors).
-* `equilibration_qc.json`: Fast thermodynamic summary (temperature, volume, density).
+* `state.xml`: Final relaxed thermodynamic state (velocities, coordinates, box vectors).
 * `EQ_DONE`: Equilibration completion gate.
 
 ---
@@ -233,26 +235,37 @@ bash scripts/02_simulation/02_equilibrate.sh
 #### 1. Pull Deliverables to Local Machine (Terminal)
 Switch to your local workstation terminal:
 ```bash
-cd ~/research/projects/colabmda-example
+cd ~/research/projects/trpcage-example
 
 # Pull lightweight equilibration deliverables (~1 MB):
-cmda pull -s cmda
+cmda pull -s cmda --stage eq
 ```
 
 #### 2. Verify Status in 1 Second (Terminal)
 ```bash
-cat data/02_simulation/run01/apo/WT/02_eq/equilibration_qc.json
+cat data/apo/analysis/WT/02_eq/qc.txt
 ```
-*Expected Output:* `T ≈ 300 K`, `Density ≈ 1.00–1.02 g/mL`, `Potential Energy: negative and stable`.
+*Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.8 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
-#### 3. Quick 3D Fold Check in PyMOL in 30 Seconds
-Launch PyMOL with starting model and relaxed coordinates:
+#### 3. Glance at 6-Panel QC Plot in 5 Seconds
+Open the unified publication plot in any image viewer:
+* `data/apo/analysis/WT/02_eq/qc.png`
+
+*Expected Visual:*
+* **Panels A–D (Thermodynamics):** Temperature is flat at **$300\text{ K}$**; density is flat at **$\sim 1.01\text{ g/mL}$**; potential energy and volume are stable.
+* **Panel E (Per-Residue C$\alpha$ Drift):** Core residues stay flat at **$< 0.5\text{ \AA}$**; termini remain below threshold ($< 1.0\text{ \AA}$).
+* **Panel F (3D Backbone Alignment):** Solid cyan equilibrated fold matches semi-transparent salmon starting model ($\text{C}_\alpha\text{ RMSD} < 1.0\text{ \AA}$).
+
+#### 4. Quick 3D Fold Check in PyMOL in 30 Seconds
+Launch PyMOL with both starting and equilibrated coordinates:
 ```bash
-pymol data/02_simulation/run01/apo/WT/01_prep/model.pdb data/02_simulation/run01/apo/WT/01_prep/solvated.pdb
+pymol data/apo/simulation/WT/01_prep/model.pdb data/apo/simulation/WT/02_eq/eq.pdb
 ```
 In the PyMOL right panel:
 1. Next to **`(all)`**: Click **`H`** (Hide) $\to$ **`waters`**, then **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**.
-2. Confirm the 20-residue fold remains compact without steric distortion.
+2. Next to **`eq`**: Click **`A`** (Action) $\to$ **`align`** $\to$ **`to molecule`** $\to$ choose **`model`**.
+
+*Expected Visual:* Cyan equilibrated backbone (`eq`) overlays closely onto starting model (`model`). No unfolded helices or broken bonds.
 
 ---
 
@@ -260,13 +273,8 @@ In the PyMOL right panel:
 Run 1 ns of checkpointed production molecular dynamics:
 
 ```bash
-export COLABMDA_RUN_ID=run01
-
-# Run 1 ns production:
-bash scripts/02_simulation/03_production.sh
-
-# (Optional) Direct CLI equivalent:
-# cmda sim --software-test --state apo --variant WT --stage md --replica r1 --total-ns 1 --checkpoint-ps 100 --traj-interval 10
+# Run 1 ns production simulation:
+cmda sim md --state apo --variant WT --replica r1 --total-ns 1 --checkpoint-ps 100 --traj-interval 10
 ```
 
 #### In-Context Reference: Simulation Math & Storage Budgeting
@@ -292,19 +300,18 @@ Production MD continuously saves checkpoints (`prod.chk`) directly to Google Dri
    [ ! -d "/root/miniforge3/envs/cmda" ] && curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
    source /root/miniforge3/etc/profile.d/conda.sh
    conda activate cmda
-   cd /content/drive/MyDrive/research/projects/colabmda-example
+   cd /content/drive/MyDrive/research/projects/trpcage-example
    ```
-3. Re-run the production command (or request an extension):
+3. Re-run the exact same `cmda sim md` command:
    ```bash
-   export COLABMDA_RUN_ID=run01
-   COLABMDA_EXAMPLE_NS=2 bash scripts/02_simulation/03_production.sh
+   cmda sim md --state apo --variant WT --replica r1 --total-ns 2
    ```
    *ColabMDA automatically detects the existing `prod.chk` checkpoint on Google Drive and seamlessly resumes dynamics.*
 
 #### Trajectory Integrity Auditing (`cmda status`)
 Verify chunk continuity, frame counts, and resume readiness:
 ```bash
-cmda status --root . --state apo --variant WT --replica r1
+cmda status --state apo --variant WT --replica r1
 ```
 
 <details>
@@ -312,7 +319,7 @@ cmda status --root . --state apo --variant WT --replica r1
 
 ```text
 [STATUS]
-  Workdir          : data/02_simulation/run01/apo/WT/03_md/r1
+  Workdir          : data/apo/simulation/WT/03_md/r1
   Chunks (DCD/log) : 1 / 1
   Topology File    : solvated.pdb
                      └─ 5878 atoms, 1860 residues
@@ -328,25 +335,34 @@ cmda status --root . --state apo --variant WT --replica r1
 
 ---
 
-### 3.4. Trajectory Merge, PBC Autoimaging & Analysis
-Post-process the trajectory by autoimaging periodic boundaries, stripping bulk water, and generating RMSD, Rg, and RMSF profiles:
+### 3.4. Merge Trajectories & Autoimage PBC
+Merge raw chunked trajectories into a single continuous file, re-center the peptide in the periodic unit cell (`autoimage`), and strip bulk solvent:
 
 ```bash
-export COLABMDA_RUN_ID=run01
-
-# 1. Merge trajectory & calculate biophysical metrics:
-bash scripts/02_simulation/04_analysis.sh
-
-# 2. Run automated validation check:
-python scripts/02_simulation/05_check.py
+# Merge Wild-Type trajectory:
+cmda merge --state apo --variant WT
 ```
 
-*What `04_analysis.sh` and `05_check.py` output:*
-* `prod_keep_ligand.dcd`: Solvent-stripped, PBC autoimaged trajectory (304 atoms, 100 frames).
-* `rmsd.csv` / `rmsd_vs_time.png`: Backbone Cα RMSD over 1 ns.
-* `rg.csv` / `rg_vs_time.png`: Radius of gyration compactness.
-* `rmsf.csv` / `rmsf_per_residue.png`: Per-residue fluctuation profile for residues 1–20.
-* `RUN_DONE`: Final pipeline validation gate.
+*What `cmda merge` outputs in `data/apo/simulation/WT/03_md/r1/`:*
+* `md.dcd`: Clean continuous trajectory merged from chunk files.
+* `md.log`: Continuous merged thermodynamic log table.
+* `state.xml`: Final OpenMM physical restart state.
+
+---
+
+### 3.5. Trajectory Analysis
+Calculate backbone RMSD, Radius of Gyration, and per-residue RMSF profiles:
+
+```bash
+# Run biophysical analysis:
+cmda analyze --state apo --variant WT
+```
+
+Outputs saved directly in `data/apo/analysis/WT/03_md/r1/`:
+* `summary.txt` (Summary table with Mean ± SD for RMSD, Rg, Temp)
+* `rmsd.png` (Backbone Cα RMSD over 1 ns)
+* `rg.png` (Radius of Gyration compactness)
+* `rmsf.png` (Per-residue root mean square fluctuations for residues 1–20)
 
 ---
 
@@ -354,28 +370,34 @@ python scripts/02_simulation/05_check.py
 *Switch back to your local workstation terminal.*
 
 ### 4.1. Pull Analyzed Data from Cloud
-Download deliverables to your local machine:
+Download analyzed figures, summary tables, and reports:
 
 ```bash
-cd ~/research/projects/colabmda-example
+cd ~/research/projects/trpcage-example
 
 # Pull deliverables:
 cmda pull -s cmda
 
-# To also pull the solvent-stripped trajectory:
+# To also pull post-processed stripped trajectories for PyMOL inspection:
 cmda pull -s cmda --traj
 ```
+
+> [!TIP]
+> **What `cmda pull` Does:**
+> 1. Packages analysis tables, logs, summary manifests, and PNG plots from Google Drive.
+> 2. Excludes heavy raw trajectory files (`chunks/*.dcd`, `.chk`) by default so the download completes quickly. Pass `--traj` to include stripped trajectories (`prod_keep_ligand.dcd`), or `--all` for full raw simulation chunks.
+> 3. Extracts files non-destructively into your local `data/` folder.
 
 ---
 
 ### 4.2. In-Context Reference: Topology Pairing Guidelines
-When visualizing or analyzing trajectories, the reference topology must match the atom count in the trajectory file:
+When visualizing or analyzing trajectories, the reference topology file used must match the coordinates in the trajectory file:
 
 | Trajectory File | Description | Matching Topology File | Atom Count | Intended Usage |
 | :--- | :--- | :--- | :--- | :--- |
-| `md.dcd` | Raw coordinate trajectory | `01_prep/solvated.pdb` or `system.prmtop` | ~5,800 atoms | Raw simulation checkpointing & resume. |
+| `md.dcd` | Raw chunked coordinates | `01_prep/solvated.pdb` or `system.prmtop` | ~5,800 atoms | Raw simulation checkpointing & resume. |
 | `prod_keep_ligand.dcd` | Merged, PBC autoimaged, solvent-stripped | `03_md/r1/stripped.prmtop` or `WT.pdb` | 304 atoms | Standard biophysical analysis (`cmda analyze`, PyMOL). |
-| `prod_ca.dcd` | Merged Cα backbone coordinates | `03_md/r1/ca.prmtop` | 20 atoms | Rapid PCA and essential dynamics. |
+| `prod_ca.dcd` | Merged Cα backbone only | `03_md/r1/ca.prmtop` | 20 atoms | Rapid PCA and essential dynamics. |
 
 > [!WARNING]
 > **Topology Pairing Requirement:**
@@ -384,17 +406,14 @@ When visualizing or analyzing trajectories, the reference topology must match th
 ---
 
 ### 4.3. Visualizing Trajectories in Local PyMOL
-Animate the 1 ns Trp-cage trajectory in PyMOL:
+View the production trajectory using the `cmda` CLI:
 
 ```bash
-# View the production trajectory using the cmda CLI:
-cmda view --root . --state apo --variant WT --replica r1
-```
+# 1. View production trajectory in local PyMOL:
+cmda view --state apo --variant WT --replica r1
 
-Or run an automated PyMOL visualization script:
-
-```bash
-pymol data/01_structure/trpcage/WT.pdb data/02_simulation/run01/apo/WT/03_md/r1/prod_keep_ligand.dcd
+# 2. Or launch PyMOL manually:
+pymol data/apo/structure/1L2Y/variants/WT/WT.pdb data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
 ```
 
 <details>
@@ -406,8 +425,8 @@ reinitialize
 bg_color white
 
 # 2. Load topology and trajectory
-load data/01_structure/trpcage/WT.pdb, trpcage
-load_traj data/02_simulation/run01/apo/WT/03_md/r1/prod_keep_ligand.dcd, trpcage
+load data/apo/structure/1L2Y/variants/WT/WT.pdb, trpcage
+load_traj data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd, trpcage
 
 # 3. Fit backbone frame-by-frame
 intra_fit trpcage and name CA

@@ -909,9 +909,15 @@ def main():
         "fetch", help="Retrieve an archive and verify author/UniProt residue mapping"
     )
     fetch.add_argument("--pdb-id", required=True)
-    fetch.add_argument("--uniprot-id", required=True)
+    fetch.add_argument(
+        "--uniprot-id",
+        default=None,
+        help="UniProt accession (optional for synthetic/designed peptides)",
+    )
     fetch.add_argument("--chain", default="A")
-    fetch.add_argument("--range", nargs=2, type=int, required=True)
+    fetch.add_argument(
+        "--range", nargs=2, type=int, default=None, help="Residue range (defaults to full chain)"
+    )
     fetch.add_argument(
         "--mutations", default="", help="Comma-separated WT mutation identities to verify"
     )
