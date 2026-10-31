@@ -216,24 +216,28 @@ cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 >    ```
 > ColabMDA automatically detects `prod.chk` and existing completed 1-ns trajectory chunks on Google Drive, and **resumes dynamics from the exact last saved timestep without losing any progress**.
 
-### 6.2. Expanding to Full Triplicates (`r2`, `r3`)
-In this walkthrough, we follow replica `r1` through merge, analysis, and PyMOL visualization. When you are ready to produce final publication error bands (Mean ± SD), run the remaining replicas:
+<details>
+<summary><b>💡 (Optional) How to Launch Additional Replicas (<code>r2</code>, <code>r3</code>) Later</b></summary>
+
+You do **not** need to run these now—proceed directly to **Section 7 (Merge & Analysis)** using `r1`.
+
+When you are ready to produce final publication error bands (Mean ± SD), you can launch the remaining independent replicas:
 
 ```bash
-# Additional Wild-Type replicas:
-cmda sim md --state apo --variant WT --replica r2 --total-ns 100
-cmda sim md --state apo --variant WT --replica r3 --total-ns 100
+# Additional Wild-Type replicas (run when ready):
+# cmda sim md --state apo --variant WT --replica r2 --total-ns 100
+# cmda sim md --state apo --variant WT --replica r3 --total-ns 100
 
-# Additional G12D mutant replicas:
-cmda sim md --state apo --variant G12D --replica r2 --total-ns 100
-cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
+# Additional G12D mutant replicas (run when ready):
+# cmda sim md --state apo --variant G12D --replica r2 --total-ns 100
+# cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
 ```
 
+</details>
+
 > [!TIP]
-> **Storage Budgeting & Trajectory Interval:**
-> By default, `cmda sim md` saves snapshots every **$10\text{ ps}$** (`--traj-interval 10`).  
-> $$\text{Expected Frames} = \frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$$
-> This provides high temporal resolution while reducing raw storage from **~36 GB to ~3.6 GB (a 90% space reduction)**, comfortably fitting within Google Drive storage limits.
+> **Storage Optimization (10 ps Snapshot Cadence):**
+> Production simulations automatically record trajectory frames every **10 ps** ($10,000\text{ frames}$ per $100\text{ ns}$). This default cadence provides high temporal resolution for statistical convergence while reducing raw storage by ~90% (~3.6 GB instead of ~36 GB per replica), comfortably fitting within Google Drive limits.
 
 ---
 
