@@ -22,7 +22,7 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
+        │   │   ├── 01_prep/              # model.pdb, solvated.pdb, system.prmtop, system.inpcrd, prep.json
         │   │   ├── 02_eq/                # eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Production replicas (100 ns)
         │   │       ├── r1/               # stripped.prmtop, prod_keep_ligand.dcd, prod_full.log, chunks/
@@ -34,7 +34,7 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/
-            ├── WT/                       # r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), r2/, r3/, aggregate/
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), aggregate/
             ├── G12D/
             └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```

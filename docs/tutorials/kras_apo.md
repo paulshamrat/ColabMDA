@@ -20,7 +20,7 @@ research/projects/kras-example/
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # Step 1: system.xml, integrator.xml, model.pdb
+        │   │   ├── 01_prep/              # Step 1: model.pdb, solvated.pdb, system.prmtop, system.inpcrd, prep.json
         │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
         │   │       ├── r1/               # stripped.prmtop, prod_keep_ligand.dcd, prod_full.log, chunks/
@@ -32,7 +32,7 @@ research/projects/kras-example/
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/                       # r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), r2/, r3/, aggregate/
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), aggregate/
             ├── G12D/
             └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```

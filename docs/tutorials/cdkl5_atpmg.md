@@ -42,7 +42,7 @@ research/projects/cmda-example/
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/                       # r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), r2/, r3/, aggregate/
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), aggregate/
             ├── L119R/
             └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```
