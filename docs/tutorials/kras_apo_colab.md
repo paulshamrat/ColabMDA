@@ -25,7 +25,7 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
         │   │   ├── 01_prep/              # system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
         │   │   ├── 02_eq/                # eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Production replicas (100 ns)
-        │   │       ├── r1/               # stripped.prmtop, prod_keep_ligand.dcd, prod_full.log, chunks/
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, chunks/
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── G12D/
@@ -34,7 +34,7 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/
-            ├── WT/                       # r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), r2/, r3/, aggregate/
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), 03_md/ (r1, r2, r3)
             ├── G12D/
             └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```
@@ -249,7 +249,7 @@ When you are ready to produce final publication error bands (Mean ± SD), you ca
 Concatenate raw 1-ns chunks, apply periodic boundary condition (PBC) autoimaging, strip bulk water, audit frame continuity, and generate comparative figures:
 
 ```bash
-# 1. Merge chunks, autoimage PBC & strip solvent (produces stripped.prmtop & prod_keep_ligand.dcd):
+# 1. Merge chunks & autoimage PBC (produces continuous md.dcd and stripped trajectories):
 cmda merge --state apo --variant WT
 cmda merge --state apo --variant G12D
 

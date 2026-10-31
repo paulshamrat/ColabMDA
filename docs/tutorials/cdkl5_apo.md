@@ -23,7 +23,7 @@ research/projects/cmda-example/
         │   │   ├── 01_prep/              # Step 1: system.xml, integrator.xml, model.pdb
         │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
-        │   │       ├── r1/               # stripped.prmtop, prod_keep_ligand.dcd, prod_full.log, chunks/
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, chunks/0001.dcd
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── L119R/
@@ -32,7 +32,7 @@ research/projects/cmda-example/
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/                       # r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), r2/, r3/, aggregate/
+            ├── WT/                       # 02_eq/ (qc.png, qc.txt), 03_md/ (r1, r2, r3)
             ├── L119R/
             └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```
@@ -454,11 +454,9 @@ cmda merge --state apo --variant L119R
 ```
 
 *What `cmda merge` outputs in `data/apo/simulation/<variant>/03_md/<replica>/`:*
-* `stripped.prmtop`: Solvent-stripped AMBER topology (~4,800 protein atoms).
-* `prod_keep_ligand.dcd`: Continuous, PBC-autoimaged, solvent-stripped trajectory (~4,800 atoms, ~200 MB).
-* `ca.prmtop` & `prod_ca.dcd`: Cα backbone topology and trajectory (297 atoms).
-* `prod_full.log`: Continuous merged thermodynamic log table.
-* `MERGE_DONE`: Continuity verification marker.
+* `md.dcd`: Clean continuous trajectory merged from `chunks/0001.dcd` ... `chunks/0100.dcd`.
+* `md.log`: Continuous merged thermodynamic log table.
+* `state.xml`: Final OpenMM physical restart state.
 
 ---
 
