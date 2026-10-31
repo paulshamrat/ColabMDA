@@ -43,7 +43,33 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
 
 ## 1. Connect via Google Colab CLI (Local Terminal)
 
-On your local workstation (Linux, macOS, or Windows WSL), launch a Colab GPU instance and enter the console:
+### 1.0. Local Machine Setup (One-Time)
+ColabMDA runs on **native Linux** (Ubuntu, Debian, Fedora, Arch), **macOS**, or **Windows via WSL2**.
+
+> [!TIP]
+> **Windows Users (WSL2 Setup):**
+> If you are on Windows, install WSL2 with Ubuntu from PowerShell or Windows Terminal (run as Administrator):
+> ```powershell
+> wsl --install -d Ubuntu
+> ```
+> Restart your computer if prompted. For step-by-step guidance and troubleshooting, visit Microsoft's official [WSL2 Installation Guide](https://learn.microsoft.com/en-us/windows/wsl/install). Once inside your **Ubuntu terminal**, proceed with the commands below.
+
+Run the one-time local installer:
+
+```bash
+# 1. Install cmda, OpenMM, AmberTools, PyMOL, and google-colab-cli:
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
+
+# 2. Activate environment:
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate cmda
+
+# 3. Log in to Google Colab (one-time browser authorization):
+colab sessions
+```
+
+### 1.1. Launch & Connect to Cloud GPU
+Once logged in, provision a Google Colab GPU instance and enter the remote console:
 
 ```bash
 # 1. Launch a Colab GPU instance:
@@ -55,10 +81,6 @@ colab drivemount --session cmda
 # 3. Enter the Colab Console:
 colab console -s cmda
 ```
-
-> [!TIP]
-> **How to Resume if Session Expires:**
-> If your Colab session times out during a run, simply repeat the 3 commands above to re-enter the console. When you restart your simulation command, ColabMDA detects `prod.chk` on Google Drive and **resumes dynamics from the exact last saved timestep**.
 
 ---
 
@@ -163,42 +185,58 @@ cat data/apo/analysis/G12D/02_eq/qc.txt
 ## 6. Production MD Across Triplicates (100 ns)
 
 ### Why Triplicates (`r1`, `r2`, `r3`)?
-Molecular dynamics is inherently stochastic. A single 100 ns trajectory can easily become trapped in a metastable conformational sub-state. Running **triplicates** ($N=3$ independent trajectories) ensures conformational sampling convergence, allowing you to compute true **Mean ± SD** statistical error bands for RMSD, Radius of Gyration, and residue fluctuations.
+Molecular dynamics is inherently stochastic. A single trajectory can easily become trapped in a metastable conformational sub-state. Running **triplicates** ($N=3$ independent trajectories: `r1`, `r2`, `r3`) ensures conformational sampling convergence, allowing you to compute true **Mean ± SD** statistical error bands for RMSD, Radius of Gyration, and residue fluctuations.
 
-> 💡 **Why Shared `02_eq/`? (From `main`)**
+> 💡 **Why Shared `02_eq/`?**
 > Equilibration only needs to be run **once** per system. Replicas (`r1`, `r2`, `r3`) fork directly from the final relaxed coordinates in `02_eq/state.xml` using distinct Maxwell-Boltzmann random velocity seeds. This eliminates redundant equilibration, saving hours of GPU time on Google Colab while guaranteeing strict statistical independence.
 
-### Running the Replicas:
+### Step 6.1: Run First Wild-Type Replica (`r1`)
+Start production dynamics for the first Wild-Type replica:
 
-#### Option A: Run Sequentially
 ```bash
-# Wild-Type Triplicates (100 ns each):
 cmda sim md --state apo --variant WT --replica r1 --total-ns 100
+```
+
+> [!IMPORTANT]
+> **💡 How to Resume After a Google Colab Disconnection:**
+> Google Colab GPU sessions have continuous runtime limits (typically 4–12 hours) and will eventually disconnect. **Your progress is completely safe on Google Drive.**
+>
+> If your Colab session times out or disconnects:
+> 1. **Reconnect from your local workstation:**
+>    ```bash
+>    # Re-enter console (or launch a new instance if expired: colab new -s cmda --gpu T4 && colab drivemount -s cmda)
+>    colab console -s cmda
+>    ```
+> 2. **Reactivate environment on Colab:**
+>    ```bash
+>    source /root/miniforge3/etc/profile.d/conda.sh && conda activate cmda
+>    cd /content/drive/MyDrive/research/projects/kras-example
+>    ```
+> 3. **Re-run the exact same command:**
+>    ```bash
+>    cmda sim md --state apo --variant WT --replica r1 --total-ns 100
+>    ```
+> ColabMDA automatically detects `prod.chk` and existing completed 1-ns trajectory chunks on Google Drive, and **resumes dynamics from the exact last saved timestep without losing any progress**.
+
+### Step 6.2: Run Subsequent Triplicates
+Once `r1` finishes, launch `r2` and `r3` for the Wild-Type, followed by triplicates for the `G12D` mutant:
+
+```bash
+# Wild-Type subsequent replicas (100 ns each):
 cmda sim md --state apo --variant WT --replica r2 --total-ns 100
 cmda sim md --state apo --variant WT --replica r3 --total-ns 100
 
-# Mutant Triplicates (100 ns each):
+# Oncogenic Mutant (G12D) triplicates (100 ns each):
 cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r2 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
-```
-
-#### Option B: Automated Loop (Hands-Off)
-To run all triplicates across WT and G12D continuously without manual intervention:
-```bash
-for variant in WT G12D; do
-  for rep in r1 r2 r3; do
-    echo "=== Launching ${variant} replica ${rep} (100 ns) ==="
-    cmda sim md --state apo --variant "${variant}" --replica "${rep}" --total-ns 100
-  done
-done
 ```
 
 > [!TIP]
 > **Storage Budgeting & Trajectory Interval:**
 > By default, `cmda sim md` saves snapshots every **$10\text{ ps}$** (`--traj-interval 10`).  
 > $$\text{Expected Frames} = \frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$$
-> This provides high temporal resolution while reducing raw storage from **~36 GB to ~3.6 GB (a 90% space reduction)**, comfortably fitting within Google Drive limits.
+> This provides high temporal resolution while reducing raw storage from **~36 GB to ~3.6 GB (a 90% space reduction)**, comfortably fitting within Google Drive storage limits.
 
 ---
 
@@ -223,10 +261,6 @@ cmda analyze --state apo --variant G12D
 cmda compare --state apo --variants WT,G12D
 ```
 
-> [!WARNING]
-> **Topology Pairing Requirement:**
-> Trajectory stripping reduces file size to **<200 MB** by removing bulk solvent (~2,600 protein atoms remaining). When viewing `prod_keep_ligand.dcd` in PyMOL or MDAnalysis, **always pair it with `stripped.prmtop`**. Loading with `solvated.pdb` (~27,000 atoms) will trigger a fatal atom-mismatch error.
-
 *Key Deliverables Generated in `data/apo/analysis/compare/`:*
 * `summary.txt`: Executive statistical table with Mean ± SD for RMSD, Radius of Gyration, and Temperature.
 * `rmsd.png`: Comparative backbone RMSD time-series.
@@ -235,9 +269,12 @@ cmda compare --state apo --variants WT,G12D
 
 ---
 
-## 8. Pull Deliverables to Local Machine (Local Terminal)
+## 8. Pull Deliverables & Trajectory Visualization (Local Machine)
 
-Exit the Colab console (`exit`), then in your local workstation terminal, download the analyzed figures, reports, and stripped trajectories:
+Exit the Colab console (`exit`), then switch back to your local workstation terminal:
+
+### 8.1. Pull Analyzed Data from Cloud
+Download analyzed figures, summary tables, and stripped trajectories:
 
 ```bash
 mkdir -p ~/research/projects/kras-example
@@ -250,13 +287,80 @@ cmda pull -s cmda
 cmda pull -s cmda --traj
 ```
 
-View the generated publication comparison in your favorite image viewer:
+> [!TIP]
+> **What `cmda pull` Does:**
+> 1. Packages analysis CSVs, logs, summary manifests, and PNG plots from Google Drive.
+> 2. Excludes heavy raw simulation checkpoints (`chunks/*.dcd`, `.chk`) by default so the download completes quickly. Passing `--traj` pulls lightweight solvent-stripped trajectories (`prod_keep_ligand.dcd`), while `--all` downloads full raw chunks.
+> 3. Extracts files non-destructively into your local `data/` folder.
+
+---
+
+### 8.2. In-Context Reference: Topology Pairing Guidelines
+When visualizing or analyzing trajectories, the reference topology file used must match the coordinates in the trajectory file:
+
+| Trajectory File | Description | Matching Topology File | Atom Count | Intended Usage |
+| :--- | :--- | :--- | :--- | :--- |
+| `prod_raw.dcd` | Raw chunked coordinates | `01_prep/solvated.pdb` or `system.prmtop` | ~27,000 atoms | Raw simulation checkpointing & resume. |
+| `prod_keep_ligand.dcd` | Merged, PBC autoimaged, solvent-stripped | `03_md/r1/stripped.prmtop` | ~2,600 atoms | Standard biophysical analysis (`cmda analyze`, `cmda compare`). |
+| `prod_ca.dcd` | Merged $C_\alpha$ backbone only | `03_md/r1/ca.prmtop` | ~169 atoms | Rapid PCA and essential dynamics. |
+
+> [!WARNING]
+> **Topology Pairing Requirement:**
+> Loading `prod_keep_ligand.dcd` (~2,600 atoms) with `solvated.pdb` (~27,000 atoms) in PyMOL or MDAnalysis will cause an **atom mismatch error**. Always pair stripped trajectories with `stripped.prmtop`.
+
+---
+
+### 8.3. Visualizing Trajectories in Local PyMOL
+Open trajectories directly in local PyMOL:
+
 ```bash
-# View comparative overlay plot locally:
-xdg-open data/apo/analysis/compare/rmsd.png  # Linux
-# or open in PyMOL:
+# 1. View Wild-Type production trajectory in PyMOL:
+cmda view --state apo --variant WT --replica r1
+
+# 2. View Mutant (G12D) production trajectory in PyMOL:
+cmda view --state apo --variant G12D --replica r1
+
+# Or launch directly with native PyMOL command:
 pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
+
+# 3. Generate comparative 3x8 transition snapshot grids:
+cmda snapshots --state apo
 ```
+
+<details>
+<summary><b>Click to view PyMOL visualization script (<code>visualize.pml</code>)</b></summary>
+
+```text
+# 1. Clear out memory
+reinitialize
+bg_color white
+
+# 2. Load stripped topology and trajectory
+load stripped.prmtop, kras
+load_traj prod_keep_ligand.dcd, kras
+
+# 3. Fit backbone frame-by-frame
+intra_fit kras and name CA
+
+# 4. Generate secondary structure cartoon
+dss kras
+cartoon automatic, kras
+show cartoon, kras
+
+# 5. Apply cyan color scheme
+color cyan, kras and name C*
+util.cnc("kras")
+
+# 6. Highlight mutated residue 12 side chain sticks
+show sticks, kras and resi 12 and not name N+C+O+H
+color yellow, kras and resi 12
+set stick_radius, 0.25
+
+# 7. Focus camera onto protein
+zoom kras and polymer, buffer=4
+```
+
+</details>
 
 ---
 
