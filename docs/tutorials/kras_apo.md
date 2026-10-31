@@ -23,7 +23,7 @@ research/projects/kras-example/
         │   │   ├── 01_prep/              # Step 1: system.xml, integrator.xml, model.pdb
         │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
-        │   │       ├── r1/               # md.dcd, md.log, state.xml, chunks/0001.dcd
+        │   │       ├── r1/               # stripped.prmtop, prod_keep_ligand.dcd, prod_full.log, chunks/
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── G12D/
@@ -32,7 +32,7 @@ research/projects/kras-example/
         │       └── 03_md/{r1, r2, r3}/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/                       # 02_eq/ (qc.png, qc.txt), 03_md/ (r1, r2, r3)
+            ├── WT/                       # r1/ (rmsd.csv, rg.csv, rmsf.csv, figures/), r2/, r3/, aggregate/
             ├── G12D/
             └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
 ```
@@ -406,9 +406,11 @@ cmda merge --state apo --variant G12D
 ```
 
 *What `cmda merge` outputs in `data/apo/simulation/<variant>/03_md/<replica>/`:*
-* `md.dcd`: Clean continuous trajectory merged from `chunks/0001.dcd` ... `chunks/0100.dcd`.
-* `md.log`: Continuous merged thermodynamic log table.
-* `state.xml`: Final OpenMM physical restart state.
+* `stripped.prmtop`: Solvent-stripped AMBER topology (~2,600 protein atoms).
+* `prod_keep_ligand.dcd`: Continuous, PBC-autoimaged, solvent-stripped trajectory (~2,600 atoms, ~200 MB).
+* `ca.prmtop` & `prod_ca.dcd`: Cα backbone topology and trajectory (169 atoms).
+* `prod_full.log`: Continuous merged thermodynamic log table.
+* `MERGE_DONE`: Continuity verification marker.
 
 ---
 
@@ -521,21 +523,11 @@ cmda snapshots --config camera_config.json
 reinitialize
 bg_color white
 
-# 2. Load merged trajectory files
-load eq.pdb, kras
-load_traj md.dcd, kras
+# 2. Load stripped topology and trajectory
+load stripped.prmtop, kras
+load_traj prod_keep_ligand.dcd, kras
 
-# 2b. Align trajectory to crystal reference (e.g., 4ldj_wt.pdb)
-load 4ldj_wt.pdb, crystal_ref
-align kras and name CA, crystal_ref and name CA, mobile_state=1, target_state=1
-delete crystal_ref
-
-# 3. Hide solvent water and ions
-hide everything, all
-hide nonbonded, all
-hide nb_spheres, all
-
-# 4. Fit backbone frame-by-frame
+# 3. Fit backbone frame-by-frame
 intra_fit kras and name CA
 
 # 5. Generate secondary structure cartoon

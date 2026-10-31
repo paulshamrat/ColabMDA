@@ -23,12 +23,11 @@ research/projects/trpcage-example/
         │       ├── 01_prep/              # Step 1: system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
         │       ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/
         │       └── 03_md/                # Step 3: Production replica (1 ns smoke test)
-        │           └── r1/               # md.dcd, md.log, state.xml, prod.chk, chunks/
+        │           └── r1/               # stripped.prmtop, prod_keep_ligand.dcd, prod_full.log, chunks/
         │
-        └── analysis/                     # Phase 4: Generated during merge, analyze & compare
+        └── analysis/                     # Phase 4: Generated during merge & analysis
             └── WT/
-                ├── 02_eq/                # qc.png, qc.txt (thermodynamic & structural convergence)
-                └── 03_md/r1/             # rmsd.png, rg.png, rmsf.png, summary.txt
+                └── r1/                   # rmsd.csv, rg.csv, rmsf.csv, figures/, equilibration_qc.png
 ```
 
 ---
@@ -344,9 +343,11 @@ cmda merge --state apo --variant WT
 ```
 
 *What `cmda merge` outputs in `data/apo/simulation/WT/03_md/r1/`:*
-* `md.dcd`: Clean continuous trajectory merged from chunk files.
-* `md.log`: Continuous merged thermodynamic log table.
-* `state.xml`: Final OpenMM physical restart state.
+* `stripped.prmtop`: Solvent-stripped AMBER topology (304 protein atoms).
+* `prod_keep_ligand.dcd`: Continuous, PBC-autoimaged, solvent-stripped trajectory (304 atoms, <1 MB).
+* `ca.prmtop` & `prod_ca.dcd`: Cα backbone topology and trajectory (20 atoms).
+* `prod_full.log`: Continuous merged thermodynamic log table.
+* `MERGE_DONE`: Continuity verification marker.
 
 ---
 
