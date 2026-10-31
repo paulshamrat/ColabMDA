@@ -1,4 +1,4 @@
-# KRAS (4LDJ) Apo State: Google Colab CLI Walkthrough
+# KRAS (4LDJ) Apo State: Google Colab Walkthrough
 
 This tutorial provides a streamlined simulation walkthrough for the **Apo state** of the **KRAS GTPase** (UniProt **P01116**, PDB **4LDJ** Chain A, residues **1–169**), comparing the Wild-Type (WT) protein against the oncogenic point mutant **G12D**.
 
@@ -6,7 +6,7 @@ Everything is executed on a **Google Colab cloud GPU via the `colab` CLI**, with
 
 ---
 
-## 📁 Directory Architecture (Google Drive)
+## Directory Structure
 
 All files reside inside your mounted Google Drive under a standardized hierarchy:
 
@@ -41,9 +41,9 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
 
 ---
 
-## 1. Connect via Google Colab CLI (Local Terminal)
+## 1. Connect to Google Colab
 
-### 1.0. Local Machine Setup (One-Time)
+### 1.1. Local Setup
 Run this one-time setup in your local terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 
 ```bash
@@ -58,7 +58,7 @@ conda activate cmda
 colab sessions
 ```
 
-### 1.1. Launch & Connect to Cloud GPU
+### 1.2. Launch Cloud GPU
 Once logged in, provision a Google Colab GPU instance and enter the remote console:
 
 ```bash
@@ -74,7 +74,7 @@ colab console -s cmda
 
 ---
 
-## 2. Cloud Environment Setup (~90 Seconds)
+## 2. Cloud Environment Setup
 
 Inside the active **Colab console terminal**, provide your Modeller license key, run the bootstrap installer, and navigate to Google Drive:
 
@@ -97,7 +97,7 @@ cd /content/drive/MyDrive/research/projects/kras-example
 
 ---
 
-## 3. Homology Modeling & Point Mutations (Modeller)
+## 3. Modeling & Mutations
 
 Fetch experimental coordinates from the PDB archive, align to canonical UniProt indexing, and model the full WT domain and G12D point mutation:
 
@@ -114,7 +114,7 @@ cmda model --state apo --variant G12D
 
 ---
 
-## 4. Structure Preparation & 3D pKa Titration (PROPKA at pH 7.4)
+## 4. Structure Preparation & Solvation
 
 ColabMDA runs **PROPKA 3** to calculate 3D electrostatic microenvironments, assign explicit AMBER titratable protonation states, solvate with OPC 4-point water, and neutralize net charge:
 
@@ -134,7 +134,7 @@ cmda prep --state apo --variant G12D
 
 ---
 
-## 5. 24-Stage Equilibration Ladder & QC Gating
+## 5. Equilibration & QC
 
 Initialize simulation directories and run the progressive 24-stage VarMDyn relaxation ladder. This heats the system from 50 K to 300 K and gradually releases positional restraints:
 
@@ -148,7 +148,7 @@ cmda sim eq --state apo --variant WT
 cmda sim eq --state apo --variant G12D
 ```
 
-### Exact Stage Durations (VarMDyn Protocol, $\approx 1.96\text{ ns}$ Total):
+### Stage Schedule (~1.96 ns Total)
 
 | Stages | Operation | Duration | Timestep & Restraints |
 | :--- | :--- | :--- | :--- |
@@ -163,7 +163,7 @@ cmda sim eq --state apo --variant G12D
 > [!TIP]
 > **Fast Smoke Test Alternative:** For a 2-minute quick check rather than full 24-stage production relaxation, append `--protocol quick` (runs 100 ps NVT + 100 ps NPT).
 
-#### 1-Second QC Verification:
+### QC Verification
 ```bash
 cat data/apo/analysis/WT/02_eq/qc.txt
 cat data/apo/analysis/G12D/02_eq/qc.txt
@@ -172,15 +172,15 @@ cat data/apo/analysis/G12D/02_eq/qc.txt
 
 ---
 
-## 6. Production MD Across Triplicates (100 ns)
+## 6. Production MD (100 ns)
 
-### Why Triplicates (`r1`, `r2`, `r3`)?
+### Why Triplicates?
 Molecular dynamics is inherently stochastic. A single trajectory can easily become trapped in a metastable conformational sub-state. Running **triplicates** ($N=3$ independent trajectories: `r1`, `r2`, `r3`) ensures conformational sampling convergence, allowing you to compute true **Mean ± SD** statistical error bands for RMSD, Radius of Gyration, and residue fluctuations.
 
 > 💡 **Why Shared `02_eq/`?**
 > Equilibration only needs to be run **once** per system. Replicas (`r1`, `r2`, `r3`) fork directly from the final relaxed coordinates in `02_eq/state.xml` using distinct Maxwell-Boltzmann random velocity seeds. This eliminates redundant equilibration, saving hours of GPU time on Google Colab while guaranteeing strict statistical independence.
 
-### Step 6.1: Run First Wild-Type Replica (`r1`)
+### 6.1. Run Replica 1 (WT)
 Start production dynamics for the first Wild-Type replica:
 
 ```bash
@@ -208,7 +208,7 @@ cmda sim md --state apo --variant WT --replica r1 --total-ns 100
 >    ```
 > ColabMDA automatically detects `prod.chk` and existing completed 1-ns trajectory chunks on Google Drive, and **resumes dynamics from the exact last saved timestep without losing any progress**.
 
-### Step 6.2: Run Subsequent Triplicates
+### 6.2. Run Replicas 2 and 3
 Once `r1` finishes, launch `r2` and `r3` for the Wild-Type, followed by triplicates for the `G12D` mutant:
 
 ```bash
@@ -230,7 +230,7 @@ cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
 
 ---
 
-## 7. Merge, Status Audit & Comparative Analysis
+## 7. Merge & Analysis
 
 Concatenate raw 1-ns chunks, apply periodic boundary condition (PBC) autoimaging, strip bulk water, audit frame continuity, and generate comparative figures:
 
@@ -259,11 +259,11 @@ cmda compare --state apo --variants WT,G12D
 
 ---
 
-## 8. Pull Deliverables & Trajectory Visualization (Local Machine)
+## 8. Pull Results & Visualization
 
 Exit the Colab console (`exit`), then switch back to your local workstation terminal:
 
-### 8.1. Pull Analyzed Data from Cloud
+### 8.1. Pull Data
 Download analyzed figures, summary tables, and stripped trajectories:
 
 ```bash
@@ -285,7 +285,7 @@ cmda pull -s cmda --traj
 
 ---
 
-### 8.2. In-Context Reference: Topology Pairing Guidelines
+### 8.2. Topology Guidelines
 When visualizing or analyzing trajectories, the reference topology file used must match the coordinates in the trajectory file:
 
 | Trajectory File | Description | Matching Topology File | Atom Count | Intended Usage |
@@ -300,7 +300,7 @@ When visualizing or analyzing trajectories, the reference topology file used mus
 
 ---
 
-### 8.3. Visualizing Trajectories in Local PyMOL
+### 8.3. PyMOL Trajectory Visualization
 Open trajectories directly in local PyMOL:
 
 ```bash
