@@ -212,7 +212,10 @@ cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 >    ```
 > 3. **Re-run the exact same command:**
 >    ```bash
+>    # Re-run whichever variant was running:
 >    cmda sim md --state apo --variant WT --replica r1 --total-ns 100
+>    # or for mutant:
+>    cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 >    ```
 > ColabMDA automatically detects `prod.chk` and existing completed 1-ns trajectory chunks on Google Drive, and **resumes dynamics from the exact last saved timestep without losing any progress**.
 

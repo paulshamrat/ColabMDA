@@ -359,9 +359,11 @@ Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive.
    conda activate cmda
    cd /content/drive/MyDrive/research/projects/kras-example
    ```
-3. Re-run the exact same `cmda sim md` command:
+3. Re-run the exact same `cmda sim md` command (whichever was running):
    ```bash
    cmda sim md --state apo --variant WT --replica r1 --total-ns 100
+   # or for mutant:
+   cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
    ```
    *ColabMDA detects the existing `prod.chk` checkpoint on Google Drive and resumes dynamics from the last saved timestep.*
 
