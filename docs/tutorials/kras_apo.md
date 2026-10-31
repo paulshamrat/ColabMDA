@@ -451,28 +451,18 @@ cmda pull -s cmda
 
 ---
 
-### 4.2. In-Context Reference: Topology Pairing Guidelines
-When visualizing or analyzing trajectories, the reference topology file used must match the coordinates in the trajectory file:
+### 4.2. Visualizing Trajectories in Local PyMOL
+To visualize trajectories with secondary structure cartoons and highlighted sidechains, use the built-in `cmda view` command:
 
-| Trajectory File | Description | Matching Topology File | Atom Count | Intended Usage |
-| :--- | :--- | :--- | :--- | :--- |
-| `prod_raw.dcd` | Raw chunked coordinates | `01_prep/solvated.pdb` or `system.prmtop` | ~27,000 atoms | Raw simulation checkpointing & resume. |
-| `prod_keep_ligand.dcd` | Merged, PBC autoimaged, solvent-stripped | `03_md/r1/stripped.prmtop` | ~2,600 atoms | Standard biophysical analysis (`cmda analyze`, `cmda compare`). |
-| `prod_ca.dcd` | Merged $C_\alpha$ backbone only | `03_md/r1/ca.prmtop` | ~169 atoms | Rapid PCA and essential dynamics. |
-
-> [!WARNING]
-> **Topology Pairing Requirement:**
-> Loading `prod_keep_ligand.dcd` (~2,600 atoms) with `solvated.pdb` (~27,000 atoms) in PyMOL or MDAnalysis will cause an **atom mismatch error**. Always pair stripped trajectories with `stripped.prmtop`.
-
----
-
-### 4.3. Visualizing Trajectories in Local PyMOL
 ```bash
-# 1. View Wild-Type production trajectory in local PyMOL:
+# 1. View Wild-Type production trajectory in PyMOL:
 cmda view --state apo --variant WT --replica r1
 
-# 2. View Mutant (G12D) production trajectory in local PyMOL:
-cmda view --state apo --variant G12D --replica r1
+# 2. View Mutant (G12D) production trajectory in PyMOL:
+cmda view --state apo --variant G12D --replica r1 --resi 12
+
+# Or launch directly with native PyMOL command:
+pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
 
 # Generate comparative 3x8 transition snapshot grids:
 cmda snapshots --state apo

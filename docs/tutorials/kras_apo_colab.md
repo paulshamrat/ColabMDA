@@ -180,11 +180,15 @@ Molecular dynamics is inherently stochastic. A single trajectory can easily beco
 > 💡 **Why Shared `02_eq/`?**
 > Equilibration only needs to be run **once** per system. Replicas (`r1`, `r2`, `r3`) fork directly from the final relaxed coordinates in `02_eq/state.xml` using distinct Maxwell-Boltzmann random velocity seeds. This eliminates redundant equilibration, saving hours of GPU time on Google Colab while guaranteeing strict statistical independence.
 
-### 6.1. Run Replica 1 (WT)
-Start production dynamics for the first Wild-Type replica:
+### 6.1. Launch Production Runs (`r1`)
+Launch production dynamics for the primary replica (`r1`) of Wild-Type and G12D:
 
 ```bash
+# 1. Run Wild-Type replica 1 (100 ns):
 cmda sim md --state apo --variant WT --replica r1 --total-ns 100
+
+# 2. Run G12D mutant replica 1 (100 ns):
+cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 ```
 
 > [!IMPORTANT]
@@ -212,16 +216,15 @@ cmda sim md --state apo --variant WT --replica r1 --total-ns 100
 >    ```
 > ColabMDA automatically detects `prod.chk` and existing completed 1-ns trajectory chunks on Google Drive, and **resumes dynamics from the exact last saved timestep without losing any progress**.
 
-### 6.2. Run Replicas 2 and 3
-Once `r1` finishes, launch `r2` and `r3` for the Wild-Type, followed by triplicates for the `G12D` mutant:
+### 6.2. Expanding to Full Triplicates (`r2`, `r3`)
+In this walkthrough, we follow replica `r1` through merge, analysis, and PyMOL visualization. When you are ready to produce final publication error bands (Mean ± SD), run the remaining replicas:
 
 ```bash
-# Wild-Type subsequent replicas (100 ns each):
+# Additional Wild-Type replicas:
 cmda sim md --state apo --variant WT --replica r2 --total-ns 100
 cmda sim md --state apo --variant WT --replica r3 --total-ns 100
 
-# Oncogenic Mutant (G12D) triplicates (100 ns each):
-cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
+# Additional G12D mutant replicas:
 cmda sim md --state apo --variant G12D --replica r2 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
 ```
@@ -268,7 +271,7 @@ cmda compare --state apo --variants WT,G12D
 Exit the Colab console (`exit`), then switch back to your local workstation terminal:
 
 ### 8.1. Pull Data
-Download analyzed figures, summary tables, and stripped trajectories:
+Download analyzed figures, summary tables, and trajectories:
 
 ```bash
 mkdir -p ~/research/projects/kras-example
@@ -277,7 +280,7 @@ cd ~/research/projects/kras-example
 # Pull lightweight figures, logs, and summary tables (~2 MB):
 cmda pull -s cmda
 
-# To also pull solvent-stripped trajectories for PyMOL inspection:
+# To also pull merged trajectories for local PyMOL inspection:
 cmda pull -s cmda --traj
 ```
 
@@ -289,27 +292,12 @@ cmda pull -s cmda --traj
 
 ---
 
-### 8.2. Topology Guidelines
-When visualizing or analyzing trajectories, the reference topology file used must match the coordinates in the trajectory file:
+### 8.2. PyMOL Trajectory Visualization
 
-| Trajectory File | Description | Matching Topology File | Atom Count | Intended Usage |
-| :--- | :--- | :--- | :--- | :--- |
-| `prod_raw.dcd` | Raw chunked coordinates | `01_prep/solvated.pdb` or `system.prmtop` | ~27,000 atoms | Raw simulation checkpointing & resume. |
-| `prod_keep_ligand.dcd` | Merged, PBC autoimaged, solvent-stripped | `03_md/r1/stripped.prmtop` | ~2,600 atoms | Standard biophysical analysis (`cmda analyze`, `cmda compare`). |
-| `prod_ca.dcd` | Merged $C_\alpha$ backbone only | `03_md/r1/ca.prmtop` | ~169 atoms | Rapid PCA and essential dynamics. |
-
-> [!WARNING]
-> **Topology Pairing Requirement:**
-> Loading `prod_keep_ligand.dcd` (~2,600 atoms) with `solvated.pdb` (~27,000 atoms) in PyMOL or MDAnalysis will cause an **atom mismatch error**. Always pair stripped trajectories with `stripped.prmtop`.
-
----
-
-### 8.3. PyMOL Trajectory Visualization
-
-To inspect trajectories, always open the solvent-stripped topology (`stripped.prmtop`) paired with the stripped trajectory (`prod_keep_ligand.dcd`):
+To inspect trajectories, open the stripped topology (`stripped.prmtop`) paired with the stripped trajectory (`prod_keep_ligand.dcd`).
 
 #### Option A: Quick Launch via CLI
-The `cmda view` command automatically generates a PyMOL script with backbone fitting and launches the GUI:
+The built-in `cmda view` command automatically generates a PyMOL script with backbone fitting and launches the GUI:
 
 ```bash
 # View Wild-Type trajectory:
