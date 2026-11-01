@@ -89,12 +89,15 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     │   │   ├── WT/
     │   │   │   ├── 01_prep/              # Solvated Amber system (system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
     │   │   │   ├── 02_eq/                # 24-stage equilibration hub (eq.pdb, state.xml, stages/)
-    │   │   │   └── 03_md/                # Production MD replicas (md.dcd, md.log, state.xml, prod.chk, chunks/)
+    │   │   │   └── 03_md/                # Production MD replicas
+    │   │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, stripped.prmtop, prod_keep_ligand.dcd, chunks/
+    │   │   │       ├── r2/               # Independent velocity seed
+    │   │   │       └── r3/               # Triplicate simulation
     │   │   └── L119R/
     │   │       ├── 01_prep/
     │   │       ├── 02_eq/
     │   │       └── 03_md/{r1, r2, r3}/
-    │   └── analysis/                     # Mirrored reports (<variant>/02_eq/qc.png, qc.txt) & flat compare/
+    │   └── analysis/                     # Mirrored reports (<variant>/02_eq/qc.png, qc.txt; 03_md/r1/...) & flat compare/
     │
     └── atpmg/                            # Track 2: Holo state (Kinase + ATP + Mg²⁺)
         ├── structure/

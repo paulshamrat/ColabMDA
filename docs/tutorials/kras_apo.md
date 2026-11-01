@@ -23,7 +23,7 @@ research/projects/kras-example/
         │   │   ├── 01_prep/              # system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
         │   │   ├── 02_eq/                # eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Production replicas (100 ns)
-        │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, chunks/
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, stripped.prmtop, prod_keep_ligand.dcd, chunks/
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── G12D/

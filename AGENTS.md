@@ -45,6 +45,56 @@
 
 ### Standard simulation and analysis architecture
 
+```text
+research/projects/<project-example>/
+└── data/
+    └── <state>/                              # apo or atpmg
+        ├── structure/
+        │   └── <target>/                     # Biological Target (UniProt) + Structural Template (PDB)
+        │       ├── raw/                      # .cif, template.pdb, uniprot.fasta, residues.json
+        │       ├── variants/                 # WT/WT.pdb, <mutant>/<mutant>.pdb
+        │       └── STRUCTURE_DONE            # QC verification marker
+        │
+        ├── simulation/
+        │   ├── WT/
+        │   │   ├── 01_prep/                  # Solvated Amber system (system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
+        │   │   ├── 02_eq/                    # 24-stage equilibration hub
+        │   │   │   ├── eq.pdb                # Final relaxed coordinates
+        │   │   │   ├── system.xml            # OpenMM system topology & parameters
+        │   │   │   ├── state.xml             # OpenMM thermodynamic state snapshot
+        │   │   │   └── stages/               # Granular restart checkpoints (state_01.xml ... state_24.xml)
+        │   │   └── 03_md/                    # Production replicas (e.g. 100 ns)
+        │   │       ├── r1/                   # Replica 1 hub
+        │   │       │   ├── md.dcd            # Continuous merged trajectory (full system)
+        │   │       │   ├── md.log            # Continuous merged thermodynamic log
+        │   │       │   ├── state.xml         # Latest OpenMM simulation state snapshot
+        │   │       │   ├── prod.chk          # OpenMM checkpoint binary for resume
+        │   │       │   ├── stripped.prmtop   # Solvent-stripped topology for PyMOL & analysis
+        │   │       │   ├── prod_keep_ligand.dcd # Continuous PBC-autoimaged stripped trajectory
+        │   │       │   ├── ca.prmtop         # Cα backbone topology
+        │   │       │   ├── prod_ca.dcd       # Cα backbone trajectory
+        │   │       │   ├── MERGE_DONE        # Merge completion marker
+        │   │       │   └── chunks/           # Raw crash-recovery chunks (0001.dcd, 0001.log, ...)
+        │   │       ├── r2/                   # Independent velocity seed (triplicate)
+        │   │       └── r3/                   # Independent velocity seed (triplicate)
+        │   └── <mutant>/
+        │       ├── 01_prep/
+        │       ├── 02_eq/
+        │       └── 03_md/{r1, r2, r3}/
+        │
+        └── analysis/                         # Mirrored deliverables (Zero JSON policy)
+            ├── WT/
+            │   ├── 02_eq/                    # Equilibration QC deliverables (qc.png, qc.txt)
+            │   └── 03_md/
+            │       ├── r1/                   # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt, *.csv)
+            │       ├── r2/
+            │       └── r3/
+            ├── <mutant>/
+            │   ├── 02_eq/                    # qc.png, qc.txt
+            │   └── 03_md/{r1, r2, r3}/
+            └── compare/                      # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
+```
+
 - **Zero JSON policy in simulation and analysis**: Neither `simulation/` nor `analysis/`
   shall contain `.json` files. OpenMM simulation directories (`01_prep`, `02_eq`, `03_md`)
   contain strictly native OpenMM files (`.pdb`, `.xml`, `.log`, `.dcd`, `.chk`). Analysis
@@ -60,8 +110,8 @@
   Raw crash-recovery chunks are strictly isolated in `chunks/{idx:04d}.dcd` and
   `chunks/{idx:04d}.log` using 4-digit zero-padding without units (`ns`/`ps`).
   Post-merge PBC-autoimaged and solvent-stripped trajectories (`stripped.prmtop`,
-  `prod_keep_ligand.dcd`) are generated via `cmda merge` for PyMOL inspection and
-  biophysical analysis.
+  `prod_keep_ligand.dcd`) and Cα backbone (`ca.prmtop`, `prod_ca.dcd`) are generated
+  via `cmda merge` for PyMOL inspection and biophysical analysis.
 - **Analysis and comparison (`analysis/`)**: Analysis symmetrically mirrors simulation
   (`analysis/<variant>/02_eq/` for `qc.png` and `qc.txt`; `analysis/<variant>/03_md/<replica>/`
   for replica metrics). Cross-variant comparison lives flat in `analysis/compare/`

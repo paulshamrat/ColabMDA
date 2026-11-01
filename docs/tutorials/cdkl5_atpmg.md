@@ -33,7 +33,7 @@ research/projects/cmda-example/
         │   │   │                         # + Li-Merz 12-6 Mg²⁺ + ParmEd CMAP correction
         │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
         │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
-        │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, chunks/
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, stripped.prmtop, prod_keep_ligand.dcd, chunks/
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── L119R/

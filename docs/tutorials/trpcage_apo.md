@@ -23,7 +23,7 @@ research/projects/trpcage-example/
         │       ├── 01_prep/              # Step 1: system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
         │       ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/
         │       └── 03_md/                # Step 3: Production replica (1 ns smoke test)
-        │           └── r1/               # md.dcd, md.log, state.xml, prod.chk, chunks/
+        │           └── r1/               # md.dcd, md.log, state.xml, prod.chk, stripped.prmtop, prod_keep_ligand.dcd, chunks/
         │
         └── analysis/                     # Phase 4: Generated during merge, analyze & compare
             └── WT/
