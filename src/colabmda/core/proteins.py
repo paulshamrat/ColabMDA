@@ -497,6 +497,9 @@ def check_topology(folder, name=None, *, spec=None, save_receipt=False):
     topology = AmberPrmtopFile(str(folder / "system.prmtop"))
     system = topology.createSystem()
     force = next(f for f in system.getForces() if isinstance(f, NonbondedForce))
+    cforce = next(
+        (f for f in system.getForces() if type(f).__name__ == "CustomNonbondedForce"), None
+    )
     charges = [
         force.getParticleParameters(i)[0].value_in_unit(unit.elementary_charge)
         for i in range(system.getNumParticles())
@@ -552,6 +555,20 @@ def check_topology(folder, name=None, *, spec=None, save_receipt=False):
                 _, sigma, epsilon = force.getParticleParameters(atom.index)
                 rmin_half = sigma.value_in_unit(unit.angstrom) * 2 ** (1 / 6) / 2
                 eps = epsilon.value_in_unit(unit.kilocalorie_per_mole)
+                if eps == 0.0 and cforce is not None:
+                    p_params = cforce.getParticleParameters(atom.index)
+                    type_idx = int(p_params[0])
+                    acoef_func = cforce.getTabulatedFunction(0)
+                    bcoef_func = cforce.getTabulatedFunction(1)
+                    w, _, a_vals = acoef_func.getFunctionParameters()
+                    _, _, b_vals = bcoef_func.getFunctionParameters()
+                    idx = type_idx + w * type_idx
+                    A = a_vals[idx] ** 2
+                    B = b_vals[idx]
+                    if B > 0 and A > 0:
+                        sigma_nm = (A / B) ** (1 / 6)
+                        rmin_half = (sigma_nm * 10) * (2 ** (1 / 6)) / 2
+                        eps = ((B**2) / (4 * A)) / 4.184
                 expected_rmin, expected_epsilon = expected_ions[residue.name]
                 if abs(rmin_half - expected_rmin) > 1e-5 or abs(eps - expected_epsilon) > 1e-7:
                     raise ValueError(f"Incomplete or mismatched OPC ion model for {residue.name}")

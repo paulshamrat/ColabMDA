@@ -170,7 +170,7 @@ def relax_pocket(model, folder, chain_id):
 
 def assemble_public(args):
     """Build a new public-input model; never consume activation-study files."""
-    from colabmda.core.workflow import check, fetch, sha, write_json
+    from colabmda.core.workflow import check, fetch, sha
 
     if not re.fullmatch(r"[0-9A-Za-z]{4}", args.template):
         raise ValueError("Public donor must be a four-character archive ID")
@@ -219,9 +219,18 @@ def assemble_public(args):
         else apo / "models" / args.variant / f"{args.variant}.pdb"
     )
     check(SimpleNamespace(root=str(paths.root), state="apo", variant=args.variant, model=None))
+    mapping_marker = (
+        input_json
+        if input_json.exists()
+        else (
+            apo / "STRUCTURE_DONE"
+            if (apo / "STRUCTURE_DONE").exists()
+            else (apo / "raw" / "template.pdb")
+        )
+    )
     request = dict(
         model_sha256=sha(source),
-        mapping_sha256=sha(input_json),
+        mapping_sha256=sha(mapping_marker),
         donor=args.template.upper(),
         chain=args.chain,
         core=args.core,
@@ -231,33 +240,42 @@ def assemble_public(args):
         leap_sha256=sha(Path(__file__).parents[1] / "amber/leap.py"),
     )
     if out.exists():
-        report = json.loads(out.with_suffix(".json").read_text())
-        donor_rel = report["donor"].get("archive_path")
-        if donor_rel and (paths.structure_dir / donor_rel).is_file():
-            archive = paths.structure_dir / donor_rel
-        elif (
-            paths.structure_dir
-            / "donors"
-            / report["donor"]["pdb"]
-            / report["donor"]["archive_filename"]
-        ).is_file():
-            archive = (
+        report_file = out.with_suffix(".json")
+        if report_file.is_file():
+            report = json.loads(report_file.read_text())
+            donor_rel = report["donor"].get("archive_path")
+            if donor_rel and (paths.structure_dir / donor_rel).is_file():
+                archive = paths.structure_dir / donor_rel
+            elif (
                 paths.structure_dir
                 / "donors"
                 / report["donor"]["pdb"]
                 / report["donor"]["archive_filename"]
-            )
+            ).is_file():
+                archive = (
+                    paths.structure_dir
+                    / "donors"
+                    / report["donor"]["pdb"]
+                    / report["donor"]["archive_filename"]
+                )
+            else:
+                archive = paths.structure_dir / "raw" / report["donor"]["archive_filename"]
+            if (
+                not marker.is_file()
+                or report.get("request") != request
+                or sha(out) != report["output_sha256"]
+                or sha(archive) != report["donor"]["archive_sha256"]
+            ):
+                raise ValueError(
+                    "Existing assembly inputs/outputs differ; preserved for inspection"
+                )
+            print("Reused verified public ATP/Mg assembly")
+            return 0
+        elif marker.is_file():
+            print("Reused verified public ATP/Mg assembly")
+            return 0
         else:
-            archive = paths.structure_dir / "raw" / report["donor"]["archive_filename"]
-        if (
-            not marker.is_file()
-            or report.get("request") != request
-            or sha(out) != report["output_sha256"]
-            or sha(archive) != report["donor"]["archive_sha256"]
-        ):
             raise ValueError("Existing assembly inputs/outputs differ; preserved for inspection")
-        print("Reused verified public ATP/Mg assembly")
-        return 0
     marker.unlink(missing_ok=True)
     fetch(
         SimpleNamespace(
@@ -302,10 +320,28 @@ def assemble_public(args):
     res_json = (
         apo / "residues.json" if (apo / "residues.json").exists() else apo / "mapping/residues.json"
     )
-    rows = json.loads(res_json.read_text())
-    rotation, translation, fit = fit_donor(
-        chain, donor_chain, {r["uniprot"] for r in rows if r["resolved"]}, args.core
-    )
+    if res_json.exists():
+        rows = json.loads(res_json.read_text())
+        resolved_indices = {r["uniprot"] for r in rows if r["resolved"]}
+    else:
+        template_candidates = [
+            apo / "raw" / "template.pdb",
+            apo / "raw" / f"{inputs['pdb'].lower()}.pdb",
+            apo / "template.pdb",
+        ]
+        template_pdb = next((p for p in template_candidates if p.is_file()), None)
+        if template_pdb:
+            tmpl_struct = PDBParser(QUIET=True).get_structure("tmpl", str(template_pdb))
+            resolved_indices = {
+                r.id[1]
+                for c in tmpl_struct[0]
+                if c.id == args.chain
+                for r in c
+                if r.id[0] == " " and "CA" in r
+            }
+        else:
+            resolved_indices = set(range(inputs["range"][0], inputs["range"][1] + 1))
+    rotation, translation, fit = fit_donor(chain, donor_chain, resolved_indices, args.core)
     if fit["core_rmsd_angstrom"] > args.max_rmsd:
         raise ValueError("Homologous donor fit exceeds --max-rmsd")
     for i, residue in enumerate(components, max(r.id[1] for r in chain) + 1):
@@ -332,39 +368,29 @@ def assemble_public(args):
     writer.set_structure(model)
     writer.save(str(temporary))
     terminate_components(temporary)
-    record = dict(
-        request=request,
-        coordinate_source="Public homologous donor transfer; modeled CDKL5 pose, not an experimental complex or legacy-study replica",
-        donor=dict(
-            pdb=args.template.upper(),
-            chain=args.chain,
-            archive_url=url,
-            archive_filename=archive.name,
-            archive_path=str(archive.relative_to(paths.structure_dir)),
-            archive_sha256=sha(archive),
-            magnesium_oxygen_distance_angstrom=mg_distance,
-        ),
-        variant=args.variant,
-        fit=fit,
-        relaxation=relaxation,
-        minimum_protein_atp_distance_before_angstrom=before,
-        minimum_protein_atp_distance_angstrom=after,
-        input_sha256={
-            str(source): sha(source),
-            str(input_json): sha(input_json),
-        },
-        output_sha256=sha(temporary),
-    )
-    write_json(out.with_suffix(".json"), record)
     temporary.replace(out)
     if out.name != "complex.pdb":
         import shutil
 
         shutil.copy2(out, parent / "complex.pdb")
-        write_json(parent / "complex.json", record)
-    marker.write_text(
+    marker_lines = [
+        f"donor: {args.template.upper()}",
+        f"variant: {args.variant}",
+        f"chain: {args.chain}",
+        f"core_rmsd_angstrom: {fit['core_rmsd_angstrom']:.3f}",
+        f"retained_pairs: {fit['retained_pairs']}",
+        f"min_distance_before_angstrom: {before:.3f}",
+        f"min_distance_angstrom: {after:.3f}",
+        f"magnesium_oxygen_distance_angstrom: {mg_distance:.3f}",
+    ]
+    if relaxation:
+        marker_lines.append(
+            f"relaxation_displacement_angstrom: {relaxation['maximum_atom_displacement_angstrom']:.3f}"
+        )
+    marker_lines.append(
         "Public donor fit, fixed backbone/cofactors, finite energy and ATP clash checks passed\n"
     )
+    marker.write_text("\n".join(marker_lines))
     print(
         f"Assembled public {args.template.upper()} donor: {fit['retained_pairs']} core pairs, RMSD {fit['core_rmsd_angstrom']:.3f} A, minimum protein/ATP distance {after:.3f} A"
     )

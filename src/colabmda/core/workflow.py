@@ -6,7 +6,7 @@ import json
 import re
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from Bio import SeqIO
 from Bio.PDB import PDBIO, PDBParser, Select
@@ -124,9 +124,20 @@ def fetch(args):
     author_to_uni = {}
 
     if uniprot_id:
-        payload = urlopen(
-            f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta", timeout=60
-        ).read()
+        req = Request(
+            f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta",
+            headers={"User-Agent": "Mozilla/5.0 (ColabMDA)"},
+        )
+        for attempt in range(3):
+            try:
+                payload = urlopen(req, timeout=60).read()
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                import time
+
+                time.sleep(1)
         if fasta.exists() and fasta.read_bytes() != payload:
             raise ValueError("Different existing UniProt sequence preserved")
         fasta.write_bytes(payload)
