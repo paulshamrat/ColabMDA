@@ -110,8 +110,9 @@ def colab_push(
     root: str | Path | None = None,
     project: str | None = None,
     timeout: float = 300,
+    ephemeral: bool = False,
 ) -> int:
-    """Package local data/ and push directly into remote Colab Google Drive."""
+    """Package local data/ and push directly into remote Colab Google Drive or ephemeral disk."""
     import tarfile
 
     local_root = Path(root or os.getcwd()).resolve()
@@ -124,7 +125,11 @@ def colab_push(
     project_name = project or local_root.name
     if project_name in {"research", "projects", "ColabMDA"}:
         project_name = "cmda-example"
-    remote_base = f"/content/drive/MyDrive/research/projects/{project_name}"
+    remote_base = (
+        f"/content/{project_name}"
+        if ephemeral
+        else f"/content/drive/MyDrive/research/projects/{project_name}"
+    )
 
     print(f"[INFO] Packaging local data/ from {local_root}...")
     tmp_tar = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
@@ -142,27 +147,44 @@ def colab_push(
             print("[ERROR] colab upload failed. Ensure the session is running and authenticated.")
             return res
 
-        print(f"[INFO] Extracting directly into Google Drive: {remote_base}/data/ ...")
-        remote_script = (
-            "import os, tarfile\n"
-            "drive_base = '/content/drive/MyDrive'\n"
-            "if not os.path.exists(drive_base):\n"
-            "    raise RuntimeError('Google Drive is not mounted! Run: colab drivemount --session <name>')\n"
-            f"dest = {remote_base!r}\n"
-            "os.makedirs(dest, exist_ok=True)\n"
-            f"with tarfile.open({remote_tar!r}, 'r:gz') as tar:\n"
-            "    tar.extractall(dest)\n"
-            f"if os.path.exists({remote_tar!r}):\n"
-            f"    os.remove({remote_tar!r})\n"
-            f"print('[OK] Synchronized data/ to {{dest}}/data')\n"
-        )
+        target_desc = "ephemeral disk" if ephemeral else "Google Drive"
+        print(f"[INFO] Extracting directly into {target_desc}: {remote_base}/data/ ...")
+        if ephemeral:
+            remote_script = (
+                "import os, tarfile\n"
+                f"dest = {remote_base!r}\n"
+                "os.makedirs(dest, exist_ok=True)\n"
+                f"with tarfile.open({remote_tar!r}, 'r:gz') as tar:\n"
+                "    tar.extractall(dest)\n"
+                f"if os.path.exists({remote_tar!r}):\n"
+                f"    os.remove({remote_tar!r})\n"
+                f"print('[OK] Synchronized data/ to {{dest}}/data')\n"
+            )
+        else:
+            remote_script = (
+                "import os, tarfile\n"
+                "drive_base = '/content/drive/MyDrive'\n"
+                "if not os.path.exists(drive_base):\n"
+                "    raise RuntimeError('Google Drive is not mounted! Run: colab drivemount --session <name>')\n"
+                f"dest = {remote_base!r}\n"
+                "os.makedirs(dest, exist_ok=True)\n"
+                f"with tarfile.open({remote_tar!r}, 'r:gz') as tar:\n"
+                "    tar.extractall(dest)\n"
+                f"if os.path.exists({remote_tar!r}):\n"
+                f"    os.remove({remote_tar!r})\n"
+                f"print('[OK] Synchronized data/ to {{dest}}/data')\n"
+            )
         status = _execute_remote(session, remote_script, timeout=timeout)
         if status == 0:
-            print("✔ Successfully pushed local models and structures to Google Drive:")
-            print(f"  • Colab Linux Path:   {remote_base}/data/")
-            print(
-                f"  • Google Drive Web:   My Drive > research > projects > {project_name} > data/"
-            )
+            if ephemeral:
+                print("✔ Successfully pushed local models and structures to ephemeral disk:")
+                print(f"  • Colab Linux Path:   {remote_base}/data/")
+            else:
+                print("✔ Successfully pushed local models and structures to Google Drive:")
+                print(f"  • Colab Linux Path:   {remote_base}/data/")
+                print(
+                    f"  • Google Drive Web:   My Drive > research > projects > {project_name} > data/"
+                )
         return status
     finally:
         Path(tmp_tar.name).unlink(missing_ok=True)
@@ -180,6 +202,7 @@ def colab_pull(
     traj: bool = False,
     all_files: bool = False,
     timeout: float = 300,
+    ephemeral: bool = False,
 ) -> int:
     """Download analysis figures and reports (or full data) from Google Drive back locally."""
     import tarfile
@@ -188,7 +211,11 @@ def colab_pull(
     project_name = project or local_root.name
     if project_name in {"research", "projects", "ColabMDA"}:
         project_name = "cmda-example"
-    remote_base = f"/content/drive/MyDrive/research/projects/{project_name}"
+    remote_base = (
+        f"/content/{project_name}"
+        if ephemeral
+        else f"/content/drive/MyDrive/research/projects/{project_name}"
+    )
     remote_tar = "/content/_cmda_pull.tar.gz"
 
     session_name = session or "cmda"

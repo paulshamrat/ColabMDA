@@ -1365,6 +1365,12 @@ def main():
         default=300,
         help="Push timeout in seconds (default: 300)",
     )
+    p_top_push.add_argument(
+        "--ephemeral",
+        action="store_true",
+        default=False,
+        help="Target ephemeral /content/<project>/ on Colab VM instead of Google Drive",
+    )
 
     # pull
     p_top_pull = sub.add_parser(
@@ -1428,6 +1434,12 @@ def main():
         type=float,
         default=300,
         help="Pull timeout in seconds (default: 300)",
+    )
+    p_top_pull.add_argument(
+        "--ephemeral",
+        action="store_true",
+        default=False,
+        help="Pull deliverables from ephemeral /content/<project>/ on Colab VM instead of Google Drive",
     )
 
     # 2. prep
@@ -1622,6 +1634,7 @@ def main():
                 root=args.root,
                 project=args.project,
                 timeout=args.timeout,
+                ephemeral=getattr(args, "ephemeral", False),
             )
         )
 
@@ -1641,6 +1654,7 @@ def main():
                 traj=args.traj,
                 all_files=args.all_files,
                 timeout=args.timeout,
+                ephemeral=getattr(args, "ephemeral", False),
             )
         )
 
