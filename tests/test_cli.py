@@ -151,7 +151,7 @@ def test_top_level_stage_command(tmp_path, monkeypatch):
     )
     assert res.returncode == 0
     variant_base = tmp_path / "data/atp_2mg_eb2/simulation/cdkl5_staged_v1/WT"
-    for folder in ["01_prep", "02_eq", "03_md/r1", "03_md/r2", "03_md/r3"]:
+    for folder in ["prep", "eq", "md/r1", "md/r2", "md/r3"]:
         assert (variant_base / folder).is_dir()
     assert not (tmp_path / "data/atp_2mg_eb2/analysis").exists()
     assert not (variant_base / "04_analysis").exists()

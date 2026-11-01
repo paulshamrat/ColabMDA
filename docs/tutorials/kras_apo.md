@@ -13,28 +13,57 @@ research/projects/kras-example/
 └── data/
     └── apo/
         ├── structure/
-        │   └── P01116_4LDJ/              # Target: UniProt P01116 + Template PDB 4LDJ
-        │       ├── raw/                  # Phase 1.2: 4ldj.cif, template.pdb, uniprot.fasta, residues.json
-        │       ├── variants/             # Phase 1.3: Modeled backbones (WT/WT.pdb, G12D/G12D.pdb)
-        │       └── STRUCTURE_DONE        # Verification QC gate marker
+        │   └── P01116_4LDJ/                      # Target: UniProt P01116 + Template PDB 4LDJ
+        │       ├── raw/                          # Untouched experimental inputs (cmda fetch)
+        │       │   ├── 4ldj.cif                  # Raw crystallographic archive record
+        │       │   ├── template.pdb              # Cleaned monomer (waters/buffers stripped)
+        │       │   └── uniprot.fasta             # Canonical sequence for biological residue numbering
+        │       │
+        │       ├── variants/                     # Modeled coordinates (cmda model)
+        │       │   ├── WT/
+        │       │   │   ├── WT.pdb                # Canonical modeled Wild-Type coordinate
+        │       │   │   ├── target.B99990001.pdb  # Modeller build
+        │       │   │   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
+        │       │   │   ├── target.ini            # Starting coordinate mesh
+        │       │   │   ├── target.rsr            # Spatial restraints
+        │       │   │   ├── target.sch            # Optimization schedule
+        │       │   │   ├── target.D00000001      # Restraint progress log
+        │       │   │   ├── target.V99990001      # Restraint violation profile
+        │       │   │   ├── target.ali            # PIR target sequence alignment
+        │       │   │   ├── alignment.ali         # PIR template pairwise alignment
+        │       │   │   ├── P01116.fasta          # Sequence reference
+        │       │   │   ├── 4ldj_clean.pdb        # Sanitized template
+        │       │   │   ├── 4ldj_orig.pdb         # Raw template backup
+        │       │   │   ├── 4ldj.pdb              # Isolated chain coordinate
+        │       │   │   ├── pipeline.log          # Modeller build log
+        │       │   │   └── MODEL_DONE            # Modeling completion gate
+        │       │   │
+        │       │   └── G12D/                     # Oncogenic point mutant
+        │       │       ├── G12D.pdb              # Mutated coordinate
+        │       │       ├── WT_G12D.pdb           # Direct mutation coordinate
+        │       │       ├── WT_G12D_with_cryst.pdb # Mutant with crystal headers
+        │       │       ├── mutate.log            # Rotamer sampling & energy log
+        │       │       └── MODEL_DONE            # Mutant completion gate
+        │       │
+        │       └── STRUCTURE_DONE                # Verification QC gate marker
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # Solvated Amber system
+        │   │   ├── prep/              # Solvated Amber system
         │   │   │   ├── model.pdb         # Input receptor coordinates
         │   │   │   ├── solvated.pdb      # Solvated visualization PDB (protein + OPC water box + ions)
         │   │   │   ├── system.prmtop     # Amber ff19SB parameter/topology file
         │   │   │   ├── system.inpcrd     # Initial orthogonal coordinates
         │   │   │   └── system.xml        # Serialized OpenMM system
         │   │   │
-        │   │   ├── 02_eq/                # 24-stage equilibration hub
+        │   │   ├── eq/                # 24-stage equilibration
         │   │   │   ├── eq.pdb            # Final relaxed coordinates
         │   │   │   ├── system.xml        # OpenMM system topology & parameters
         │   │   │   ├── state.xml         # OpenMM thermodynamic state snapshot
         │   │   │   └── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
         │   │   │
-        │   │   └── 03_md/                # Production replicas (100 ns)
-        │   │       ├── r1/               # Replica 1 hub
+        │   │   └── md/                # Production replicas (100 ns)
+        │   │       ├── r1/               # Production replica 1
         │   │       │   ├── md.dcd        # Continuous merged trajectory (full system)
         │   │       │   ├── md.log        # Continuous merged thermodynamic log
         │   │       │   ├── state.xml     # Latest OpenMM simulation state snapshot
@@ -49,20 +78,20 @@ research/projects/kras-example/
         │   │       └── r3/               # Independent velocity seed (triplicate)
         │   │
         │   └── G12D/
-        │       ├── 01_prep/
-        │       ├── 02_eq/
-        │       └── 03_md/{r1, r2, r3}/
+        │       ├── prep/
+        │       ├── eq/
+        │       └── md/{r1, r2, r3}/
         │
         └── analysis/                     # Mirrored deliverables (Zero JSON policy)
             ├── WT/
-            │   ├── 02_eq/                # Equilibration QC deliverables (qc.png, qc.txt)
-            │   └── 03_md/
-            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt, *.csv)
+            │   ├── eq/                # Equilibration QC deliverables (qc.png, qc.txt)
+            │   └── md/
+            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt)
             │       ├── r2/
             │       └── r3/
             ├── G12D/
-            │   ├── 02_eq/                # qc.png, qc.txt
-            │   └── 03_md/{r1, r2, r3}/
+            │   ├── eq/                # qc.png, qc.txt
+            │   └── md/{r1, r2, r3}/
             └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
 ```
 
@@ -155,11 +184,11 @@ cmda prep --state apo --variant WT
 cmda prep --state apo --variant G12D
 
 # Visually inspect the solvated systems in PyMOL (WT and Mutant):
-pymol data/apo/simulation/WT/01_prep/solvated.pdb
-pymol data/apo/simulation/G12D/01_prep/solvated.pdb
+pymol data/apo/simulation/WT/prep/solvated.pdb
+pymol data/apo/simulation/G12D/prep/solvated.pdb
 ```
 
-*Key outputs generated in `data/apo/simulation/<variant>/01_prep/`:*
+*Key outputs generated in `data/apo/simulation/<variant>/prep/`:*
 * `model.pdb`: Copy of the input coordinate PDB for reproducibility.
 * `solvated.pdb`: Solvated coordinate PDB with protein, water box, and neutralized counterion(s).
 * `system.prmtop`: Amber topology containing all `ff19SB` physical parameters.
@@ -195,8 +224,8 @@ cmda view --state apo --variant G12D
 pymol data/apo/structure/P01116_4LDJ/variants/WT/WT.pdb data/apo/structure/P01116_4LDJ/variants/G12D/G12D.pdb
 
 # 3. Inspect the fully solvated systems (water box + neutralizing counterions):
-pymol data/apo/simulation/WT/01_prep/solvated.pdb
-pymol data/apo/simulation/G12D/01_prep/solvated.pdb
+pymol data/apo/simulation/WT/prep/solvated.pdb
+pymol data/apo/simulation/G12D/prep/solvated.pdb
 ```
 
 ---
@@ -247,7 +276,7 @@ cd /content/drive/MyDrive/research/projects/kras-example
 
 ---
 
-### 3.2. Stage Simulation Hubs & Equilibration
+### 3.2. Stage & Run Equilibration
 Stage simulation directories and execute the 24-stage progressive heating and restraint release ladder (EM, NVT heating, NPT density relaxation) on GPU:
 
 ```bash
@@ -289,15 +318,15 @@ cmda pull -s cmda --stage eq
 
 #### 2. Verify Status in 1 Second (Terminal)
 ```bash
-cat data/apo/analysis/WT/02_eq/qc.txt
-cat data/apo/analysis/G12D/02_eq/qc.txt
+cat data/apo/analysis/WT/eq/qc.txt
+cat data/apo/analysis/G12D/eq/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
 #### 3. Glance at 6-Panel QC Plot in 5 Seconds
 Open the unified 7-inch publication plot in any image viewer:
-* `data/apo/analysis/WT/02_eq/qc.png`
-* `data/apo/analysis/G12D/02_eq/qc.png`
+* `data/apo/analysis/WT/eq/qc.png`
+* `data/apo/analysis/G12D/eq/qc.png`
 
 *Expected Visual:*
 * **Panels A–D (Thermodynamics):** Temperature is flat at **$300\text{ K}$**; density is flat at **$\sim 1.01\text{ g/mL}$**; potential energy and volume are stable.
@@ -307,7 +336,7 @@ Open the unified 7-inch publication plot in any image viewer:
 #### 4. Quick 3D Fold Check in PyMOL in 30 Seconds
 Launch PyMOL with both starting and equilibrated coordinates:
 ```bash
-pymol data/apo/simulation/WT/01_prep/model.pdb data/apo/simulation/WT/02_eq/eq.pdb
+pymol data/apo/simulation/WT/prep/model.pdb data/apo/simulation/WT/eq/eq.pdb
 ```
 In the PyMOL right panel:
 1. Next to **`(all)`**: Click **`H`** (Hide) $\to$ **`waters`**, then **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
@@ -348,8 +377,8 @@ show sticks, (organic or resn ATP)
 
 ---
 
-### 3.3. Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
-Replicas fork from `02_eq/` with distinct random velocity seeds into `03_md/`:
+### 3.3. Production MD Across Triplicates (`md/{r1, r2, r3}`)
+Replicas fork from `eq/` with distinct random velocity seeds into `md/`:
 
 ```bash
 # Wild-Type Triplicates (100 ns production runs)
@@ -363,14 +392,33 @@ cmda sim md --state apo --variant G12D --replica r2 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
 ```
 
-#### In-Context Reference: Simulation Math & Storage Budgeting
-Calculate expected trajectory frames:
-$$\text{Expected Frames} = \frac{\text{Total Time (ps)}}{\text{Trajectory Saving Interval (ps)}}$$
+#### Simulation Parameters & Frame Saving Cadence
 
-* **Example:** A $100.0\text{ ns}$ ($100,000\text{ ps}$) simulation with a $10.0\text{ ps}$ saving interval:
-  $$\text{Expected Frames} = \frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$$
-* **Saving Every $10\text{ ps}$ (`--traj-interval 10`):** Reduces total raw storage from **~36 GB to ~3.6 GB (a 90% space reduction)** while maintaining 10,000 frames per replica for RMSD, RMSF, PCA, and cross-correlation analysis.
-* **Stripped Trajectories (`cmda merge`):** Removing solvent water and bulk ions retains protein coordinates (~2,600 atoms), reducing merged trajectory file sizes to **<200 MB** per replica.
+Production dynamics uses standard biophysical integration parameters optimized for cloud stability and storage efficiency:
+
+| Parameter | Value | Biophysical Rationale & Details |
+| :--- | :--- | :--- |
+| **Timestep ($\Delta t$)** | **$2\text{ fs}$ ($0.002\text{ ps}$)** | Standard Langevin middle integrator with SHAKE/SETTLE constraints on all bonds involving hydrogen. |
+| **Frame Saving Interval** | **Every $10\text{ ps}$ ($5,000\text{ steps}$)** | Writes coordinates to `.dcd` trajectory every 10 ps (`--traj-interval 10`), yielding high temporal resolution. |
+| **Thermodynamic Log Interval** | **Every $10\text{ ps}$ ($5,000\text{ steps}$)** | Records instantaneous temperature, potential energy, kinetic energy, volume, and density to `.log`. |
+| **Chunk Partitioning** | **$1\text{ ns}$ ($500,000\text{ steps}$)** | Simulations are partitioned into $1\text{ ns}$ self-contained chunks ($100\text{ frames}$ per chunk file). |
+| **Checkpoint Cadence** | **Every $1\text{ ns}$** | Serializes binary state checkpoint `prod.chk` to Google Drive at the end of each chunk. |
+| **Total Frames Generated** | **$10,000\text{ frames}$** | $\frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$ per $100\text{ ns}$ replica. |
+| **Storage Footprint** | **~3.6 GB $\to$ <200 MB** | Raw solvated chunks total ~3.6 GB; stripped trajectories (`cmda merge`) reduce this by >90% to <200 MB. |
+
+#### Generated Output Files & Downstream Handover
+
+During simulation, ColabMDA populates `data/apo/simulation/<variant>/md/<replica>/`:
+
+```text
+simulation/WT/md/r1/
+├── chunk_001.dcd ... chunk_100.dcd   # 1-ns raw trajectory chunks (100 frames each, 10,000 frames total)
+├── chunk_001.log ... chunk_100.log   # 1-ns thermodynamic logs (temperature, volume, density, energy)
+├── state.xml                         # Latest thermodynamic state snapshot
+└── prod.chk                          # Checkpoint binary for auto-resuming after timeouts
+```
+
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Phase 4 (`cmda merge`)**, which concatenates them into a continuous unified trajectory (`md.dcd`), eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `prod_clean.dcd` for statistical analysis.
 
 #### 💡 Resuming After a Session Timeout
 Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive. If your session expires:
@@ -407,7 +455,7 @@ cmda status --state apo --variant WT --replica r1
 
 ```text
 [STATUS]
-  Workdir          : data/apo/simulation/WT/03_md/r1
+  Workdir          : data/apo/simulation/WT/md/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
@@ -434,7 +482,7 @@ cmda merge --state apo --variant WT
 cmda merge --state apo --variant G12D
 ```
 
-*What `cmda merge` outputs in `data/apo/simulation/<variant>/03_md/<replica>/`:*
+*What `cmda merge` outputs in `data/apo/simulation/<variant>/md/<replica>/`:*
 * `md.dcd`: Clean continuous trajectory merged from `chunks/0001.dcd` ... `chunks/0100.dcd`.
 * `md.log`: Continuous merged thermodynamic log table.
 * `stripped.prmtop` & `prod_keep_ligand.dcd`: Continuous PBC-autoimaged and solvent-stripped trajectory with matching stripped topology for PyMOL viewing and biophysical analysis.
@@ -502,13 +550,13 @@ cmda view --state apo --variant G12D --replica r1 --resi 12
 Open the topology and trajectory directly from your terminal:
 
 ```bash
-pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
+pymol data/apo/simulation/WT/md/r1/stripped.prmtop data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd
 ```
 
 #### Option C: Interactive PyMOL GUI (Desktop App)
 If opening PyMOL from your desktop application:
-1. **Load Topology:** Go to **File → Open...** (or drag and drop) and select `data/apo/simulation/WT/03_md/r1/stripped.prmtop` (or `WT.pdb`).
-2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd`. Ensure **Load into object** is set to the already-loaded protein object.
+1. **Load Topology:** Go to **File → Open...** (or drag and drop) and select `data/apo/simulation/WT/md/r1/stripped.prmtop` (or `WT.pdb`).
+2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd`. Ensure **Load into object** is set to the already-loaded protein object.
 3. **Play & Format:** Use the right-hand panel buttons (`S` Show → `as cartoon`, `C` Color → `cyan`) and click `▶` on the bottom-right movie controls to play.
 
 #### Inside PyMOL (Quick Commands):
@@ -548,15 +596,15 @@ Custom snapshot grids can also be produced using a camera configuration JSON:
   ],
   "systems": {
     "WT": {
-      "pdb": "data/apo/simulation/WT/03_md/r1/stripped.prmtop",
-      "dcd": "data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd",
+      "pdb": "data/apo/simulation/WT/md/r1/stripped.prmtop",
+      "dcd": "data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd",
       "states": [1, 200],
       "times": ["0.00 ns", "2.00 ns"],
       "mut_residue": 12
     },
     "G12D": {
-      "pdb": "data/apo/simulation/G12D/03_md/r1/stripped.prmtop",
-      "dcd": "data/apo/simulation/G12D/03_md/r1/prod_keep_ligand.dcd",
+      "pdb": "data/apo/simulation/G12D/md/r1/stripped.prmtop",
+      "dcd": "data/apo/simulation/G12D/md/r1/prod_keep_ligand.dcd",
       "states": [1, 200],
       "times": ["0.00 ns", "2.00 ns"],
       "mut_residue": 12

@@ -51,20 +51,49 @@ research/projects/<project-example>/
     └── <state>/                              # apo or atpmg
         ├── structure/
         │   └── <target>/                     # Biological Target (UniProt) + Structural Template (PDB)
-        │       ├── raw/                      # .cif, template.pdb, uniprot.fasta, residues.json
-        │       ├── variants/                 # WT/WT.pdb, <mutant>/<mutant>.pdb
-        │       └── STRUCTURE_DONE            # QC verification marker
+        │       ├── raw/                      # Untouched experimental inputs (cmda fetch)
+        │       │   ├── <pdb_id>.cif          # Raw crystallographic archive record
+        │       │   ├── template.pdb          # Cleaned monomer (waters/buffers stripped)
+        │       │   └── uniprot.fasta         # Canonical sequence for biological numbering
+        │       │
+        │       ├── variants/                 # Modeled coordinates (cmda model)
+        │       │   ├── WT/
+        │       │   │   ├── WT.pdb            # Canonical modeled Wild-Type coordinate
+        │       │   │   ├── target.B99990001.pdb  # Modeller build
+        │       │   │   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
+        │       │   │   ├── target.ini        # Starting coordinate mesh
+        │       │   │   ├── target.rsr        # Spatial restraints
+        │       │   │   ├── target.sch        # Optimization schedule
+        │       │   │   ├── target.D00000001  # Restraint progress log
+        │       │   │   ├── target.V99990001  # Restraint violation profile
+        │       │   │   ├── target.ali        # PIR target sequence alignment
+        │       │   │   ├── alignment.ali     # PIR template pairwise alignment
+        │       │   │   ├── <uniprot>.fasta   # Sequence reference
+        │       │   │   ├── <pdb>_clean.pdb   # Sanitized template
+        │       │   │   ├── <pdb>_orig.pdb    # Raw template backup
+        │       │   │   ├── <pdb>.pdb         # Isolated chain coordinate
+        │       │   │   ├── pipeline.log      # Modeller build log
+        │       │   │   └── MODEL_DONE        # Modeling completion gate
+        │       │   │
+        │       │   └── <mutant>/             # Point mutant
+        │       │       ├── <mutant>.pdb      # Mutated coordinate
+        │       │       ├── WT_<mutant>.pdb   # Direct mutation coordinate
+        │       │       ├── WT_<mutant>_with_cryst.pdb # Mutant with crystal headers
+        │       │       ├── mutate.log        # Rotamer sampling & energy log
+        │       │       └── MODEL_DONE        # Mutant completion gate
+        │       │
+        │       └── STRUCTURE_DONE            # Structural QC gate
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/                  # Solvated Amber system (system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
-        │   │   ├── 02_eq/                    # 24-stage equilibration hub
+        │   │   ├── prep/                     # Solvated Amber system (system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
+        │   │   ├── eq/                       # 24-stage equilibration
         │   │   │   ├── eq.pdb                # Final relaxed coordinates
         │   │   │   ├── system.xml            # OpenMM system topology & parameters
         │   │   │   ├── state.xml             # OpenMM thermodynamic state snapshot
         │   │   │   └── stages/               # Granular restart checkpoints (state_01.xml ... state_24.xml)
-        │   │   └── 03_md/                    # Production replicas (e.g. 100 ns)
-        │   │       ├── r1/                   # Replica 1 hub
+        │   │   └── md/                       # Production replicas (e.g. 100 ns)
+        │   │       ├── r1/                   # Production replica 1
         │   │       │   ├── md.dcd            # Continuous merged trajectory (full system)
         │   │       │   ├── md.log            # Continuous merged thermodynamic log
         │   │       │   ├── state.xml         # Latest OpenMM simulation state snapshot
@@ -78,34 +107,39 @@ research/projects/<project-example>/
         │   │       ├── r2/                   # Independent velocity seed (triplicate)
         │   │       └── r3/                   # Independent velocity seed (triplicate)
         │   └── <mutant>/
-        │       ├── 01_prep/
-        │       ├── 02_eq/
-        │       └── 03_md/{r1, r2, r3}/
+        │       ├── prep/
+        │       ├── eq/
+        │       └── md/{r1, r2, r3}/
         │
         └── analysis/                         # Mirrored deliverables (Zero JSON policy)
             ├── WT/
-            │   ├── 02_eq/                    # Equilibration QC deliverables (qc.png, qc.txt)
-            │   └── 03_md/
-            │       ├── r1/                   # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt, *.csv)
+            │   ├── eq/                       # Equilibration QC deliverables (qc.png, qc.txt)
+            │   └── md/
+            │       ├── r1/                   # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt)
             │       ├── r2/
             │       └── r3/
             ├── <mutant>/
-            │   ├── 02_eq/                    # qc.png, qc.txt
-            │   └── 03_md/{r1, r2, r3}/
+            │   ├── eq/                       # qc.png, qc.txt
+            │   └── md/{r1, r2, r3}/
             └── compare/                      # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
 ```
 
-- **Zero JSON policy in simulation and analysis**: Neither `simulation/` nor `analysis/`
-  shall contain `.json` files. OpenMM simulation directories (`01_prep`, `02_eq`, `03_md`)
-  contain strictly native OpenMM files (`.pdb`, `.xml`, `.log`, `.dcd`, `.chk`). Analysis
-  directories contain standard graphical and text deliverables (`.png`, `.txt`).
-  Redundant `.json` receipts (`equilibration_qc.json`, `parameterization.json`,
-  `nvt_protocol.json`, `npt_protocol.json`, `stage_XX.json`) are strictly prohibited.
-- **Equilibration (`02_eq`)**: Final relaxed coordinates are saved exclusively as
+- **Documentation & Writing Standard (Simple, Concise, and Direct)**:
+  All documentation, guides, comments, and commit messages must be simple, concise, and direct:
+  - **Zero Buzzwords & Tech Fluff**: Never use words like "hub", "nexus", "orchestrator", "ecosystem", or "VarMDyn".
+  - **Direct Nouns Only**: Use `eq/` (24-stage equilibration), `md/r1/` (Production replica 1), `prep/` (Solvated Amber system).
+  - **Step-by-Step Handover Context**: When documenting commands in guides, explicitly describe: (1) command run, (2) exact files generated, and (3) which subsequent step consumes those files.
+- **Universal Zero-JSON & Zero-TSV-Receipt Policy**:
+  Neither `structure/`, `simulation/`, nor `analysis/` shall contain `.json` receipts or loose `.tsv`/`.csv` audit files.
+  - `structure/raw/` contains only `.cif`, `template.pdb`, `uniprot.fasta` (no `residues.json`, `input.json`).
+  - `structure/variants/` contains coordinate models, native Modeller logs, and `MODEL_DONE` (no `model_request.json`, `model_check.json`).
+  - `simulation/` (`prep`, `eq`, `md`) contains strictly native OpenMM/Amber files (`.pdb`, `.prmtop`, `.inpcrd`, `.xml`, `.log`, `.dcd`, `.chk`).
+  - `analysis/` contains only graphical and text deliverables (`.png`, `.txt`).
+- **Equilibration (`eq`)**: Final relaxed coordinates are saved exclusively as
   `eq.pdb` (duplicate `equilibrated.pdb` eliminated). Intermediate restart states
   are saved into `stages/` as `state_01.xml` ... `state_24.xml`. All QC deliverables
-  belong in `analysis/<variant>/02_eq/` as `qc.png` and `qc.txt`.
-- **Production MD (`03_md/<replica>`)**: Continuous merged trajectory is `md.dcd`,
+  belong in `analysis/<variant>/eq/` as `qc.png` and `qc.txt`.
+- **Production MD (`md/<replica>`)**: Continuous merged trajectory is `md.dcd`,
   continuous merged log is `md.log`, and latest checkpoint snapshot is `state.xml`.
   Raw crash-recovery chunks are strictly isolated in `chunks/{idx:04d}.dcd` and
   `chunks/{idx:04d}.log` using 4-digit zero-padding without units (`ns`/`ps`).
@@ -113,7 +147,7 @@ research/projects/<project-example>/
   `prod_keep_ligand.dcd`) and Cα backbone (`ca.prmtop`, `prod_ca.dcd`) are generated
   via `cmda merge` for PyMOL inspection and biophysical analysis.
 - **Analysis and comparison (`analysis/`)**: Analysis symmetrically mirrors simulation
-  (`analysis/<variant>/02_eq/` for `qc.png` and `qc.txt`; `analysis/<variant>/03_md/<replica>/`
+  (`analysis/<variant>/eq/` for `qc.png` and `qc.txt`; `analysis/<variant>/md/<replica>/`
   for replica metrics). Cross-variant comparison lives flat in `analysis/compare/`
   (`summary.txt`, `rmsd.png`, `rg.png`, `rmsf.png`). Zero `.json` files in `analysis/`.
 

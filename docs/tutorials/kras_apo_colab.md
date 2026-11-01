@@ -15,28 +15,57 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
 └── data/
     └── apo/
         ├── structure/
-        │   └── P01116_4LDJ/              # Canonical UniProt P01116 + Template PDB 4LDJ
-        │       ├── raw/                  # 4ldj.cif, template.pdb, uniprot.fasta, residues.json
-        │       ├── variants/             # Modeled coordinates (WT/WT.pdb, G12D/G12D.pdb)
-        │       └── STRUCTURE_DONE        # Verification QC gate marker
+        │   └── P01116_4LDJ/                      # Canonical UniProt P01116 + Template PDB 4LDJ
+        │       ├── raw/                          # Untouched experimental inputs (cmda fetch)
+        │       │   ├── 4ldj.cif                  # Raw crystallographic archive record
+        │       │   ├── template.pdb              # Cleaned monomer (waters/buffers stripped)
+        │       │   └── uniprot.fasta             # Canonical sequence for biological residue numbering
+        │       │
+        │       ├── variants/                     # Modeled coordinates (cmda model)
+        │       │   ├── WT/
+        │       │   │   ├── WT.pdb                # Canonical modeled Wild-Type coordinate
+        │       │   │   ├── target.B99990001.pdb  # Modeller build
+        │       │   │   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
+        │       │   │   ├── target.ini            # Starting coordinate mesh
+        │       │   │   ├── target.rsr            # Spatial restraints
+        │       │   │   ├── target.sch            # Optimization schedule
+        │       │   │   ├── target.D00000001      # Restraint progress log
+        │       │   │   ├── target.V99990001      # Restraint violation profile
+        │       │   │   ├── target.ali            # PIR target sequence alignment
+        │       │   │   ├── alignment.ali         # PIR template pairwise alignment
+        │       │   │   ├── P01116.fasta          # Sequence reference
+        │       │   │   ├── 4ldj_clean.pdb        # Sanitized template
+        │       │   │   ├── 4ldj_orig.pdb         # Raw template backup
+        │       │   │   ├── 4ldj.pdb              # Isolated chain coordinate
+        │       │   │   ├── pipeline.log          # Modeller build log
+        │       │   │   └── MODEL_DONE            # Modeling completion gate
+        │       │   │
+        │       │   └── G12D/                     # Oncogenic point mutant
+        │       │       ├── G12D.pdb              # Mutated coordinate
+        │       │       ├── WT_G12D.pdb           # Direct mutation coordinate
+        │       │       ├── WT_G12D_with_cryst.pdb # Mutant with crystal headers
+        │       │       ├── mutate.log            # Rotamer sampling & energy log
+        │       │       └── MODEL_DONE            # Mutant completion gate
+        │       │
+        │       └── STRUCTURE_DONE                # Verification QC gate marker
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # Solvated Amber system
+        │   │   ├── prep/              # Solvated Amber system
         │   │   │   ├── model.pdb         # Input receptor coordinates
         │   │   │   ├── solvated.pdb      # Solvated visualization PDB (protein + OPC water box + ions)
         │   │   │   ├── system.prmtop     # Amber ff19SB parameter/topology file
         │   │   │   ├── system.inpcrd     # Initial orthogonal coordinates
         │   │   │   └── system.xml        # Serialized OpenMM system
         │   │   │
-        │   │   ├── 02_eq/                # 24-stage equilibration hub
+        │   │   ├── eq/                # 24-stage equilibration
         │   │   │   ├── eq.pdb            # Final relaxed coordinates
         │   │   │   ├── system.xml        # OpenMM system topology & parameters
         │   │   │   ├── state.xml         # OpenMM thermodynamic state snapshot
         │   │   │   └── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
         │   │   │
-        │   │   └── 03_md/                # Production replicas (100 ns)
-        │   │       ├── r1/               # Replica 1 hub
+        │   │   └── md/                # Production replicas (100 ns)
+        │   │       ├── r1/               # Production replica 1
         │   │       │   ├── md.dcd        # Continuous merged trajectory (full system)
         │   │       │   ├── md.log        # Continuous merged thermodynamic log
         │   │       │   ├── state.xml     # Latest OpenMM simulation state snapshot
@@ -51,20 +80,20 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
         │   │       └── r3/               # Independent velocity seed (triplicate)
         │   │
         │   └── G12D/
-        │       ├── 01_prep/
-        │       ├── 02_eq/
-        │       └── 03_md/{r1, r2, r3}/
+        │       ├── prep/
+        │       ├── eq/
+        │       └── md/{r1, r2, r3}/
         │
         └── analysis/                     # Mirrored deliverables (Zero JSON policy)
             ├── WT/
-            │   ├── 02_eq/                # Equilibration QC deliverables (qc.png, qc.txt)
-            │   └── 03_md/
-            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt, *.csv)
+            │   ├── eq/                # Equilibration QC deliverables (qc.png, qc.txt)
+            │   └── md/
+            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt)
             │       ├── r2/
             │       └── r3/
             ├── G12D/
-            │   ├── 02_eq/                # qc.png, qc.txt
-            │   └── 03_md/{r1, r2, r3}/
+            │   ├── eq/                # qc.png, qc.txt
+            │   └── md/{r1, r2, r3}/
             └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
 ```
 
@@ -159,7 +188,7 @@ cmda prep --state apo --variant G12D
 | **Basic** | `LYS` / `ARG` | Positively charged physiological cations (`LYN` if neutral). |
 | **Cysteine** | `CYS` / `CYX` | Free neutral thiol (`CYS`) or disulfide bridge (`CYX`). |
 
-*Outputs in `data/apo/simulation/<variant>/01_prep/`:* `solvated.pdb`, `system.prmtop`, `system.inpcrd`, and `system.xml`.
+*Outputs in `data/apo/simulation/<variant>/prep/`:* `solvated.pdb`, `system.prmtop`, `system.inpcrd`, and `system.xml`.
 
 ---
 
@@ -194,8 +223,8 @@ cmda sim eq --state apo --variant G12D
 
 ### QC Verification
 ```bash
-cat data/apo/analysis/WT/02_eq/qc.txt
-cat data/apo/analysis/G12D/02_eq/qc.txt
+cat data/apo/analysis/WT/eq/qc.txt
+cat data/apo/analysis/G12D/eq/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$).
 
@@ -206,8 +235,8 @@ cat data/apo/analysis/G12D/02_eq/qc.txt
 ### Why Triplicates?
 Molecular dynamics is inherently stochastic. A single trajectory can easily become trapped in a metastable conformational sub-state. Running **triplicates** ($N=3$ independent trajectories: `r1`, `r2`, `r3`) ensures conformational sampling convergence, allowing you to compute true **Mean ± SD** statistical error bands for RMSD, Radius of Gyration, and residue fluctuations.
 
-> 💡 **Why Shared `02_eq/`?**
-> Equilibration only needs to be run **once** per system. Replicas (`r1`, `r2`, `r3`) fork directly from the final relaxed coordinates in `02_eq/state.xml` using distinct Maxwell-Boltzmann random velocity seeds. This eliminates redundant equilibration, saving hours of GPU time on Google Colab while guaranteeing strict statistical independence.
+> 💡 **Why Shared `eq/`?**
+> Equilibration only needs to be run **once** per system. Replicas (`r1`, `r2`, `r3`) fork directly from the final relaxed coordinates in `eq/state.xml` using distinct Maxwell-Boltzmann random velocity seeds. This eliminates redundant equilibration, saving hours of GPU time on Google Colab while guaranteeing strict statistical independence.
 
 ### 6.1. Launch Production Runs (`r1`)
 Launch production dynamics for the primary replica (`r1`) of Wild-Type and G12D:
@@ -233,7 +262,6 @@ cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 >    ```
 > 2. **Reinstall environment & navigate to Drive (Colab Console, ~90 seconds):**
 >    ```bash
->    export KEY_MODELLER="YOUR_MODELLER_KEY"
 >    curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
 >    source /root/miniforge3/etc/profile.d/conda.sh
 >    conda activate cmda
@@ -247,6 +275,34 @@ cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 >    cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 >    ```
 > ColabMDA automatically detects `prod.chk` and existing completed 1-ns trajectory chunks on Google Drive, and **resumes dynamics from the exact last saved timestep without losing any progress**.
+
+### 6.2. Simulation Parameters & Frame Saving Cadence
+
+Production dynamics uses standard biophysical integration parameters optimized for cloud stability and storage efficiency:
+
+| Parameter | Value | Biophysical Rationale & Details |
+| :--- | :--- | :--- |
+| **Timestep ($\Delta t$)** | **$2\text{ fs}$ ($0.002\text{ ps}$)** | Standard Langevin middle integrator with SHAKE/SETTLE constraints on all bonds involving hydrogen. |
+| **Frame Saving Interval** | **Every $10\text{ ps}$ ($5,000\text{ steps}$)** | Writes coordinates to `.dcd` trajectory every 10 ps (`--traj-interval 10`), yielding high temporal resolution. |
+| **Thermodynamic Log Interval** | **Every $10\text{ ps}$ ($5,000\text{ steps}$)** | Records instantaneous temperature, potential energy, kinetic energy, volume, and density to `.log`. |
+| **Chunk Partitioning** | **$1\text{ ns}$ ($500,000\text{ steps}$)** | Simulations are partitioned into $1\text{ ns}$ self-contained chunks ($100\text{ frames}$ per chunk file). |
+| **Checkpoint Cadence** | **Every $1\text{ ns}$** | Serializes binary state checkpoint `prod.chk` to Google Drive at the end of each chunk. |
+| **Total Frames Generated** | **$10,000\text{ frames}$** | $\frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$ per $100\text{ ns}$ replica. |
+| **Storage Footprint** | **~3.6 GB $\to$ <200 MB** | Raw solvated chunks total ~3.6 GB; stripped trajectories (`cmda merge`) reduce this by >90% to <200 MB. |
+
+### 6.3. Generated Output Files & Downstream Handover
+
+During simulation, ColabMDA populates `data/apo/simulation/<variant>/md/<replica>/`:
+
+```text
+simulation/WT/md/r1/
+├── chunk_001.dcd ... chunk_100.dcd   # 1-ns raw trajectory chunks (100 frames each, 10,000 frames total)
+├── chunk_001.log ... chunk_100.log   # 1-ns thermodynamic logs (temperature, volume, density, energy)
+├── state.xml                         # Latest thermodynamic state snapshot
+└── prod.chk                          # Checkpoint binary for auto-resuming after timeouts
+```
+
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Section 7 (`cmda merge`)**, which concatenates them into a continuous unified trajectory (`md.dcd`), eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `prod_clean.dcd` for statistical analysis.
 
 <details>
 <summary><b>💡 (Optional) How to Launch Additional Replicas (<code>r2</code>, <code>r3</code>) Later</b></summary>
@@ -266,10 +322,6 @@ When you are ready to produce final publication error bands (Mean ± SD), you ca
 ```
 
 </details>
-
-> [!TIP]
-> **Storage Optimization (10 ps Snapshot Cadence):**
-> Production simulations automatically record trajectory frames every **10 ps** ($10,000\text{ frames}$ per $100\text{ ns}$). This default cadence provides high temporal resolution for statistical convergence while reducing raw storage by ~90% (~3.6 GB instead of ~36 GB per replica), comfortably fitting within Google Drive limits.
 
 ---
 
@@ -347,13 +399,13 @@ cmda view --state apo --variant G12D --replica r1 --resi 12
 Open the topology and trajectory directly from your terminal:
 
 ```bash
-pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
+pymol data/apo/simulation/WT/md/r1/stripped.prmtop data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd
 ```
 
 #### Option C: Interactive PyMOL GUI (Desktop App)
 If opening PyMOL from your desktop application:
-1. **Load Topology:** Go to **File → Open...** (or drag and drop) and select `data/apo/simulation/WT/03_md/r1/stripped.prmtop` (or `WT.pdb`).
-2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd`. Ensure **Load into object** is set to the already-loaded protein object.
+1. **Load Topology:** Go to **File → Open...** (or drag and drop) and select `data/apo/simulation/WT/md/r1/stripped.prmtop` (or `WT.pdb`).
+2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd`. Ensure **Load into object** is set to the already-loaded protein object.
 3. **Play & Format:** Use the right-hand panel buttons (`S` Show → `as cartoon`, `C` Color → `cyan`) and click `▶` on the bottom-right movie controls to play.
 
 #### Inside PyMOL (Quick Commands):

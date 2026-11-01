@@ -584,7 +584,7 @@ def _dispatch_sim(args) -> int:
                 protocol=protocol,
             )
         elif stage in ["qc", "check-equil"]:
-            eq_analysis = paths.analysis_dir(spec) / "02_eq"
+            eq_analysis = paths.eq_analysis_dir(spec)
             eq_analysis.mkdir(parents=True, exist_ok=True)
             openmm_qc(eq_dir, strict=not software_test, protocol=protocol, outdir=eq_analysis)
         elif stage == "md":
@@ -597,7 +597,7 @@ def _dispatch_sim(args) -> int:
                     raise SystemExit(
                         "Research production requires completed staged equilibration (all 24 stages)"
                     )
-                eq_analysis = paths.analysis_dir(spec) / "02_eq"
+                eq_analysis = paths.eq_analysis_dir(spec)
                 eq_analysis.mkdir(parents=True, exist_ok=True)
                 openmm_qc(eq_dir, strict=True, protocol="varmdyn", outdir=eq_analysis)
             replicas = [r.strip() for r in args.replica.split(",") if r.strip()]
@@ -638,12 +638,12 @@ def _dispatch_sim(args) -> int:
             f"  1. Pull deliverables to local workstation:\n"
             f"       cmda pull -s <session>\n"
             f"  2. Inspect equilibration stability:\n"
-            f"       Open: data/{spec.state_tag}/analysis/{spec.variant}/02_eq/qc.png\n"
-            f"       Read: data/{spec.state_tag}/analysis/{spec.variant}/02_eq/qc.txt\n"
+            f"       Open: data/{spec.state_tag}/analysis/{spec.variant}/eq/qc.png\n"
+            f"       Read: data/{spec.state_tag}/analysis/{spec.variant}/eq/qc.txt\n"
             f"  3. Visually verify in PyMOL GUI:\n"
             f"       File -> Open:\n"
-            f"         • data/{spec.state_tag}/simulation/{spec.variant}/01_prep/model.pdb\n"
-            f"         • data/{spec.state_tag}/simulation/{spec.variant}/02_eq/eq.pdb\n"
+            f"         • data/{spec.state_tag}/simulation/{spec.variant}/prep/model.pdb\n"
+            f"         • data/{spec.state_tag}/simulation/{spec.variant}/eq/eq.pdb\n"
             f"       In PyMOL:\n"
             f"         • Hide waters: (all) -> H -> waters\n"
             f"         • Show cartoon: (all) -> S -> as -> cartoon\n"
@@ -1331,7 +1331,7 @@ def main():
         "path",
         nargs="?",
         default=None,
-        help="Optional specific remote file or subfolder to pull (e.g. data/apo/analysis/WT/02_eq/qc.png)",
+        help="Optional specific remote file or subfolder to pull (e.g. data/apo/analysis/WT/eq/qc.png)",
     )
     p_top_pull.add_argument(
         "-s",

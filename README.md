@@ -81,27 +81,56 @@ research/projects/cmda-example/           # Project root in Google Drive / local
 └── data/
     ├── apo/                              # Track 1: Apo state (protein in water)
     │   ├── structure/
-    │   │   └── O76039_4BGQ/              # Biological Target (UniProt) + Structural Template (PDB)
-    │   │       ├── raw/                  # Untouched experimental inputs (.cif, template.pdb, uniprot.fasta)
-    │   │       ├── variants/             # Modeled coordinates (WT/WT.pdb, L119R/L119R.pdb)
-    │   │       └── STRUCTURE_DONE        # Verification completion marker
+    │   │   └── O76039_4BGQ/                      # Biological Target (UniProt) + Structural Template (PDB)
+    │   │       ├── raw/                          # Untouched experimental inputs (cmda fetch)
+    │   │       │   ├── 4bgq.cif                  # Raw crystallographic archive record
+    │   │       │   ├── template.pdb              # Cleaned monomer (waters/buffers stripped)
+    │   │       │   └── uniprot.fasta             # Canonical sequence for biological numbering
+    │   │       │
+    │   │       ├── variants/                     # Modeled coordinates (cmda model)
+    │   │       │   ├── WT/
+    │   │       │   │   ├── WT.pdb                # Canonical modeled Wild-Type coordinate
+    │   │       │   │   ├── target.B99990001.pdb  # Modeller build
+    │   │       │   │   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
+    │   │       │   │   ├── target.ini            # Starting coordinate mesh
+    │   │       │   │   ├── target.rsr            # Spatial restraints
+    │   │       │   │   ├── target.sch            # Optimization schedule
+    │   │       │   │   ├── target.D00000001      # Restraint progress log
+    │   │       │   │   ├── target.V99990001      # Restraint violation profile
+    │   │       │   │   ├── target.ali            # PIR target sequence alignment
+    │   │       │   │   ├── alignment.ali         # PIR template pairwise alignment
+    │   │       │   │   ├── O76039.fasta          # Sequence reference
+    │   │       │   │   ├── 4bgq_clean.pdb        # Sanitized template
+    │   │       │   │   ├── 4bgq_orig.pdb         # Raw template backup
+    │   │       │   │   ├── 4bgq.pdb              # Isolated chain coordinate
+    │   │       │   │   ├── pipeline.log          # Modeller build log
+    │   │       │   │   └── MODEL_DONE            # Modeling completion gate
+    │   │       │   │
+    │   │       │   └── L119R/                    # Kinase-inactivating point mutant
+    │   │       │       ├── L119R.pdb             # Mutated coordinate
+    │   │       │       ├── WT_L119R.pdb          # Direct mutation coordinate
+    │   │       │       ├── WT_L119R_with_cryst.pdb # Mutant with crystal headers
+    │   │       │       ├── mutate.log            # Rotamer sampling & energy log
+    │   │       │       └── MODEL_DONE            # Mutant completion gate
+    │   │       │
+    │   │       └── STRUCTURE_DONE                # Verification completion marker
     │   ├── simulation/
     │   │   ├── WT/
-    │   │   │   ├── 01_prep/              # Solvated Amber system
+    │   │   │   ├── prep/                 # Solvated Amber system
     │   │   │   │   ├── model.pdb         # Input receptor coordinates
     │   │   │   │   ├── solvated.pdb      # Solvated visualization PDB
     │   │   │   │   ├── system.prmtop     # Amber ff19SB parameters
     │   │   │   │   ├── system.inpcrd     # Initial orthogonal coordinates
     │   │   │   │   └── system.xml        # Serialized OpenMM system
     │   │   │   │
-    │   │   │   ├── 02_eq/                # 24-stage equilibration hub
+    │   │   │   ├── eq/                   # 24-stage equilibration
     │   │   │   │   ├── eq.pdb            # Final relaxed coordinates
     │   │   │   │   ├── system.xml        # OpenMM system topology & parameters
     │   │   │   │   ├── state.xml         # OpenMM thermodynamic state snapshot
     │   │   │   │   └── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
     │   │   │   │
-    │   │   │   └── 03_md/                # Production MD replicas
-    │   │   │       ├── r1/               # Replica 1 hub
+    │   │   │   └── md/                   # Production MD replicas
+    │   │   │       ├── r1/               # Production replica 1
     │   │   │       │   ├── md.dcd        # Continuous merged trajectory
     │   │   │       │   ├── md.log        # Continuous merged thermodynamic log
     │   │   │       │   ├── state.xml     # Latest OpenMM simulation state snapshot
@@ -115,16 +144,16 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     │   │   │       ├── r2/               # Independent velocity seed
     │   │   │       └── r3/               # Triplicate simulation
     │   │   └── L119R/
-    │   │       ├── 01_prep/
-    │   │       ├── 02_eq/
-    │   │       └── 03_md/{r1, r2, r3}/
+    │   │       ├── prep/
+    │   │       ├── eq/
+    │   │       └── md/{r1, r2, r3}/
     │   └── analysis/                     # Mirrored deliverables (Zero JSON policy)
     │       ├── WT/
-    │       │   ├── 02_eq/                # qc.png, qc.txt
-    │       │   └── 03_md/                # r1/ (rmsd.png, rg.png, rmsf.png, summary.txt, *.csv), r2/, r3/
+    │       │   ├── eq/                   # qc.png, qc.txt
+    │       │   └── md/                   # r1/ (rmsd.png, rg.png, rmsf.png, summary.txt), r2/, r3/
     │       ├── L119R/
-    │       │   ├── 02_eq/
-    │       │   └── 03_md/{r1, r2, r3}/
+    │       │   ├── eq/
+    │       │   └── md/{r1, r2, r3}/
     │       └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
     │
     └── atpmg/                            # Track 2: Holo state (Kinase + ATP + Mg²⁺)
@@ -132,7 +161,7 @@ research/projects/cmda-example/           # Project root in Google Drive / local
         │   ├── O76039_4BGQ/              # Inherited from apo (identical starting coordinates)
         │   └── cofactors/atpmg/          # Homologous donor (CDK2 8FP5: atp.pdb, mg.pdb)
         ├── simulation/
-        │   └── WT/01_prep/               # tleap combine { REC LIG MG } + Hu 2024 parameters
+        │   └── WT/prep/                  # tleap combine { REC LIG MG } + Hu 2024 parameters
         └── analysis/
 ```
 </details>
@@ -150,7 +179,7 @@ research/projects/cmda-example/           # Project root in Google Drive / local
 *   **Unified CLI (`cmda`):** Intuitive top-level commands (`fetch`, `model`, `assemble`, `prep`, `push`, `stage`, `sim`, `status`, `merge`, `analyze`, `compare`, `pull`, `view`, `snapshots`).
 *   **Dual State Architecture:** Clean separation between unliganded **`apo`** dynamics and catalytic **`atpmg`** holo dynamics.
 *   **Automated Triplicate Comparison:** Single-call `cmda compare --state <state> --variants WT,MUT` generating publication-grade Mean ± SD overlay plots.
-*   **24-Stage Equilibration Hub:** Robust heating and restraint release ladder guaranteeing stable density and temperature.
+*   **24-Stage Equilibration:** Robust heating and restraint release ladder guaranteeing stable density and temperature.
 *   **Resume-Safe Checkpointing:** Automated recovery from Google Colab session timeouts.
 
 ### v0.1.0 (Initial Beta)

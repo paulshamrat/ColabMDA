@@ -81,6 +81,7 @@ def test_generated_production_command_and_duration_record(tmp_path):
         f"#!{sys.executable}\nimport os,json,sys\nfrom pathlib import Path\nPath(os.environ['CALLS']).write_text(json.dumps(sys.argv[1:]))\n(Path(os.environ['SYSTEM_DIR'])/'03_md/r1/prod.chk').write_bytes(b'checkpoint')\n"
     )
     binary.chmod(0o755)
+    (tmp_path / "python").symlink_to(sys.executable)
     calls = tmp_path / "calls.json"
     env = {
         **os.environ,

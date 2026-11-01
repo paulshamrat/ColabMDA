@@ -15,30 +15,59 @@ research/projects/cmda-example/
 └── data/
     └── atpmg/
         ├── structure/
-        │   ├── O76039_4BGQ/              # Inherited from data/apo/ (identical starting backbones)
-        │   │   ├── raw/                  # Inherited from apo (canonical UniProt target & template)
-        │   │   ├── variants/             # Inherited from apo (WT/WT.pdb, L119R/L119R.pdb)
-        │   │   └── STRUCTURE_DONE        # Verification QC gate
+        │   ├── O76039_4BGQ/                      # Inherited from data/apo/ (identical starting backbones)
+        │   │   ├── raw/                          # Untouched experimental inputs
+        │   │   │   ├── 4bgq.cif                  # Raw crystallographic archive record
+        │   │   │   ├── template.pdb              # Cleaned monomer (waters/buffers stripped)
+        │   │   │   └── uniprot.fasta             # Canonical sequence for biological numbering
+        │   │   │
+        │   │   ├── variants/                     # Modeled coordinates
+        │   │   │   ├── WT/
+        │   │   │   │   ├── WT.pdb                # Modeled Wild-Type coordinate (re-assembled with cofactors)
+        │   │   │   │   ├── target.B99990001.pdb  # Modeller build
+        │   │   │   │   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
+        │   │   │   │   ├── target.ini            # Starting coordinate mesh
+        │   │   │   │   ├── target.rsr            # Spatial restraints
+        │   │   │   │   ├── target.sch            # Optimization schedule
+        │   │   │   │   ├── target.D00000001      # Restraint progress log
+        │   │   │   │   ├── target.V99990001      # Restraint violation profile
+        │   │   │   │   ├── target.ali            # PIR target sequence alignment
+        │   │   │   │   ├── alignment.ali         # PIR template pairwise alignment
+        │   │   │   │   ├── O76039.fasta          # Sequence reference
+        │   │   │   │   ├── 4bgq_clean.pdb        # Sanitized template
+        │   │   │   │   ├── 4bgq_orig.pdb         # Raw template backup
+        │   │   │   │   ├── 4bgq.pdb              # Isolated chain coordinate
+        │   │   │   │   ├── pipeline.log          # Modeller build log
+        │   │   │   │   └── MODEL_DONE            # Modeling completion gate
+        │   │   │   │
+        │   │   │   └── L119R/                    # Kinase-inactivating point mutant
+        │   │   │       ├── L119R.pdb             # Mutated coordinate (re-assembled with cofactors)
+        │   │   │       ├── WT_L119R.pdb          # Direct mutation coordinate
+        │   │   │       ├── WT_L119R_with_cryst.pdb # Mutant with crystal headers
+        │   │   │       ├── mutate.log            # Rotamer sampling & energy log
+        │   │   │       └── MUTANT_DONE           # Point mutation completion gate
+        │   │   │
+        │   │   └── STRUCTURE_DONE                # Verification QC gate marker
         │   │
-        │   └── cofactors/                # Isolated cofactor donor directory
-        │       └── atpmg/                # Sourced from CDK2 (PDB 8FP5)
-        │           ├── 8FP5.pdb          # High-resolution donor crystal structure
-        │           ├── atp.pdb           # Isolated ATP coordinates
-        │           └── mg.pdb            # Isolated Mg²⁺ coordinates
+        │   └── cofactors/                        # Isolated cofactor donor directory
+        │       └── atpmg/                        # Sourced from CDK2 (PDB 8FP5)
+        │           ├── 8FP5.pdb                  # High-resolution donor crystal structure
+        │           ├── atp.pdb                   # Isolated ATP coordinates
+        │           └── mg.pdb                    # Isolated Mg²⁺ coordinates
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # Phase 1.2: Native tleap combination: { WT.pdb + atp.pdb + mg.pdb }
+        │   │   ├── prep/              # Phase 1.2: Native tleap combination: { WT.pdb + atp.pdb + mg.pdb }
         │   │   │                         # + Hu et al. 2024 quantum nucleotide parameters (ATP-B3)
         │   │   │                         # + Li-Merz 12-6 Mg²⁺ + ParmEd CMAP correction
-        │   │   ├── 02_eq/                # 24-stage equilibration hub
+        │   │   ├── eq/                # 24-stage equilibration
         │   │   │   ├── eq.pdb            # Final relaxed coordinates
         │   │   │   ├── system.xml        # OpenMM system topology & parameters
         │   │   │   ├── state.xml         # OpenMM thermodynamic state snapshot
         │   │   │   └── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
         │   │   │
-        │   │   └── 03_md/                # Production replicas (100 ns)
-        │   │       ├── r1/               # Replica 1 hub
+        │   │   └── md/                # Production replicas (100 ns)
+        │   │       ├── r1/               # Production replica 1
         │   │       │   ├── md.dcd        # Continuous merged trajectory (full system)
         │   │       │   ├── md.log        # Continuous merged thermodynamic log
         │   │       │   ├── state.xml     # Latest OpenMM simulation state snapshot
@@ -53,20 +82,20 @@ research/projects/cmda-example/
         │   │       └── r3/               # Independent velocity seed (triplicate)
         │   │
         │   └── L119R/
-        │       ├── 01_prep/
-        │       ├── 02_eq/
-        │       └── 03_md/{r1, r2, r3}/
+        │       ├── prep/
+        │       ├── eq/
+        │       └── md/{r1, r2, r3}/
         │
         └── analysis/                     # Mirrored deliverables (Zero JSON policy)
             ├── WT/
-            │   ├── 02_eq/                # Equilibration QC deliverables (qc.png, qc.txt)
-            │   └── 03_md/
-            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt, *.csv)
+            │   ├── eq/                # Equilibration QC deliverables (qc.png, qc.txt)
+            │   └── md/
+            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt)
             │       ├── r2/
             │       └── r3/
             ├── L119R/
-            │   ├── 02_eq/                # qc.png, qc.txt
-            │   └── 03_md/{r1, r2, r3}/
+            │   ├── eq/                # qc.png, qc.txt
+            │   └── md/{r1, r2, r3}/
             └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
 ```
 
@@ -229,16 +258,15 @@ This generates the following structured outputs:
 
 | File / Artifact | Location | Purpose |
 | :--- | :--- | :--- |
-| **`solvated.pdb`** | `simulation/WT/01_prep/` | Complete solvated Holo system with OPC water and counterions. |
-| **`system.prmtop`** | `simulation/WT/01_prep/` | Full Amber parameter/topology file (Protein + ATP + $\text{Mg}^{2+}$ + Water + Ions). |
-| **`system.inpcrd`** | `simulation/WT/01_prep/` | Initial orthogonal coordinates for OpenMM. |
-| **`stripped_holo.prmtop`** | `simulation/WT/01_prep/` | **Stripped Holo topology** (Protein + ATP + $\text{Mg}^{2+}$). Preserved for Phase 4 trajectory pairing! |
-| **`prep.json`** | `simulation/WT/01_prep/` | Provenance manifest with SHA-256 checksums, atom counts, and total charge. |
+| **`solvated.pdb`** | `simulation/WT/prep/` | Complete solvated Holo system with OPC water and counterions. |
+| **`system.prmtop`** | `simulation/WT/prep/` | Full Amber parameter/topology file (Protein + ATP + $\text{Mg}^{2+}$ + Water + Ions). |
+| **`system.inpcrd`** | `simulation/WT/prep/` | Initial orthogonal coordinates for OpenMM. |
+| **`stripped_holo.prmtop`** | `simulation/WT/prep/` | **Stripped Holo topology** (Protein + ATP + $\text{Mg}^{2+}$). Preserved for Phase 4 trajectory pairing! |
 
 Visually confirm the solvated water boxes in PyMOL (WT and Mutant):
 ```bash
-pymol data/atpmg/simulation/WT/01_prep/solvated.pdb
-pymol data/atpmg/simulation/L119R/01_prep/solvated.pdb
+pymol data/atpmg/simulation/WT/prep/solvated.pdb
+pymol data/atpmg/simulation/L119R/prep/solvated.pdb
 ```
 
 ---
@@ -289,7 +317,7 @@ cd /content/drive/MyDrive/research/projects/cmda-example
 
 ---
 
-### 3.2. Stage Simulation Hubs & 24-Stage Equilibration
+### 3.2. Stage & Run 24-Stage Equilibration
 
 In holo complexes, thermalization must restrain the nucleotide and divalent magnesium ion alongside the protein backbone to prevent active-site disruption before the solvent box reaches target density.
 
@@ -340,15 +368,15 @@ cmda pull -s cmda --stage eq
 
 #### 2. Verify Status in 1 Second (Terminal)
 ```bash
-cat data/atpmg/analysis/WT/02_eq/qc.txt
-cat data/atpmg/analysis/L119R/02_eq/qc.txt
+cat data/atpmg/analysis/WT/eq/qc.txt
+cat data/atpmg/analysis/L119R/eq/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
 #### 3. Glance at 6-Panel QC Plot in 5 Seconds
 Open the unified 7-inch publication plot in any image viewer:
-* `data/atpmg/analysis/WT/02_eq/qc.png`
-* `data/atpmg/analysis/L119R/02_eq/qc.png`
+* `data/atpmg/analysis/WT/eq/qc.png`
+* `data/atpmg/analysis/L119R/eq/qc.png`
 
 *Expected Visual:*
 * **Panels A–D (Thermodynamics):** Temperature is flat at **$300\text{ K}$**; density is flat at **$\sim 1.01\text{ g/mL}$**; potential energy and volume are stable.
@@ -358,7 +386,7 @@ Open the unified 7-inch publication plot in any image viewer:
 #### 4. Quick 3D Fold & Active Site Check in PyMOL in 30 Seconds
 Launch PyMOL with both starting and equilibrated coordinates:
 ```bash
-pymol data/atpmg/simulation/WT/01_prep/model.pdb data/atpmg/simulation/WT/02_eq/eq.pdb
+pymol data/atpmg/simulation/WT/prep/model.pdb data/atpmg/simulation/WT/eq/eq.pdb
 ```
 In the PyMOL right panel:
 1. Next to **`(all)`**: Click **`H`** (Hide) $\to$ **`waters`**, then **`S`** (Show) $\to$ **`as`** $\to$ **`cartoon`**
@@ -400,9 +428,9 @@ show sticks, (organic or resn ATP)
 
 ---
 
-### 3.3. Production MD Across Triplicates (`03_md/{r1, r2, r3}`)
+### 3.3. Production MD Across Triplicates (`md/{r1, r2, r3}`)
 
-Independent replicates fork from the relaxed `02_eq/` state using unique random velocity seeds, ensuring true statistical independence across triplicates:
+Independent replicates fork from the relaxed `eq/` state using unique random velocity seeds, ensuring true statistical independence across triplicates:
 
 ```bash
 # Wild-Type Holo Triplicates (100 ns production runs)
@@ -416,15 +444,33 @@ cmda sim md --state atpmg --variant L119R --replica r2 --total-ns 100
 cmda sim md --state atpmg --variant L119R --replica r3 --total-ns 100
 ```
 
-#### In-Context Reference: Simulation Math & Storage Budgeting
-Use this formula to calculate expected trajectory frames:
-$$\text{Expected Frames} = \frac{\text{Total Time (ps)}}{\text{Trajectory Saving Interval (ps)}}$$
+#### Simulation Parameters & Frame Saving Cadence
 
-* **Example:** A $100.0\text{ ns}$ ($100,000\text{ ps}$) simulation with a $10.0\text{ ps}$ saving interval:
-  $$\text{Expected Frames} = \frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$$
-* **Saving Every $10\text{ ps}$ (`--traj-interval 10`):** Reduces total raw storage from **~55 GB to ~5.5 GB (a 90% space reduction)** while still providing 10,000 high-resolution frames per replica—more than sufficient for publication-grade RMSD, RMSF, PCA, and active-site distance analysis.
-* **Stripped Holo Trajectories (`cmda merge`):** Stripping OPC water and bulk counterions while retaining the catalytic complex (CDKL5 + ATP + $\text{Mg}^{2+} = 4,836\text{ atoms}$) reduces merged trajectory sizes to **~580 MB** per replica!
-  $$\text{Storage Size} = N_{\text{atoms}} \times 3 \times 4\text{ bytes} \times N_{\text{frames}} = 4,836 \times 3 \times 4 \times 10,000 \approx 580\text{ MB}$$
+Production dynamics uses standard biophysical integration parameters optimized for cloud stability and storage efficiency:
+
+| Parameter | Value | Biophysical Rationale & Details |
+| :--- | :--- | :--- |
+| **Timestep ($\Delta t$)** | **$2\text{ fs}$ ($0.002\text{ ps}$)** | Standard Langevin middle integrator with SHAKE/SETTLE constraints on all bonds involving hydrogen. |
+| **Frame Saving Interval** | **Every $10\text{ ps}$ ($5,000\text{ steps}$)** | Writes coordinates to `.dcd` trajectory every 10 ps (`--traj-interval 10`), yielding high temporal resolution. |
+| **Thermodynamic Log Interval** | **Every $10\text{ ps}$ ($5,000\text{ steps}$)** | Records instantaneous temperature, potential energy, kinetic energy, volume, and density to `.log`. |
+| **Chunk Partitioning** | **$1\text{ ns}$ ($500,000\text{ steps}$)** | Simulations are partitioned into $1\text{ ns}$ self-contained chunks ($100\text{ frames}$ per chunk file). |
+| **Checkpoint Cadence** | **Every $1\text{ ns}$** | Serializes binary state checkpoint `prod.chk` to Google Drive at the end of each chunk. |
+| **Total Frames Generated** | **$10,000\text{ frames}$** | $\frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$ per $100\text{ ns}$ replica. |
+| **Storage Footprint** | **~5.5 GB $\to$ ~580 MB** | Raw solvated chunks total ~5.5 GB; stripped holo trajectories (`cmda merge`) reduce this by >90% to ~580 MB. |
+
+#### Generated Output Files & Downstream Handover
+
+During simulation, ColabMDA populates `data/atpmg/simulation/<variant>/md/<replica>/`:
+
+```text
+simulation/WT/md/r1/
+├── chunk_001.dcd ... chunk_100.dcd   # 1-ns raw trajectory chunks (100 frames each, 10,000 frames total)
+├── chunk_001.log ... chunk_100.log   # 1-ns thermodynamic logs (temperature, volume, density, energy)
+├── state.xml                         # Latest thermodynamic state snapshot
+└── prod.chk                          # Checkpoint binary for auto-resuming after timeouts
+```
+
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Phase 4 (`cmda merge`)**, which concatenates them into a continuous unified trajectory (`md.dcd`), eliminates periodic boundary condition (PBC) box jumps, and strips bulk water into `prod_clean.dcd` (preserving CDKL5 + ATP + Mg²⁺) for active-site and conformational analysis.
 
 | Strategy | Trajectory Contents | Saving Frequency | Frames per 100 ns | Size per Replica |
 | :--- | :--- | :--- | :--- | :--- |
@@ -449,7 +495,7 @@ cmda status --state atpmg --variant WT --replica r1
 
 ```text
 [STATUS]
-  Workdir          : data/atpmg/simulation/WT/03_md/r1
+  Workdir          : data/atpmg/simulation/WT/md/r1
   Chunks (DCD/log) : 100 / 100
   Topology File    : solvated.pdb
                      └─ 45862 atoms, 13952 residues
@@ -488,8 +534,8 @@ import MDAnalysis as mda
 from MDAnalysis.analysis.distances import distance_array
 
 # Load topology and trajectory chunk
-u = mda.Universe("data/atpmg/simulation/WT/01_prep/system.prmtop", 
-                 "data/atpmg/simulation/WT/03_md/r1/chunk_001.dcd")
+u = mda.Universe("data/atpmg/simulation/WT/prep/system.prmtop", 
+                 "data/atpmg/simulation/WT/md/r1/chunk_001.dcd")
 print(f"Loaded {len(u.trajectory)} frames successfully.")
 
 # Select magnesium and phosphate oxygens
@@ -547,7 +593,7 @@ cmda merge --state atpmg --variant L119R
 > 1. **Stripped Atom Count:** The resulting trajectory `prod_clean.dcd` contains atoms for **CDKL5 (4,792 atoms) + ATP (43 atoms) + $\text{Mg}^{2+}$ (1 atom) = 4,836 atoms**.
 > 2. **Correct Topology Pairing:** Always pair `prod_clean.dcd` with:
 >    ```text
->    data/atpmg/simulation/WT/01_prep/stripped_holo.prmtop
+>    data/atpmg/simulation/WT/prep/stripped_holo.prmtop
 >    ```
 > 3. **Common Fatal Errors:**
 >    * **Crash A:** Pairing `prod_clean.dcd` with `system.prmtop` (which contains ~45,000 atoms including water) will cause MDAnalysis/VMD/PyMOL to throw:  

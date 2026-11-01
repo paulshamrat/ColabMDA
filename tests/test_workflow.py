@@ -21,7 +21,7 @@ def test_state_layout_and_existing_run_compatibility(tmp_path, monkeypatch):
     paths = ProjectPaths(tmp_path, state="atp_1mg")
     spec = SystemSpec.from_tag("atp_1mg", variant="L119R")
     assert paths.structure_dir == tmp_path / "data/atpmg/structure"
-    assert paths.prep_dir(spec) == tmp_path / "data/atpmg/simulation/trial01/L119R/01_prep"
+    assert paths.prep_dir(spec) == tmp_path / "data/atpmg/simulation/trial01/L119R/prep"
     assert paths.analysis_dir(spec) == tmp_path / "data/atpmg/analysis/trial01/L119R"
     assert paths.replica_analysis_dir(spec, "2").name == "r2"
     assert paths.compare_dir(spec.state_tag) == tmp_path / "data/atpmg/analysis/trial01/compare"
@@ -35,7 +35,7 @@ def test_state_layout_and_existing_run_compatibility(tmp_path, monkeypatch):
 def test_fresh_state_uses_flat_simulation_tree_without_run_id(tmp_path, monkeypatch):
     monkeypatch.delenv("COLABMDA_RUN_ID", raising=False)
     paths = ProjectPaths(tmp_path, state="apo")
-    assert paths.prep_dir(SystemSpec()) == tmp_path / "data/apo/simulation/WT/01_prep"
+    assert paths.prep_dir(SystemSpec()) == tmp_path / "data/apo/simulation/WT/prep"
 
 
 def test_restraints_exclude_amber_salt_but_include_cofactor():

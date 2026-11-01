@@ -305,13 +305,11 @@ class ProjectPaths:
     def prep_dir(self, spec: SystemSpec) -> Path:
         """Preparation folder containing model coordinates and Amber topologies."""
         v_dir = self.variant_dir(spec)
-        if self.run_id or self.state_dir is not None:
-            return v_dir / "01_prep"
-        if (v_dir / "01_prep").exists():
-            return v_dir / "01_prep"
         if (v_dir / "prep").exists():
             return v_dir / "prep"
-        if "02_simulation" in str(self.simulation_base):
+        if (v_dir / "01_prep").exists():
+            return v_dir / "01_prep"
+        if any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
             return v_dir / "01_prep"
         return v_dir / "prep"
 
@@ -396,13 +394,11 @@ class ProjectPaths:
     def eq_dir(self, spec: SystemSpec) -> Path:
         """Equilibration folder (em, nvt, npt, qc)."""
         v_dir = self.variant_dir(spec)
-        if self.run_id or self.state_dir is not None:
-            return v_dir / "02_eq"
-        if (v_dir / "02_eq").exists():
-            return v_dir / "02_eq"
         if (v_dir / "eq").exists():
             return v_dir / "eq"
-        if "02_simulation" in str(self.simulation_base):
+        if (v_dir / "02_eq").exists():
+            return v_dir / "02_eq"
+        if any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
             return v_dir / "02_eq"
         return v_dir / "eq"
 
@@ -414,8 +410,15 @@ class ProjectPaths:
     def prod_dir(self, spec: SystemSpec) -> Path:
         """Production base folder for this variant."""
         v_dir = self.variant_dir(spec)
-        if self.run_id or self.state_dir is not None:
-            return v_dir / "03_md"
+        if self.state_dir is not None:
+            if (v_dir / "md").exists():
+                return v_dir / "md"
+            if (v_dir / "03_md").exists():
+                return v_dir / "03_md"
+            return v_dir / "md"
+        if self.run_id or any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
+            p03 = v_dir / "03_md"
+            return p03 if p03.exists() else (v_dir / "03_prod" if (v_dir / "03_prod").exists() else p03)
         p03 = v_dir / "03_prod"
         return p03 if p03.exists() else v_dir
 
@@ -449,11 +452,25 @@ class ProjectPaths:
     def replica_analysis_dir(self, spec: SystemSpec, replica: str = "r1") -> Path:
         """Canonical per-replica reports; preserve pre-state layouts verbatim."""
         normalized = self.replica_dir(spec, replica).name
-        return (
-            self.analysis_dir(spec) / normalized
-            if self.state_dir is not None
-            else self.analysis_dir(spec)
-        )
+        base = self.analysis_dir(spec)
+        if self.state_dir is not None:
+            if (base / "md" / normalized).exists():
+                return base / "md" / normalized
+            if (base / "03_md" / normalized).exists():
+                return base / "03_md" / normalized
+            return base / normalized
+        return base
+
+    def eq_analysis_dir(self, spec: SystemSpec) -> Path:
+        """Equilibration analysis folder (qc.png, qc.txt)."""
+        base = self.analysis_dir(spec)
+        if (base / "eq").exists():
+            return base / "eq"
+        if (base / "02_eq").exists():
+            return base / "02_eq"
+        if any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
+            return base / "02_eq"
+        return base / "eq"
 
     def migrate_analysis(self, spec: SystemSpec) -> dict | None:
         """Explicitly migrate completed legacy high-level r1 reports, hash verified.
