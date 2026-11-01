@@ -20,15 +20,37 @@ research/projects/trpcage-example/
         │
         ├── simulation/
         │   └── WT/
-        │       ├── 01_prep/              # Step 1: system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
-        │       ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/
-        │       └── 03_md/                # Step 3: Production replica (1 ns smoke test)
-        │           └── r1/               # md.dcd, md.log, state.xml, prod.chk, stripped.prmtop, prod_keep_ligand.dcd, chunks/
+        │       ├── 01_prep/                  # Solvated Amber system
+        │       │   ├── model.pdb             # Input coordinates
+        │       │   ├── solvated.pdb          # Solvated visualization PDB
+        │       │   ├── system.prmtop         # Amber parameter/topology file
+        │       │   ├── system.inpcrd         # Initial orthogonal coordinates
+        │       │   └── system.xml            # Serialized OpenMM system
+        │       │
+        │       ├── 02_eq/                    # Equilibration hub
+        │       │   ├── eq.pdb                # Final relaxed coordinates
+        │       │   ├── system.xml            # OpenMM system topology & parameters
+        │       │   ├── state.xml             # OpenMM thermodynamic state snapshot
+        │       │   └── stages/               # Granular restart checkpoints (state_01.xml ... state_24.xml)
+        │       │
+        │       └── 03_md/                    # Production replica (1 ns smoke test)
+        │           └── r1/                   # Replica 1 hub
+        │               ├── md.dcd            # Continuous merged trajectory (full system)
+        │               ├── md.log            # Continuous merged thermodynamic log
+        │               ├── state.xml         # Latest OpenMM simulation state snapshot
+        │               ├── prod.chk          # OpenMM checkpoint binary for resume
+        │               ├── stripped.prmtop   # Solvent-stripped topology for PyMOL & analysis
+        │               ├── prod_keep_ligand.dcd # Continuous PBC-autoimaged stripped trajectory
+        │               ├── ca.prmtop         # Cα backbone topology
+        │               ├── prod_ca.dcd       # Cα backbone trajectory
+        │               ├── MERGE_DONE        # Merge completion marker
+        │               └── chunks/           # Raw crash-recovery chunks (0001.dcd, 0001.log, ...)
         │
-        └── analysis/                     # Phase 4: Generated during merge, analyze & compare
+        └── analysis/                         # Mirrored deliverables (Zero JSON policy)
             └── WT/
-                ├── 02_eq/                # qc.png, qc.txt (thermodynamic & structural convergence)
-                └── 03_md/r1/             # rmsd.png, rg.png, rmsf.png, summary.txt
+                ├── 02_eq/                    # qc.png, qc.txt (thermodynamic & structural convergence)
+                └── 03_md/
+                    └── r1/                   # rmsd.png, rg.png, rmsf.png, summary.txt, *.csv
 ```
 
 ---

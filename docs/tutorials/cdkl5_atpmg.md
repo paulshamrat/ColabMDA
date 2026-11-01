@@ -31,20 +31,43 @@ research/projects/cmda-example/
         │   │   ├── 01_prep/              # Phase 1.2: Native tleap combination: { WT.pdb + atp.pdb + mg.pdb }
         │   │   │                         # + Hu et al. 2024 quantum nucleotide parameters (ATP-B3)
         │   │   │                         # + Li-Merz 12-6 Mg²⁺ + ParmEd CMAP correction
-        │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
-        │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
-        │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, stripped.prmtop, prod_keep_ligand.dcd, chunks/
-        │   │       ├── r2/               # Independent velocity seed
-        │   │       └── r3/               # Triplicate simulation
+        │   │   ├── 02_eq/                # 24-stage equilibration hub
+        │   │   │   ├── eq.pdb            # Final relaxed coordinates
+        │   │   │   ├── system.xml        # OpenMM system topology & parameters
+        │   │   │   ├── state.xml         # OpenMM thermodynamic state snapshot
+        │   │   │   └── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
+        │   │   │
+        │   │   └── 03_md/                # Production replicas (100 ns)
+        │   │       ├── r1/               # Replica 1 hub
+        │   │       │   ├── md.dcd        # Continuous merged trajectory (full system)
+        │   │       │   ├── md.log        # Continuous merged thermodynamic log
+        │   │       │   ├── state.xml     # Latest OpenMM simulation state snapshot
+        │   │       │   ├── prod.chk      # OpenMM checkpoint binary for resume
+        │   │       │   ├── stripped.prmtop      # Solvent-stripped topology for PyMOL & analysis
+        │   │       │   ├── prod_keep_ligand.dcd # Continuous PBC-autoimaged stripped trajectory
+        │   │       │   ├── ca.prmtop     # Cα backbone topology
+        │   │       │   ├── prod_ca.dcd   # Cα backbone trajectory
+        │   │       │   ├── MERGE_DONE    # Merge completion marker
+        │   │       │   └── chunks/       # Raw crash-recovery chunks (0001.dcd, 0001.log, ...)
+        │   │       ├── r2/               # Independent velocity seed (triplicate)
+        │   │       └── r3/               # Independent velocity seed (triplicate)
+        │   │
         │   └── L119R/
         │       ├── 01_prep/
         │       ├── 02_eq/
         │       └── 03_md/{r1, r2, r3}/
         │
-        └── analysis/                     # Phase 4: Generated during merge, analyze & compare
-            ├── WT/                       # 02_eq/ (qc.png, qc.txt), 03_md/ (r1, r2, r3)
+        └── analysis/                     # Mirrored deliverables (Zero JSON policy)
+            ├── WT/
+            │   ├── 02_eq/                # Equilibration QC deliverables (qc.png, qc.txt)
+            │   └── 03_md/
+            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt, *.csv)
+            │       ├── r2/
+            │       └── r3/
             ├── L119R/
-            └── compare/                  # Flat comparison: rmsd.png, rg.png, rmsf.png, summary.txt
+            │   ├── 02_eq/                # qc.png, qc.txt
+            │   └── 03_md/{r1, r2, r3}/
+            └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
 ```
 
 > [!NOTE]
