@@ -87,13 +87,20 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
         └── analysis/                     # Mirrored deliverables (Zero JSON policy)
             ├── WT/
             │   ├── eq/                # Equilibration QC deliverables (qc.png, qc.txt)
-            │   └── md/
-            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt)
-            │       ├── r2/
-            │       └── r3/
+            │   ├── r1/                # Per-replica metrics (figures/, rmsd.csv, rg.csv, rmsf.csv)
+            │   │   ├── figures/
+            │   │   │   ├── rmsd_vs_time.png
+            │   │   │   ├── rg_vs_time.png
+            │   │   │   └── rmsf_per_residue.png
+            │   │   ├── rmsd.csv
+            │   │   ├── rg.csv
+            │   │   ├── rmsf.csv
+            │   │   └── ANALYSIS_DONE
+            │   ├── r2/
+            │   └── r3/
             ├── G12D/
             │   ├── eq/                # qc.png, qc.txt
-            │   └── md/{r1, r2, r3}/
+            │   └── r1/
             └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
 ```
 
@@ -170,6 +177,47 @@ cmda model --state apo --variant WT
 cmda model --state apo --variant G12D
 ```
 
+*What `cmda fetch` generates in `data/apo/structure/P01116_4LDJ/raw/`:*
+
+| File | Purpose | Scientific Role |
+| :--- | :--- | :--- |
+| **`4ldj.cif`** | Archive Copy | Raw crystallographic record directly from the RCSB PDB archive. |
+| **`template.pdb`** | Modeller Input | Stripped monomer coordinates (Chain A) with non-crystallographic waters and buffer additives removed. |
+| **`uniprot.fasta`** | Biological Target | Canonical sequence fetched directly from UniProtKB for precise residue numbering. |
+| **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming coordinate density and sequence integrity passed all QC gates. |
+
+*What `cmda model` outputs in `data/apo/structure/P01116_4LDJ/variants/`:*
+
+```text
+variants/
+├── WT/
+│   ├── WT.pdb                # Canonical modeled Wild-Type coordinate
+│   ├── target.B99990001.pdb  # Modeller build
+│   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
+│   ├── target.ini            # Starting coordinate mesh
+│   ├── target.rsr            # Spatial restraints
+│   ├── target.sch            # Optimization schedule
+│   ├── target.D00000001      # Restraint progress log
+│   ├── target.V99990001      # Restraint violation profile
+│   ├── target.ali            # PIR target sequence alignment
+│   ├── alignment.ali         # PIR template pairwise alignment
+│   ├── P01116.fasta          # Sequence reference
+│   ├── 4ldj_clean.pdb        # Sanitized template
+│   ├── 4ldj_orig.pdb         # Raw template backup
+│   ├── 4ldj.pdb              # Isolated chain coordinate
+│   ├── pipeline.log          # Modeller build log
+│   └── MODEL_DONE            # Modeling completion gate
+│
+└── G12D/                     # Oncogenic point mutant
+    ├── G12D.pdb              # Mutated coordinate
+    ├── WT_G12D.pdb           # Direct mutation coordinate
+    ├── WT_G12D_with_cryst.pdb # Mutant with crystal headers
+    ├── mutate.log            # Rotamer sampling & energy log
+    └── MODEL_DONE            # Mutant completion gate
+```
+
+> **Downstream Handover:** These validated coordinate models (`WT.pdb`, `G12D.pdb`) are handed over to **Section 4 (`cmda prep`)** for PROPKA protonation and Amber OPC water box solvation.
+
 ---
 
 ## 4. Structure Preparation & Solvation
@@ -188,13 +236,24 @@ cmda prep --state apo --variant G12D
 | **Basic** | `LYS` / `ARG` | Positively charged physiological cations (`LYN` if neutral). |
 | **Cysteine** | `CYS` / `CYX` | Free neutral thiol (`CYS`) or disulfide bridge (`CYX`). |
 
-*Outputs in `data/apo/simulation/<variant>/prep/`:* `solvated.pdb`, `system.prmtop`, `system.inpcrd`, and `system.xml`.
+*What `cmda prep` outputs in `data/apo/simulation/<variant>/prep/`:*
+
+```text
+prep/
+├── model.pdb        # Input receptor coordinates copied for reproducibility
+├── solvated.pdb     # Solvated coordinates (protein, OPC water box, neutralized ions)
+├── system.prmtop    # Amber ff19SB topology containing all force field parameters
+├── system.inpcrd    # Solvated, charge-neutralized initial coordinates
+└── system.xml       # Serialized OpenMM system (physical forces, constraints, box vectors)
+```
+
+> **Downstream Handover:** These solvated parameters are loaded by OpenMM for GPU equilibration in **Section 5 (`cmda sim eq`)**.
 
 ---
 
 ## 5. Equilibration & QC
 
-Initialize simulation directories and run the progressive 24-stage VarMDyn relaxation ladder. This heats the system from 50 K to 300 K and gradually releases positional restraints:
+Initialize simulation directories and run the progressive 24-stage equilibration relaxation ladder. This heats the system from 50 K to 300 K and gradually releases positional restraints:
 
 ```bash
 # 1. Initialize simulation directories:
@@ -227,6 +286,26 @@ cat data/apo/analysis/WT/eq/qc.txt
 cat data/apo/analysis/G12D/eq/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$).
+
+*What `cmda sim eq` outputs:*
+
+In `data/apo/simulation/<variant>/eq/`:
+```text
+simulation/WT/eq/
+├── eq.pdb            # Final relaxed coordinate snapshot
+├── system.xml        # Serialized OpenMM system topology & parameters
+├── state.xml         # Final relaxed thermodynamic state (coordinates, velocities, box vectors)
+└── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
+```
+
+In `data/apo/analysis/<variant>/eq/`:
+```text
+analysis/WT/eq/
+├── qc.png            # 6-panel publication thermodynamic & structural QC plot
+└── qc.txt            # Pass/fail diagnostic receipt (Cα RMSD, temperature, density drift)
+```
+
+> **Downstream Handover:** The final thermodynamic state (`eq/state.xml`) and topology serve as the physical starting point for independent production replicas in **Section 6 (`cmda sim md`)**, forking with distinct Maxwell-Boltzmann velocity seeds.
 
 ---
 
@@ -296,13 +375,14 @@ During simulation, ColabMDA populates `data/apo/simulation/<variant>/md/<replica
 
 ```text
 simulation/WT/md/r1/
-├── chunk_001.dcd ... chunk_100.dcd   # 1-ns raw trajectory chunks (100 frames each, 10,000 frames total)
-├── chunk_001.log ... chunk_100.log   # 1-ns thermodynamic logs (temperature, volume, density, energy)
-├── state.xml                         # Latest thermodynamic state snapshot
-└── prod.chk                          # Checkpoint binary for auto-resuming after timeouts
+├── chunks/
+│   ├── 0001.dcd ... 0100.dcd   # 1-ns raw trajectory chunks (100 frames each, 10,000 frames total)
+│   └── 0001.log ... 0100.log   # 1-ns thermodynamic logs (temperature, volume, density, energy)
+├── state.xml                   # Latest thermodynamic state snapshot
+└── prod.chk                    # Checkpoint binary for auto-resuming after timeouts
 ```
 
-> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Section 7 (`cmda merge`)**, which concatenates them into a continuous unified trajectory (`md.dcd`), eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `prod_clean.dcd` for statistical analysis.
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Section 7 (`cmda merge`)**, which concatenates them into a continuous unified trajectory (`md.dcd`), eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `prod_keep_ligand.dcd` for statistical analysis.
 
 <details>
 <summary><b>💡 (Optional) How to Launch Additional Replicas (<code>r2</code>, <code>r3</code>) Later</b></summary>
@@ -346,11 +426,53 @@ cmda analyze --state apo --variant G12D
 cmda compare --state apo --variants WT,G12D
 ```
 
-*Key Deliverables Generated in `data/apo/analysis/compare/`:*
-* `summary.txt`: Executive statistical table with Mean ± SD for RMSD, Radius of Gyration, and Temperature.
-* `rmsd.png`: Comparative backbone RMSD time-series.
-* `rg.png`: Comparative compactness profiles.
-* `rmsf.png`: Per-residue fluctuation profiles highlighting Switch I (residues 30–38) and Switch II (residues 59–67) loop flexibility.
+*What `cmda merge` outputs in `data/apo/simulation/<variant>/md/<replica>/`:*
+
+```text
+simulation/WT/md/r1/
+├── chunks/                       # Raw trajectory chunks
+│   ├── 0001.dcd ... 0100.dcd
+│   └── 0001.log ... 0100.log
+├── md.dcd                        # Continuous concatenated solvated trajectory
+├── md.log                        # Continuous concatenated thermodynamic log
+├── prod_keep_ligand.dcd          # PBC-autoimaged, solvent-stripped trajectory (~90% smaller)
+├── stripped.prmtop               # Amber topology matching stripped trajectory
+├── prod_ca.dcd                   # Cα-only trajectory for essential dynamics / PCA
+├── ca.prmtop                     # Cα-only topology
+├── MERGE_DONE                    # Merge verification gate marker
+├── state.xml                     # Final physical state snapshot
+└── prod.chk                      # Production checkpoint
+```
+
+*What `cmda analyze` outputs in `data/apo/analysis/<variant>/r1/`:*
+
+```text
+analysis/WT/r1/
+├── figures/
+│   ├── rmsd_vs_time.png      # Time-series Cα RMSD relative to starting model
+│   ├── rg_vs_time.png        # Radius of gyration compactness time-series
+│   └── rmsf_per_residue.png  # Per-residue flexibility profile (Switch I & II)
+├── rmsd.csv                  # Tabulated RMSD values per frame
+├── rg.csv                    # Tabulated Rg values per frame
+├── rmsf.csv                  # Tabulated per-residue RMSF values
+└── ANALYSIS_DONE             # Gate marker confirming complete analysis
+```
+
+*What `cmda compare` outputs in `data/apo/analysis/compare/`:*
+
+```text
+analysis/compare/
+├── figures/
+│   ├── rmsd_avg.png          # Comparative RMSD with Mean ± SD band
+│   ├── rg_avg.png            # Comparative Rg with Mean ± SD band
+│   └── rmsf_avg.png          # Comparative RMSF overlay
+├── rmsd.png                  # Publication-ready RMSD overlay
+├── rg.png                    # Publication-ready Rg overlay
+├── rmsf.png                  # Publication-ready RMSF overlay
+└── summary.txt               # Executive statistical summary table (Mean ± SD)
+```
+
+> **Downstream Handover:** These publication figures and statistical summaries are retrieved to your local machine in **Section 8 (`cmda pull`)** for final inspection and publication rendering.
 
 ---
 
@@ -377,6 +499,8 @@ cmda pull -s cmda --traj
 > 1. Packages analysis CSVs, logs, summary manifests, and PNG plots from Google Drive.
 > 2. Excludes heavy raw simulation checkpoints (`chunks/*.dcd`, `.chk`) by default so the download completes quickly. Passing `--traj` pulls lightweight solvent-stripped trajectories (`prod_keep_ligand.dcd`), while `--all` downloads full raw chunks.
 > 3. Extracts files non-destructively into your local `data/` folder.
+
+> **Downstream Handover:** With deliverables pulled to your local machine, proceed to **Section 8.2** for PyMOL trajectory inspection and structural verification.
 
 ---
 

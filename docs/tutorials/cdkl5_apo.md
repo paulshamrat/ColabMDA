@@ -151,8 +151,6 @@ pymol data/apo/structure/O76039_4BGQ/raw/template.pdb
 | **`4bgq.cif`** | Archive Copy | Immutable raw crystallographic record directly from the RCSB PDB archive. |
 | **`template.pdb`** | Modeller Input | Stripped monomer coordinates (Chain A) with non-crystallographic waters and buffer additives removed. |
 | **`uniprot.fasta`** | Biological Target | Canonical sequence fetched directly from UniProtKB for precise residue numbering. |
-| **`residues.json`** | Coordinate Metadata | Residue-by-residue mapping of author PDB numbering to canonical UniProt positions, identifying resolved vs. missing loops. |
-| **`input.json`** | Provenance | Machine-readable record containing execution parameters, timestamps, and SHA-256 integrity checksums. |
 | **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming coordinate density and sequence integrity passed all QC gates. |
 
 <details>
@@ -235,7 +233,7 @@ pymol data/apo/simulation/L119R/prep/solvated.pdb
 * `solvated.pdb`: Solvated coordinate PDB with protein, water box, and neutralized counterion(s).
 * `system.prmtop`: Amber topology containing all `ff19SB` physical parameters.
 * `system.inpcrd`: Solvated, charge-neutralized initial coordinates.
-* `protonation_summary.json`: Audit log of explicit protonation states assigned by PROPKA at pH 7.4.
+* `system.xml`: Serialized OpenMM system containing physical forces and box parameters.
 
 #### In-Context Reference: Explicit AMBER Protonation States (PROPKA 3 at pH 7.4)
 Accurate protonation states are critical for biophysical fidelity. ColabMDA natively integrates **PDBFixer**, **PDB2PQR**, and **PROPKA 3** during `cmda prep` to evaluate 3D electrostatic microenvironments and assign explicit AMBER titratable residue forms:

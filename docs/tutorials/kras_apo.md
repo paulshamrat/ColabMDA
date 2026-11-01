@@ -85,13 +85,20 @@ research/projects/kras-example/
         └── analysis/                     # Mirrored deliverables (Zero JSON policy)
             ├── WT/
             │   ├── eq/                # Equilibration QC deliverables (qc.png, qc.txt)
-            │   └── md/
-            │       ├── r1/               # Per-replica metrics (rmsd.png, rg.png, rmsf.png, summary.txt)
-            │       ├── r2/
-            │       └── r3/
+            │   ├── r1/                # Per-replica metrics (figures/, rmsd.csv, rg.csv, rmsf.csv)
+            │   │   ├── figures/
+            │   │   │   ├── rmsd_vs_time.png
+            │   │   │   ├── rg_vs_time.png
+            │   │   │   └── rmsf_per_residue.png
+            │   │   ├── rmsd.csv
+            │   │   ├── rg.csv
+            │   │   ├── rmsf.csv
+            │   │   └── ANALYSIS_DONE
+            │   ├── r2/
+            │   └── r3/
             ├── G12D/
             │   ├── eq/                # qc.png, qc.txt
-            │   └── md/{r1, r2, r3}/
+            │   └── r1/
             └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
 ```
 
@@ -145,9 +152,9 @@ pymol data/apo/structure/P01116_4LDJ/raw/template.pdb
 | **`4ldj.cif`** | Archive Copy | Raw crystallographic record directly from the RCSB PDB archive. |
 | **`template.pdb`** | Modeller Input | Stripped monomer coordinates (Chain A) with non-crystallographic waters and buffer additives removed. |
 | **`uniprot.fasta`** | Biological Target | Canonical sequence fetched directly from UniProtKB for precise residue numbering. |
-| **`residues.json`** | Coordinate Metadata | Residue-by-residue mapping of author PDB numbering to canonical UniProt positions, identifying resolved vs. missing loops. |
-| **`input.json`** | Provenance | Machine-readable record containing execution parameters, timestamps, and SHA-256 integrity checksums. |
 | **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming coordinate density and sequence integrity passed all QC gates. |
+
+> **Downstream Handover:** These experimental structural inputs are handed over to **Section 1.3 (`cmda model`)**, which maps sequences, reconstructs missing crystallographic loops, and builds canonical coordinates.
 
 ---
 
@@ -173,6 +180,38 @@ pymol data/apo/structure/P01116_4LDJ/variants/WT/WT.pdb data/apo/structure/P0111
 > * **Residue 12 Inspection:** In the WT vs. G12D comparison, enter `zoom resi 12` and `show sticks, resi 12`. Verify that the Gly12 to Asp12 mutation is present and the Asp12 sidechain is oriented outward into the nucleotide-binding pocket without steric clashes.
 > * **Switch I & II Loops:** Confirm that Switch I (residues 30–38) and Switch II (residues 59–67) are modeled continuously as an unbroken cartoon ribbon.
 
+*What `cmda model` outputs in `data/apo/structure/P01116_4LDJ/variants/`:*
+
+```text
+variants/
+├── WT/
+│   ├── WT.pdb                # Canonical modeled Wild-Type coordinate
+│   ├── target.B99990001.pdb  # Modeller build
+│   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
+│   ├── target.ini            # Starting coordinate mesh
+│   ├── target.rsr            # Spatial restraints
+│   ├── target.sch            # Optimization schedule
+│   ├── target.D00000001      # Restraint progress log
+│   ├── target.V99990001      # Restraint violation profile
+│   ├── target.ali            # PIR target sequence alignment
+│   ├── alignment.ali         # PIR template pairwise alignment
+│   ├── P01116.fasta          # Sequence reference
+│   ├── 4ldj_clean.pdb        # Sanitized template
+│   ├── 4ldj_orig.pdb         # Raw template backup
+│   ├── 4ldj.pdb              # Isolated chain coordinate
+│   ├── pipeline.log          # Modeller build log
+│   └── MODEL_DONE            # Modeling completion gate
+│
+└── G12D/                     # Oncogenic point mutant
+    ├── G12D.pdb              # Mutated coordinate
+    ├── WT_G12D.pdb           # Direct mutation coordinate
+    ├── WT_G12D_with_cryst.pdb # Mutant with crystal headers
+    ├── mutate.log            # Rotamer sampling & energy log
+    └── MODEL_DONE            # Mutant completion gate
+```
+
+> **Downstream Handover:** These validated coordinate models (`WT.pdb`, `G12D.pdb`) are handed over to **Section 1.4 (`cmda prep`)** for PROPKA protonation and Amber OPC water box solvation.
+
 ---
 
 ### 1.4. Structure Preparation & Solvation (`tleap` + PROPKA at pH 7.4)
@@ -188,12 +227,18 @@ pymol data/apo/simulation/WT/prep/solvated.pdb
 pymol data/apo/simulation/G12D/prep/solvated.pdb
 ```
 
-*Key outputs generated in `data/apo/simulation/<variant>/prep/`:*
-* `model.pdb`: Copy of the input coordinate PDB for reproducibility.
-* `solvated.pdb`: Solvated coordinate PDB with protein, water box, and neutralized counterion(s).
-* `system.prmtop`: Amber topology containing all `ff19SB` physical parameters.
-* `system.inpcrd`: Solvated, charge-neutralized initial coordinates.
-* `protonation_summary.json`: Audit log of explicit protonation states assigned by PROPKA at pH 7.4.
+*What `cmda prep` outputs in `data/apo/simulation/<variant>/prep/`:*
+
+```text
+prep/
+├── model.pdb        # Input receptor coordinates copied for reproducibility
+├── solvated.pdb     # Solvated coordinates (protein, OPC water box, neutralized ions)
+├── system.prmtop    # Amber ff19SB topology containing all force field parameters
+├── system.inpcrd    # Solvated, charge-neutralized initial coordinates
+└── system.xml       # Serialized OpenMM system (physical forces, constraints, box vectors)
+```
+
+> **Downstream Handover:** These solvated parameter sets are packaged and streamed to Google Drive in **Phase 2 (`cmda push`)**, where they will be loaded by OpenMM on cloud GPUs for equilibration in **Phase 3 (`cmda sim eq`)**.
 
 #### In-Context Reference: Explicit AMBER Protonation States (PROPKA 3 at pH 7.4)
 Accurate protonation states are critical for biophysical fidelity. ColabMDA natively integrates **PDBFixer**, **PDB2PQR**, and **PROPKA 3** during `cmda prep` to evaluate 3D electrostatic microenvironments and assign explicit AMBER titratable residue forms:
@@ -251,6 +296,8 @@ cmda push -s cmda
 > * **Google Drive Filesystem Path:** `/content/drive/MyDrive/research/projects/kras-example/data/`
 > * **Mechanism:** `cmda push` packages your local `data/` folder, streams it to your active Colab VM (`-s cmda`), and extracts it directly into your mounted Google Drive project directory without manual file uploading.
 
+> **Downstream Handover:** With project files securely stored on Google Drive and accessible to the cloud VM, enter the remote environment in **Phase 3** to execute GPU equilibration and production MD.
+
 ---
 
 ## ⚡ Phase 3: Cloud GPU Simulation & Analysis (Google Colab)
@@ -294,6 +341,41 @@ cmda sim eq --state apo --variant G12D
 # cmda sim qc --state apo --variant WT
 # cmda sim qc --state apo --variant G12D
 ```
+
+#### Stage Schedule (~1.96 ns Total)
+
+| Stages | Operation | Duration | Timestep & Restraints |
+| :--- | :--- | :--- | :--- |
+| **01–03** | Restrained Minimization | 5,000 steps each | $k = 100, 50, 25\text{ kcal/mol/\AA}^2$ |
+| **04–09** | NVT Progressive Heating ($50\text{ K} \to 300\text{ K}$) | **$6 \times 10\text{ ps}$ ($60\text{ ps}$)** | $1\text{ fs timestep}$, $k = 25$ |
+| **10–14** | Post-Heating Minimization | 5,000 / 1,000 steps | $k = 25 \to 1\text{ kcal/mol/\AA}^2$ |
+| **15–18** | NVT Restraint Release at $300\text{ K}$ | **$4 \times 100\text{ ps}$ ($400\text{ ps}$)** | $2\text{ fs timestep}$, $k = 10, 5, 2, 1$ |
+| **19–22** | NPT Density Relaxation ($300\text{ K}, 1\text{ bar}$) | **$4 \times 100\text{ ps}$ ($400\text{ ps}$)** | $2\text{ fs timestep}$, $k = 10, 5, 2, 1$ |
+| **23** | Unrestrained NPT Relaxation | **$100\text{ ps}$** | $2\text{ fs timestep}$, unrestrained ($k = 0$) |
+| **24** | Final Unrestrained NPT Stabilization | **$1,000\text{ ps}$ ($1.0\text{ ns}$)** | $2\text{ fs timestep}$, unrestrained ($k = 0$) |
+
+> [!TIP]
+> **Fast Smoke Test Alternative:** For a 2-minute quick check rather than full 24-stage production relaxation, append `--protocol quick` (runs 100 ps NVT + 100 ps NPT).
+
+*What `cmda sim eq` outputs:*
+
+In `data/apo/simulation/<variant>/eq/`:
+```text
+simulation/WT/eq/
+├── eq.pdb            # Final relaxed coordinate snapshot
+├── system.xml        # Serialized OpenMM system topology & parameters
+├── state.xml         # Final relaxed thermodynamic state (coordinates, velocities, box vectors)
+└── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
+```
+
+In `data/apo/analysis/<variant>/eq/`:
+```text
+analysis/WT/eq/
+├── qc.png            # 6-panel publication thermodynamic & structural QC plot
+└── qc.txt            # Pass/fail diagnostic receipt (Cα RMSD, temperature, density drift)
+```
+
+> **Downstream Handover:** The final thermodynamic state (`eq/state.xml`) and topology serve as the physical starting point for independent production replicas in **Section 3.3 (`cmda sim md`)**, forking with distinct Maxwell-Boltzmann velocity seeds.
 
 ---
 
@@ -412,13 +494,14 @@ During simulation, ColabMDA populates `data/apo/simulation/<variant>/md/<replica
 
 ```text
 simulation/WT/md/r1/
-├── chunk_001.dcd ... chunk_100.dcd   # 1-ns raw trajectory chunks (100 frames each, 10,000 frames total)
-├── chunk_001.log ... chunk_100.log   # 1-ns thermodynamic logs (temperature, volume, density, energy)
-├── state.xml                         # Latest thermodynamic state snapshot
-└── prod.chk                          # Checkpoint binary for auto-resuming after timeouts
+├── chunks/
+│   ├── 0001.dcd ... 0100.dcd   # 1-ns raw trajectory chunks (100 frames each, 10,000 frames total)
+│   └── 0001.log ... 0100.log   # 1-ns thermodynamic logs (temperature, volume, density, energy)
+├── state.xml                   # Latest thermodynamic state snapshot
+└── prod.chk                    # Checkpoint binary for auto-resuming after timeouts
 ```
 
-> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Phase 4 (`cmda merge`)**, which concatenates them into a continuous unified trajectory (`md.dcd`), eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `prod_clean.dcd` for statistical analysis.
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Section 3.4 (`cmda merge`)**, which concatenates them into a continuous unified trajectory (`md.dcd`), eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `prod_keep_ligand.dcd` for statistical analysis.
 
 #### 💡 Resuming After a Session Timeout
 Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive. If your session expires:
@@ -483,11 +566,24 @@ cmda merge --state apo --variant G12D
 ```
 
 *What `cmda merge` outputs in `data/apo/simulation/<variant>/md/<replica>/`:*
-* `md.dcd`: Clean continuous trajectory merged from `chunks/0001.dcd` ... `chunks/0100.dcd`.
-* `md.log`: Continuous merged thermodynamic log table.
-* `stripped.prmtop` & `prod_keep_ligand.dcd`: Continuous PBC-autoimaged and solvent-stripped trajectory with matching stripped topology for PyMOL viewing and biophysical analysis.
-* `ca.prmtop` & `prod_ca.dcd`: Continuous Cα-only trajectory for PCA and essential dynamics.
-* `state.xml`: Final OpenMM physical restart state.
+
+```text
+simulation/WT/md/r1/
+├── chunks/                       # Raw trajectory chunks
+│   ├── 0001.dcd ... 0100.dcd
+│   └── 0001.log ... 0100.log
+├── md.dcd                        # Continuous concatenated solvated trajectory
+├── md.log                        # Continuous concatenated thermodynamic log
+├── prod_keep_ligand.dcd          # PBC-autoimaged, solvent-stripped trajectory (~90% smaller)
+├── stripped.prmtop               # Amber topology matching stripped trajectory
+├── prod_ca.dcd                   # Cα-only trajectory for essential dynamics / PCA
+├── ca.prmtop                     # Cα-only topology
+├── MERGE_DONE                    # Merge verification gate marker
+├── state.xml                     # Final physical state snapshot
+└── prod.chk                      # Production checkpoint
+```
+
+> **Downstream Handover:** The solvent-stripped trajectories (`prod_keep_ligand.dcd`) and topologies (`stripped.prmtop`) are handed over to **Section 3.5 (`cmda analyze` / `cmda compare`)** for biophysical metric extraction, and to **Phase 4 (`cmda pull`)** for local PyMOL visualization.
 
 ---
 
@@ -503,11 +599,35 @@ cmda analyze --state apo --variant G12D
 cmda compare --state apo --variants WT,G12D
 ```
 
-Outputs saved directly in `data/apo/analysis/compare/`:
-* `summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
-* `rmsd.png` (Comparative time-series with Mean ± SD band)
-* `rg.png` (Radius of Gyration compactness comparison)
-* `rmsf.png` (Residue fluctuation profiles highlighting Switch I and Switch II loop flexibility)
+*What `cmda analyze` outputs in `data/apo/analysis/<variant>/r1/`:*
+
+```text
+analysis/WT/r1/
+├── figures/
+│   ├── rmsd_vs_time.png      # Time-series Cα RMSD relative to starting model
+│   ├── rg_vs_time.png        # Radius of gyration compactness time-series
+│   └── rmsf_per_residue.png  # Per-residue flexibility profile (Switch I & II)
+├── rmsd.csv                  # Tabulated RMSD values per frame
+├── rg.csv                    # Tabulated Rg values per frame
+├── rmsf.csv                  # Tabulated per-residue RMSF values
+└── ANALYSIS_DONE             # Gate marker confirming complete analysis
+```
+
+*What `cmda compare` outputs in `data/apo/analysis/compare/`:*
+
+```text
+analysis/compare/
+├── figures/
+│   ├── rmsd_avg.png          # Comparative RMSD with Mean ± SD band
+│   ├── rg_avg.png            # Comparative Rg with Mean ± SD band
+│   └── rmsf_avg.png          # Comparative RMSF overlay
+├── rmsd.png                  # Publication-ready RMSD overlay
+├── rg.png                    # Publication-ready Rg overlay
+├── rmsf.png                  # Publication-ready RMSF overlay
+└── summary.txt               # Executive statistical summary table (Mean ± SD)
+```
+
+> **Downstream Handover:** These publication figures and statistical summaries are retrieved to your local machine in **Phase 4 (`cmda pull`)** for final inspection and publication rendering.
 
 ---
 
@@ -523,6 +643,8 @@ cmda pull -s cmda
 # To also pull post-processed stripped trajectories for PyMOL inspection:
 # cmda pull -s cmda --traj
 ```
+
+> **Downstream Handover:** With the analyzed deliverables pulled to your local workstation, proceed to **Section 4.2** to visualize trajectories and generate publication figures in PyMOL.
 
 > [!TIP]
 > **What `cmda pull` Does:**

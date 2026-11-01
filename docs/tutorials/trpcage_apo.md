@@ -116,8 +116,6 @@ pymol data/apo/structure/1L2Y/raw/template.pdb
 | **`1l2y.cif`** | Archive Copy | Raw crystallographic/NMR record directly from the RCSB PDB archive. |
 | **`template.pdb`** | Standard Model | 20-residue clean coordinates (`NLYIQWLKDGGPSSGRPPPS`) with NMR ensemble tags stripped. |
 | **`uniprot.fasta`** | Sequence Record | Clean FASTA sequence used for coordinate mapping. |
-| **`residues.json`** | Coordinate Metadata | Residue-by-residue mapping verifying 100% full coordinate density (20/20 resolved). |
-| **`input.json`** | Provenance Record | Machine-readable log containing parameters, timestamps, and SHA-256 hashes. |
 | **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming all 20 Cα atoms and the sequence match exactly. |
 
 ---
@@ -157,7 +155,7 @@ pymol data/apo/simulation/WT/prep/solvated.pdb
 * `solvated.pdb`: Solvated coordinate PDB (~1,800 OPC waters + neutralizing Cl⁻ counterion).
 * `system.prmtop`: Amber topology containing all `ff19SB` physical force-field parameters.
 * `system.inpcrd`: Solvated, charge-neutralized initial coordinates.
-* `prep.json`: Parameter and atom-count receipt.
+* `system.xml`: Serialized OpenMM system containing physical forces and box parameters.
 * `PREP_DONE`: Verification completion gate.
 
 #### In-Context Reference: Explicit AMBER Protonation States (PROPKA 3 at pH 7.4)
