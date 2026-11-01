@@ -12,7 +12,6 @@ Usage:
 import argparse
 import glob
 import hashlib
-import json
 import os
 from pathlib import Path
 
@@ -205,14 +204,6 @@ def run_trajectory_analysis(
                     "Std": values.std(axis=0),
                 }
             ).to_csv(agg / f"{key}_avg.csv", index=False)
-    metadata = {"analysis_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
-    snapshot = Path(__file__).resolve().parents[3] / "SNAPSHOT.json"
-    if snapshot.exists():
-        metadata["tool"] = json.loads(snapshot.read_text())
-    if reference:
-        metadata["reference"] = str(Path(reference).resolve())
-        metadata["reference_sha256"] = hashlib.sha256(Path(reference).read_bytes()).hexdigest()
-    (outdir_path / "analysis.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print(f"Analysis tables saved in: {outdir_path}")
     return outdir_path
 
@@ -257,18 +248,6 @@ def aggregate_reports(folders, outdir):
         )
     for metric, frame in tables.items():
         frame.to_csv(outdir / f"{metric}_avg.csv", index=False)
-    (outdir / "analysis.json").write_text(
-        json.dumps(
-            {
-                "replicas": [str(p.resolve()) for p in folders],
-                "input_sha256": hashes,
-                "standard_deviation": "population (ddof=0)",
-                "analysis_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            },
-            indent=2,
-        )
-        + "\n"
-    )
     return outdir
 
 

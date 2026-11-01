@@ -496,7 +496,6 @@ class ProjectPaths:
             return None
         required = [
             "ANALYSIS_DONE",
-            "analysis.json",
             "rmsd.csv",
             "rg.csv",
             "rmsf.csv",

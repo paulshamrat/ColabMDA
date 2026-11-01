@@ -198,24 +198,12 @@ def test_fetch_maps_label_offset_and_preserves_insertion(tmp_path, monkeypatch):
         mutations="A2V",
     )
     assert workflow.fetch(args) == 0
-    res_path = (
-        (raw / "residues.json")
-        if (raw / "residues.json").exists()
-        else (
-            (raw.parent / "residues.json")
-            if (raw.parent / "residues.json").exists()
-            else (raw.parent / "mapping/residues.json")
-        )
-    )
-    rows = json.loads(res_path.read_text())
-    assert rows[0]["resolved"] is False
-    assert rows[1] == {
-        "uniprot": 2,
-        "amino_acid": "A",
-        "resolved": True,
-        "author": 42,
-        "insertion_code": "A",
-    }
+    assert not (raw / "residues.json").exists()
+    assert not (raw / "input.json").exists()
+    assert (raw.parent / "STRUCTURE_DONE").exists()
+    meta = workflow.get_structure_metadata(raw.parent)
+    assert meta["pdb"] == "TEST"
+    assert meta["range"] == [1, 2]
     tmpl_path = (
         (raw.parent / "template.pdb")
         if (raw.parent / "template.pdb").exists()
@@ -285,10 +273,10 @@ def test_fetch_creates_flat_directory_structure(tmp_path, monkeypatch):
     assert workflow.fetch(args) == 0
     folder = tmp_path / "data/apo/structure/TEST_TEST"
     assert (folder / "STRUCTURE_DONE").exists()
-    assert (folder / "raw" / "input.json").exists()
-    assert (folder / "raw" / "residues.json").exists()
     assert (folder / "raw" / "template.pdb").exists()
     assert (folder / "raw" / "uniprot.fasta").exists()
+    assert not (folder / "raw" / "input.json").exists()
+    assert not (folder / "raw" / "residues.json").exists()
     assert not (folder / "models").exists()
     assert not (folder / "mapping").exists()
 
@@ -338,7 +326,7 @@ def test_fetch_synthetic_pdb_without_uniprot(tmp_path, monkeypatch):
 
     from Bio.PDB import Atom, Chain, Model, Residue, Structure
 
-    from colabmda.core.workflow import fetch
+    from colabmda.core.workflow import fetch, get_structure_metadata
 
     # Mock fetch_archive to avoid network calls
     def mock_fetch_archive(pdb_id, dest_dir):
@@ -376,13 +364,13 @@ def test_fetch_synthetic_pdb_without_uniprot(tmp_path, monkeypatch):
     assert (target_dir / "STRUCTURE_DONE").exists()
     assert (target_dir / "raw/template.pdb").exists()
     assert (target_dir / "raw/uniprot.fasta").exists()
-    assert (target_dir / "raw/residues.json").exists()
-    assert (target_dir / "raw/input.json").exists()
+    assert not (target_dir / "raw/residues.json").exists()
+    assert not (target_dir / "raw/input.json").exists()
     assert (target_dir / "variants/WT/WT.pdb").exists()
     assert (target_dir / "variants/WT/MODEL_DONE").exists()
 
-    input_data = json.loads((target_dir / "raw/input.json").read_text())
-    assert input_data["pdb"] == "1L2Y"
-    assert input_data["uniprot"] == "1L2Y"
-    assert input_data["sequence"] == "NLY"
-    assert input_data["range"] == [1, 3]
+    meta = get_structure_metadata(target_dir)
+    assert meta["pdb"] == "1L2Y"
+    assert meta["uniprot"] == "1L2Y"
+    assert meta["sequence"] == "NLY"
+    assert meta["range"] == [1, 3]

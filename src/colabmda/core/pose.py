@@ -191,7 +191,12 @@ def assemble_public(args):
         if (apo / "raw/input.json").exists()
         else (apo / "input.json" if (apo / "input.json").exists() else apo / "mapping/input.json")
     )
-    inputs = json.loads(input_json.read_text())
+    if input_json.exists():
+        inputs = json.loads(input_json.read_text())
+    else:
+        from colabmda.core.workflow import get_structure_metadata
+
+        inputs = get_structure_metadata(apo)
     target_tag = (
         f"{inputs['uniprot'].upper()}_{inputs['pdb'].upper()}"
         if "uniprot" in inputs and "pdb" in inputs

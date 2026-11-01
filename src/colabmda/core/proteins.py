@@ -338,8 +338,13 @@ def simulate(root, name, step, variant="WT"):
     args = ["--root", str(root), "--state", spec["state"], "--variant", variant]
     if step == "prepare":
         if (system / "01_prep/PREP_DONE").exists():
-            recorded = json.loads((system / "01_prep/topology_check.json").read_text())
-            verify_files(system / "01_prep", recorded["files"])
+            if (system / "01_prep/topology_check.json").exists():
+                recorded = json.loads((system / "01_prep/topology_check.json").read_text())
+                verify_files(system / "01_prep", recorded["files"])
+            else:
+                for filename in ["model.pdb", "system.prmtop", "system.inpcrd", "solvated.pdb"]:
+                    if not (system / "01_prep" / filename).is_file():
+                        raise ValueError(f"Missing prepared file: {filename}")
             print("Verified existing preparation; preserving coordinates/topology")
             return
         cli(
@@ -355,7 +360,6 @@ def simulate(root, name, step, variant="WT"):
             "solvated.pdb",
             "system.prmtop",
             "system.inpcrd",
-            "prep.json",
         ]:
             if not (system / "01_prep" / filename).stat().st_size:
                 raise ValueError("Incomplete preparation")
@@ -465,6 +469,8 @@ def check_run(run, system, name, variant, sequence):
     if not (system / "02_eq/figures/equilibration_qc.png").stat().st_size:
         raise ValueError("Missing equilibration figure")
     qc = json.loads((system / "02_eq/equilibration_qc.json").read_text())
+    analysis_json = analysis / "analysis.json"
+    analysis_record = json.loads(analysis_json.read_text()) if analysis_json.exists() else {}
     save_json(
         run / "summary.json",
         {
@@ -475,14 +481,14 @@ def check_run(run, system, name, variant, sequence):
             "residues": len(ca),
             "software_pass": True,
             "equilibration_qc_pass": qc["passed"],
-            "analysis": json.loads((analysis / "analysis.json").read_text()),
+            "analysis": analysis_record,
         },
     )
     (run / "RUN_DONE").write_text("Software checks passed; physical equilibration QC is separate\n")
     print(f"RUN_DONE: {name} {variant}, {ns} ns; physical QC: {qc['passed']}")
 
 
-def check_topology(folder, name=None, *, spec=None):
+def check_topology(folder, name=None, *, spec=None, save_receipt=False):
     """Check the actual Amber charges/composition without running dynamics."""
     from openmm import NonbondedForce, unit
     from openmm.app import AmberPrmtopFile
@@ -553,6 +559,14 @@ def check_topology(folder, name=None, *, spec=None):
         elif residue.name in {"WAT", "HOH", "TIP3", "OPC"}:
             n_waters += 1
 
+    files_to_check = [
+        "model.pdb",
+        "system.prmtop",
+        "system.inpcrd",
+        "solvated.pdb",
+    ]
+    if (folder / "prep.json").is_file():
+        files_to_check.append("prep.json")
     summary = {
         "atoms": system.getNumParticles(),
         "waters": n_waters,
@@ -561,16 +575,8 @@ def check_topology(folder, name=None, *, spec=None):
         "components": components,
         "ion_model": "OPC Li-Merz 12-6",
         "ion_lj": ion_lj,
-        "files": {
-            n: digest(folder / n)
-            for n in [
-                "model.pdb",
-                "system.prmtop",
-                "system.inpcrd",
-                "solvated.pdb",
-                "prep.json",
-            ]
-        },
+        "files": {n: digest(folder / n) for n in files_to_check if (folder / n).is_file()},
     }
-    save_json(folder / "topology_check.json", summary)
+    if save_receipt:
+        save_json(folder / "topology_check.json", summary)
     return summary

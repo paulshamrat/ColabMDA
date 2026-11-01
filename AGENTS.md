@@ -129,12 +129,16 @@ research/projects/<project-example>/
   - **Zero Buzzwords & Tech Fluff**: Never use words like "hub", "nexus", "orchestrator", "ecosystem", or "VarMDyn".
   - **Direct Nouns Only**: Use `eq/` (24-stage equilibration), `md/r1/` (Production replica 1), `prep/` (Solvated Amber system).
   - **Step-by-Step Handover Context**: When documenting commands in guides, explicitly describe: (1) command run, (2) exact files generated, and (3) which subsequent step consumes those files.
-- **Universal Zero-JSON & Zero-TSV-Receipt Policy**:
-  Neither `structure/`, `simulation/`, nor `analysis/` shall contain `.json` receipts or loose `.tsv`/`.csv` audit files.
-  - `structure/raw/` contains only `.cif`, `template.pdb`, `uniprot.fasta` (no `residues.json`, `input.json`).
-  - `structure/variants/` contains coordinate models, native Modeller logs, and `MODEL_DONE` (no `model_request.json`, `model_check.json`).
-  - `simulation/` (`prep`, `eq`, `md`) contains strictly native OpenMM/Amber files (`.pdb`, `.prmtop`, `.inpcrd`, `.xml`, `.log`, `.dcd`, `.chk`).
-  - `analysis/` contains only graphical and text deliverables (`.png`, `.txt`).
+- **100% Native Biophysical Architecture Contract (Zero-JSON & Zero-TSV Policy)**:
+  Output trees (`data/`) must contain zero `.json` and zero `.tsv` receipts or audit clutter. Domain files (`.pdb`, `.fasta`, `.prmtop`, `.inpcrd`, `.xml`, `.log`, `.dcd`, `.chk`, `.csv`, `.png`) and plain text completion markers (`*_DONE`) are the sole sources of physical truth:
+  - `structure/raw/` contains only `.cif`, `template.pdb`, and `uniprot.fasta` (no `residues.json`, `input.json`).
+  - `structure/variants/` contains coordinate models (`.pdb`), native Modeller outputs (`.ali`, `.log`, etc.), and `MODEL_DONE` text marker (no `model_request.json`, `model_check.json`).
+  - `simulation/prep/` contains strictly native Amber files (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `build.in`, `leap.log`, `PREP_DONE`). No `prep.json` or `topology_check.json`.
+  - `simulation/eq/` contains `eq.pdb`, `system.xml`, `state.xml`, restart states in `stages/state_*.xml`, and `EQ_DONE`. Zero JSON receipts.
+  - `simulation/md/` contains `md.dcd`, `md.log`, `state.xml`, `prod.chk`, stripped/autoimaged products (`stripped.prmtop`, `prod_keep_ligand.dcd`), Cα backbone files (`ca.prmtop`, `prod_ca.dcd`), raw chunks in `chunks/`, and `MERGE_DONE`. Zero JSON receipts.
+  - `analysis/` contains only scientific metrics (`.csv`), figures (`.png`), summary deliverables (`summary.txt`, `qc.txt`), and text markers (`ANALYSIS_DONE`, `AGGREGATE_DONE`, `COMPARE_DONE`). Zero JSON files in `analysis/`.
+  - **Native State Derivation & Gating**: Inter-stage validation, neutrality checks, and sequence identity gating must be derived dynamically and natively from the biological domain files themselves (e.g. parsing `system.prmtop` via `check_topology(..., save_receipt=False)`, verifying point mutations directly against `WT.pdb` coordinate atoms, parsing sequence from `uniprot.fasta`).
+  - **Text Completion Markers**: State markers (`STRUCTURE_DONE`, `MODEL_DONE`, `PREP_DONE`, `ANALYSIS_DONE`) record operational metadata (e.g., `seed`, `pdb`, `uniprot`, `range`) as clean, human-readable key-value lines without writing duplicate JSON ledgers.
 - **Equilibration (`eq`)**: Final relaxed coordinates are saved exclusively as
   `eq.pdb` (duplicate `equilibrated.pdb` eliminated). Intermediate restart states
   are saved into `stages/` as `state_01.xml` ... `state_24.xml`. All QC deliverables

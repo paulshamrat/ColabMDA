@@ -119,7 +119,7 @@ def _analysis_outdir(root: str, name: str) -> Path:
 
 
 def _dispatch_prep(args) -> int:
-    from colabmda.amber.leap import generate_tleap_script, run_tleap, write_prep_provenance
+    from colabmda.amber.leap import generate_tleap_script, run_tleap
     from colabmda.core.ions import parse_ion_spec
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
@@ -284,16 +284,14 @@ def _dispatch_prep(args) -> int:
                         )
                     except Exception as exc:
                         print(f"[WARN] Hu 2024 CMAP correction skipped: {exc}")
-                write_prep_provenance(spec=spec, dest_json=paths.prep_json(spec))
                 print(f"[OK] Built Amber topology: {paths.prepared_prmtop(spec)}")
                 print(f"[OK] Built Amber coordinates: {paths.prepared_inpcrd(spec)}")
                 if solvated_out.exists():
                     print(f"[OK] Built solvated model: {solvated_out}")
-                print(f"[OK] Generated provenance metadata: {paths.prep_json(spec)}")
                 if paths.state_dir is not None:
                     from colabmda.core.proteins import check_topology
 
-                    topo_check = check_topology(paths.prep_dir(spec), spec=spec)
+                    topo_check = check_topology(paths.prep_dir(spec), spec=spec, save_receipt=False)
                     (paths.prep_dir(spec) / "PREP_DONE").write_text(
                         "Verified canonical coordinates, topology composition, charges and outputs\n"
                     )
@@ -795,7 +793,6 @@ def _dispatch_analyze(args) -> int:
             reference=str(paths.model_pdb(spec)),
         )
         required = [
-            "analysis.json",
             "rmsd.csv",
             "rg.csv",
             "rmsf.csv",
