@@ -87,9 +87,9 @@ research/projects/cmda-example/           # Project root in Google Drive / local
     │   │       └── STRUCTURE_DONE        # Verification completion marker
     │   ├── simulation/
     │   │   ├── WT/
-    │   │   │   ├── 01_prep/              # Solvated OpenMM system (model.pdb, system.xml, integrator.xml)
+    │   │   │   ├── 01_prep/              # Solvated Amber system (system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd)
     │   │   │   ├── 02_eq/                # 24-stage equilibration hub (eq.pdb, state.xml, stages/)
-    │   │   │   └── 03_md/                # Production MD replicas (md.dcd, md.log, state.xml, chunks/)
+    │   │   │   └── 03_md/                # Production MD replicas (md.dcd, md.log, state.xml, prod.chk, chunks/)
     │   │   └── L119R/
     │   │       ├── 01_prep/
     │   │       ├── 02_eq/

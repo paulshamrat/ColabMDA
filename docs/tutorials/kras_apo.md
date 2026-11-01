@@ -20,10 +20,10 @@ research/projects/kras-example/
         │
         ├── simulation/
         │   ├── WT/
-        │   │   ├── 01_prep/              # Step 1: system.xml, integrator.xml, model.pdb
-        │   │   ├── 02_eq/                # Step 2: eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
-        │   │   └── 03_md/                # Step 3: Production replicas (100 ns)
-        │   │       ├── r1/               # md.dcd, md.log, state.xml, chunks/0001.dcd
+        │   │   ├── 01_prep/              # system.xml, model.pdb, solvated.pdb, system.prmtop, system.inpcrd
+        │   │   ├── 02_eq/                # eq.pdb, system.xml, state.xml, stages/ (24-stage ladder)
+        │   │   └── 03_md/                # Production replicas (100 ns)
+        │   │       ├── r1/               # md.dcd, md.log, state.xml, prod.chk, chunks/
         │   │       ├── r2/               # Independent velocity seed
         │   │       └── r3/               # Triplicate simulation
         │   └── G12D/
@@ -408,6 +408,8 @@ cmda merge --state apo --variant G12D
 *What `cmda merge` outputs in `data/apo/simulation/<variant>/03_md/<replica>/`:*
 * `md.dcd`: Clean continuous trajectory merged from `chunks/0001.dcd` ... `chunks/0100.dcd`.
 * `md.log`: Continuous merged thermodynamic log table.
+* `stripped.prmtop` & `prod_keep_ligand.dcd`: Continuous PBC-autoimaged and solvent-stripped trajectory with matching stripped topology for PyMOL viewing and biophysical analysis.
+* `ca.prmtop` & `prod_ca.dcd`: Continuous Cα-only trajectory for PCA and essential dynamics.
 * `state.xml`: Final OpenMM physical restart state.
 
 ---
@@ -454,7 +456,10 @@ cmda pull -s cmda
 ---
 
 ### 4.2. Visualizing Trajectories in Local PyMOL
-To visualize trajectories with secondary structure cartoons and highlighted sidechains, use the built-in `cmda view` command:
+To visualize trajectories with secondary structure cartoons and highlighted sidechains, use the built-in `cmda view` command or native PyMOL:
+
+#### Option A: Quick Launch via CLI
+The built-in `cmda view` command automatically generates a PyMOL script with backbone fitting and launches the GUI:
 
 ```bash
 # 1. View Wild-Type production trajectory in PyMOL:
@@ -462,16 +467,39 @@ cmda view --state apo --variant WT --replica r1
 
 # 2. View Mutant (G12D) production trajectory in PyMOL:
 cmda view --state apo --variant G12D --replica r1 --resi 12
+```
 
-# Or launch directly with native PyMOL command:
+#### Option B: Launch Directly with Native PyMOL
+Open the topology and trajectory directly from your terminal:
+
+```bash
 pymol data/apo/simulation/WT/03_md/r1/stripped.prmtop data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd
 ```
 
-#### Interactive PyMOL GUI (Desktop App)
+#### Option C: Interactive PyMOL GUI (Desktop App)
 If opening PyMOL from your desktop application:
-1. **Load Topology:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/stripped.prmtop`.
-2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd` (ensure **Load into object** matches the loaded protein).
-3. **Play:** Use `S` (Show) → `as cartoon` and click `▶` on the bottom-right movie controls.
+1. **Load Topology:** Go to **File → Open...** (or drag and drop) and select `data/apo/simulation/WT/03_md/r1/stripped.prmtop` (or `WT.pdb`).
+2. **Load Trajectory:** Go to **File → Open...** and select `data/apo/simulation/WT/03_md/r1/prod_keep_ligand.dcd`. Ensure **Load into object** is set to the already-loaded protein object.
+3. **Play & Format:** Use the right-hand panel buttons (`S` Show → `as cartoon`, `C` Color → `cyan`) and click `▶` on the bottom-right movie controls to play.
+
+#### Inside PyMOL (Quick Commands):
+Enter these commands in the PyMOL command bar to clean up and play the simulation:
+
+```text
+# 1. Fit backbone frame-by-frame (eliminates tumbling & drift):
+intra_fit all and name CA
+
+# 2. Show clean secondary structure cartoon:
+show cartoon, all
+color cyan, all and name C*
+
+# 3. Highlight residue 12 as yellow sticks:
+show sticks, resi 12 and not name N+C+O+H
+color yellow, resi 12
+
+# 4. Play trajectory:
+# Use the ▶ button in the bottom-right movie controls, or Left/Right arrow keys.
+```
 
 ```bash
 # Generate comparative 3x8 transition snapshot grids:
@@ -521,9 +549,9 @@ cmda snapshots --config camera_config.json
 reinitialize
 bg_color white
 
-# 2. Load merged trajectory files
-load eq.pdb, kras
-load_traj md.dcd, kras
+# 2. Load stripped topology and trajectory
+load stripped.prmtop, kras
+load_traj prod_keep_ligand.dcd, kras
 
 # 2b. Align trajectory to crystal reference (e.g., 4ldj_wt.pdb)
 load 4ldj_wt.pdb, crystal_ref

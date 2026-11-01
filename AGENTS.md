@@ -59,6 +59,9 @@
   continuous merged log is `md.log`, and latest checkpoint snapshot is `state.xml`.
   Raw crash-recovery chunks are strictly isolated in `chunks/{idx:04d}.dcd` and
   `chunks/{idx:04d}.log` using 4-digit zero-padding without units (`ns`/`ps`).
+  Post-merge PBC-autoimaged and solvent-stripped trajectories (`stripped.prmtop`,
+  `prod_keep_ligand.dcd`) are generated via `cmda merge` for PyMOL inspection and
+  biophysical analysis.
 - **Analysis and comparison (`analysis/`)**: Analysis symmetrically mirrors simulation
   (`analysis/<variant>/02_eq/` for `qc.png` and `qc.txt`; `analysis/<variant>/03_md/<replica>/`
   for replica metrics). Cross-variant comparison lives flat in `analysis/compare/`
