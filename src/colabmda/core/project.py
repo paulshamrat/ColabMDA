@@ -416,9 +416,15 @@ class ProjectPaths:
             if (v_dir / "03_md").exists():
                 return v_dir / "03_md"
             return v_dir / "md"
-        if self.run_id or any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
+        if self.run_id or any(
+            x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]
+        ):
             p03 = v_dir / "03_md"
-            return p03 if p03.exists() else (v_dir / "03_prod" if (v_dir / "03_prod").exists() else p03)
+            return (
+                p03
+                if p03.exists()
+                else (v_dir / "03_prod" if (v_dir / "03_prod").exists() else p03)
+            )
         p03 = v_dir / "03_prod"
         return p03 if p03.exists() else v_dir
 
