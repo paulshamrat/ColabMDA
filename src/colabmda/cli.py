@@ -658,6 +658,8 @@ def _dispatch_sim(args) -> int:
 
 
 def _dispatch_merge(args) -> int:
+    import shutil
+
     from colabmda.amber.cpptraj import generate_cpptraj_strip_script, run_cpptraj
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
@@ -665,28 +667,62 @@ def _dispatch_merge(args) -> int:
 
     paths = ProjectPaths(resolve_project_root(args.root), state=args.state)
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
-    for rep in [r.strip() for r in args.replicas.split(",") if r.strip()]:
+    requested_reps = [r.strip() for r in args.replicas.split(",") if r.strip()]
+    is_default_reps = args.replicas == "r1,r2,r3"
+    merged_any = False
+    for rep in requested_reps:
         directory = paths.replica_dir(spec, rep)
-        chunks = []
-        for path in directory.glob("prod_*to*ps.dcd"):
-            match = re.fullmatch(r"prod_([0-9.]+)to([0-9.]+)ps.dcd", path.name)
-            if match:
-                chunks.append((float(match[1]), float(match[2]), path))
-        chunks.sort()
-        if not chunks or chunks[0][0] != 0 or any(a[1] != b[0] for a, b in zip(chunks, chunks[1:])):
+        chunks_dir = directory / "chunks"
+        has_native_chunks = chunks_dir.is_dir() and any(chunks_dir.glob("*.dcd"))
+        has_legacy_chunks = any(directory.glob("prod_*to*ps.dcd"))
+        if not has_native_chunks and not has_legacy_chunks:
+            if is_default_reps and len(requested_reps) > 1:
+                continue
             raise RuntimeError(
                 f"Missing, overlapping or non-contiguous trajectory chunks: {directory}"
             )
-        for start, end, path in chunks:
-            if end <= start or path.stat().st_size == 0:
-                raise RuntimeError(f"Invalid trajectory chunk: {path}")
+        chunk_paths = []
+        if has_native_chunks:
+            chunks = []
+            for path in sorted(chunks_dir.glob("*.dcd")):
+                if path.name.endswith(".tmp") or path.stat().st_size == 0:
+                    continue
+                m = re.search(r"(\d+)", path.stem)
+                idx = int(m.group(1)) if m else 0
+                chunks.append((idx, path))
+            chunks.sort(key=lambda x: x[0])
+            indices = [c[0] for c in chunks]
+            if not indices or indices != list(range(indices[0], indices[0] + len(indices))):
+                raise RuntimeError(
+                    f"Missing, overlapping or non-contiguous trajectory chunks in {chunks_dir}: {indices}"
+                )
+            chunk_paths = [c[1] for c in chunks]
+        else:
+            legacy_chunks = []
+            for path in directory.glob("prod_*to*ps.dcd"):
+                match = re.fullmatch(r"prod_([0-9.]+)to([0-9.]+)ps.dcd", path.name)
+                if match:
+                    legacy_chunks.append((float(match[1]), float(match[2]), path))
+            legacy_chunks.sort()
+            if (
+                not legacy_chunks
+                or legacy_chunks[0][0] != 0
+                or any(a[1] != b[0] for a, b in zip(legacy_chunks, legacy_chunks[1:]))
+            ):
+                raise RuntimeError(
+                    f"Missing, overlapping or non-contiguous trajectory chunks: {directory}"
+                )
+            for start, end, path in legacy_chunks:
+                if end <= start or path.stat().st_size == 0:
+                    raise RuntimeError(f"Invalid trajectory chunk: {path}")
+            chunk_paths = [c[2] for c in legacy_chunks]
         for mode, filename, top in [
             ("keep_ligand", "prod_keep_ligand.dcd", "stripped.prmtop"),
             ("ca_backbone", "prod_ca.dcd", "ca.prmtop"),
         ]:
             script = generate_cpptraj_strip_script(
                 paths.prepared_prmtop(spec),
-                [c[2] for c in chunks],
+                chunk_paths,
                 directory / filename,
                 output_top=directory / top,
                 mode=mode,
@@ -695,8 +731,15 @@ def _dispatch_merge(args) -> int:
             if rc or not (directory / filename).is_file() or not (directory / top).is_file():
                 raise RuntimeError(f"cpptraj {mode} failed: {output[-3000:]}")
         merge_logs(str(directory), str(directory / "prod_full.log"))
+        if (directory / "prod_full.log").exists():
+            shutil.copy2(directory / "prod_full.log", directory / "md.log")
         (directory / "MERGE_DONE").write_text(
             "Verified trajectory inputs and both stripped outputs\n"
+        )
+        merged_any = True
+    if not merged_any:
+        raise RuntimeError(
+            f"No simulated trajectory chunks found to merge for {spec.variant} in {requested_reps}"
         )
     return 0
 
