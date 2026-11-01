@@ -218,6 +218,13 @@ Before any commit or push, run the exact suite executed by `.github/workflows/ci
 4. **Unit and regression tests**: Run `python -m pytest tests/ -q` (all tests must pass).
 5. **Gitleaks secret scan**: Run `.githooks/pre-commit` (scans staged snapshot with Gitleaks, Black, Ruff, and bash -n).
 
+### Synthetic End-User Verification & Colab Pilot Protocol
+When tasked with validating workflows on Google Colab as an end user:
+1. **Clean-Room End-User Persona**: Act strictly as an external researcher. Follow the tutorial guide (`docs/tutorials/*.md`) verbatim from top to bottom without using internal developer shortcuts or uncommitted local paths.
+2. **Ephemeral VM Storage (`/content/`)**: Run directly in `/content/<project>` on the Colab VM. **Never mount Google Drive** for automated agent pilots. Google Drive persistence is intended for human researchers preserving 100 ns runs; automated pilots must avoid interactive browser OAuth redirects and Drive FUSE I/O throttling.
+3. **Biophysical Scaled Verification**: Exercise 100% of the authentic pipeline stages (`fetch` $\to$ `model` $\to$ `prep` $\to$ `eq` $\to$ `md` $\to$ `merge` $\to$ `analyze`). Scale down duration (e.g. `--software-test` for equilibration, $0.1\text{ ns}$ to $1\text{ ns}$ for production MD) to verify all computational contracts, file handovers, and figure generation within minutes.
+4. **Session Lifecycle Discipline**: Provision with `colab new -s <name> --gpu T4`, execute commands via `colab exec -s <name> "..."`, and **always terminate the VM immediately** upon completion (`colab stop -s <name>`) to conserve compute units.
+
 Test project creation, conflict/symlink protection, argument forwarding, wheel resources and hidden MODELLER prompting.
 GPU acceptance includes real SIGINT/resume, unchanged committed chunk hashes,
 continuous frame times, finite measurements, native numbering and reviewed plots.
