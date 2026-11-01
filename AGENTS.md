@@ -12,7 +12,7 @@
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
 - `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
   Main README retains its complete baseline. Complete scientific commands and workflows live
-  in docs/tutorials/ (trpcage_apo.md, kras_apo.md, kras_apo_colab.md, cdkl5_apo.md, cdkl5_atpmg.md). Keep one scientific workflow across platforms; no user YAML.
+  in docs/tutorials/colab/ (trpcage_apo.md, kras_apo.md, kras_apo_colab.md, cdkl5_apo.md, cdkl5_atpmg.md). Keep one scientific workflow across platforms; no user YAML.
   examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
   examples/hpc/analyze.slurm runs shared merge/analysis on CPUs without a GPU.
 - `cmda stage --example trpcage --root ...` installs templates and records hashes
@@ -224,7 +224,7 @@ Before any commit or push, run the exact suite executed by `.github/workflows/ci
 
 ### Synthetic End-User Verification & Colab Pilot Protocol
 When tasked with validating workflows on Google Colab as an end user:
-1. **Clean-Room End-User Persona**: Act strictly as an external researcher. Follow the tutorial guide (`docs/tutorials/*.md`) verbatim from top to bottom without using internal developer shortcuts or uncommitted local paths.
+1. **Clean-Room End-User Persona**: Act strictly as an external researcher. Follow the tutorial guide (`docs/tutorials/colab/*.md`) verbatim from top to bottom without using internal developer shortcuts or uncommitted local paths.
 2. **Ephemeral VM Storage (`/content/`)**: Run directly in `/content/<project>` on the Colab VM. **Never mount Google Drive** for automated agent pilots. Google Drive persistence is intended for human researchers preserving 100 ns runs; automated pilots must avoid interactive browser OAuth redirects and Drive FUSE I/O throttling.
 3. **Zero-Leak Credential Discipline**: Never embed license keys or credentials (such as `KEY_MODELLER`) as literal strings in bash commands, `colab exec` calls, command-line arguments, or repository files. For remote Modeller setup, use the mode-600 temporary file upload pattern (`cmda colab setup --session <name> --modeller`) with an immediate trap wipe, or model coordinates locally on the workstation and upload coordinates only. Keep the cloud GPU environment 100% keyless.
 4. **Biophysical Scaled Verification**: Exercise 100% of the authentic pipeline stages (`fetch` $\to$ `model` $\to$ `prep` $\to$ `eq` $\to$ `md` $\to$ `merge` $\to$ `analyze`). Scale down duration (e.g. `--software-test` for equilibration, $0.1\text{ ns}$ to $1\text{ ns}$ for production MD) to verify all computational contracts, file handovers, and figure generation within minutes.
@@ -244,7 +244,7 @@ sections. Make focused updates; do not replace the full guide with a quickstart
 or reorganize it without an explicit user request.
 
 The root README's main workflow uses CDKL5 WT/L119R for apo and ATP/one-Mg,
-matching docs/tutorials/cdkl5_apo.md and docs/tutorials/cdkl5_atpmg.md. Keep the existing section order and use
+matching docs/tutorials/colab/cdkl5_apo.md and docs/tutorials/colab/cdkl5_atpmg.md. Keep the existing section order and use
 simple, direct, concise language. Trp-cage remains the optional quick test;
 FKBP12/H-Ras templates and historical evidence remain available. Do not claim
 L119R GPU validation from its CPU model/preparation checks. The default walkthrough
@@ -255,7 +255,7 @@ diagnostics separate from the main command sequence. Preserve historical study
 models and pilot evidence when adding the public-input route.
 
 Keep architecture consolidated in README section 2: tool repository, then shared
-simulation project. The Trp-cage quickstart tutorial belongs in docs/tutorials/trpcage_apo.md; section 4
+simulation project. The Trp-cage quickstart tutorial belongs in docs/tutorials/colab/trpcage_apo.md; section 4
 is the short 4BGQ pilot.
 State guides link to the shared layout instead of repeating its tree. Keep one
 compact command reference near the end (section 5), with options available through
