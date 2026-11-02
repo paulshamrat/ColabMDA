@@ -15,7 +15,7 @@ Run this one-time setup in your terminal on **Linux (Ubuntu)** or Windows via **
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"
 
 # 2. Activate environment:
 source ~/miniforge3/etc/profile.d/conda.sh
@@ -27,14 +27,14 @@ colab sessions
 
 > [!TIP]
 > **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
-> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
+> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"`
 
 ### Google Colab (Cloud)
 Run this once inside your Colab terminal (GPU or CPU runtime) in ~90 seconds:
 
 ```bash
 # 1. Install cmda, OpenMM (CUDA/CPU), and AmberTools:
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
 
 # 2. Activate environment:
 source /root/miniforge3/etc/profile.d/conda.sh
@@ -48,7 +48,7 @@ conda activate cmda
 <summary><b>🛠️ Install from Source & Run Tests</b></summary>
 
 ```bash
-git clone --branch dev1 https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
+git clone https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
 cd ~/ColabMDA
 bash scripts/setup.sh
 
@@ -59,17 +59,15 @@ pytest tests/ -v
 
 ---
 
-## 2. Tutorials & Walkthroughs
+## 2. Tutorials
 
 All in-depth scientific tutorials, protonation tables, and simulation parameters are modularized in `docs/tutorials/colab/`:
 
-| # | Guide | Description | Link |
-| :-: | :--- | :--- | :--- |
-| 01 | **Trp-Cage Quickstart** | 5-minute smoke test & GPU verification (`1L2Y`) | [`docs/tutorials/colab/trpcage_apo.md`](docs/tutorials/colab/trpcage_apo.md) |
-| 02 | **KRAS Apo (Google Colab)** | Cloud GPU CLI walkthrough on Google Drive (WT vs G12D) | [`docs/tutorials/colab/kras_apo_colab.md`](docs/tutorials/colab/kras_apo_colab.md) |
-| 03 | **KRAS Apo (Hybrid)** | Local preparation + Cloud GPU hybrid workflow | [`docs/tutorials/colab/kras_apo.md`](docs/tutorials/colab/kras_apo.md) |
-| 04 | **CDKL5 Apo** | Full kinase in water (WT vs L119R) | [`docs/tutorials/colab/cdkl5_apo.md`](docs/tutorials/colab/cdkl5_apo.md) |
-| 05 | **CDKL5 Holo** | Kinase with ATP + $\text{Mg}^{2+}$ cofactors | [`docs/tutorials/colab/cdkl5_atpmg.md`](docs/tutorials/colab/cdkl5_atpmg.md) |
+| # | Level | Tutorial | Platform | Description | Link |
+| :-: | :--- | :--- | :--- | :--- | :--- |
+| 01 | Quickstart | **Trp-Cage: Protein in Water** | Colab | 5-minute GPU simulation of a 20-residue miniprotein | [`trpcage_apo.md`](docs/tutorials/colab/trpcage_apo.md) |
+| 02 | Beginner | **KRAS: Protein in Water** | Colab | Direct cloud simulation and analysis on Google Drive | [`kras_apo_colab.md`](docs/tutorials/colab/kras_apo_colab.md) |
+| 03 | Beginner | **KRAS: Protein in Water** | Local + Colab | Local modeling and preparation with cloud GPU simulation | [`kras_apo.md`](docs/tutorials/colab/kras_apo.md) |
 
 ---
 
@@ -167,7 +165,14 @@ research/projects/cmda-example/           # Project root in Google Drive / local
 </details>
 
 <details>
-<summary><b>📜 Changelog History (v0.2.0, v0.1.0)</b></summary>
+<summary><b>📜 Changelog History (v0.3.0, v0.2.0, v0.1.0)</b></summary>
+
+### v0.3.0 (Native Biophysical Architecture & 24-Stage Equilibration)
+*   **100% Native Domain Outputs:** Zero-JSON and Zero-TSV scientific output tree (`data/`) using strictly native biophysical formats (`.pdb`, `.prmtop`, `.inpcrd`, `.dcd`, `.xml`, `.log`, `.csv`, `.png`).
+*   **Unified CLI (`cmda`):** Single-keyword scientific verbs (`fetch`, `model`, `prep`, `stage`, `sim`, `status`, `merge`, `analyze`, `compare`, `push`, `pull`, `view`, `snapshots`).
+*   **24-Stage Staged Equilibration Ladder:** Progressive NVT heating ($50\text{ K} \to 300\text{ K}$) and NPT restraint release ladder with automated headless QC plotting (`qc.png`).
+*   **Automated Solvation & Titration:** Amber `ff19SB` parameters, OPC 4-point water box, and physiological PROPKA 3 pKa titration at pH 7.4.
+*   **Core Workflows:** Verified 5-minute Trp-cage cloud quickstart and KRAS Apo (WT vs. G12D) workflows for both Google Colab and local workstations.
 
 ### v0.2.0 (Kinase Architectures, Amber ff19SB & Resilience)
 *   **Universal Setup Script (`setup.sh`):** Single bootstrap script automatically configuring both local Linux workstations and Google Colab cloud instances.
@@ -176,10 +181,6 @@ research/projects/cmda-example/           # Project root in Google Drive / local
 *   **One-Command Sync (`cmda push` & `cmda pull`):** Direct streaming between local workstation and remote Google Drive via Google Colab CLI, eliminating manual archiving and rclone setup.
 *   **Cofactor Donor Isolation:** Dedicated `donors/<template>/` directory hierarchy preserving donor crystal integrity.
 *   **Target Hierarchy (`<uniprot>_<pdb>`):** Clean segregation for multi-template and multi-protein workspaces.
-*   **Unified CLI (`cmda`):** Intuitive top-level commands (`fetch`, `model`, `assemble`, `prep`, `push`, `stage`, `sim`, `status`, `merge`, `analyze`, `compare`, `pull`, `view`, `snapshots`).
-*   **Dual State Architecture:** Clean separation between unliganded **`apo`** dynamics and catalytic **`atpmg`** holo dynamics.
-*   **Automated Triplicate Comparison:** Single-call `cmda compare --state <state> --variants WT,MUT` generating publication-grade Mean ± SD overlay plots.
-*   **24-Stage Equilibration:** Robust heating and restraint release ladder guaranteeing stable density and temperature.
 *   **Resume-Safe Checkpointing:** Automated recovery from Google Colab session timeouts.
 
 ### v0.1.0 (Initial Beta)

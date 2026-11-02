@@ -112,7 +112,7 @@ Run this one-time setup in your terminal on **Linux (Ubuntu)** or Windows via **
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"
 
 # 2. Activate environment:
 source ~/miniforge3/etc/profile.d/conda.sh
@@ -124,7 +124,7 @@ colab sessions
 
 > [!TIP]
 > **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
-> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"`
+> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"`
 
 ### 1.1. Project Workspace
 Create and navigate to your project directory:
@@ -313,7 +313,7 @@ Inside the Colab console terminal, run the cloud setup (~90 seconds) and navigat
 
 ```bash
 # 1. Install cmda, OpenMM (CUDA/CPU), and AmberTools:
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
 
 # 2. Activate environment & navigate to Drive project directory:
 source /root/miniforge3/etc/profile.d/conda.sh
@@ -514,7 +514,7 @@ Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive.
    ```
 2. In the Colab console, re-activate the environment:
    ```bash
-   [ ! -d "/root/miniforge3/envs/cmda" ] && curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+   [ ! -d "/root/miniforge3/envs/cmda" ] && curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
    source /root/miniforge3/etc/profile.d/conda.sh
    conda activate cmda
    cd /content/drive/MyDrive/research/projects/kras-example

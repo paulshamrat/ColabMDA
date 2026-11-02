@@ -113,7 +113,7 @@ Run this one-time setup in your local terminal on **Linux (Ubuntu)** or Windows 
 
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and google-colab-cli:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"
 
 # 2. Activate environment:
 source ~/miniforge3/etc/profile.d/conda.sh
@@ -146,7 +146,7 @@ Inside the active **Colab console terminal**, provide your Modeller license key,
 ```bash
 # 1. Export Modeller key & run automated installer:
 export KEY_MODELLER="YOUR_MODELLER_KEY"
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
 
 # 2. Activate environment:
 source /root/miniforge3/etc/profile.d/conda.sh
@@ -341,7 +341,7 @@ cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 >    ```
 > 2. **Reinstall environment & navigate to Drive (Colab Console, ~90 seconds):**
 >    ```bash
->    curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh | bash
+>    curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
 >    source /root/miniforge3/etc/profile.d/conda.sh
 >    conda activate cmda
 >    cd /content/drive/MyDrive/research/projects/kras-example
