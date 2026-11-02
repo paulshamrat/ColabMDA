@@ -1,58 +1,86 @@
-# Local and synchronized research data
-data/
-sim/
-simulations/
-simulations_test/
-test_run/
-test_*/
-str/
-structures/
-analysis_outputs/
-scratch/
-.agents/
-.codex/
-ColabMDA-upload.zip
-*.pdb
-*.fasta
-*.ali
-*.pir
-
-# Binary & Data Files
-*.chk
-*.xml
-*.log
-*.dcd
-
-# Output Plots & Reports
-*.png
-*.pdf
-
-# Python
+# ==============================================================================
+# Python Bytecode, Packaging & Virtual Environments
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
-.ipynb_checkpoints
 *.egg-info/
+.eggs/
+*.egg
 build/
 dist/
+wheels/
+.ipynb_checkpoints
+.venv/
+venv/
+env/
+
+# ==============================================================================
+# Linters, Code Quality & Testing
+# ==============================================================================
 .ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
-# IDE and Local Scratch
-.idea/
-notes.md
-# Machine-specific full Conda export; use a compact portable environment file if needed.
-envs/colab_mda_env.yml
-
-# Documentation
-_build/
-notes.md
-
-# IDE
-.idea/
-
-# Build artifacts
-dist/
-
-# Local
-  Data
+# ==============================================================================
+# Research Data, Scratchpads & Developer Notes
+# ==============================================================================
 data/
+scratch/
+notes.md
+PLAN*.md
+*.zip
+*.tar.gz
+
+# ==============================================================================
+# Machine Exports & Agent Workspace Metadata
+# ==============================================================================
+.agents/
+.codex/
+
+# ==============================================================================
+# IDEs & Operating System Files
+# ==============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==============================================================================
+# Molecular Dynamics, Trajectories & Amber Safeguards
+# ==============================================================================
+# Trajectories & checkpoints (prevent giant files from bricking GitHub)
+*.dcd
+*.nc
+*.netcdf
+*.chk
+*.state.xml
+
+# Amber topologies, coordinates & automatic logs
+*.prmtop
+*.inpcrd
+*.rst7
+leap.log
+
+# Structural coordinates & ligand data (prevents repo bloat; data belongs in project workspace)
+*.pdb
+*.cif
+*.mol2
+*.sdf
+
+
+# Credentials and execution logs stay outside version control.
+logs/
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.lic
+credentials.json
+client_secret*.json

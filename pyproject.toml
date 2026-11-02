@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "colabmda"
-version = "0.1.0"
+version = "0.3.0"
 description = "Colab-friendly modelling + MD workflows (Modeller + OpenMM)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,6 +31,7 @@ docking = [
 
 [project.scripts]
 colabmda = "colabmda.cli:main"
+cmda = "colabmda.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -57,3 +58,15 @@ ignore = ["E501"]  # Ignore long lines (handled by black)
 
 [tool.ruff.lint.isort]
 known-first-party = ["colabmda"]
+
+[tool.setuptools.package-data]
+"colabmda.amber.params" = ["*.prepi", "*.frcmod"]
+
+[tool.setuptools.data-files]
+"share/colabmda/examples/hpc" = ["examples/hpc/*.slurm"]
+"share/colabmda/examples/trpcage/scripts/01_structure" = ["examples/trpcage/scripts/01_structure/*.py"]
+"share/colabmda/examples/trpcage/scripts/02_simulation" = ["examples/trpcage/scripts/02_simulation/*.sh", "examples/trpcage/scripts/02_simulation/*.py"]
+"share/colabmda/examples/fkbp/scripts/01_structure" = ["examples/fkbp/scripts/01_structure/*.py"]
+"share/colabmda/examples/fkbp/scripts/02_simulation" = ["examples/fkbp/scripts/02_simulation/*.py"]
+"share/colabmda/examples/hras/scripts/01_structure" = ["examples/hras/scripts/01_structure/*.py"]
+"share/colabmda/examples/hras/scripts/02_simulation" = ["examples/hras/scripts/02_simulation/*.py"]

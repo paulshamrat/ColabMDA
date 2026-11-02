@@ -1,0 +1,7 @@
+# Private development instructions and runtime material are not release inputs.
+AGENTS.md export-ignore
+PLAN*.md export-ignore
+data export-ignore
+logs export-ignore
+.agents export-ignore
+.codex export-ignore

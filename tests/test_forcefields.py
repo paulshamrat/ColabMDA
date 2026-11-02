@@ -3,7 +3,7 @@
 import pytest
 from openmm import unit
 
-from colabmda.openmm.modular.em import _resolve_padding, _select_forcefield
+from colabmda.openmm.em import _resolve_padding, _select_forcefield
 
 
 def test_forcefield_selection():

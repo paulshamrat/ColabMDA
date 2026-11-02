@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+scanner="$(git config --get colabmda.gitleaksPath || true)"
+scanner="${scanner:-gitleaks}"
+command -v "$scanner" >/dev/null || { echo "Install Gitleaks before committing; see CONTRIBUTING.md" >&2; exit 1; }
+umask 077
+snapshot=$(mktemp -d)
+trap 'rm -rf "$snapshot"' EXIT
+git checkout-index --all --prefix="$snapshot/"
+"$scanner" dir --redact=100 --no-banner --config .gitleaks.toml "$snapshot"

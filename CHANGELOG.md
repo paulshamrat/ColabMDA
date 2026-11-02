@@ -4,6 +4,18 @@ All notable changes to **ColabMDA** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.3.0] - 2026-11-02 (Native Biophysical Architecture & Core Workflows)
+
+### Added
+- **100% Native Biophysical Architecture**: Enforces Zero-JSON and Zero-TSV in scientific data trees (`data/`); all ground truth is natively derived from domain files (`.pdb`, `.prmtop`, `.inpcrd`, `.xml`, `.log`, `.dcd`, `.chk`, `.csv`, `.png`) with human-readable text completion markers (`*_DONE`).
+- **Unified Scientific CLI (`cmda`)**: Single-keyword verbs (`fetch`, `model`, `prep`, `stage`, `sim`, `status`, `merge`, `analyze`, `compare`, `push`, `pull`, `view`, `snapshots`).
+- **24-Stage Staged Equilibration Ladder**: Progressive NVT heating ($50\text{ K} \to 300\text{ K}$) and NPT restraint release ladder with automated headless QC figure generation (`qc.png`).
+- **Amber & Solvation Engine**: Automated Amber `ff19SB` parameters, OPC 4-point water box, counterion neutralization, and PROPKA 3 pKa titration at physiological pH 7.4.
+- **Core Scientific Workflows**: 5-minute Trp-cage cloud quickstart and KRAS Apo (Wild-Type vs. G12D) workflows for Google Colab and local workstations.
+- **Trajectory Processing**: Automated cpptraj PBC autoimaging and solvent stripping (`cmda merge`) reducing storage footprints by >90%.
+
+---
+
 ## [v0.2.0] - 2026-10-14 (Modular Architecture & Resilience)
 
 ### 📊 Release Summary (v0.1.0 vs. v0.2.0)
@@ -11,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | Capability | v0.1.0 (Initial Beta) | v0.2.0 (Current Release) | Impact / Rationale |
 | :--- | :--- | :--- | :--- |
 | **Simulation Pipeline** | Monolithic single command | **5 Modular Stages** (`em`, `nvt`, `npt`, `qc`, `md`) | Eliminates wasted GPU hours if a run interrupts |
-| **Replica Acceleration** | Re-equilibrates every replica | **Shared Hub (`eq/`)** forks `r1, r2, r3` with random seeds | **3× faster** multi-replica campaign setup |
+| **Replica Acceleration** | Re-equilibrates every replica | **Shared Directory (`eq/`)** forks `r1, r2, r3` with random seeds | **3× faster** multi-replica campaign setup |
 | **Protonation Assignment** | Basic PDBFixer defaults | **PROPKA 3D pKa Titration (pH 7.4)** | Accurate AMBER Histidine states (`HIE`/`HID`/`HIP`) |
 | **Solvent & Force Field** | TIP3P + ff14SB only | **OPC (4-point water) + AMBER `ff19SB`** + GAFF-2 | State-of-the-art kinase & protein accuracy |
 | **Stability Validation** | Manual log inspection | **Automated Headless QC (`openmm qc`)** | Headless Matplotlib validation of density & temp |

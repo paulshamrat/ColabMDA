@@ -23,6 +23,9 @@ def _run(argv: list[str]):
 
 def modeller_build(args):
     argv = [args.pdb_id, args.uniprot_id]
+    for flag in ("template", "sequence"):
+        if getattr(args, flag, None):
+            argv += ["--" + flag, getattr(args, flag)]
     if args.chain:
         argv += ["--chain", args.chain]
     if args.range:

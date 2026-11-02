@@ -1,0 +1,645 @@
+from __future__ import annotations
+
+import os
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+from colabmda.core.taxonomy import SystemSpec
+
+DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/projects"
+ENV_ROOT = "COLABMDA_ROOT"
+ENV_PROJECT = "COLABMDA_PROJECT_DIR"
+
+
+def resolve_project_root(
+    root: str | Path | None = None,
+    project_name: str | None = None,
+    use_drive: bool = True,
+) -> Path:
+    """Resolve the base project directory using standardized precedence.
+
+    Priority:
+        1. Explicit root path if provided.
+        2. Subfolder under root if project_name provided.
+        3. Environment variables (COLABMDA_PROJECT_DIR or COLABMDA_ROOT).
+        4. Colab Drive mounted path (/content/drive/MyDrive/projects/<project>).
+        5. Current working directory ($CWD).
+    """
+    # 1. Explicit root provided
+    if root:
+        r = Path(root).resolve()
+        return r / project_name if project_name else r
+
+    # 2. Check environment variables
+    for env_var in [ENV_PROJECT, ENV_ROOT]:
+        val = os.environ.get(env_var)
+        if val:
+            r = Path(val).resolve()
+            return r / project_name if project_name else r
+
+    cwd = Path.cwd().resolve()
+
+    # 3. If in Colab temporary /content folder, check Drive
+    if str(cwd) == "/content" and use_drive and os.path.exists("/content/drive/MyDrive"):
+        if os.path.exists("/content/drive/MyDrive/projects"):
+            base = Path("/content/drive/MyDrive/projects")
+            return base / project_name if project_name else base
+        if os.path.exists("/content/drive/MyDrive/ColabMDA"):
+            base = Path("/content/drive/MyDrive/ColabMDA")
+            return base / project_name if project_name else base
+        if os.path.exists("/content/drive/MyDrive/research/projects"):
+            base = Path("/content/drive/MyDrive/research/projects")
+            return base / project_name if project_name else base
+        base_drive = Path(DEFAULT_DRIVE_ROOT)
+        return base_drive / project_name if project_name else base_drive
+
+    # 4. Standard Current Working Directory
+    return cwd / project_name if project_name else cwd
+
+
+@dataclass
+class ProjectPaths:
+    """Standardized, decoupled directory hierarchy for ColabMDA simulation projects.
+
+    New state-aware CLI runs use data/<state>/structure and
+    data/<state>/simulation/<run>/<variant>/{01_prep,02_eq,03_md} and
+    data/<state>/analysis/<run>/<variant>/{r1,r2,r3,aggregate}.
+    Existing numbered and legacy runs remain readable in their original locations.
+    """
+
+    root: Path
+    state: str | None = None
+    target: str | None = None
+
+    def __post_init__(self):
+        self.root = Path(self.root).resolve()
+        if self.state and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.state):
+            raise ValueError("Invalid state")
+        if self.target and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.target):
+            raise ValueError("Invalid target identifier")
+        self.run_id = os.environ.get("COLABMDA_RUN_ID", "")
+        if self.run_id and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", self.run_id):
+            raise ValueError("Invalid COLABMDA_RUN_ID")
+
+    @property
+    def state_dir(self) -> Path | None:
+        """Use state-first paths for new CLI runs; preserve existing run locations."""
+        if self.state is None:
+            return None
+        if self.run_id and any(
+            (self.root / "data" / folder / self.run_id).exists()
+            for folder in ["02_simulation", "02_pilot"]
+        ):
+            return None
+        if not self.run_id and any(
+            (base / self.state).exists()
+            for base in [
+                self.root / "data/simulation",
+                self.root / "simulation",
+                self.root / "02_simulation",
+            ]
+        ):
+            return None
+        name = "atpmg" if self.state in {"atp_mg", "atpmg", "atp_1mg"} else self.state
+        return self.root / "data" / name
+
+    @property
+    def config_yaml(self) -> Path:
+        return self.root / "config.yaml"
+
+    @property
+    def scripts_dir(self) -> Path:
+        return self.root / "scripts"
+
+    @property
+    def structure_dir(self) -> Path:
+        """Resolve data/structure, target-specific subdirectories, 01_structure, or structure."""
+        if self.state_dir is not None:
+            base = self.state_dir / "structure"
+            if self.target:
+                return base / self.target
+            if base.is_dir():
+                # Direct check: does base itself have flat legacy outputs?
+                if (
+                    (base / "STRUCTURE_DONE").exists()
+                    or (base / "input.json").exists()
+                    or (base / "mapping/input.json").exists()
+                    or (base / "raw").exists()
+                ):
+                    return base
+                # Check for target subdirectories (e.g. O76039_4BGQ)
+                targets = [
+                    d
+                    for d in base.iterdir()
+                    if d.is_dir()
+                    and (
+                        (d / "STRUCTURE_DONE").exists()
+                        or (d / "input.json").exists()
+                        or (d / "mapping/input.json").exists()
+                        or (d / "models").exists()
+                        or (d / "raw").exists()
+                    )
+                ]
+                if targets:
+                    return sorted(targets, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+            return base
+        numbered = self.root / "data/01_structure"
+        if self.run_id or numbered.exists():
+            return numbered
+        p_data = self.root / "data" / "structure"
+        p01 = self.root / "01_structure"
+        p_legacy = self.root / "structure"
+        if p_data.exists():
+            return p_data
+        if p01.exists() and not p_legacy.exists():
+            return p01
+        if p_legacy.exists():
+            return p_legacy
+        return p_legacy
+
+    @property
+    def structure_01(self) -> Path:
+        return self.root / "01_structure"
+
+    @property
+    def protein_dir(self) -> Path:
+        if self.state_dir is not None:
+            if (self.structure_dir / "variants/WT").exists():
+                return self.structure_dir / "variants/WT"
+            return self.structure_dir / "models/WT"
+        return self.structure_dir / "protein"
+
+    @property
+    def template_dir(self) -> Path:
+        if (self.structure_dir / "raw").exists():
+            return self.structure_dir / "raw"
+        if (self.structure_dir / "template.pdb").exists():
+            return self.structure_dir
+        return self.structure_dir / ("raw" if self.state_dir is not None else "template")
+
+    @property
+    def raw_dir(self) -> Path:
+        """Raw experimental inputs directory (<target>/raw or flat fallback)."""
+        p = self.structure_dir / "raw"
+        if p.exists():
+            return p
+        if (self.structure_dir / "input.json").exists() or (
+            self.structure_dir / "template.pdb"
+        ).exists():
+            return self.structure_dir
+        return p
+
+    @property
+    def cofactors_dir(self) -> Path:
+        """Cofactors directory (structure/cofactors or legacy donors)."""
+        if self.state_dir is not None:
+            c = self.state_dir / "structure" / "cofactors"
+            if c.exists():
+                return c
+            if (
+                hasattr(self, "structure_dir")
+                and (self.structure_dir.parent / "cofactors").exists()
+            ):
+                return self.structure_dir.parent / "cofactors"
+        d = self.structure_dir / "donors"
+        return (
+            d
+            if d.exists()
+            else (self.state_dir / "structure" / "cofactors" if self.state_dir else d)
+        )
+
+    @property
+    def substrates_dir(self) -> Path:
+        """Substrates directory (structure/substrates or legacy peptide)."""
+        if self.state_dir is not None:
+            s = self.state_dir / "structure" / "substrates"
+            if s.exists():
+                return s
+            if (
+                hasattr(self, "structure_dir")
+                and (self.structure_dir.parent / "substrates").exists()
+            ):
+                return self.structure_dir.parent / "substrates"
+        p = self.structure_dir / "peptide"
+        return (
+            p
+            if p.exists()
+            else (self.state_dir / "structure" / "substrates" if self.state_dir else p)
+        )
+
+    @property
+    def donors_dir(self) -> Path:
+        return self.cofactors_dir
+
+    @property
+    def ligand_dir(self) -> Path:
+        return self.structure_dir / "ligand"
+
+    @property
+    def peptide_dir(self) -> Path:
+        return self.substrates_dir
+
+    @property
+    def variants_dir(self) -> Path:
+        """Variants directory (prefers 'variants', falls back to 'models')."""
+        if (self.structure_dir / "variants").exists():
+            return self.structure_dir / "variants"
+        if (self.structure_dir / "models").exists():
+            return self.structure_dir / "models"
+        return self.structure_dir / ("variants" if self.state_dir is not None else "variants")
+
+    @property
+    def simulation_base(self) -> Path:
+        """Resolve data/simulation, 02_simulation, or simulation."""
+        if self.state_dir is not None:
+            base = self.state_dir / "simulation"
+            return base / self.run_id if self.run_id else base
+        if self.run_id:
+            numbered = self.root / "data/02_simulation" / self.run_id
+            if numbered.exists() or (self.root / "data/00_setup/example.json").exists():
+                return numbered
+            return self.root / "data/02_pilot" / self.run_id
+        p_data = self.root / "data" / "simulation"
+        p02 = self.root / "02_simulation"
+        p_legacy = self.root / "simulation"
+        if p_data.exists():
+            return p_data
+        if p02.exists() and not p_legacy.exists():
+            return p02
+        if p_legacy.exists():
+            return p_legacy
+        return p_legacy
+
+    @property
+    def simulation_02(self) -> Path:
+        return self.root / "02_simulation"
+
+    @property
+    def analysis_base(self) -> Path:
+        """Resolve data/analysis, 03_analysis, or analysis."""
+        if self.state_dir is not None:
+            base = self.state_dir / "analysis"
+            return base / self.run_id if self.run_id else base
+        p_data = self.root / "data" / "analysis"
+        p03 = self.root / "03_analysis"
+        p_legacy = self.root / "analysis"
+        if p_data.exists():
+            return p_data
+        if p03.exists() and not p_legacy.exists():
+            return p03
+        if p_legacy.exists():
+            return p_legacy
+        return p_legacy
+
+    @property
+    def analysis_03(self) -> Path:
+        return self.root / "03_analysis"
+
+    def variant_dir(self, spec: SystemSpec) -> Path:
+        """Root directory for a specific state and variant."""
+        if self.state_dir is not None:
+            return self.simulation_base / spec.variant
+        return self.simulation_base / spec.state_tag / spec.variant
+
+    def prep_dir(self, spec: SystemSpec) -> Path:
+        """Preparation folder containing model coordinates and Amber topologies."""
+        v_dir = self.variant_dir(spec)
+        if (v_dir / "prep").exists():
+            return v_dir / "prep"
+        if (v_dir / "01_prep").exists():
+            return v_dir / "01_prep"
+        if any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
+            return v_dir / "01_prep"
+        return v_dir / "prep"
+
+    def find_variant(self, variant: str) -> Path | None:
+        """Find the modeled variant backbone PDB across variants directories.
+
+        Searches:
+            1. Current state: structure_dir / "variants" / variant / f"{variant}.pdb"
+            2. Current state flat: structure_dir / "variants" / f"{variant}.pdb"
+            3. Current state legacy: structure_dir / "models" / variant / f"{variant}.pdb"
+            4. Cross-state inheritance: if in holo state (e.g. atpmg), check data/apo/structure/...
+            5. Legacy model.pdb fallbacks
+        """
+        candidates: list[Path] = [
+            self.variants_dir / variant / f"{variant}.pdb",
+            self.variants_dir / variant / "model.pdb",
+            self.variants_dir / f"{variant}.pdb",
+            self.structure_dir / "models" / variant / f"{variant}.pdb",
+            self.structure_dir / "models" / variant / "complex.pdb",
+            self.structure_dir / "models" / variant / "model.pdb",
+        ]
+        # Cross-state inheritance from apo if current state is not apo
+        if self.state_dir is not None and self.state not in {"apo", None}:
+            apo_structure = self.root / "data" / "apo" / "structure"
+            target_name = self.structure_dir.name
+            candidates.extend(
+                [
+                    apo_structure / target_name / "variants" / variant / f"{variant}.pdb",
+                    apo_structure / target_name / "variants" / variant / "model.pdb",
+                    apo_structure / target_name / "models" / variant / f"{variant}.pdb",
+                    apo_structure / target_name / "models" / variant / "model.pdb",
+                ]
+            )
+            if apo_structure.is_dir():
+                for t in apo_structure.iterdir():
+                    if t.is_dir():
+                        candidates.append(t / "variants" / variant / f"{variant}.pdb")
+                        candidates.append(t / "models" / variant / f"{variant}.pdb")
+        for c in candidates:
+            if c.is_file():
+                return c
+        return None
+
+    def model_pdb(self, spec: SystemSpec) -> Path:
+        p_model = None
+        try:
+            p_candidate = self.prep_dir(spec) / "model.pdb"
+            if p_candidate.exists():
+                return p_candidate
+            p_model = p_candidate
+        except ValueError:
+            p_model = None
+
+        found = self.find_variant(spec.variant)
+        if found:
+            return found
+
+        if p_model is not None:
+            return p_model
+        return self.variants_dir / spec.variant / f"{spec.variant}.pdb"
+
+    def prepared_prmtop(self, spec: SystemSpec) -> Path:
+        return self.prep_dir(spec) / "system.prmtop"
+
+    def prepared_inpcrd(self, spec: SystemSpec) -> Path:
+        return self.prep_dir(spec) / "system.inpcrd"
+
+    def prepared_solvated(self, spec: SystemSpec) -> Path:
+        """Solvated visualization coordinate PDB (solvated.pdb or system_solvated.pdb)."""
+        p_single = self.prep_dir(spec) / "solvated.pdb"
+        if p_single.exists():
+            return p_single
+        p_compat = self.prep_dir(spec) / "system_solvated.pdb"
+        if p_compat.exists():
+            return p_compat
+        return p_single
+
+    def prep_json(self, spec: SystemSpec) -> Path:
+        """Provenance and audit metadata for system preparation."""
+        return self.prep_dir(spec) / "prep.json"
+
+    def eq_dir(self, spec: SystemSpec) -> Path:
+        """Equilibration folder (em, nvt, npt, qc)."""
+        v_dir = self.variant_dir(spec)
+        if (v_dir / "eq").exists():
+            return v_dir / "eq"
+        if (v_dir / "02_eq").exists():
+            return v_dir / "02_eq"
+        if any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
+            return v_dir / "02_eq"
+        return v_dir / "eq"
+
+    def eq_pdb(self, spec: SystemSpec) -> Path:
+        """Final equilibrated coordinate PDB (eq.pdb or equilibrated.pdb)."""
+        p_eq = self.eq_dir(spec) / "eq.pdb"
+        return p_eq if p_eq.exists() else (self.eq_dir(spec) / "equilibrated.pdb")
+
+    def prod_dir(self, spec: SystemSpec) -> Path:
+        """Production base folder for this variant."""
+        v_dir = self.variant_dir(spec)
+        if self.state_dir is not None:
+            if (v_dir / "md").exists():
+                return v_dir / "md"
+            if (v_dir / "03_md").exists():
+                return v_dir / "03_md"
+            return v_dir / "md"
+        if self.run_id or any(
+            x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]
+        ):
+            p03 = v_dir / "03_md"
+            return (
+                p03
+                if p03.exists()
+                else (v_dir / "03_prod" if (v_dir / "03_prod").exists() else p03)
+            )
+        p03 = v_dir / "03_prod"
+        return p03 if p03.exists() else v_dir
+
+    def replica_dir(self, spec: SystemSpec, replica: str = "r1") -> Path:
+        norm_rep = f"r{replica}" if str(replica).isdigit() else str(replica).lower()
+        if not re.fullmatch(r"r[0-9]+", norm_rep):
+            raise ValueError("Replica must be r followed by an integer")
+        return self.prod_dir(spec) / norm_rep
+
+    def analysis_dir(self, spec: SystemSpec) -> Path:
+        """Analysis folder for this specific state and variant."""
+        if self.state_dir is not None:
+            self.variant_dir(spec)  # Require the same explicit run ID as simulation.
+            return self.analysis_base / spec.variant
+        if self.run_id:
+            if "02_simulation" in self.simulation_base.parts:
+                return self.variant_dir(spec) / "04_analysis"
+            return self.variant_dir(spec) / "04_check"
+        canon = self.analysis_base / spec.state_tag / spec.variant
+        if canon.exists():
+            return canon
+        if "02_simulation" in str(self.simulation_base):
+            return canon
+        legacy = self.variant_dir(spec) / "analysis"
+        if legacy.exists():
+            return legacy
+        if self.analysis_base.exists():
+            return canon
+        return legacy
+
+    def replica_analysis_dir(self, spec: SystemSpec, replica: str = "r1") -> Path:
+        """Canonical per-replica reports; preserve pre-state layouts verbatim."""
+        normalized = self.replica_dir(spec, replica).name
+        base = self.analysis_dir(spec)
+        if self.state_dir is not None:
+            if (base / "md" / normalized).exists():
+                return base / "md" / normalized
+            if (base / "03_md" / normalized).exists():
+                return base / "03_md" / normalized
+            return base / normalized
+        return base
+
+    def eq_analysis_dir(self, spec: SystemSpec) -> Path:
+        """Equilibration analysis folder (qc.png, qc.txt)."""
+        base = self.analysis_dir(spec)
+        if (base / "eq").exists():
+            return base / "eq"
+        if (base / "02_eq").exists():
+            return base / "02_eq"
+        if any(x in str(self.simulation_base) for x in ["02_simulation", "02_pilot"]):
+            return base / "02_eq"
+        return base / "eq"
+
+    def migrate_analysis(self, spec: SystemSpec) -> dict | None:
+        """Explicitly migrate completed legacy high-level r1 reports, hash verified.
+
+        Never called implicitly by path resolution. Historical numbered examples
+        remain unchanged. A receipt preserves the old/new paths and file hashes.
+        """
+        import hashlib
+        import json
+        import shutil
+
+        if self.state_dir is None:
+            raise ValueError("Analysis migration applies only to state-first runs")
+        source = self.variant_dir(spec) / "04_analysis"
+        target = self.replica_analysis_dir(spec, "r1")
+        if not source.exists():
+            return None
+        required = [
+            "ANALYSIS_DONE",
+            "rmsd.csv",
+            "rg.csv",
+            "rmsf.csv",
+            "figures/rmsd_vs_time.png",
+            "figures/rg_vs_time.png",
+            "figures/rmsf_per_residue.png",
+        ]
+        if any(
+            not (source / name).is_file() or not (source / name).stat().st_size for name in required
+        ):
+            raise ValueError("Only completed legacy r1 analysis can be migrated")
+        if any((source / name).exists() for name in ["r1", "r2", "r3", "aggregate"]):
+            raise ValueError(
+                "Legacy analysis contains multiple replicas; explicit mapping required"
+            )
+
+        def inventory(folder):
+            result = {}
+            for path in [folder, *folder.rglob("*")]:
+                if path.is_symlink():
+                    raise ValueError("Refusing symlink in analysis migration")
+                if path.is_file():
+                    with path.open("rb") as handle:
+                        digest = hashlib.sha256()
+                        for block in iter(lambda: handle.read(1024 * 1024), b""):
+                            digest.update(block)
+                    result[str(path.relative_to(folder))] = digest.hexdigest()
+            return result
+
+        before = inventory(source)
+        if any(Path(n).suffix in {".dcd", ".xtc", ".trr", ".nc", ".chk"} for n in before):
+            raise ValueError("Analysis migration refuses heavy simulation data")
+        # Refuse parent symlinks and all conflicting files before copying anything.
+        for parent in [source, *source.parents, target, *target.parents]:
+            if parent.is_symlink():
+                raise ValueError("Refusing symlink in analysis destination")
+        existing = inventory(target) if target.exists() else {}
+        if any(name not in before or digest != before[name] for name, digest in existing.items()):
+            raise ValueError("Conflicting analysis destination preserved")
+        target.mkdir(parents=True, exist_ok=True)
+        markers = [n for n in before if n.endswith("_DONE")]
+        for name in markers:
+            (target / name).unlink(missing_ok=True)
+        for name in before.keys() - set(markers):
+            dest = target / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / name, dest)
+        if inventory(source) != before or inventory(target) != {
+            n: h for n, h in before.items() if n not in markers
+        }:
+            raise ValueError("Analysis changed during migration; original preserved")
+        record = {
+            "source": str(source.relative_to(self.root)),
+            "destination": str(target.relative_to(self.root)),
+            "replica": "r1",
+            "files": before,
+            "provenance": "Original metadata retained byte-for-byte; paths in historical receipts remain original",
+        }
+        receipt = (
+            self.root
+            / "data/00_setup/analysis_migrations"
+            / f"{self.state_dir.name}_{self.run_id}_{spec.variant}.json"
+        )
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        if receipt.exists() and json.loads(receipt.read_text()) != record:
+            raise ValueError("Conflicting migration receipt preserved")
+        receipt.write_text(json.dumps(record, indent=2) + "\n")
+        for name in markers:
+            dest = target / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / name, dest)
+        if inventory(source) != before or inventory(target) != before:
+            for name in markers:
+                (target / name).unlink(missing_ok=True)
+            raise ValueError("Final migration verification failed; original preserved")
+        shutil.rmtree(source)
+        return record
+
+    def log_dir(self, spec: SystemSpec) -> Path:
+        """Execution logs mirror state/run/variant, independently of scientific data."""
+        if self.state_dir is not None:
+            base = self.root / "logs" / self.state_dir.name
+            return base / self.run_id / spec.variant if self.run_id else base / spec.variant
+        return self.root / "logs" / "02_simulation" / self.run_id / spec.variant
+
+    def compare_dir(self, state_tag: str) -> Path:
+        """Cross-variant comparison folder for a state."""
+        if self.state_dir is not None:
+            return self.analysis_base / "compare"
+        return self.analysis_base / state_tag / "compare"
+
+    def find_template(self, filename: str) -> Path | None:
+        """Search for a template or structure file flexibly across structure subfolders."""
+        bases = [self.structure_dir]
+        if self.state_dir is None:
+            bases += [self.root / "data" / "structure", self.root / "structure"]
+        candidates = []
+        for b in bases:
+            if not b.exists():
+                continue
+            candidates.extend(
+                [
+                    b / "template" / filename,
+                    b / "protein" / filename,
+                    b / "ligand" / filename,
+                    b / "peptide" / filename,
+                    b / "variants" / filename,
+                    b / filename,
+                ]
+            )
+            # Also search subfolders (e.g. 4bgq/wt, variants/WT, template/8FP5)
+            for sub in ["template", "protein", "variants", "ligand", "peptide", "4bgq"]:
+                subpath = b / sub
+                if subpath.is_dir():
+                    for child in subpath.iterdir():
+                        if child.is_dir():
+                            candidates.append(child / filename)
+            # Comprehensive fallback search across structure directory
+            for match in b.rglob(filename):
+                if match.is_file():
+                    candidates.append(match)
+        for c in candidates:
+            if c.exists():
+                return c
+        return None
+
+    def init_layout(self, numbered: bool = True) -> None:
+        """Create only the resolved layout; never mirror compatibility trees."""
+        if self.state_dir is not None:
+            for folder in ["raw", "variants"]:
+                (self.structure_dir / folder).mkdir(parents=True, exist_ok=True)
+            if self.state not in {"apo", None}:
+                self.cofactors_dir.mkdir(parents=True, exist_ok=True)
+            self.simulation_base.mkdir(parents=True, exist_ok=True)
+            return
+        for path in [
+            self.scripts_dir,
+            self.protein_dir,
+            self.template_dir,
+            self.ligand_dir,
+            self.peptide_dir,
+            self.variants_dir,
+            self.simulation_base,
+        ]:
+            path.mkdir(parents=True, exist_ok=True)
+        if not self.run_id:
+            self.analysis_base.mkdir(parents=True, exist_ok=True)
