@@ -55,7 +55,7 @@ def test_analyze_logs_passing(tmp_path: Path):
     assert 0.95 <= data["density_mean_g_ml"] <= 1.05
 
 
-def test_analyze_logs_varmdyn_passing(tmp_path: Path):
+def test_analyze_logs_staged_passing(tmp_path: Path):
     df_nvt = pd.DataFrame(
         {
             "Time (ps)": [0.0, 10.0, 20.0, 30.0],
@@ -75,9 +75,9 @@ def test_analyze_logs_varmdyn_passing(tmp_path: Path):
     )
     df_npt.to_csv(tmp_path / "npt.log", index=False)
 
-    # Set protocol to varmdyn
+    # Set protocol to staged
     with open(tmp_path / "npt_protocol.json", "w") as f:
-        json.dump({"protocol": "varmdyn"}, f)
+        json.dump({"protocol": "staged"}, f)
 
     # Mock all 24 stages
     eq_dir = tmp_path / "equilibration"
@@ -92,12 +92,12 @@ def test_analyze_logs_varmdyn_passing(tmp_path: Path):
     with open(tmp_path / "equilibration_qc.json") as f:
         data = json.load(f)
     assert data["passed"] is True
-    assert data["protocol"] == "varmdyn"
-    assert data["varmdyn_stages_verified"] == 24
-    assert data["varmdyn_stages_complete"] is True
+    assert data["protocol"] == "staged"
+    assert data["staged_stages_verified"] == 24
+    assert data["staged_stages_complete"] is True
 
 
-def test_analyze_logs_varmdyn_missing_stages(tmp_path: Path):
+def test_analyze_logs_staged_missing_stages(tmp_path: Path):
     df_nvt = pd.DataFrame(
         {
             "Time (ps)": [0.0, 10.0],
@@ -118,7 +118,7 @@ def test_analyze_logs_varmdyn_missing_stages(tmp_path: Path):
     df_npt.to_csv(tmp_path / "npt.log", index=False)
 
     with open(tmp_path / "npt_protocol.json", "w") as f:
-        json.dump({"protocol": "varmdyn"}, f)
+        json.dump({"protocol": "staged"}, f)
 
     # Mock only 18 stages (stages 19-24 missing)
     eq_dir = tmp_path / "equilibration"
@@ -133,10 +133,10 @@ def test_analyze_logs_varmdyn_missing_stages(tmp_path: Path):
     with open(tmp_path / "equilibration_qc.json") as f:
         data = json.load(f)
     assert data["passed"] is False
-    assert data["protocol"] == "varmdyn"
-    assert data["varmdyn_stages_verified"] == 18
-    assert data["varmdyn_stages_complete"] is False
-    assert data["varmdyn_missing_stages"] == [19, 20, 21, 22, 23, 24]
+    assert data["protocol"] == "staged"
+    assert data["staged_stages_verified"] == 18
+    assert data["staged_stages_complete"] is False
+    assert data["staged_missing_stages"] == [19, 20, 21, 22, 23, 24]
 
 
 def test_qc_plot_overrides_invalid_notebook_backend(tmp_path):

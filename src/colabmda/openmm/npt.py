@@ -18,10 +18,11 @@ from colabmda.openmm.common import (
 )
 
 
-def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
+def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="staged"):
     workdir = os.path.abspath(workdir)
     os.chdir(workdir)
 
+    is_staged = str(protocol).lower().strip() in {"staged", "varmdyn", "default", "full"}
     xml_system = os.path.join(workdir, "system.xml")
     pdb_saved = os.path.join(workdir, "solvated.pdb")
     state_in = os.path.join(workdir, "nvt.state.xml")
@@ -32,7 +33,7 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
 
     print(f"[DEBUG] Checking for NPT files in: {workdir}")
     if os.path.exists(state_out):
-        if protocol == "varmdyn":
+        if is_staged:
             completed, _ = find_highest_completed_stage(workdir, 19, 24)
             if completed != 24:
                 raise RuntimeError(
@@ -41,7 +42,8 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         if os.path.exists(protocol_file):
             with open(protocol_file) as handle:
                 recorded = json.load(handle)
-            if recorded.get("protocol") != protocol:
+            recorded_staged = recorded.get("protocol") in {"staged", "varmdyn", "default", "full"}
+            if recorded_staged != is_staged:
                 raise RuntimeError(
                     f"Existing NPT state used protocol={recorded.get('protocol')!r}; "
                     f"requested {protocol!r}. Use a fresh workdir."
@@ -77,7 +79,7 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     pdb = PDBFile(pdb_saved)
 
     restraint_parameter = None
-    if protocol == "varmdyn":
+    if is_staged:
         restraint_parameter, restrained_atoms = add_solute_heavy_atom_restraints(
             system, pdb.topology, pdb.positions, "npt_restraint_k"
         )
@@ -91,7 +93,7 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     test_mode = os.environ.get("COLABMDA_TEST_1_24", "").strip() in {"1", "true", "True"}
     eq_steps = (
         (10 if test_mode else 50000)
-        if protocol == "varmdyn"
+        if is_staged
         else max(1, int((equil_time_ps * unit.picoseconds) / dt))
     )
     report_interval = 2 if test_mode else max(1, eq_steps // 50)
@@ -108,7 +110,7 @@ def run_npt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         )
     )
 
-    if protocol == "varmdyn":
+    if is_staged:
         for label, weight in [("19", 10), ("20", 5), ("21", 2), ("22", 1)]:
             stage_num = int(label)
             if stage_num < start_stage:
@@ -160,6 +162,6 @@ if __name__ == "__main__":
     p.add_argument("--pdbid", required=True)
     p.add_argument("--equil-time", type=float, default=100.0)
     p.add_argument("--seed", type=int, default=None)
-    p.add_argument("--protocol", choices=["varmdyn", "quick"], default="varmdyn")
+    p.add_argument("--protocol", choices=["staged", "quick", "varmdyn"], default="staged")
     args = p.parse_args()
     run_npt(args.workdir, args.pdbid, args.equil_time, args.seed, args.protocol)

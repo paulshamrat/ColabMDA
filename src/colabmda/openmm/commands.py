@@ -489,7 +489,7 @@ def openmm_nvt(
     pdbid: str,
     equil_time: float,
     seed: int | None = None,
-    protocol: str = "varmdyn",
+    protocol: str = "staged",
 ):
     from colabmda.openmm.nvt import run_nvt
 
@@ -503,7 +503,7 @@ def openmm_npt(
     pdbid: str,
     equil_time: float,
     seed: int | None = None,
-    protocol: str = "varmdyn",
+    protocol: str = "staged",
 ):
     from colabmda.openmm.npt import run_npt
 

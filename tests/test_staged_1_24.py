@@ -1,4 +1,4 @@
-"""Integration tests for the complete 1-24 VarMDyn equilibration pipeline."""
+"""Integration tests for the complete 1-24 staged equilibration pipeline."""
 
 import json
 from pathlib import Path
@@ -13,7 +13,7 @@ from colabmda.openmm.qc import analyze_logs
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
+def test_staged_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("COLABMDA_TEST_1_24", "1")
 
     # Setup minimal dipeptide structure
@@ -45,12 +45,12 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     assert (eq_dir / "em.state.xml").exists()
 
     # 2. NVT: stages 01-18
-    nvt_ok = run_nvt(str(eq_dir), "ala2", protocol="varmdyn")
+    nvt_ok = run_nvt(str(eq_dir), "ala2", protocol="staged")
     assert nvt_ok is True
     assert (eq_dir / "nvt.state.xml").exists()
 
     # 3. NPT: stages 19-24
-    npt_ok = run_npt(str(eq_dir), "ala2", protocol="varmdyn")
+    npt_ok = run_npt(str(eq_dir), "ala2", protocol="staged")
     assert npt_ok is True
     assert (eq_dir / "npt.state.xml").exists()
     assert (eq_dir / "eq.pdb").exists()
@@ -75,14 +75,14 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
         assert xml_time == pytest.approx(expected_ps)
 
     # 4. QC: analyzes logs and checks 24/24 stages
-    analyze_logs(str(eq_dir), strict=False, protocol="varmdyn")
+    analyze_logs(str(eq_dir), strict=False, protocol="staged")
     with open(eq_dir / "equilibration_qc.json") as f:
         qc_data = json.load(f)
 
-    assert qc_data["protocol"] == "varmdyn"
-    assert qc_data["varmdyn_stages_total"] == 24
-    assert qc_data["varmdyn_stages_verified"] == 24
-    assert qc_data["varmdyn_stages_complete"] is True
+    assert qc_data["protocol"] == "staged"
+    assert qc_data["staged_stages_total"] == 24
+    assert qc_data["staged_stages_verified"] == 24
+    assert qc_data["staged_stages_complete"] is True
 
     # 5. Production replica branching
     r1_dir = tmp_path / "r1"
@@ -100,7 +100,7 @@ def test_varmdyn_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     assert (r1_dir / "chunks" / "0001.dcd").exists()
 
 
-def test_varmdyn_stage_resumption(tmp_path: Path, monkeypatch):
+def test_staged_stage_resumption(tmp_path: Path, monkeypatch):
     """Test that NPT recovers from intermediate stages (e.g. stage 23) without restarting."""
     from colabmda.openmm.common import find_highest_completed_stage
 

@@ -204,7 +204,7 @@ def run_em(
             "source": "amber-prmtop",
             "prmtop": os.path.abspath(amber_prmtop),
             "inpcrd": os.path.abspath(amber_inpcrd),
-            "note": "Preserves VarMDyn/LEaP parameters, including specialized ligand parameters.",
+            "note": "Preserves LEaP parameters, including specialized ligand parameters.",
         }
     elif ligand:
         # Dynamic imports to avoid dependency issues if openff/openmmforcefields is not installed

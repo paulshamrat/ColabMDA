@@ -133,11 +133,11 @@ def test_strict_qc_requires_real_durations(tmp_path):
             )
         )
         (folder / f"stage_{stage:02d}.state.xml").write_text(f'<State time="{time}"/>')
-    assert analyze_logs(str(tmp_path), strict=True, protocol="varmdyn")
+    assert analyze_logs(str(tmp_path), strict=True, protocol="staged")
     (folder / "stage_24.state.xml").write_text('<State time="0.2"/>')
-    assert not analyze_logs(str(tmp_path), strict=True, protocol="varmdyn")
+    assert not analyze_logs(str(tmp_path), strict=True, protocol="staged")
     record = json.loads((tmp_path / "equilibration_qc.json").read_text())
-    assert record["varmdyn_invalid_timing_stages"] == [24]
+    assert record["staged_invalid_timing_stages"] == [24]
 
 
 def test_noncovalent_components_are_terminated(tmp_path):

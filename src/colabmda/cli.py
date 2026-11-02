@@ -14,10 +14,10 @@ ROOT_HELP = "Override project root (defaults to current working directory)"
 def _normalize_equil_protocol(protocol: str) -> str:
     """Map user-facing equilibration labels to internal implementation names."""
     p_norm = str(protocol).lower().strip()
-    if p_norm in {"default", "full", "staged"}:
-        return "varmdyn"
-    if p_norm in {"varmdyn", "quick"}:
-        return p_norm
+    if p_norm in {"default", "full", "staged", "varmdyn"}:
+        return "staged"
+    if p_norm == "quick":
+        return "quick"
     raise SystemExit(
         "ERROR: --protocol must be 'staged' for the full staged protocol "
         "or 'quick' for a short smoke-test equilibration."
@@ -597,7 +597,7 @@ def _dispatch_sim(args) -> int:
                     )
                 eq_analysis = paths.eq_analysis_dir(spec)
                 eq_analysis.mkdir(parents=True, exist_ok=True)
-                openmm_qc(eq_dir, strict=True, protocol="varmdyn", outdir=eq_analysis)
+                openmm_qc(eq_dir, strict=True, protocol="staged", outdir=eq_analysis)
             replicas = [r.strip() for r in args.replica.split(",") if r.strip()]
             for rep in replicas:
                 rep_dir = str(paths.replica_dir(spec, rep))
@@ -1544,7 +1544,7 @@ def main():
     )
     p_top_sim.add_argument(
         "--protocol",
-        choices=["staged", "quick", "default", "varmdyn"],
+        choices=["staged", "quick", "default"],
         default="staged",
         help="Equilibration protocol: staged (rigorous 24-stage; default) or quick (smoke-test)",
     )
@@ -1778,7 +1778,7 @@ def main():
             else:
                 openmm_prep_from_file(str(in_pdb), str(sim_dir), pdbid=name, ph=args.ph)
 
-            # Always stage the shared equilibration hub 'eq'
+            # Always stage the shared equilibration directory 'eq'
             eq_dir = sim_dir / "eq"
             eq_dir.mkdir(parents=True, exist_ok=True)
             if target_clean.exists():
@@ -1978,7 +1978,7 @@ def main():
                 openmm_npt(
                     workdir_str, name, args.equil_time, seed=replica_seed, protocol=equil_protocol
                 )
-                openmm_check_equil(workdir_str, strict=equil_protocol == "varmdyn")
+                openmm_check_equil(workdir_str, strict=equil_protocol == "staged")
 
             if getattr(args, "equil_only", False):
                 print(

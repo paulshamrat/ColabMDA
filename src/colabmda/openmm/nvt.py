@@ -18,10 +18,11 @@ from colabmda.openmm.common import (
 )
 
 
-def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
+def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="staged"):
     workdir = os.path.abspath(workdir)
     os.chdir(workdir)
 
+    is_staged = str(protocol).lower().strip() in {"staged", "varmdyn", "default", "full"}
     xml_system = os.path.join(workdir, "system.xml")
     pdb_saved = os.path.join(workdir, "solvated.pdb")
     state_in = os.path.join(workdir, "em.state.xml")
@@ -33,7 +34,7 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
     print(f"[DEBUG] Checking for NVT files in: {workdir}")
     print(f"[DEBUG] xml: {xml_system}, pdb: {pdb_saved}, in: {state_in}, out: {state_out}")
     if os.path.exists(state_out):
-        if protocol == "varmdyn":
+        if is_staged:
             completed, _ = find_highest_completed_stage(workdir, 1, 18)
             if completed != 18:
                 raise RuntimeError(
@@ -42,7 +43,8 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         if os.path.exists(protocol_file):
             with open(protocol_file) as handle:
                 recorded = json.load(handle)
-            if recorded.get("protocol") != protocol:
+            recorded_staged = recorded.get("protocol") in {"staged", "varmdyn", "default", "full"}
+            if recorded_staged != is_staged:
                 raise RuntimeError(
                     f"Existing NVT state used protocol={recorded.get('protocol')!r}; "
                     f"requested {protocol!r}. Use a fresh workdir."
@@ -69,22 +71,20 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         system.removeForce(idx)
 
     restraint_parameter = None
-    if protocol == "varmdyn":
+    if is_staged:
         restraint_parameter, restrained_atoms = add_solute_heavy_atom_restraints(
             system, pdb.topology, pdb.positions, "nvt_restraint_k"
         )
         print(f"  • Restrained solute heavy atoms: {restrained_atoms}")
 
     seed = fresh_seed(seed)
-    dt = (1.0 if protocol == "varmdyn" else 2.0) * unit.femtoseconds
-    sim = make_sim(pdb.topology, system, dt, seed=seed, temp=50 if protocol == "varmdyn" else 300)
+    dt = (1.0 if is_staged else 2.0) * unit.femtoseconds
+    sim = make_sim(pdb.topology, system, dt, seed=seed, temp=50 if is_staged else 300)
     load_stage_state(sim, state_in, load_velocities=False)
 
     # Assign velocities
     print(f"  • Setting velocities (seed={seed})")
-    sim.context.setVelocitiesToTemperature(
-        (50 if protocol == "varmdyn" else 300) * unit.kelvin, seed
-    )
+    sim.context.setVelocitiesToTemperature((50 if is_staged else 300) * unit.kelvin, seed)
 
     test_mode = os.environ.get("COLABMDA_TEST_1_24", "").strip() in {"1", "true", "True"}
     highest_stage, latest_state_path = find_highest_completed_stage(workdir, 1, 18)
@@ -92,7 +92,7 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         load_stage_state(sim, latest_state_path)
         print(f"[RECOVERY] Found existing progress up to Stage {highest_stage} in NVT!")
 
-    if protocol == "varmdyn":
+    if is_staged:
         init_min_iter = 10 if test_mode else 5000
         for label, weight in [("01", 100), ("02", 50), ("03", 25)]:
             stage_idx = int(label)
@@ -162,7 +162,7 @@ def run_nvt(workdir, pdbid, equil_time_ps=100.0, seed=None, protocol="varmdyn"):
         )
     )
 
-    if protocol == "varmdyn":
+    if is_staged:
         for label, weight in [("15", 10), ("16", 5), ("17", 2), ("18", 1)]:
             stage_idx = int(label)
             if stage_idx <= highest_stage:
@@ -188,6 +188,6 @@ if __name__ == "__main__":
     p.add_argument("--pdbid", required=True)
     p.add_argument("--equil-time", type=float, default=100.0)
     p.add_argument("--seed", type=int, default=None)
-    p.add_argument("--protocol", choices=["varmdyn", "quick"], default="varmdyn")
+    p.add_argument("--protocol", choices=["staged", "quick", "varmdyn"], default="staged")
     args = p.parse_args()
     run_nvt(args.workdir, args.pdbid, args.equil_time, args.seed, args.protocol)

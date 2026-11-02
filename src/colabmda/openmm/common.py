@@ -53,7 +53,7 @@ def derive_replica_seed(seed=None, replica_name=None):
 
 
 def configure_system(system, barostat_seed=None):
-    """Apply the VarMDyn-compatible nonbonded and stochastic settings."""
+    """Apply staged-compatible nonbonded and stochastic settings."""
     for force in system.getForces():
         name = force.__class__.__name__
         if name == "NonbondedForce":
@@ -107,7 +107,7 @@ def load_stage_state(simulation, path, load_velocities=True):
 
 
 def add_solute_heavy_atom_restraints(system, topology, positions, parameter_name):
-    """Add VarMDyn-style Cartesian restraints to non-solvent heavy atoms."""
+    """Add staged Cartesian restraints to non-solvent heavy atoms."""
     force = CustomExternalForce(f"{parameter_name}*periodicdistance(x,y,z,x0,y0,z0)^2")
     force.addGlobalParameter(
         parameter_name,

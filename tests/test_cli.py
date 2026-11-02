@@ -112,7 +112,7 @@ def test_stage_creates_eq_and_replica(tmp_path):
         text=True,
     )
     assert res.returncode == 0
-    # eq hub should always be created and populated
+    # eq directory should always be created and populated
     assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "eq" / "4ldj_wt_cleaned.pdb").exists()
     # r1 replica should be created and populated
     assert (tmp_path / "data" / "simulation" / "4ldj_wt" / "r1" / "4ldj_wt_cleaned.pdb").exists()

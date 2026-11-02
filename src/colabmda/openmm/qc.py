@@ -58,10 +58,10 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
                     except Exception:
                         pass
 
-        # Check 1-24 stages if varmdyn
-        varmdyn_stages_found = []
-        varmdyn_stages_missing = []
-        if effective_protocol == "varmdyn":
+        # Check 1-24 stages if staged equilibration
+        staged_stages_found = []
+        staged_stages_missing = []
+        if effective_protocol in {"staged", "varmdyn"}:
             stages_dir = os.path.join(workdir, "stages")
             legacy_dir = os.path.join(workdir, "equilibration")
             eq_dir = stages_dir if os.path.exists(stages_dir) else legacy_dir
@@ -74,9 +74,9 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
                     (p for p in candidates if os.path.isfile(p) and os.path.getsize(p) > 0), None
                 )
                 if st_xml is not None:
-                    varmdyn_stages_found.append(st)
+                    staged_stages_found.append(st)
                 else:
-                    varmdyn_stages_missing.append(st)
+                    staged_stages_missing.append(st)
 
         # Plotting
         passed = all(math.isfinite(value) for value in (avg_temp, avg_dens, slope))
@@ -97,8 +97,8 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
             reasons.append("absolute final density slope exceeds 1e-4 g/mL/ps")
 
         invalid_stage_timing = []
-        if effective_protocol == "varmdyn":
-            for stage in varmdyn_stages_found:
+        if effective_protocol in {"staged", "varmdyn"}:
+            for stage in staged_stages_found:
                 expected = 0
                 if 4 <= stage <= 9:
                     expected = (stage - 3) * 10
@@ -144,16 +144,16 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
             if strict and invalid_stage_timing:
                 passed = False
                 reasons.append(f"staged timing/energy evidence invalid: {invalid_stage_timing}")
-            if varmdyn_stages_missing:
+            if staged_stages_missing:
                 print(
-                    f"⚠ WARNING: Missing {len(varmdyn_stages_missing)}/24 VarMDyn stages: {varmdyn_stages_missing}"
+                    f"⚠ WARNING: Missing {len(staged_stages_missing)}/24 staged equilibration stages: {staged_stages_missing}"
                 )
                 passed = False
                 reasons.append(
-                    f"missing {len(varmdyn_stages_missing)}/24 VarMDyn stages: {varmdyn_stages_missing}"
+                    f"missing {len(staged_stages_missing)}/24 staged equilibration stages: {staged_stages_missing}"
                 )
             else:
-                print("  • Verified all 24/24 VarMDyn equilibration stages")
+                print("  • Verified all 24/24 staged equilibration stages")
 
         qc_data = {
             "passed": passed,
@@ -164,16 +164,25 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
             "density_slope_g_ml_ps": float(slope),
             "reasons": reasons,
         }
-        if effective_protocol == "varmdyn":
-            qc_data["varmdyn_timing_verified"] = (
-                not invalid_stage_timing and not varmdyn_stages_missing
+        if effective_protocol in {"staged", "varmdyn"}:
+            qc_data["staged_timing_verified"] = (
+                not invalid_stage_timing and not staged_stages_missing
             )
+            qc_data["staged_invalid_timing_stages"] = invalid_stage_timing
+            qc_data["staged_stages_total"] = 24
+            qc_data["staged_stages_verified"] = len(staged_stages_found)
+            qc_data["staged_stages_complete"] = len(staged_stages_missing) == 0
+            if staged_stages_missing:
+                qc_data["staged_missing_stages"] = staged_stages_missing
+
+            # Backward-compatible aliases for legacy consumers
+            qc_data["varmdyn_timing_verified"] = qc_data["staged_timing_verified"]
             qc_data["varmdyn_invalid_timing_stages"] = invalid_stage_timing
             qc_data["varmdyn_stages_total"] = 24
-            qc_data["varmdyn_stages_verified"] = len(varmdyn_stages_found)
-            qc_data["varmdyn_stages_complete"] = len(varmdyn_stages_missing) == 0
-            if varmdyn_stages_missing:
-                qc_data["varmdyn_missing_stages"] = varmdyn_stages_missing
+            qc_data["varmdyn_stages_verified"] = len(staged_stages_found)
+            qc_data["varmdyn_stages_complete"] = qc_data["staged_stages_complete"]
+            if staged_stages_missing:
+                qc_data["varmdyn_missing_stages"] = staged_stages_missing
 
         if outdir is None:
             with open(os.path.join(workdir, "equilibration_qc.json"), "w") as handle:
