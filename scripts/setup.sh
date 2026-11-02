@@ -69,7 +69,7 @@ fi
 INSTALL_REF="${INSTALL_REF:-}"
 if [[ -z "${INSTALL_REF}" ]]; then
   if [[ "${TAG}" == "latest" ]]; then
-    INSTALL_REF="main"
+    INSTALL_REF="dev1"
   else
     INSTALL_REF="${TAG}"
   fi
