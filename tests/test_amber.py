@@ -61,18 +61,18 @@ def test_cpptraj_strip_script(tmp_path):
     s_lig = generate_cpptraj_strip_script(
         topology=top,
         trajectories=trajs,
-        output_traj=tmp_path / "prod_keep_ligand.dcd",
+        output_traj=tmp_path / "traj.dcd",
         mode="keep_ligand",
     )
     assert "autoimage" in s_lig
     assert "strip :WAT,Na+,Cl-" in s_lig
-    assert "prod_keep_ligand.dcd" in s_lig
+    assert "traj.dcd" in s_lig
 
     # Test ca_backbone stream
     s_ca = generate_cpptraj_strip_script(
         topology=top,
         trajectories=trajs,
-        output_traj=tmp_path / "prod_ca.dcd",
+        output_traj=tmp_path / "trajCa.dcd",
         mode="ca_backbone",
     )
     assert "strip !@CA" in s_ca
@@ -114,7 +114,7 @@ def test_stripped_topology_is_written_by_strip_action(tmp_path):
         tmp_path / "input.prmtop",
         [tmp_path / "frame.dcd"],
         tmp_path / "stripped.dcd",
-        output_top=tmp_path / "stripped.prmtop",
+        output_top=tmp_path / "top.prmtop",
     )
     assert 'parmout "' in script
     assert "parmwrite" not in script

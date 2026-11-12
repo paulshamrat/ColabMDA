@@ -31,8 +31,8 @@ if ns <= 0 or not np.isclose(ns * 10, round(ns * 10)):
     raise ValueError("Use a positive duration divisible by 0.1 ns")
 if len(list(prod.glob("prod_*to*ps.dcd"))) != round(ns * 10):
     raise RuntimeError("Unexpected production chunk count")
-trajectory = md.load(str(prod / "prod_keep_ligand.dcd"), top=str(prod / "stripped.prmtop"))
-ca = md.load(str(prod / "prod_ca.dcd"), top=str(prod / "ca.prmtop"))
+trajectory = md.load(str(prod / "traj.dcd"), top=str(prod / "top.prmtop"))
+ca = md.load(str(prod / "trajCa.dcd"), top=str(prod / "topCa.prmtop"))
 if (
     trajectory.n_frames != len(expected_times)
     or ca.n_frames != len(expected_times)
@@ -41,7 +41,7 @@ if (
     raise RuntimeError("Unexpected frame or C-alpha count")
 if not np.isfinite(trajectory.xyz).all():
     raise RuntimeError("Nonfinite coordinates")
-log = pd.read_csv(prod / "prod_full.log")
+log = pd.read_csv(prod / "md.log")
 if len(log) != len(expected_times) or not np.allclose(log["Time (ps)"], expected_times):
     raise RuntimeError("Trajectory times have gaps, overlaps or wrong duration")
 if not np.isfinite(log.select_dtypes(include="number").to_numpy()).all():

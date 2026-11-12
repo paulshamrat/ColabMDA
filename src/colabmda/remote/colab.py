@@ -508,7 +508,7 @@ def colab_manager_cli(argv: list[str] | None = None) -> int:
     p_pull.add_argument(
         "--traj",
         action="store_true",
-        help="Download post-processed stripped trajectories (prod_keep_ligand.dcd) while skipping raw chunks",
+        help="Download post-processed stripped trajectories (traj.dcd) while skipping raw chunks",
     )
     p_pull.add_argument(
         "--all",

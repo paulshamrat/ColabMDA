@@ -98,10 +98,10 @@ research/projects/<project-example>/
         │   │       │   ├── md.log            # Continuous merged thermodynamic log
         │   │       │   ├── state.xml         # Latest OpenMM simulation state snapshot
         │   │       │   ├── prod.chk          # OpenMM checkpoint binary for resume
-        │   │       │   ├── stripped.prmtop   # Solvent-stripped topology for PyMOL & analysis
-        │   │       │   ├── prod_keep_ligand.dcd # Continuous PBC-autoimaged stripped trajectory
-        │   │       │   ├── ca.prmtop         # Cα backbone topology
-        │   │       │   ├── prod_ca.dcd       # Cα backbone trajectory
+        │   │       │   ├── top.prmtop   # Solvent-stripped topology for PyMOL & analysis
+        │   │       │   ├── traj.dcd # Continuous PBC-autoimaged stripped trajectory
+        │   │       │   ├── topCa.prmtop         # Cα backbone topology
+        │   │       │   ├── trajCa.dcd       # Cα backbone trajectory
         │   │       │   ├── MERGE_DONE        # Merge completion marker
         │   │       │   └── chunks/           # Raw crash-recovery chunks (0001.dcd, 0001.log, ...)
         │   │       ├── r2/                   # Independent velocity seed (triplicate)
@@ -135,7 +135,7 @@ research/projects/<project-example>/
   - `structure/variants/` contains coordinate models (`.pdb`), native Modeller outputs (`.ali`, `.log`, etc.), and `MODEL_DONE` text marker (no `model_request.json`, `model_check.json`).
   - `simulation/prep/` contains strictly native Amber files (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `build.in`, `leap.log`, `PREP_DONE`). No `prep.json` or `topology_check.json`.
   - `simulation/eq/` contains `eq.pdb`, `system.xml`, `state.xml`, restart states in `stages/state_*.xml`, and `EQ_DONE`. Zero JSON receipts.
-  - `simulation/md/` contains `md.dcd`, `md.log`, `state.xml`, `prod.chk`, stripped/autoimaged products (`stripped.prmtop`, `prod_keep_ligand.dcd`), Cα backbone files (`ca.prmtop`, `prod_ca.dcd`), raw chunks in `chunks/`, and `MERGE_DONE`. Zero JSON receipts.
+  - `simulation/md/` contains `md.log`, `npt.state.xml`, `system.xml`, `solvated.pdb`, `prod.chk`, stripped/autoimaged products (`top.prmtop`, `traj.dcd`), Cα backbone files (`topCa.prmtop`, `trajCa.dcd`), raw chunks in `chunks/`, and `MERGE_DONE`. Zero JSON receipts.
   - `analysis/` contains only scientific metrics (`.csv`), figures (`.png`), summary deliverables (`summary.txt`, `qc.txt`), and text markers (`ANALYSIS_DONE`, `AGGREGATE_DONE`, `COMPARE_DONE`). Zero JSON files in `analysis/`.
   - **Native State Derivation & Gating**: Inter-stage validation, neutrality checks, and sequence identity gating must be derived dynamically and natively from the biological domain files themselves (e.g. parsing `system.prmtop` via `check_topology(..., save_receipt=False)`, verifying point mutations directly against `WT.pdb` coordinate atoms, parsing sequence from `uniprot.fasta`).
   - **Text Completion Markers**: State markers (`STRUCTURE_DONE`, `MODEL_DONE`, `PREP_DONE`, `ANALYSIS_DONE`) record operational metadata (e.g., `seed`, `pdb`, `uniprot`, `range`) as clean, human-readable key-value lines without writing duplicate JSON ledgers.
@@ -143,12 +143,14 @@ research/projects/<project-example>/
   `eq.pdb` (duplicate `equilibrated.pdb` eliminated). Intermediate restart states
   are saved into `stages/` as `state_01.xml` ... `state_24.xml`. All QC deliverables
   belong in `analysis/<variant>/eq/` as `qc.png` and `qc.txt`.
-- **Production MD (`md/<replica>`)**: Continuous merged trajectory is `md.dcd`,
-  continuous merged log is `md.log`, and latest checkpoint snapshot is `state.xml`.
+- **Production MD (`md/<replica>`)**: Processed trajectory/topology pairs are
+  `traj.dcd`/`top.prmtop` and `trajCa.dcd`/`topCa.prmtop` across every state.
+  The merged measurements are `md.log`; `prod.chk` remains the production
+  checkpoint, with `system.xml`, `solvated.pdb` and `npt.state.xml` retained for restart.
   Raw crash-recovery chunks are strictly isolated in `chunks/{idx:04d}.dcd` and
   `chunks/{idx:04d}.log` using 4-digit zero-padding without units (`ns`/`ps`).
-  Post-merge PBC-autoimaged and solvent-stripped trajectories (`stripped.prmtop`,
-  `prod_keep_ligand.dcd`) and Cα backbone (`ca.prmtop`, `prod_ca.dcd`) are generated
+  Post-merge PBC-autoimaged and solvent-stripped trajectories (`top.prmtop`,
+  `traj.dcd`) and Cα backbone (`topCa.prmtop`, `trajCa.dcd`) are generated
   via `cmda merge` for PyMOL inspection and biophysical analysis.
 - **Analysis and comparison (`analysis/`)**: Analysis symmetrically mirrors simulation
   (`analysis/<variant>/eq/` for `qc.png` and `qc.txt`; `analysis/<variant>/md/<replica>/`
@@ -249,7 +251,8 @@ Each tutorial is self-contained: local prerequisites, installer, activation in e
 terminal, and browser authorization instructions precede the scientific workflow.
 Show a compact output tree in a collapsed details block after each stage's
 commands. Keep commands visible and use a short summary label for the tree. Put
-the complete workflow tree in a collapsed details block at the end. Verify filenames and downstream
+the complete workflow tree in a collapsed details block after the workflow, before
+acknowledgements, citations and the visitor counter. Verify filenames and downstream
 handoffs against the implementation. Preserve scientific commands, parameters,
 time conversions, checkpoint behavior and historical evidence when reorganizing.
 State which machine runs each step. Preserve the root badge row and project
@@ -375,3 +378,16 @@ permissions and does not place key values in subprocess arguments.
 ```bash
 gitleaks git --log-opts=--all --redact=100 --config .gitleaks.toml .
 ```
+
+## Processed trajectories and desktop movies
+
+New merge outputs use `traj.dcd`, `top.prmtop`, `trajCa.dcd`, `topCa.prmtop`
+and one merged `md.log` across all states, variants and replicas. Readers retain
+legacy filename support. `cmda merge --rename-files` validates completed pairs,
+refuses conflicts, symlinks and incomplete chunks, and renames without rewriting
+scientific bytes. Never rename an active run or its raw chunks/checkpoints.
+`cmda view --frame all` must find actual merged trajectories even without an
+explicit run ID, generate a matching viewer PDB and start playback. Document one
+primary movie command and a collapsed manual alternative. Viewer provenance is
+plain-text `visualize.log`, not a generated JSON receipt. Keep complete tutorial
+trees before acknowledgements, citations and the visitor footer.

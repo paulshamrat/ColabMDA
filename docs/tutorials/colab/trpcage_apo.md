@@ -277,7 +277,7 @@ Concatenate raw trajectory chunks, apply periodic boundary condition (PBC) autoi
 
 ```bash
 # 1. Merge chunks & autoimage PBC (produces autoimaged, stripped trajectories):
-cmda sim merge --state apo --variant WT --replica r1
+cmda merge --state apo --variant WT --replica r1
 ```
 
 <details>
@@ -285,11 +285,10 @@ cmda sim merge --state apo --variant WT --replica r1
 
 ```text
 data/apo/simulation/WT/md/r1/
-├── prod_keep_ligand.dcd                             # Autoimaged trajectory without bulk solvent
-├── stripped.prmtop                                  # Matching topology; use with the trajectory above
-├── prod_ca.dcd                                      # Cα trajectory
-├── ca.prmtop                                        # Matching Cα topology
-├── prod_full.log                                    # Merged production log
+├── traj.dcd                             # Autoimaged trajectory without bulk solvent
+├── top.prmtop                                  # Matching topology; use with the trajectory above
+├── trajCa.dcd                                      # Cα trajectory
+├── topCa.prmtop                                        # Matching Cα topology
 ├── md.log                                           # Copy of the merged production log
 └── MERGE_DONE                                       # Verified merged outputs
 ```
@@ -337,7 +336,7 @@ mkdir -p ~/research/projects/trpcage-example/data/apo
 colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/analysis ~/research/projects/trpcage-example/data/apo/analysis
 
 # Download solvent-stripped trajectory and coordinates:
-colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd ~/research/projects/trpcage-example/data/apo/
+colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/simulation/WT/md/r1/traj.dcd ~/research/projects/trpcage-example/data/apo/
 colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/structure/1L2Y/variants/WT/WT.pdb ~/research/projects/trpcage-example/data/apo/
 ```
 
@@ -348,62 +347,66 @@ colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/
 ~/research/projects/trpcage-example/data/apo/
 ├── analysis/               # Downloaded analysis tables and figures
 ├── WT.pdb                  # Model for local visualization
-└── prod_keep_ligand.dcd     # Downloaded stripped trajectory
+└── traj.dcd     # Downloaded stripped trajectory
 ```
 
 </details>
 
 ### 8.2. PyMOL Trajectory Visualization
-Inspect the production trajectory in PyMOL locally:
+
+Run these commands in the project directory on a computer with desktop PyMOL.
+For a Colab run, first download the processed trajectories using `cmda pull --traj`.
+Open one variant at a time; close its PyMOL window before running the next command.
 
 ```bash
-cd ~/research/projects/trpcage-example/data/apo
-pymol WT.pdb prod_keep_ligand.dcd
+cmda view --state apo --variant WT --replica r1 --frame all --resi 1
 ```
 
-In the PyMOL console:
-```text
-intra_fit (all and name CA)
-show cartoon
-color cyan, all and name C*
-show sticks, resi 6 or resi 12 or resi 17-19
-color yellow, resi 6 and name C*
-color orange, (resi 12 or resi 17-19) and name C*
+PyMOL opens and starts playing all saved trajectory frames. Use its playback
+controls to pause, play or step through frames. `--frame all` displays the movie;
+`--frame 1` displays only the first frame.
+
+The command reads the matching `md/r1/top.prmtop` and `md/r1/traj.dcd` for the
+selected state and variant. It generates `view.pdb`, `visualize.pml` and
+`visualize.log` in that replica's analysis folder. The PDB has the same atoms as
+the processed trajectory, so loading is handled for you.
+
+<details>
+<summary><b>Manual loading in PyMOL</b></summary>
+
+After the command has generated the viewing files, these commands can also be
+entered in PyMOL from the project directory:
+
+```pml
+load data/apo/analysis/WT/r1/view.pdb, protein
+load_traj data/apo/simulation/WT/md/r1/traj.dcd, protein, state=1
+hide everything
+show cartoon, protein
 mplay
 ```
 
-*Confirm the central **Trp6** indole ring remains securely packed inside the hydrophobic cage formed by **Pro12**, **Pro17**, **Pro18**, and **Pro19** throughout the simulation.*
+For another variant or replica, change both paths together. Use `solvated.pdb`
+only with the original full-system chunks, whose atom count includes water and
+salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`.
 
----
+</details>
 
-## Acknowledgements
-- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
-- [Modeller](https://salilab.org/modeller/)
-- [AmberTools](https://ambermd.org/AmberTools.php)
-- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
-- [PDB2PQR & PROPKA](https://server.poissonboltzmann.org/)
-- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
-- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
+<details>
+<summary><b>Existing runs with older filenames</b></summary>
 
----
+After production has finished, rename existing processed files without rerunning
+or rewriting the trajectories:
 
-## Citation
+```bash
+cmda merge --state apo --variant WT --replica r1 --rename-files
+```
 
-If you use ColabMDA in your research, please cite the underlying studies:
+Repeat for each completed variant and replica. The command validates matching
+atom and frame counts before renaming, rejects conflicting files, and leaves raw
+chunks, equilibration states and restart checkpoints in place. Older names remain
+readable when working with historical runs.
 
-> Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.
->
-> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2022.e11232&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2022.e11232)
->
-> Paul SK, Saddam M, Tabassum N, Hasan M. **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis.** *Heliyon*. 2024 Dec 15;11(1):e41166. doi: [10.1016/j.heliyon.2024.e41166](https://doi.org/10.1016/j.heliyon.2024.e41166). PMID: 39802026; PMCID: PMC11719297.
->
-> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2024.e41166&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2024.e41166)
-
----
-
-<p align="center">
-  <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Visitors&color=blue&style=flat-square" alt="Visitors" />
-</p>
+</details>
 
 ## Complete project directory structure
 
@@ -453,11 +456,10 @@ instead of `.cif` when the archive fallback is used.
         │               ├── chunks/
         │               │   ├── 0001.dcd             # First committed trajectory chunk
         │               │   └── 0001.log             # Matching committed thermodynamic log
-        │               ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │               ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │               ├── prod_ca.dcd              # Cα trajectory
-        │               ├── ca.prmtop                # Matching Cα topology
-        │               ├── prod_full.log            # Merged production log
+        │               ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │               ├── top.prmtop          # Matching topology; use with the trajectory above
+        │               ├── trajCa.dcd              # Cα trajectory
+        │               ├── topCa.prmtop                # Matching Cα topology
         │               ├── md.log                   # Copy of the merged production log
         │               └── MERGE_DONE               # Verified merged outputs
         └── analysis/
@@ -477,3 +479,34 @@ instead of `.cif` when the archive fallback is used.
 ```
 
 </details>
+
+---
+
+## Acknowledgements
+- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
+- [Modeller](https://salilab.org/modeller/)
+- [AmberTools](https://ambermd.org/AmberTools.php)
+- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
+- [PDB2PQR & PROPKA](https://server.poissonboltzmann.org/)
+- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
+- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
+
+---
+
+## Citation
+
+If you use ColabMDA in your research, please cite the underlying studies:
+
+> Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2022.e11232&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2022.e11232)
+>
+> Paul SK, Saddam M, Tabassum N, Hasan M. **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis.** *Heliyon*. 2024 Dec 15;11(1):e41166. doi: [10.1016/j.heliyon.2024.e41166](https://doi.org/10.1016/j.heliyon.2024.e41166). PMID: 39802026; PMCID: PMC11719297.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2024.e41166&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2024.e41166)
+
+---
+
+<p align="center">
+  <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Visitors&color=blue&style=flat-square" alt="Visitors" />
+</p>

@@ -136,11 +136,18 @@ def run_trajectory_analysis(
 
     if not replica_dirs:
         # Single mode
-        topo = topology or os.path.join(sim_dir, "solvated.pdb")
+        from colabmda.openmm.merge import find_trajectory_pair
+
+        pair = find_trajectory_pair(sim_dir) if not topology and not trajectory else None
+        topo = topology or (str(pair[0]) if pair else os.path.join(sim_dir, "solvated.pdb"))
         traj = trajectory or (
-            os.path.join(sim_dir, "md.dcd")
-            if os.path.exists(os.path.join(sim_dir, "md.dcd"))
-            else os.path.join(sim_dir, "prod_full.dcd")
+            str(pair[1])
+            if pair
+            else (
+                os.path.join(sim_dir, "md.dcd")
+                if os.path.exists(os.path.join(sim_dir, "md.dcd"))
+                else os.path.join(sim_dir, "prod_full.dcd")
+            )
         )
         if os.path.exists(traj):
             results.append(analyze_single(sim_dir, topo, traj, interval, reference))
@@ -153,11 +160,18 @@ def run_trajectory_analysis(
             f"Detected {len(replica_dirs)} replicas: {[os.path.basename(r) for r in replica_dirs]}"
         )
         for rd in replica_dirs:
-            topo = os.path.join(rd, "solvated.pdb")
+            from colabmda.openmm.merge import find_trajectory_pair
+
+            pair = find_trajectory_pair(rd)
+            topo = str(pair[0]) if pair else os.path.join(rd, "solvated.pdb")
             traj = (
-                os.path.join(rd, "md.dcd")
-                if os.path.exists(os.path.join(rd, "md.dcd"))
-                else os.path.join(rd, "prod_full.dcd")
+                str(pair[1])
+                if pair
+                else (
+                    os.path.join(rd, "md.dcd")
+                    if os.path.exists(os.path.join(rd, "md.dcd"))
+                    else os.path.join(rd, "prod_full.dcd")
+                )
             )
             if os.path.exists(traj):
                 results.append(analyze_single(rd, topo, traj, interval, reference))
