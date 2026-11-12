@@ -351,7 +351,7 @@ def colab_pull(
         _execute_remote(session, cleanup_cmd, timeout=30)
         print(f"✔ Successfully pulled {count} deliverable(s) to {local_root}/")
         print(f"  • Local Path:         {local_root}/")
-        print(f"  • Retrieved From:     My Drive > research > projects > {project_name} > data/")
+        print(f"  • Retrieved From:     {remote_base}/ (data/ and logs/)")
         return 0
     finally:
         Path(tmp_tar.name).unlink(missing_ok=True)

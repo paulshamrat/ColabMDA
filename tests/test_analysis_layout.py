@@ -172,13 +172,18 @@ def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path,
             for _ in range(4):
                 u.atoms.positions = xyz + rng.normal(0, 0.05, xyz.shape)
                 out.write(u.atoms)
+        (folder / "md.log").write_text(
+            '#"Step","Time (ps)","Temperature (K)"\n'
+            "1000,2,300\n2000,4,300\n3000,6,300\n4000,8,300\n"
+        )
     args = Namespace(root=str(tmp_path), state="apo", variant="WT", replicas="r1,r2")
     assert _dispatch_analyze(args) == 0
     for rep in ["r1", "r2"]:
         folder = paths.replica_analysis_dir(spec, rep)
         assert StageLog(folder, "ANALYSIS_DONE").is_file()
         assert pd.read_csv(folder / "rmsf.csv")["Residue"].tolist() == [118, 119, 120]
-        assert pd.read_csv(folder / "rmsd.csv")["Time (ps)"].tolist() == [10, 20, 30, 40]
+        assert pd.read_csv(folder / "rmsd.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
+        assert pd.read_csv(folder / "rg.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
     assert StageLog(paths.analysis_dir(spec) / "aggregate", "AGGREGATE_DONE").is_file()
     assert not list(paths.variant_dir(spec).rglob("rmsd.csv"))
     # Failure must clear completion and invalidate a previously computed aggregate.
@@ -191,3 +196,14 @@ def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path,
         _dispatch_analyze(args)
     assert not StageLog(paths.replica_analysis_dir(spec), "ANALYSIS_DONE").exists()
     assert not StageLog(paths.analysis_dir(spec) / "aggregate", "AGGREGATE_DONE").exists()
+
+
+@pytest.mark.parametrize("times", [[2], [2, 2], [4, 2], [2, float("nan")]])
+def test_analysis_rejects_mismatched_or_invalid_recorded_times(tmp_path, times):
+    from colabmda.openmm.analysis import _production_times
+
+    (tmp_path / "md.log").write_text(
+        '#"Step","Time (ps)"\n' + "".join(f"{i * 1000},{time}\n" for i, time in enumerate(times, 1))
+    )
+    with pytest.raises(ValueError, match="times do not match"):
+        _production_times(tmp_path, 2)
