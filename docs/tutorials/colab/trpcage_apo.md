@@ -90,19 +90,33 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
 ### 1.1. Local Setup
 Run this one-time setup in your local terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 
-On a fresh machine, [install the required system tools](../../../README.md#prerequisites) first.
-
 ```bash
-# 1. Install cmda, OpenMM, AmberTools, PyMOL, and google-colab-cli:
+# 1. Install required system tools (Ubuntu/WSL2):
+sudo apt-get update
+sudo apt-get install -y git curl wget ca-certificates
+
+# 2. Install cmda, OpenMM, AmberTools, PyMOL, and google-colab-cli:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"
 
-# 2. Activate environment:
+# 3. Activate the environment in this terminal:
 source ~/miniforge3/etc/profile.d/conda.sh
 conda activate cmda
 
-# 3. Log in to Google Colab (one-time browser authorization):
+# 4. Log in to Google Colab (one-time browser authorization):
 colab sessions
 ```
+
+Run the activation commands in every new terminal or SSH session. The installer
+runs in a child shell, so it cannot activate the environment in your current terminal.
+
+When `colab sessions` prints an authorization URL:
+
+1. Keep that terminal open and open the printed URL in a browser. Over SSH, use
+   a browser on your own computer.
+2. Sign in with the Google account you use for Colab and approve access.
+3. Copy the authorization code Google displays.
+4. Paste the code into the same terminal at `Enter the authorization code:` and
+   press Enter. Keep the code private.
 
 ### 1.2. Launch Cloud GPU
 Once logged in, provision a Google Colab GPU instance and enter the remote console:
