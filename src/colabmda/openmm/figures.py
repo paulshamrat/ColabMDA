@@ -437,7 +437,6 @@ def _style_view(cmd, resi):
 
 def _render_views(datasets, output, camera="activation", camera_view=None, font_path=None):
     import hashlib
-    import json
 
     import MDAnalysis as mda
     import numpy as np
@@ -544,7 +543,9 @@ def _render_views(datasets, output, camera="activation", camera_view=None, font_
         width_inches=7,
         dpi=300,
     )
-    output.with_suffix(".json").write_text(json.dumps(metadata, indent=2) + "\n")
+    output.with_suffix(".log").write_text(
+        "".join(f"{key}: {value}\n" for key, value in metadata.items())
+    )
     marker.write_text("Verified PNG and native-reference display inputs generated\n")
     return output
 
