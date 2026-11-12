@@ -13,6 +13,7 @@ from Bio.PDB import PDBIO, PDBParser, Select
 from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from Bio.SeqUtils import seq1
 
+from colabmda.core.logs import StageLog
 from colabmda.core.project import ProjectPaths, resolve_project_root
 from colabmda.modeller.structure import (
     fetch_archive,
@@ -46,7 +47,7 @@ def get_structure_metadata(folder: Path) -> dict:
                 pass
 
     meta = {}
-    marker = folder / "STRUCTURE_DONE"
+    marker = StageLog(folder, "STRUCTURE_DONE")
     if marker.is_file():
         for line in marker.read_text().splitlines():
             if ":" in line:
@@ -104,7 +105,7 @@ def fetch(args):
     )
     paths = ProjectPaths(resolve_project_root(args.root), state=args.state, target=target_tag)
     base = paths.state_dir / "structure" if paths.state_dir else paths.structure_dir
-    if ((base / "raw").exists() or (base / "STRUCTURE_DONE").exists()) and not (
+    if ((base / "raw").exists() or (StageLog(base, "STRUCTURE_DONE")).exists()) and not (
         base / target_tag
     ).exists():
         folder = base
@@ -113,7 +114,7 @@ def fetch(args):
     folder.mkdir(parents=True, exist_ok=True)
     raw = folder / "raw"
     raw.mkdir(parents=True, exist_ok=True)
-    marker = folder / "STRUCTURE_DONE"
+    marker = StageLog(folder, "STRUCTURE_DONE")
     marker.unlink(missing_ok=True)
     structure, archive, url = fetch_archive(args.pdb_id, raw)
     chain = next(iter(structure))[args.chain]
@@ -326,7 +327,7 @@ def fetch(args):
         variants_wt.mkdir(parents=True, exist_ok=True)
         wt_pdb = variants_wt / "WT.pdb"
         wt_pdb.write_text(data)
-        (variants_wt / "MODEL_DONE").write_text("Clean coordinate extraction complete\n")
+        (StageLog(variants_wt, "MODEL_DONE")).write_text("Clean coordinate extraction complete\n")
 
     lines = [
         f"pdb: {args.pdb_id}",
@@ -427,12 +428,12 @@ def check(args):
         model = folder / "models" / args.variant / "complex.pdb"
     else:
         model = folder / "variants" / args.variant / f"{args.variant}.pdb"
-    (model.parent / "MODEL_DONE").unlink(missing_ok=True)
+    (StageLog(model.parent, "MODEL_DONE")).unlink(missing_ok=True)
     verify_sequence(model, record["chain"], sequence, start)
     seed_str = (
         f"\nseed: {getattr(args, 'seed', None)}" if getattr(args, "seed", None) is not None else ""
     )
-    (model.parent / "MODEL_DONE").write_text(
+    (StageLog(model.parent, "MODEL_DONE")).write_text(
         f"Canonical model sequence, numbering and C-alpha coordinates verified{seed_str}\n"
     )
     print(f"Verified {args.variant}: {len(sequence)} residues, {start}–{record['range'][1]}")
@@ -450,8 +451,8 @@ def model(args):
         resolve_project_root(args.root), state=args.state, target=getattr(args, "target", None)
     )
     folder = paths.structure_dir
-    if not (folder / "STRUCTURE_DONE").is_file():
-        raise ValueError("Modeling requires completed cmda fetch (STRUCTURE_DONE)")
+    if not (StageLog(folder, "STRUCTURE_DONE")).is_file():
+        raise ValueError("Modeling requires completed cmda fetch; see the structure log")
     record = get_structure_metadata(folder)
     for name, expected in record.get("files", {}).items():
         target_file = folder / name
@@ -551,7 +552,7 @@ def model(args):
         ]
     legacy_parent = folder / "models" / args.variant
     for p in [parent, legacy_parent]:
-        done = p / "MODEL_DONE"
+        done = StageLog(p, "MODEL_DONE")
         if p.exists() and done.exists():
             receipt = p / "model_request.json"
             if receipt.is_file():
@@ -717,12 +718,12 @@ def preparation_request(paths, spec, receptor, template):
     folder.mkdir(parents=True, exist_ok=True)
     struct_dir = paths.structure_dir
     if (
-        not (struct_dir / "STRUCTURE_DONE").exists()
+        not (StageLog(struct_dir, "STRUCTURE_DONE")).exists()
         and paths.state_dir is not None
         and paths.state not in {"apo", None}
     ):
         apo_s = paths.root / "data/apo/structure" / paths.structure_dir.name
-        if (apo_s / "STRUCTURE_DONE").exists():
+        if (StageLog(apo_s, "STRUCTURE_DONE")).exists():
             struct_dir = apo_s
     record = get_structure_metadata(struct_dir)
     for name, expected in record.get("files", {}).items():
@@ -755,7 +756,7 @@ def preparation_request(paths, spec, receptor, template):
         except Exception as exc:
             if "COLABMDA_RUN_ID" in str(exc):
                 raise
-    marker = folder / "PREP_DONE"
+    marker = StageLog(folder, "PREP_DONE")
     if marker.exists():
         inventory = verify_prepared(folder, spec=spec)
         net_q = inventory.get("total_charge", 0.0) if inventory else 0.0
@@ -780,8 +781,8 @@ def preparation_request(paths, spec, receptor, template):
 def verify_prepared(folder, spec=None):
     """Refuse partial or changed Amber preparation before research dynamics."""
     folder = Path(folder)
-    if not (folder / "PREP_DONE").is_file():
-        raise SystemExit("Research dynamics requires verified PREP_DONE preparation")
+    if not (StageLog(folder, "PREP_DONE")).is_file():
+        raise SystemExit("Research dynamics requires verified preparation outputs; run cmda prep")
     topo_json = folder / "topology_check.json"
     if topo_json.is_file():
         try:

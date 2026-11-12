@@ -112,7 +112,7 @@ def colab_push(
     timeout: float = 300,
     ephemeral: bool = False,
 ) -> int:
-    """Package local data/ and push directly into remote Colab Google Drive or ephemeral disk."""
+    """Push scientific data and mirrored stage logs to Colab."""
     import tarfile
 
     local_root = Path(root or os.getcwd()).resolve()
@@ -131,15 +131,17 @@ def colab_push(
         else f"/content/drive/MyDrive/research/projects/{project_name}"
     )
 
-    print(f"[INFO] Packaging local data/ from {local_root}...")
+    print(f"[INFO] Packaging local data/ and logs/ from {local_root}...")
     tmp_tar = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
     tmp_tar.close()
     try:
         with tarfile.open(tmp_tar.name, "w:gz") as tar:
             tar.add(str(data_dir), arcname="data")
+            if (local_root / "logs").is_dir():
+                tar.add(str(local_root / "logs"), arcname="logs")
 
         session_name = session or "cmda"
-        print(f"[INFO] Uploading data archive to Colab session '{session_name}'...")
+        print(f"[INFO] Uploading project archive to Colab session '{session_name}'...")
         remote_tar = "/content/_cmda_push.tar.gz"
         upload_cmd = ["colab", "upload", *_session_args(session), tmp_tar.name, remote_tar]
         res = subprocess.call(upload_cmd)
@@ -242,6 +244,9 @@ def colab_pull(
             remote_file = path
             rel_part = path.split("/data/", 1)[-1] if "/data/" in path else Path(path).name
             local_file = local_root / "data" / rel_part
+        elif path.startswith("logs/"):
+            remote_file = f"{remote_base}/{path}"
+            local_file = local_root / path
         elif path.startswith("data/"):
             remote_file = f"{remote_base}/{path}"
             local_file = local_root / path
@@ -262,7 +267,8 @@ def colab_pull(
 
     remote_script = (
         "import os, tarfile\n"
-        f"src = os.path.join({remote_base!r}, 'data')\n"
+        f"project_root = {remote_base!r}\n"
+        "src = os.path.join(project_root, 'data')\n"
         "if not os.path.exists(src):\n"
         "    raise FileNotFoundError(f'Remote directory not found: {src}')\n"
         f"subpath = {path!r}\n"
@@ -277,12 +283,17 @@ def colab_pull(
         "target_stages = stage_map.get(stage.lower(), [stage.lower()]) if stage else None\n"
         "\n"
         "matched_files = []\n"
-        "for root, dirs, files in os.walk(src):\n"
+        "for root, dirs, files in os.walk(project_root):\n"
+        "    if root == project_root:\n"
+        "        dirs[:] = [d for d in dirs if d in {'data', 'logs'}]\n"
         "    for f in sorted(files):\n"
         "        full_path = os.path.join(root, f)\n"
-        "        rel_path = os.path.relpath(full_path, os.path.dirname(src))\n"
+        "        rel_path = os.path.relpath(full_path, project_root)\n"
         "        parts = rel_path.split(os.sep)\n"
-        "        if subpath and subpath not in rel_path:\n"
+        "        if parts[0] not in {'data', 'logs'}:\n"
+        "            continue\n"
+        "        selected = subpath.removeprefix('data/').removeprefix('logs/') if subpath else None\n"
+        "        if selected and selected not in os.path.join(*parts[1:]):\n"
         "            continue\n"
         "        if variant and variant not in parts:\n"
         "            continue\n"
@@ -326,7 +337,7 @@ def colab_pull(
             print("[ERROR] colab download failed.")
             return res
 
-        print(f"[INFO] Extracting results into {local_root}/data/ ...")
+        print(f"[INFO] Extracting data and logs into {local_root}/ ...")
         count = 0
         with tarfile.open(tmp_tar.name, "r:gz") as tar:
             members = tar.getmembers()
@@ -338,8 +349,8 @@ def colab_pull(
 
         cleanup_cmd = f"import os\nif os.path.exists({remote_tar!r}): os.remove({remote_tar!r})\n"
         _execute_remote(session, cleanup_cmd, timeout=30)
-        print(f"✔ Successfully pulled {count} deliverable(s) to {local_root}/data/")
-        print(f"  • Local Path:         {local_root}/data/")
+        print(f"✔ Successfully pulled {count} deliverable(s) to {local_root}/")
+        print(f"  • Local Path:         {local_root}/")
         print(f"  • Retrieved From:     My Drive > research > projects > {project_name} > data/")
         return 0
     finally:

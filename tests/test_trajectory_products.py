@@ -7,6 +7,7 @@ import subprocess
 import numpy as np
 import pytest
 
+from colabmda.core.logs import StageLog
 from colabmda.openmm.merge import find_trajectory_pair, rename_trajectory_files
 
 
@@ -129,7 +130,7 @@ def test_view_without_run_id_loads_the_movie_instead_of_a_starting_model(
     script = (output / "visualize.pml").read_text()
     assert str(replica / "traj.dcd") in script
     assert "mset 1 -2" in script and "mplay" in script
-    assert "source_kind: trajectory" in (output / "visualize.log").read_text()
+    assert "source_kind: trajectory" in StageLog(output, "VISUALIZE_DONE").path.read_text()
     assert not list(output.glob("*.json"))
 
 

@@ -1,7 +1,6 @@
 """Analysis separation, replica isolation and verified migration regressions."""
 
 import hashlib
-import json
 from argparse import Namespace
 from pathlib import Path
 
@@ -9,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from colabmda.core.logs import StageLog
 from colabmda.core.project import ProjectPaths
 from colabmda.core.taxonomy import SystemSpec
 from colabmda.openmm.analysis import aggregate_reports
@@ -51,9 +51,17 @@ def test_completed_analysis_migration_preserves_every_byte_and_receipt(tmp_path,
         str(p.relative_to(target)): hashlib.sha256(p.read_bytes()).hexdigest()
         for p in target.rglob("*")
         if p.is_file()
-    } == before
-    receipt = tmp_path / "data/00_setup/analysis_migrations/apo_old_WT.json"
-    assert json.loads(receipt.read_text()) == result
+    } == {name: digest for name, digest in before.items() if not name.endswith("_DONE")}
+    assert StageLog(target, "ANALYSIS_DONE").exists()
+    assert not list(target.rglob("*_DONE"))
+    import ast
+
+    receipt = tmp_path / "logs/apo/analysis/old/WT/migration.log"
+    saved = {
+        line.split(": ", 1)[0]: ast.literal_eval(line.split(": ", 1)[1])
+        for line in receipt.read_text().splitlines()
+    }
+    assert saved == result
     assert paths.migrate_analysis(spec) is None
 
 
@@ -64,7 +72,7 @@ def test_migration_refuses_conflicts_incomplete_reports_and_symlinks(tmp_path, m
     (target / "rmsd.csv").write_text("different")
     with pytest.raises(ValueError, match="Conflicting"):
         paths.migrate_analysis(spec)
-    assert (source / "ANALYSIS_DONE").is_file()
+    assert StageLog(source, "ANALYSIS_DONE").is_file()
     (target / "rmsd.csv").unlink()
     (source / "extra").symlink_to(source / "rmsd.csv")
     with pytest.raises(ValueError, match="symlink"):
@@ -91,7 +99,7 @@ def test_migration_changed_source_keeps_original_without_new_completion(tmp_path
     with pytest.raises(ValueError, match="changed during migration"):
         paths.migrate_analysis(spec)
     assert source.is_dir()
-    assert not (paths.replica_analysis_dir(spec) / "ANALYSIS_DONE").exists()
+    assert not StageLog(paths.replica_analysis_dir(spec), "ANALYSIS_DONE").exists()
 
 
 def test_aggregation_rejects_unmatched_times_and_native_labels(tmp_path):
@@ -122,7 +130,7 @@ def test_aggregation_rejects_unmatched_times_and_native_labels(tmp_path):
     frame.to_csv(folders[1] / "rmsf.csv", index=False)
     with pytest.raises(ValueError, match="axes differ"):
         aggregate_reports(folders, out)
-    assert not (out / "AGGREGATE_DONE").exists()
+    assert not StageLog(out, "AGGREGATE_DONE").exists()
 
 
 def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path, monkeypatch):
@@ -168,10 +176,10 @@ def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path,
     assert _dispatch_analyze(args) == 0
     for rep in ["r1", "r2"]:
         folder = paths.replica_analysis_dir(spec, rep)
-        assert (folder / "ANALYSIS_DONE").is_file()
+        assert StageLog(folder, "ANALYSIS_DONE").is_file()
         assert pd.read_csv(folder / "rmsf.csv")["Residue"].tolist() == [118, 119, 120]
         assert pd.read_csv(folder / "rmsd.csv")["Time (ps)"].tolist() == [10, 20, 30, 40]
-    assert (paths.analysis_dir(spec) / "aggregate/AGGREGATE_DONE").is_file()
+    assert StageLog(paths.analysis_dir(spec) / "aggregate", "AGGREGATE_DONE").is_file()
     assert not list(paths.variant_dir(spec).rglob("rmsd.csv"))
     # Failure must clear completion and invalidate a previously computed aggregate.
     monkeypatch.setattr(
@@ -181,5 +189,5 @@ def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path,
     args.replicas = "r1"
     with pytest.raises(RuntimeError, match="interrupted"):
         _dispatch_analyze(args)
-    assert not (paths.replica_analysis_dir(spec) / "ANALYSIS_DONE").exists()
-    assert not (paths.analysis_dir(spec) / "aggregate/AGGREGATE_DONE").exists()
+    assert not StageLog(paths.replica_analysis_dir(spec), "ANALYSIS_DONE").exists()
+    assert not StageLog(paths.analysis_dir(spec) / "aggregate", "AGGREGATE_DONE").exists()

@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 from MDAnalysis.analysis import rms
 
+from colabmda.core.logs import StageLog
+
 
 def _data_lines(path):
     with open(path) as f:
@@ -229,7 +231,7 @@ def aggregate_reports(folders, outdir):
         raise ValueError("Aggregate requires at least two distinct replicas")
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    (outdir / "AGGREGATE_DONE").unlink(missing_ok=True)
+    (StageLog(outdir, "AGGREGATE_DONE")).unlink(missing_ok=True)
     tables = {}
     hashes = {}
     for metric in ["rmsd", "rg", "rmsf"]:
