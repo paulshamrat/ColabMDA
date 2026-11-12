@@ -589,14 +589,16 @@ salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`
 
 </details>
 
-#### Render Comparative Snapshot Grids:
-Render 3×8 transition snapshot grids comparing structural conformations across time:
+#### Optional snapshot image
+
+To save a comparison of the first and last frames instead of playing a movie:
 
 ```bash
-cmda snapshots --state apo
+cmda snapshots --state apo --variant WT,G12D --replica r1 --frames 1,last --resi 12
 ```
 
----
+This writes a PNG image and a plain-text provenance log in the analysis figures
+folder. Each variant forms one row; the first and last frames form two columns.
 
 <details>
 <summary><b>Existing runs with older filenames</b></summary>

@@ -805,38 +805,16 @@ salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`
 
 </details>
 
-#### Render Pocket-Focused 3x8 Transition Snapshot Grids
+#### Optional snapshot image
 
-Generate a publication-grade 300 DPI snapshot grid tracking ATP and $\text{Mg}^{2+}$ coordination over the 100 ns trajectory:
+To save a comparison of the first and last frames instead of playing a movie:
 
 ```bash
-# 2. Render comparative snapshot grid
-cmda snapshots --state atpmg
+cmda snapshots --state atpmg --variant WT,L119R --replica r1 --frames 1,last --resi 119
 ```
 
-To focus the snapshot camera directly on the catalytic coordination sphere, create `camera_config_holo.json`:
-
-```json
-{
-  "camera": {
-    "pos": [12.4, -4.8, 18.2],
-    "clip": [20.0, 120.0],
-    "fov": 22.0
-  },
-  "states": ["apo", "atpmg"],
-  "variants": ["WT", "L119R"],
-  "output": "data/atpmg/figures/active_site_transition_grid.png"
-}
-```
-
-Run with:
-```bash
-cmda snapshots --config camera_config_holo.json
-```
-
-Verify that the divalent magnesium ion remains chelated between the $\beta$-/$\gamma$-phosphates and Asp156 across the trajectory.
-
----
+This writes a PNG image and a plain-text provenance log in the analysis figures
+folder. Each variant forms one row; the first and last frames form two columns.
 
 <details>
 <summary><b>Existing runs with older filenames</b></summary>
