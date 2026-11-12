@@ -307,11 +307,15 @@ declared mutations and distinguish starting-model grids from MD snapshots.
 Optional small-protein tutorials/templates remain available outside the main
 4BGQ walkthrough; preserve their historical validation records.
 
-Colab user instructions use the local terminal, Colab CLI and its remote console.
-Keep account/Drive authentication, committed snapshot deployment, recovery and
-MODELLER prompting in that path. Do not reintroduce a web notebook setup route
-or notebook-cell instructions. Internal runtime protocol and plotting-backend
-compatibility code are separate from the documented user workflow.
+Colab user instructions support the local terminal, Colab CLI and its remote console.
+The KRAS Colab tutorial also offers the explicitly requested browser-only terminal
+route: select a GPU and mount Drive in the browser, then run the same cloud setup
+and scientific commands in its terminal. Local installation, CLI authentication,
+downloads and desktop PyMOL are optional for that route. Keep recovery instructions
+usable through either route; do not duplicate scientific procedures or add notebook
+simulation cells. Preserve hidden MODELLER prompting and committed snapshot rules.
+Internal runtime protocol and plotting-backend compatibility code stay separate
+from the documented user workflow.
 
 Keep structure, simulation and analysis as unnumbered siblings within each state.
 Write new replica reports to analysis/<run>/<variant>/<replica>, model views to
