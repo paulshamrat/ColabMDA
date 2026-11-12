@@ -117,3 +117,31 @@ def test_custom_snapshot_times_require_a_production_log(tmp_path):
     config.write_text(json.dumps({"systems": {"old": {"times": [0, 1]}}}))
     with pytest.raises(ValueError, match="matching production log"):
         openmm_snapshots(config_path=config)
+
+
+def test_generated_movie_runs_with_native_pymol_commands(tmp_path):
+    pymol2 = pytest.importorskip("pymol2")
+    import MDAnalysis as mda
+
+    from colabmda.openmm.figures import openmm_view
+
+    reference = protein(tmp_path / "reference.pdb")
+    universe = mda.Universe(str(reference))
+    trajectory = tmp_path / "sample.dcd"
+    with mda.Writer(str(trajectory), n_atoms=len(universe.atoms)) as writer:
+        for step in range(3):
+            universe.atoms.positions[:, 2] += np.sin(np.arange(len(universe.atoms))) * step * 0.1
+            writer.write(universe.atoms)
+    openmm_view(
+        pdb_dir=tmp_path,
+        topology=reference,
+        trajectory=trajectory,
+        reference=reference,
+        frame="all",
+        no_launch=True,
+    )
+    with pymol2.PyMOL() as session:
+        session.cmd.do((tmp_path / "visualize.pml").read_text(), echo=0)
+        session.cmd.mstop()
+        assert session.cmd.count_states("molecule") == 3
+        assert session.cmd.count_frames() == 3

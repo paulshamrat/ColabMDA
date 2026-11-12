@@ -677,7 +677,7 @@ zoom molecule and polymer.protein, 4
         raise ValueError("A trajectory is required for --frame all")
     core = "+".join(str(item[1]) + item[2] for item in record["core_residues"])
     movie = (
-        f'load_traj "{record["trajectory"]}", molecule, state=1, quiet=1\nintra_fit molecule and polymer.protein and name CA and resi {core}, 1, quiet=1\nalign molecule and polymer.protein and name CA and resi {core}, reference and polymer.protein and name CA and resi {core}, mobile_state=1, target_state=1, cycles=0, quiet=1\n'
+        f'load_traj "{record["trajectory"]}", molecule, state=1\nintra_fit molecule and polymer.protein and name CA and resi {core}, 1, quiet=1\nalign molecule and polymer.protein and name CA and resi {core}, reference and polymer.protein and name CA and resi {core}, mobile_state=1, target_state=1, cycles=0, quiet=1\n'
         if frame == "all"
         else ""
     )
