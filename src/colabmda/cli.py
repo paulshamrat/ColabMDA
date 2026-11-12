@@ -787,7 +787,7 @@ def _dispatch_analyze(args) -> int:
             pdbid_dir=str(rep_dir),
             topology=str(top),
             trajectory=str(traj),
-            interval_ps=10.0,
+            interval_ps=None,
             outdir=str(analysis_dir),
             reference=str(paths.model_pdb(spec)),
         )
