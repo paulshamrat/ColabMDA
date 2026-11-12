@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   security:
+    name: Python CI / security (${{ github.event_name }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +27,7 @@ jobs:
         run: gitleaks git --log-opts=--all --redact=100 --no-banner --config .gitleaks.toml .
 
   test:
+    name: Python CI / test (${{ github.event_name }})
     runs-on: ubuntu-latest
     defaults:
       run:
