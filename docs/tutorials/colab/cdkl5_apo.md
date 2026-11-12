@@ -66,7 +66,8 @@ cmda fetch --state apo --pdb-id 4BGQ --uniprot-id O76039 --range 1 303
 pymol data/apo/structure/O76039_4BGQ/raw/template.pdb
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/O76039_4BGQ/
@@ -76,6 +77,8 @@ data/apo/structure/O76039_4BGQ/
 │   └── uniprot.fasta                                # Sequence used for modeling
 └── STRUCTURE_DONE                                   # Completed fetch and mapping
 ```
+
+</details>
 
 <details>
 <summary>🔍 <b>Click to view example structural verification banner</b></summary>
@@ -118,7 +121,8 @@ cmda model --state apo --variant L119R
 pymol data/apo/structure/O76039_4BGQ/variants/WT/WT.pdb data/apo/structure/O76039_4BGQ/variants/L119R/L119R.pdb
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/O76039_4BGQ/variants/
@@ -129,6 +133,8 @@ data/apo/structure/O76039_4BGQ/variants/
     ├── L119R.pdb                                    # Coordinates passed to preparation
     └── MODEL_DONE                                   # Completed model verification
 ```
+
+</details>
 
 > [!TIP]
 > **PyMOL Model Verification Checks**:
@@ -158,7 +164,8 @@ pymol data/apo/simulation/L119R/prep/solvated.pdb
 # cmda prep --state apo --variant WT --salt 0.15
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -177,6 +184,8 @@ data/apo/simulation/
         ├── system.inpcrd                            # Amber coordinates passed to equilibration
         └── PREP_DONE                                # Verified preparation outputs
 ```
+
+</details>
 
 > [!TIP]
 > **PyMOL Solvation & Neutrality Check**:
@@ -238,7 +247,8 @@ colab drivemount --session cmda
 cmda push -s cmda
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 /content/drive/MyDrive/research/projects/cmda-example/
@@ -246,6 +256,8 @@ cmda push -s cmda
     ├── structure/          # Transferred structural inputs and models
     └── simulation/         # Transferred prepared systems
 ```
+
+</details>
 
 > [!TIP]
 > **Data Destination on Google Drive:**
@@ -296,7 +308,8 @@ cmda sim eq --state apo --variant L119R
 # cmda sim qc --state apo --variant L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/
@@ -334,6 +347,8 @@ data/apo/
             └── qc.png                               # Thermodynamic and structural QC figure
 ```
 
+</details>
+
 ---
 
 ### 3.2.1. Intermediate Inspection Gate: Minimal Verification Checklist (Local Machine)
@@ -350,13 +365,16 @@ cmda pull -s cmda --stage eq
 # cmda pull -s cmda --stage eq --variant WT
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 data/apo/
 ├── simulation/             # Retrieved simulation deliverables
 └── analysis/               # Retrieved equilibration QC
 ```
+
+</details>
 
 > [!TIP]
 > **GPU vs. CPU Session for Retrieval:**
@@ -439,7 +457,8 @@ cmda sim md --state apo --variant L119R --replica r2 --total-ns 100
 cmda sim md --state apo --variant L119R --replica r3 --total-ns 100
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -464,6 +483,8 @@ data/apo/simulation/
                 ├── 0001.dcd                         # First committed trajectory chunk
                 └── 0001.log                         # Matching committed thermodynamic log
 ```
+
+</details>
 
 Each replica has its own folder. Committed chunks are numbered `0001`, `0002`,
 and so on; `.tmp` files belong to the chunk currently being written. Replicas
@@ -552,7 +573,8 @@ cmda merge --state apo --variant WT
 cmda merge --state apo --variant L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -578,6 +600,8 @@ data/apo/simulation/
             └── MERGE_DONE                           # Verified merged outputs
 ```
 
+</details>
+
 ---
 
 ### 3.5. Trajectory Analysis & Direct Overlay Comparison
@@ -589,7 +613,8 @@ cmda analyze --state apo --variant WT
 cmda analyze --state apo --variant L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/analysis/
@@ -615,12 +640,15 @@ data/apo/analysis/
         └── ANALYSIS_DONE                            # Verified replica tables and figures
 ```
 
+</details>
+
 ```bash
 # 2. Direct comparative overlay (WT vs L119R with Mean ± SD band)
 cmda compare --state apo --variants WT,L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/analysis/compare/
@@ -633,6 +661,8 @@ data/apo/analysis/compare/
 │   └── rmsf_avg.png                                 # Copy of fluctuation comparison
 └── summary.txt                                      # Comparison statistics
 ```
+
+</details>
 
 Outputs saved directly in `data/apo/analysis/compare/`:
 * `summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
@@ -655,13 +685,16 @@ cmda pull -s cmda
 # cmda pull -s cmda --traj
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 data/apo/
 ├── simulation/             # Retrieved simulation deliverables
 └── analysis/               # Retrieved QC, numerical tables and figures
 ```
+
+</details>
 
 > [!TIP]
 > **What `cmda pull` Does Automatically:**

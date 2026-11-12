@@ -66,7 +66,8 @@ cmda fetch --state apo --pdb-id 4LDJ --uniprot-id P01116 --chain A --range 1 169
 pymol data/apo/structure/P01116_4LDJ/raw/template.pdb
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/P01116_4LDJ/
@@ -76,6 +77,8 @@ data/apo/structure/P01116_4LDJ/
 │   └── uniprot.fasta                                # Sequence used for modeling
 └── STRUCTURE_DONE                                   # Completed fetch and mapping
 ```
+
+</details>
 
 > **Downstream Handover:** These experimental structural inputs are handed over to **Section 1.3 (`cmda model`)**, which maps sequences, reconstructs missing crystallographic loops, and builds canonical coordinates.
 
@@ -98,7 +101,8 @@ cmda model --state apo --variant G12D
 pymol data/apo/structure/P01116_4LDJ/variants/WT/WT.pdb data/apo/structure/P01116_4LDJ/variants/G12D/G12D.pdb
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/P01116_4LDJ/variants/
@@ -109,6 +113,8 @@ data/apo/structure/P01116_4LDJ/variants/
     ├── G12D.pdb                                     # Coordinates passed to preparation
     └── MODEL_DONE                                   # Completed model verification
 ```
+
+</details>
 
 > [!TIP]
 > **PyMOL Verification Checks:**
@@ -132,7 +138,8 @@ pymol data/apo/simulation/WT/prep/solvated.pdb
 pymol data/apo/simulation/G12D/prep/solvated.pdb
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -151,6 +158,8 @@ data/apo/simulation/
         ├── system.inpcrd                            # Amber coordinates passed to equilibration
         └── PREP_DONE                                # Verified preparation outputs
 ```
+
+</details>
 
 > **Downstream Handover:** These solvated parameter sets are packaged and streamed to Google Drive in **Phase 2 (`cmda push`)**, where they will be loaded by OpenMM on cloud GPUs for equilibration in **Phase 3 (`cmda sim eq`)**.
 
@@ -205,7 +214,8 @@ colab drivemount --session cmda
 cmda push -s cmda
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 /content/drive/MyDrive/research/projects/kras-example/
@@ -213,6 +223,8 @@ cmda push -s cmda
     ├── structure/          # Transferred structural inputs and models
     └── simulation/         # Transferred prepared systems
 ```
+
+</details>
 
 > [!TIP]
 > **Data Destination on Google Drive:**
@@ -265,7 +277,8 @@ cmda sim eq --state apo --variant G12D
 # cmda sim qc --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/
@@ -303,6 +316,8 @@ data/apo/
             └── qc.png                               # Thermodynamic and structural QC figure
 ```
 
+</details>
+
 #### Stage Schedule (~1.96 ns Total)
 
 | Stages | Operation | Duration | Timestep & Restraints |
@@ -336,13 +351,16 @@ cmda pull -s cmda --stage eq
 # cmda pull -s cmda --stage eq --variant WT
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 data/apo/
 ├── simulation/             # Retrieved simulation deliverables
 └── analysis/               # Retrieved equilibration QC
 ```
+
+</details>
 
 > [!TIP]
 > **GPU vs. CPU Session for Retrieval:**
@@ -425,7 +443,8 @@ cmda sim md --state apo --variant G12D --replica r2 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r3 --total-ns 100
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -450,6 +469,8 @@ data/apo/simulation/
                 ├── 0001.dcd                         # First committed trajectory chunk
                 └── 0001.log                         # Matching committed thermodynamic log
 ```
+
+</details>
 
 Each replica has its own folder. Committed chunks are numbered `0001`, `0002`,
 and so on; `.tmp` files belong to the chunk currently being written. Replicas
@@ -535,7 +556,8 @@ cmda merge --state apo --variant WT
 cmda merge --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -561,6 +583,8 @@ data/apo/simulation/
             └── MERGE_DONE                           # Verified merged outputs
 ```
 
+</details>
+
 > **Downstream Handover:** The solvent-stripped trajectories (`prod_keep_ligand.dcd`) and topologies (`stripped.prmtop`) are handed over to **Section 3.5 (`cmda analyze` / `cmda compare`)** for biophysical metric extraction, and to **Phase 4 (`cmda pull`)** for local PyMOL visualization.
 
 ---
@@ -574,7 +598,8 @@ cmda analyze --state apo --variant WT
 cmda analyze --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/analysis/
@@ -600,12 +625,15 @@ data/apo/analysis/
         └── ANALYSIS_DONE                            # Verified replica tables and figures
 ```
 
+</details>
+
 ```bash
 # 2. Direct comparative overlay (WT vs G12D with Mean ± SD band)
 cmda compare --state apo --variants WT,G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/analysis/compare/
@@ -618,6 +646,8 @@ data/apo/analysis/compare/
 │   └── rmsf_avg.png                                 # Copy of fluctuation comparison
 └── summary.txt                                      # Comparison statistics
 ```
+
+</details>
 
 > **Downstream Handover:** These publication figures and statistical summaries are retrieved to your local machine in **Phase 4 (`cmda pull`)** for final inspection and publication rendering.
 
@@ -636,13 +666,16 @@ cmda pull -s cmda
 # cmda pull -s cmda --traj
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 data/apo/
 ├── simulation/             # Retrieved simulation deliverables
 └── analysis/               # Retrieved QC, numerical tables and figures
 ```
+
+</details>
 
 > **Downstream Handover:** With the analyzed deliverables pulled to your local workstation, proceed to **Section 4.2** to visualize trajectories and generate publication figures in PyMOL.
 

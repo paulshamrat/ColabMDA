@@ -92,7 +92,8 @@ Fetch experimental coordinates from the PDB archive, align to canonical UniProt 
 cmda fetch --state apo --pdb-id 4LDJ --uniprot-id P01116 --chain A --range 1 169
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/P01116_4LDJ/
@@ -103,6 +104,8 @@ data/apo/structure/P01116_4LDJ/
 └── STRUCTURE_DONE                                   # Completed fetch and mapping
 ```
 
+</details>
+
 ```bash
 # 2. Model canonical Wild-Type coordinates (closes missing crystallographic loops):
 cmda model --state apo --variant WT
@@ -111,7 +114,8 @@ cmda model --state apo --variant WT
 cmda model --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/P01116_4LDJ/variants/
@@ -122,6 +126,8 @@ data/apo/structure/P01116_4LDJ/variants/
     ├── G12D.pdb                                     # Coordinates passed to preparation
     └── MODEL_DONE                                   # Completed model verification
 ```
+
+</details>
 
 > **Downstream Handover:** These validated coordinate models (`WT.pdb`, `G12D.pdb`) are handed over to **Section 4 (`cmda prep`)** for PROPKA protonation and Amber OPC water box solvation.
 
@@ -136,7 +142,8 @@ cmda prep --state apo --variant WT
 cmda prep --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -155,6 +162,8 @@ data/apo/simulation/
         ├── system.inpcrd                            # Amber coordinates passed to equilibration
         └── PREP_DONE                                # Verified preparation outputs
 ```
+
+</details>
 
 | Residue | State | Physical Criteria |
 | :--- | :--- | :--- |
@@ -181,7 +190,8 @@ cmda sim eq --state apo --variant WT
 cmda sim eq --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/
@@ -218,6 +228,8 @@ data/apo/
             ├── qc.txt                               # Equilibration diagnostics
             └── qc.png                               # Thermodynamic and structural QC figure
 ```
+
+</details>
 
 ### Stage Schedule (~1.96 ns Total)
 
@@ -264,7 +276,8 @@ cmda sim md --state apo --variant WT --replica r1 --total-ns 100
 cmda sim md --state apo --variant G12D --replica r1 --total-ns 100
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -289,6 +302,8 @@ data/apo/simulation/
                 ├── 0001.dcd                         # First committed trajectory chunk
                 └── 0001.log                         # Matching committed thermodynamic log
 ```
+
+</details>
 
 Each replica has its own folder. Committed chunks are numbered `0001`, `0002`,
 and so on; `.tmp` files belong to the chunk currently being written. Replicas
@@ -370,7 +385,8 @@ cmda merge --state apo --variant WT
 cmda merge --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/
@@ -396,6 +412,8 @@ data/apo/simulation/
             └── MERGE_DONE                           # Verified merged outputs
 ```
 
+</details>
+
 ```bash
 # 2. Audit frame counts & chunk continuity:
 cmda status --state apo --variant WT --replica r1
@@ -408,7 +426,8 @@ cmda analyze --state apo --variant WT
 cmda analyze --state apo --variant G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/analysis/
@@ -434,12 +453,15 @@ data/apo/analysis/
         └── ANALYSIS_DONE                            # Verified replica tables and figures
 ```
 
+</details>
+
 ```bash
 # 4. Generate direct comparative overlay figures (WT vs G12D with Mean ± SD bands):
 cmda compare --state apo --variants WT,G12D
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/analysis/compare/
@@ -452,6 +474,8 @@ data/apo/analysis/compare/
 │   └── rmsf_avg.png                                 # Copy of fluctuation comparison
 └── summary.txt                                      # Comparison statistics
 ```
+
+</details>
 
 > **Downstream Handover:** These publication figures and statistical summaries are retrieved to your local machine in **Section 8 (`cmda pull`)** for final inspection and publication rendering.
 
@@ -475,13 +499,16 @@ cmda pull -s cmda
 cmda pull -s cmda --traj
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 data/apo/
 ├── simulation/             # Retrieved simulation deliverables
 └── analysis/               # Retrieved QC, numerical tables and figures
 ```
+
+</details>
 
 > [!TIP]
 > **What `cmda pull` Does:**
