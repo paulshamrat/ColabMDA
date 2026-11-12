@@ -506,7 +506,7 @@ Production dynamics uses standard biophysical integration parameters optimized f
 
 #### Downstream Handover
 
-> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to the merge stage (`cmda merge`), which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `prod_keep_ligand.dcd` for statistical analysis.
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to the merge stage (`cmda merge`), which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `traj.dcd` for statistical analysis.
 
 #### 💡 How to Resume After a Google Colab Timeout
 Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive. If your session expires:
@@ -546,7 +546,7 @@ cmda status --state apo --variant WT --replica r1
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
                      └─ (169 protein, 8170 water, 49 ions)
-  Trajectory File  : prod_keep_ligand.dcd (10000 frames)
+  Trajectory File  : traj.dcd (10000 frames)
   Log File         : md.log (10000 frames)
   Frames (from logs): 10000
   Sim time (ps/ns) : 100000.00 ps / 100.0000 ns (from chunk names)
@@ -557,7 +557,7 @@ cmda status --state apo --variant WT --replica r1
 
 Alternatively, query frame counts directly in Python with MDAnalysis:
 ```bash
-python3 -c "import MDAnalysis as mda; u = mda.Universe('data/apo/simulation/WT/md/r1/stripped.prmtop', 'data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd'); print('Frames:', len(u.trajectory))"
+python3 -c "import MDAnalysis as mda; u = mda.Universe('data/apo/simulation/WT/md/r1/top.prmtop', 'data/apo/simulation/WT/md/r1/traj.dcd'); print('Frames:', len(u.trajectory))"
 ```
 
 ---
@@ -581,21 +581,19 @@ data/apo/simulation/
 ├── WT/
 │   └── md/
 │       └── r1/
-│           ├── prod_keep_ligand.dcd                 # Autoimaged trajectory without bulk solvent
-│           ├── stripped.prmtop                      # Matching topology; use with the trajectory above
-│           ├── prod_ca.dcd                          # Cα trajectory
-│           ├── ca.prmtop                            # Matching Cα topology
-│           ├── prod_full.log                        # Merged production log
+│           ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
+│           ├── top.prmtop                      # Matching topology; use with the trajectory above
+│           ├── trajCa.dcd                          # Cα trajectory
+│           ├── topCa.prmtop                            # Matching Cα topology
 │           ├── md.log                               # Copy of the merged production log
 │           └── MERGE_DONE                           # Verified merged outputs
 └── L119R/
     └── md/
         └── r1/
-            ├── prod_keep_ligand.dcd                 # Autoimaged trajectory without bulk solvent
-            ├── stripped.prmtop                      # Matching topology; use with the trajectory above
-            ├── prod_ca.dcd                          # Cα trajectory
-            ├── ca.prmtop                            # Matching Cα topology
-            ├── prod_full.log                        # Merged production log
+            ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
+            ├── top.prmtop                      # Matching topology; use with the trajectory above
+            ├── trajCa.dcd                          # Cα trajectory
+            ├── topCa.prmtop                            # Matching Cα topology
             ├── md.log                               # Copy of the merged production log
             └── MERGE_DONE                           # Verified merged outputs
 ```
@@ -699,7 +697,7 @@ data/apo/
 > [!TIP]
 > **What `cmda pull` Does Automatically:**
 > 1. Packages analysis CSVs, logs, summary manifests, and 300 DPI PNG plots from Google Drive.
-> 2. Excludes heavy raw trajectory files (`chunks/*.dcd`, `.chk`) by default so the download finishes in seconds. Pass `--traj` to include stripped trajectories (`prod_keep_ligand.dcd`), or `--all` for full raw simulation chunks.
+> 2. Excludes heavy raw trajectory files (`chunks/*.dcd`, `.chk`) by default so the download finishes in seconds. Pass `--traj` to include stripped trajectories (`traj.dcd`), or `--all` for full raw simulation chunks.
 > 3. Extracts everything non-destructively into your local `data/` folder.
 > 4. Cleans up temporary cloud archives.
 
@@ -710,68 +708,69 @@ When visualizing or analyzing trajectories, the reference topology file used mus
 | Trajectory File | Description | Matching Topology File | Atom Count | Intended Usage |
 | :--- | :--- | :--- | :--- | :--- |
 | `prod_raw.dcd` | Raw chunked coordinates | `prep/solvated.pdb` or `system.prmtop` | ~27,000 atoms | Raw simulation checkpointing & resume. |
-| `prod_keep_ligand.dcd` | Merged, PBC autoimaged, water-stripped | `md/r1/stripped.prmtop` | ~2,600 atoms | Standard biophysical analysis (`cmda analyze`, `cmda compare`). |
-| `prod_ca.dcd` | Merged $C_\alpha$ backbone only | `md/r1/ca.prmtop` | ~300 atoms | Rapid PCA and essential dynamics. |
+| `traj.dcd` | Merged, PBC autoimaged, water-stripped | `md/r1/top.prmtop` | ~2,600 atoms | Standard biophysical analysis (`cmda analyze`, `cmda compare`). |
+| `trajCa.dcd` | Merged $C_\alpha$ backbone only | `md/r1/topCa.prmtop` | ~300 atoms | Rapid PCA and essential dynamics. |
 
 > [!WARNING]
 > **Critical PyMOL Topology Warning:**
-> If you load `prod_keep_ligand.dcd` (~2,600 atoms) with `solvated.pdb` (~27,000 atoms) in PyMOL or MDAnalysis, the software will crash with a **fatal atom mismatch error**. Always pair stripped trajectories with `stripped.prmtop`.
+> If you load `traj.dcd` (~2,600 atoms) with `solvated.pdb` (~27,000 atoms) in PyMOL or MDAnalysis, the software will crash with a **fatal atom mismatch error**. Always pair stripped trajectories with `top.prmtop`.
 
 ### 4.3. Visualizing Trajectories in Local PyMOL
+
+Run these commands in the project directory on a computer with desktop PyMOL.
+For a Colab run, first download the processed trajectories using `cmda pull --traj`.
+Open one variant at a time; close its PyMOL window before running the next command.
+
 ```bash
-# 1. View Wild-Type production trajectory in local PyMOL:
-cmda view --state apo --variant WT --replica r1
-
-# 2. View Mutant (L119R) production trajectory in local PyMOL:
-cmda view --state apo --variant L119R --replica r1
-
-# Generate comparative 3x8 transition snapshot grids:
-cmda snapshots --state apo
+cmda view --state apo --variant WT --replica r1 --frame all
+cmda view --state apo --variant L119R --replica r1 --frame all
 ```
 
-Custom snapshot grids can also be produced using camera configuration JSON:
-```json
-{
-  "camera": {
-    "pos": [0.0, 0.0, -100.0],
-    "clip": [50.0, 150.0],
-    "fov": 20.0
-  },
-  "states": ["apo"],
-  "variants": ["WT", "L119R"],
-  "output": "data/apo/figures/custom_grid.png"
-}
+PyMOL opens and starts playing all saved trajectory frames. Use its playback
+controls to pause, play or step through frames. `--frame all` displays the movie;
+`--frame 1` displays only the first frame.
+
+The command reads the matching `md/r1/top.prmtop` and `md/r1/traj.dcd` for the
+selected state and variant. It generates `view.pdb`, `visualize.pml` and
+`visualize.log` in that replica's analysis folder. The PDB has the same atoms as
+the processed trajectory, so loading is handled for you.
+
+<details>
+<summary><b>Manual loading in PyMOL</b></summary>
+
+After the command has generated the viewing files, these commands can also be
+entered in PyMOL from the project directory:
+
+```pml
+load data/apo/analysis/WT/r1/view.pdb, protein
+load_traj data/apo/simulation/WT/md/r1/traj.dcd, protein, state=1
+hide everything
+show cartoon, protein
+mplay
 ```
-Run with:
+
+For another variant or replica, change both paths together. Use `solvated.pdb`
+only with the original full-system chunks, whose atom count includes water and
+salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`.
+
+</details>
+
+<details>
+<summary><b>Existing runs with older filenames</b></summary>
+
+After production has finished, rename existing processed files without rerunning
+or rewriting the trajectories:
+
 ```bash
-cmda snapshots --config camera_config.json
+cmda merge --state apo --variant WT --replica r1 --rename-files
 ```
 
----
+Repeat for each completed variant and replica. The command validates matching
+atom and frame counts before renaming, rejects conflicting files, and leaves raw
+chunks, equilibration states and restart checkpoints in place. Older names remain
+readable when working with historical runs.
 
-## Acknowledgements
-- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
-- [Modeller](https://salilab.org/modeller/)
-- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
-- [PDB2PQR & PROPKA](https://server.poissonboltzmann.org/)
-- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
-- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
-
----
-
-## Citation
-
-Initially, this repository was based on a GROMACS-on-Colab workflow, but was transitioned to OpenMM to improve performance and stability for automated simulation recovery on cloud platforms.
-
-If you use this tool, please cite the underlying studies:
-
-> Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.
->
-> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2022.e11232&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2022.e11232)
->
-> Paul SK, Saddam M, Tabassum N, Hasan M. **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis.** *Heliyon*. 2024 Dec 15;11(1):e41166. doi: [10.1016/j.heliyon.2024.e41166](https://doi.org/10.1016/j.heliyon.2024.e41166). PMID: 39802026; PMCID: PMC11719297.
->
-> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2024.e41166&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2024.e41166)
+</details>
 
 ## Complete project directory structure
 
@@ -828,11 +827,10 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
         │   │       │   ├── chunks/
         │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
         │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
-        │   │       │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │   │       │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │   │       │   ├── prod_ca.dcd              # Cα trajectory
-        │   │       │   ├── ca.prmtop                # Matching Cα topology
-        │   │       │   ├── prod_full.log            # Merged production log
+        │   │       │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │   │       │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │   │       │   ├── trajCa.dcd              # Cα trajectory
+        │   │       │   ├── topCa.prmtop                # Matching Cα topology
         │   │       │   ├── md.log                   # Copy of the merged production log
         │   │       │   └── MERGE_DONE               # Verified merged outputs
         │   │       ├── r2/
@@ -843,11 +841,10 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
         │   │       │   ├── chunks/
         │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
         │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
-        │   │       │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │   │       │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │   │       │   ├── prod_ca.dcd              # Cα trajectory
-        │   │       │   ├── ca.prmtop                # Matching Cα topology
-        │   │       │   ├── prod_full.log            # Merged production log
+        │   │       │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │   │       │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │   │       │   ├── trajCa.dcd              # Cα trajectory
+        │   │       │   ├── topCa.prmtop                # Matching Cα topology
         │   │       │   ├── md.log                   # Copy of the merged production log
         │   │       │   └── MERGE_DONE               # Verified merged outputs
         │   │       └── r3/
@@ -858,11 +855,10 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
         │   │           ├── chunks/
         │   │           │   ├── 0001.dcd             # First committed trajectory chunk
         │   │           │   └── 0001.log             # Matching committed thermodynamic log
-        │   │           ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │   │           ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │   │           ├── prod_ca.dcd              # Cα trajectory
-        │   │           ├── ca.prmtop                # Matching Cα topology
-        │   │           ├── prod_full.log            # Merged production log
+        │   │           ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │   │           ├── top.prmtop          # Matching topology; use with the trajectory above
+        │   │           ├── trajCa.dcd              # Cα trajectory
+        │   │           ├── topCa.prmtop                # Matching Cα topology
         │   │           ├── md.log                   # Copy of the merged production log
         │   │           └── MERGE_DONE               # Verified merged outputs
         │   └── L119R/
@@ -891,11 +887,10 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
         │           │   ├── chunks/
         │           │   │   ├── 0001.dcd             # First committed trajectory chunk
         │           │   │   └── 0001.log             # Matching committed thermodynamic log
-        │           │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │           │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │           │   ├── prod_ca.dcd              # Cα trajectory
-        │           │   ├── ca.prmtop                # Matching Cα topology
-        │           │   ├── prod_full.log            # Merged production log
+        │           │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │           │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │           │   ├── trajCa.dcd              # Cα trajectory
+        │           │   ├── topCa.prmtop                # Matching Cα topology
         │           │   ├── md.log                   # Copy of the merged production log
         │           │   └── MERGE_DONE               # Verified merged outputs
         │           ├── r2/
@@ -906,11 +901,10 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
         │           │   ├── chunks/
         │           │   │   ├── 0001.dcd             # First committed trajectory chunk
         │           │   │   └── 0001.log             # Matching committed thermodynamic log
-        │           │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │           │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │           │   ├── prod_ca.dcd              # Cα trajectory
-        │           │   ├── ca.prmtop                # Matching Cα topology
-        │           │   ├── prod_full.log            # Merged production log
+        │           │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │           │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │           │   ├── trajCa.dcd              # Cα trajectory
+        │           │   ├── topCa.prmtop                # Matching Cα topology
         │           │   ├── md.log                   # Copy of the merged production log
         │           │   └── MERGE_DONE               # Verified merged outputs
         │           └── r3/
@@ -921,11 +915,10 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
         │               ├── chunks/
         │               │   ├── 0001.dcd             # First committed trajectory chunk
         │               │   └── 0001.log             # Matching committed thermodynamic log
-        │               ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │               ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │               ├── prod_ca.dcd              # Cα trajectory
-        │               ├── ca.prmtop                # Matching Cα topology
-        │               ├── prod_full.log            # Merged production log
+        │               ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │               ├── top.prmtop          # Matching topology; use with the trajectory above
+        │               ├── trajCa.dcd              # Cα trajectory
+        │               ├── topCa.prmtop                # Matching Cα topology
         │               ├── md.log                   # Copy of the merged production log
         │               └── MERGE_DONE               # Verified merged outputs
         └── analysis/
@@ -1021,3 +1014,29 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
 ```
 
 </details>
+
+---
+
+## Acknowledgements
+- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
+- [Modeller](https://salilab.org/modeller/)
+- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
+- [PDB2PQR & PROPKA](https://server.poissonboltzmann.org/)
+- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
+- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
+
+---
+
+## Citation
+
+Initially, this repository was based on a GROMACS-on-Colab workflow, but was transitioned to OpenMM to improve performance and stability for automated simulation recovery on cloud platforms.
+
+If you use this tool, please cite the underlying studies:
+
+> Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2022.e11232&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2022.e11232)
+>
+> Paul SK, Saddam M, Tabassum N, Hasan M. **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis.** *Heliyon*. 2024 Dec 15;11(1):e41166. doi: [10.1016/j.heliyon.2024.e41166](https://doi.org/10.1016/j.heliyon.2024.e41166). PMID: 39802026; PMCID: PMC11719297.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2024.e41166&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2024.e41166)

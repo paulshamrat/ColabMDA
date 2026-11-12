@@ -181,14 +181,13 @@ def openmm_status(pdbid_dir: str):
         logs = sorted(workdir.glob("prod_*to*ps.log"))
         dcds = sorted(workdir.glob("prod_*to*ps.dcd"))
 
+    from colabmda.openmm.merge import find_trajectory_pair
+
+    processed_pair = find_trajectory_pair(workdir)
     merged_dcd = (
-        workdir / "md.dcd"
-        if (workdir / "md.dcd").exists()
-        else (
-            workdir / "prod_keep_ligand.dcd"
-            if (workdir / "prod_keep_ligand.dcd").exists()
-            else workdir / "prod_full.dcd"
-        )
+        processed_pair[1]
+        if processed_pair
+        else (workdir / "md.dcd" if (workdir / "md.dcd").exists() else workdir / "prod_full.dcd")
     )
     merged_log = workdir / "md.log" if (workdir / "md.log").exists() else workdir / "prod_full.log"
 
@@ -221,12 +220,18 @@ def openmm_status(pdbid_dir: str):
     )
 
     topo_pdb = (
-        solv
-        if solv.exists()
+        processed_pair[0]
+        if processed_pair
         else (
-            merged_dcd.with_suffix(".pdb")
-            if merged_dcd.with_suffix(".pdb").exists()
-            else (workdir / "stripped.prmtop" if (workdir / "stripped.prmtop").exists() else None)
+            solv
+            if solv.exists()
+            else (
+                merged_dcd.with_suffix(".pdb")
+                if merged_dcd.with_suffix(".pdb").exists()
+                else (
+                    workdir / "stripped.prmtop" if (workdir / "stripped.prmtop").exists() else None
+                )
+            )
         )
     )
 

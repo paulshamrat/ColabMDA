@@ -512,7 +512,7 @@ Production dynamics uses standard biophysical integration parameters optimized f
 
 #### Downstream Handover
 
-> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to the merge stage (`cmda merge`), which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips bulk water into `prod_keep_ligand.dcd` (preserving CDKL5 + ATP + Mg²⁺) for active-site and conformational analysis.
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to the merge stage (`cmda merge`), which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips bulk water into `traj.dcd` (preserving CDKL5 + ATP + Mg²⁺) for active-site and conformational analysis.
 
 | Strategy | Trajectory Contents | Saving Frequency | Frames per 100 ns | Size per Replica |
 | :--- | :--- | :--- | :--- | :--- |
@@ -542,7 +542,7 @@ cmda status --state atpmg --variant WT --replica r1
   Topology File    : solvated.pdb
                      └─ 45862 atoms, 13952 residues
                      └─ (303 protein, 1 ATP, 1 MG, 13648 water, 82 ions)
-  Trajectory File  : prod_keep_ligand.dcd (10000 frames)
+  Trajectory File  : traj.dcd (10000 frames)
   Log File         : md.log (10000 frames)
   Frames (from logs): 10000
   Sim time (ps/ns) : 100000.00 ps / 100.0000 ns (from chunk names)
@@ -643,21 +643,19 @@ data/atpmg/simulation/
 ├── WT/
 │   └── md/
 │       └── r1/
-│           ├── prod_keep_ligand.dcd                 # Autoimaged trajectory without bulk solvent
-│           ├── stripped.prmtop                      # Matching topology; use with the trajectory above
-│           ├── prod_ca.dcd                          # Cα trajectory
-│           ├── ca.prmtop                            # Matching Cα topology
-│           ├── prod_full.log                        # Merged production log
+│           ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
+│           ├── top.prmtop                      # Matching topology; use with the trajectory above
+│           ├── trajCa.dcd                          # Cα trajectory
+│           ├── topCa.prmtop                            # Matching Cα topology
 │           ├── md.log                               # Copy of the merged production log
 │           └── MERGE_DONE                           # Verified merged outputs
 └── L119R/
     └── md/
         └── r1/
-            ├── prod_keep_ligand.dcd                 # Autoimaged trajectory without bulk solvent
-            ├── stripped.prmtop                      # Matching topology; use with the trajectory above
-            ├── prod_ca.dcd                          # Cα trajectory
-            ├── ca.prmtop                            # Matching Cα topology
-            ├── prod_full.log                        # Merged production log
+            ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
+            ├── top.prmtop                      # Matching topology; use with the trajectory above
+            ├── trajCa.dcd                          # Cα trajectory
+            ├── topCa.prmtop                            # Matching Cα topology
             ├── md.log                               # Copy of the merged production log
             └── MERGE_DONE                           # Verified merged outputs
 ```
@@ -672,15 +670,15 @@ data/atpmg/simulation/
 > ### Do Not Pair Holo Trajectories with Water Topologies or Apo Topologies!
 > During `cmda merge --state atpmg`, ColabMDA strips bulk water and counterions but **strictly preserves the catalytic complex: Protein + ATP + $\text{Mg}^{2+}$**.
 >
-> 1. **Stripped Atom Count:** The resulting trajectory `prod_keep_ligand.dcd` contains atoms for **CDKL5 (4,792 atoms) + ATP (43 atoms) + $\text{Mg}^{2+}$ (1 atom) = 4,836 atoms**.
-> 2. **Correct Topology Pairing:** Always pair `prod_keep_ligand.dcd` with:
+> 1. **Stripped Atom Count:** The resulting trajectory `traj.dcd` contains atoms for **CDKL5 (4,792 atoms) + ATP (43 atoms) + $\text{Mg}^{2+}$ (1 atom) = 4,836 atoms**.
+> 2. **Correct Topology Pairing:** Always pair `traj.dcd` with:
 >    ```text
->    data/atpmg/simulation/WT/md/r1/stripped.prmtop
+>    data/atpmg/simulation/WT/md/r1/top.prmtop
 >    ```
 > 3. **Common Fatal Errors:**
->    * **Crash A:** Pairing `prod_keep_ligand.dcd` with `system.prmtop` (which contains ~45,000 atoms including water) will cause MDAnalysis/VMD/PyMOL to throw:
+>    * **Crash A:** Pairing `traj.dcd` with `system.prmtop` (which contains ~45,000 atoms including water) will cause MDAnalysis/VMD/PyMOL to throw:
 >      `ValueError: Topology and trajectory atom counts do not match (4836 vs 45862)`.
->    * **Crash B:** Pairing `prod_keep_ligand.dcd` with Apo's `stripped.prmtop` (which contains only 4,792 protein atoms and lacks ATP/Mg) will cause:
+>    * **Crash B:** Pairing `traj.dcd` with Apo's `top.prmtop` (which contains only 4,792 protein atoms and lacks ATP/Mg) will cause:
 >      `ValueError: Topology and trajectory atom counts do not match (4836 vs 4792)`.
 
 ---
@@ -769,23 +767,43 @@ This generates publication-ready 300 DPI figures under `data/atpmg/analysis/comp
 
 ### 4.5. 3D Trajectory Viewing & Pocket-Focused Snapshot Grids in PyMOL
 
-Inspect the Holo trajectory interactively in PyMOL:
+Run these commands in the project directory on a computer with desktop PyMOL.
+For a Colab run, first download the processed trajectories using `cmda pull --traj`.
+Open one variant at a time; close its PyMOL window before running the next command.
 
 ```bash
-# 1. View Holo Wild-Type trajectory in PyMOL
-cmda view --state atpmg --variant WT --replica r1
-
-# 2. View Holo Mutant (L119R) trajectory in PyMOL
-cmda view --state atpmg --variant L119R --replica r1
+cmda view --state atpmg --variant WT --replica r1 --frame all
+cmda view --state atpmg --variant L119R --replica r1 --frame all
 ```
 
-In the PyMOL terminal, zoom into the active-site pocket:
-```text
-select active_pocket, resn ATP or resn MG or (resi 30-220 and within 5.0 of (resn ATP or resn MG))
-show sticks, active_pocket
-zoom active_pocket
-set cartoon_transparency, 0.4
+PyMOL opens and starts playing all saved trajectory frames. Use its playback
+controls to pause, play or step through frames. `--frame all` displays the movie;
+`--frame 1` displays only the first frame.
+
+The command reads the matching `md/r1/top.prmtop` and `md/r1/traj.dcd` for the
+selected state and variant. It generates `view.pdb`, `visualize.pml` and
+`visualize.log` in that replica's analysis folder. The PDB has the same atoms as
+the processed trajectory, so loading is handled for you.
+
+<details>
+<summary><b>Manual loading in PyMOL</b></summary>
+
+After the command has generated the viewing files, these commands can also be
+entered in PyMOL from the project directory:
+
+```pml
+load data/atpmg/analysis/WT/r1/view.pdb, protein
+load_traj data/atpmg/simulation/WT/md/r1/traj.dcd, protein, state=1
+hide everything
+show cartoon, protein
+mplay
 ```
+
+For another variant or replica, change both paths together. Use `solvated.pdb`
+only with the original full-system chunks, whose atom count includes water and
+salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`.
+
+</details>
 
 #### Render Pocket-Focused 3x8 Transition Snapshot Grids
 
@@ -820,29 +838,22 @@ Verify that the divalent magnesium ion remains chelated between the $\beta$-/$\g
 
 ---
 
-## Acknowledgements
-- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
-- [Modeller](https://salilab.org/modeller/)
-- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
-- [PDB2PQR & PROPKA](https://server.poissonboltzmann.org/)
-- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
-- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
+<details>
+<summary><b>Existing runs with older filenames</b></summary>
 
----
+After production has finished, rename existing processed files without rerunning
+or rewriting the trajectories:
 
-## Citation
+```bash
+cmda merge --state atpmg --variant WT --replica r1 --rename-files
+```
 
-Initially, this repository was based on a GROMACS-on-Colab workflow, but was transitioned to OpenMM to improve performance and stability for automated simulation recovery on cloud platforms.
+Repeat for each completed variant and replica. The command validates matching
+atom and frame counts before renaming, rejects conflicting files, and leaves raw
+chunks, equilibration states and restart checkpoints in place. Older names remain
+readable when working with historical runs.
 
-If you use this tool, please cite the underlying studies:
-
-> Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.
->
-> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2022.e11232&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2022.e11232)
->
-> Paul SK, Saddam M, Tabassum N, Hasan M. **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis.** *Heliyon*. 2024 Dec 15;11(1):e41166. doi: [10.1016/j.heliyon.2024.e41166](https://doi.org/10.1016/j.heliyon.2024.e41166). PMID: 39802026; PMCID: PMC11719297.
->
-> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2024.e41166&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2024.e41166)
+</details>
 
 ## Complete project directory structure
 
@@ -900,11 +911,10 @@ apo models remain under `data/apo/` as described in the apo tutorial.
         │   │       │   ├── chunks/
         │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
         │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
-        │   │       │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │   │       │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │   │       │   ├── prod_ca.dcd              # Cα trajectory
-        │   │       │   ├── ca.prmtop                # Matching Cα topology
-        │   │       │   ├── prod_full.log            # Merged production log
+        │   │       │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │   │       │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │   │       │   ├── trajCa.dcd              # Cα trajectory
+        │   │       │   ├── topCa.prmtop                # Matching Cα topology
         │   │       │   ├── md.log                   # Copy of the merged production log
         │   │       │   └── MERGE_DONE               # Verified merged outputs
         │   │       ├── r2/
@@ -915,11 +925,10 @@ apo models remain under `data/apo/` as described in the apo tutorial.
         │   │       │   ├── chunks/
         │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
         │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
-        │   │       │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │   │       │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │   │       │   ├── prod_ca.dcd              # Cα trajectory
-        │   │       │   ├── ca.prmtop                # Matching Cα topology
-        │   │       │   ├── prod_full.log            # Merged production log
+        │   │       │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │   │       │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │   │       │   ├── trajCa.dcd              # Cα trajectory
+        │   │       │   ├── topCa.prmtop                # Matching Cα topology
         │   │       │   ├── md.log                   # Copy of the merged production log
         │   │       │   └── MERGE_DONE               # Verified merged outputs
         │   │       └── r3/
@@ -930,11 +939,10 @@ apo models remain under `data/apo/` as described in the apo tutorial.
         │   │           ├── chunks/
         │   │           │   ├── 0001.dcd             # First committed trajectory chunk
         │   │           │   └── 0001.log             # Matching committed thermodynamic log
-        │   │           ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │   │           ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │   │           ├── prod_ca.dcd              # Cα trajectory
-        │   │           ├── ca.prmtop                # Matching Cα topology
-        │   │           ├── prod_full.log            # Merged production log
+        │   │           ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │   │           ├── top.prmtop          # Matching topology; use with the trajectory above
+        │   │           ├── trajCa.dcd              # Cα trajectory
+        │   │           ├── topCa.prmtop                # Matching Cα topology
         │   │           ├── md.log                   # Copy of the merged production log
         │   │           └── MERGE_DONE               # Verified merged outputs
         │   └── L119R/
@@ -963,11 +971,10 @@ apo models remain under `data/apo/` as described in the apo tutorial.
         │           │   ├── chunks/
         │           │   │   ├── 0001.dcd             # First committed trajectory chunk
         │           │   │   └── 0001.log             # Matching committed thermodynamic log
-        │           │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │           │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │           │   ├── prod_ca.dcd              # Cα trajectory
-        │           │   ├── ca.prmtop                # Matching Cα topology
-        │           │   ├── prod_full.log            # Merged production log
+        │           │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │           │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │           │   ├── trajCa.dcd              # Cα trajectory
+        │           │   ├── topCa.prmtop                # Matching Cα topology
         │           │   ├── md.log                   # Copy of the merged production log
         │           │   └── MERGE_DONE               # Verified merged outputs
         │           ├── r2/
@@ -978,11 +985,10 @@ apo models remain under `data/apo/` as described in the apo tutorial.
         │           │   ├── chunks/
         │           │   │   ├── 0001.dcd             # First committed trajectory chunk
         │           │   │   └── 0001.log             # Matching committed thermodynamic log
-        │           │   ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │           │   ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │           │   ├── prod_ca.dcd              # Cα trajectory
-        │           │   ├── ca.prmtop                # Matching Cα topology
-        │           │   ├── prod_full.log            # Merged production log
+        │           │   ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │           │   ├── top.prmtop          # Matching topology; use with the trajectory above
+        │           │   ├── trajCa.dcd              # Cα trajectory
+        │           │   ├── topCa.prmtop                # Matching Cα topology
         │           │   ├── md.log                   # Copy of the merged production log
         │           │   └── MERGE_DONE               # Verified merged outputs
         │           └── r3/
@@ -993,11 +999,10 @@ apo models remain under `data/apo/` as described in the apo tutorial.
         │               ├── chunks/
         │               │   ├── 0001.dcd             # First committed trajectory chunk
         │               │   └── 0001.log             # Matching committed thermodynamic log
-        │               ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
-        │               ├── stripped.prmtop          # Matching topology; use with the trajectory above
-        │               ├── prod_ca.dcd              # Cα trajectory
-        │               ├── ca.prmtop                # Matching Cα topology
-        │               ├── prod_full.log            # Merged production log
+        │               ├── traj.dcd     # Autoimaged trajectory without bulk solvent
+        │               ├── top.prmtop          # Matching topology; use with the trajectory above
+        │               ├── trajCa.dcd              # Cα trajectory
+        │               ├── topCa.prmtop                # Matching Cα topology
         │               ├── md.log                   # Copy of the merged production log
         │               └── MERGE_DONE               # Verified merged outputs
         └── analysis/
@@ -1093,3 +1098,29 @@ apo models remain under `data/apo/` as described in the apo tutorial.
 ```
 
 </details>
+
+---
+
+## Acknowledgements
+- [OpenMM](https://openmm.org) & [PDBFixer](https://github.com/openmm/pdbfixer)
+- [Modeller](https://salilab.org/modeller/)
+- [MDAnalysis](https://www.mdanalysis.org) & [MDTraj](https://www.mdtraj.org)
+- [PDB2PQR & PROPKA](https://server.poissonboltzmann.org/)
+- [NumPy](https://numpy.org), [Matplotlib](https://matplotlib.org), [Biopython](https://biopython.org)
+- [Google Colab](https://colab.research.google.com) & [Miniforge/Conda](https://github.com/conda-forge/miniforge)
+
+---
+
+## Citation
+
+Initially, this repository was based on a GROMACS-on-Colab workflow, but was transitioned to OpenMM to improve performance and stability for automated simulation recovery on cloud platforms.
+
+If you use this tool, please cite the underlying studies:
+
+> Paul SK, Saddam M, Rahaman KA, Choi JG, Lee SS, Hasan M. **Molecular modeling, molecular dynamics simulation, and essential dynamics analysis of grancalcin: An upregulated biomarker in experimental autoimmune encephalomyelitis mice.** *Heliyon*. 2022 Oct 23;8(10):e11232. doi: [10.1016/j.heliyon.2022.e11232](https://doi.org/10.1016/j.heliyon.2022.e11232). PMID: 36340004; PMCID: PMC9626934.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2022.e11232&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2022.e11232)
+>
+> Paul SK, Saddam M, Tabassum N, Hasan M. **Molecular dynamics simulation of wild and mutant proteasome subunit beta type 8 (PSMB8) protein: Implications for restoration of inflammation in experimental autoimmune encephalomyelitis pathogenesis.** *Heliyon*. 2024 Dec 15;11(1):e41166. doi: [10.1016/j.heliyon.2024.e41166](https://doi.org/10.1016/j.heliyon.2024.e41166). PMID: 39802026; PMCID: PMC11719297.
+>
+> [![Cited by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.openalex.org%2Fworks%2Fhttps%3A%2F%2Fdoi.org%2F10.1016%2Fj.heliyon.2024.e41166&query=%24.cited_by_count&label=cited%20by&color=blue)](https://doi.org/10.1016/j.heliyon.2024.e41166)

@@ -434,13 +434,18 @@ def check_run(run, system, name, variant, sequence):
 
     ns = json.loads((run / "production.json").read_text())[-1]["requested_ns"]
     prod = system / "03_md/r1"
-    trajectory = md.load(str(prod / "prod_keep_ligand.dcd"), top=str(prod / "stripped.prmtop"))
+    from colabmda.openmm.merge import find_trajectory_pair
+
+    pair = find_trajectory_pair(prod)
+    if pair is None:
+        raise FileNotFoundError(f"No matching trajectory/topology in {prod}")
+    trajectory = md.load(str(pair[1]), top=str(pair[0]))
     expected_times = np.arange(10, ns * 1000 + 0.001, 10)
     if trajectory.n_frames != len(expected_times) or not np.isfinite(trajectory.xyz).all():
         raise ValueError("Invalid trajectory frames/coordinates")
     if len(list(prod.glob("prod_*to*ps.dcd"))) != round(ns * 10):
         raise ValueError("Unexpected chunk count")
-    log = pd.read_csv(prod / "prod_full.log")
+    log = pd.read_csv(prod / ("md.log" if (prod / "md.log").exists() else "prod_full.log"))
     if len(log) != len(expected_times) or not np.allclose(log["Time (ps)"], expected_times):
         raise ValueError("Production times have gaps/overlaps")
     if not np.isfinite(log.select_dtypes(include="number").to_numpy()).all():

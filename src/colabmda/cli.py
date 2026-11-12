@@ -518,6 +518,9 @@ def _dispatch_sim(args) -> int:
 
     stage_arg = getattr(args, "stage_pos", None) or getattr(args, "stage", None) or "em,nvt,npt,qc"
     raw_stages = [s.strip().lower() for s in stage_arg.split(",") if s.strip()]
+    if raw_stages == ["merge"]:
+        args.replicas = getattr(args, "replica", "r1")
+        return _dispatch_merge(args)
     stages = []
     for s in raw_stages:
         if s in {"eq", "equil", "equilibration"}:
@@ -656,12 +659,10 @@ def _dispatch_sim(args) -> int:
 
 
 def _dispatch_merge(args) -> int:
-    import shutil
-
     from colabmda.amber.cpptraj import generate_cpptraj_strip_script, run_cpptraj
     from colabmda.core.project import ProjectPaths, resolve_project_root
     from colabmda.core.taxonomy import SystemSpec
-    from colabmda.openmm.merge import merge_logs
+    from colabmda.openmm.merge import merge_logs, rename_trajectory_files
 
     paths = ProjectPaths(resolve_project_root(args.root), state=args.state)
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
@@ -714,9 +715,14 @@ def _dispatch_merge(args) -> int:
                 if end <= start or path.stat().st_size == 0:
                     raise RuntimeError(f"Invalid trajectory chunk: {path}")
             chunk_paths = [c[2] for c in legacy_chunks]
+        if getattr(args, "rename_files", False):
+            frames = rename_trajectory_files(directory)
+            print(f"[OK] Renamed verified trajectory products: {directory} ({frames} frames)")
+            merged_any = True
+            continue
         for mode, filename, top in [
-            ("keep_ligand", "prod_keep_ligand.dcd", "stripped.prmtop"),
-            ("ca_backbone", "prod_ca.dcd", "ca.prmtop"),
+            ("keep_ligand", "traj.dcd", "top.prmtop"),
+            ("ca_backbone", "trajCa.dcd", "topCa.prmtop"),
         ]:
             script = generate_cpptraj_strip_script(
                 paths.prepared_prmtop(spec),
@@ -728,9 +734,7 @@ def _dispatch_merge(args) -> int:
             rc, output = run_cpptraj(script, directory)
             if rc or not (directory / filename).is_file() or not (directory / top).is_file():
                 raise RuntimeError(f"cpptraj {mode} failed: {output[-3000:]}")
-        merge_logs(str(directory), str(directory / "prod_full.log"))
-        if (directory / "prod_full.log").exists():
-            shutil.copy2(directory / "prod_full.log", directory / "md.log")
+        merge_logs(str(directory), str(directory / "md.log"))
         (directory / "MERGE_DONE").write_text(
             "Verified trajectory inputs and both stripped outputs\n"
         )
@@ -761,19 +765,9 @@ def _dispatch_analyze(args) -> int:
     inputs = []
     for rep in replicas:
         rep_dir = paths.replica_dir(spec, rep)
-        # Keep topology/trajectory pairs together; never mix a CA trajectory with solute atoms.
-        pair = next(
-            (
-                (rep_dir / t, rep_dir / d)
-                for t, d in [
-                    ("stripped.prmtop", "prod_keep_ligand.dcd"),
-                    ("stripped.system.prmtop", "prod_keep_ligand.dcd"),
-                    ("ca.prmtop", "prod_ca.dcd"),
-                ]
-                if (rep_dir / t).is_file() and (rep_dir / d).is_file()
-            ),
-            None,
-        )
+        from colabmda.openmm.merge import find_trajectory_pair
+
+        pair = find_trajectory_pair(rep_dir) or find_trajectory_pair(rep_dir, ca=True)
         if pair is None:
             raise FileNotFoundError(f"No matching merged trajectory/topology in {rep_dir}")
         inputs.append((rep_dir, pair, paths.replica_analysis_dir(spec, rep)))
@@ -1418,7 +1412,7 @@ def main():
     p_top_pull.add_argument(
         "--traj",
         action="store_true",
-        help="Download post-processed stripped trajectories (prod_keep_ligand.dcd) while skipping raw chunks",
+        help="Download processed trajectories (traj.dcd) while skipping raw chunks",
     )
     p_top_pull.add_argument(
         "--all",
@@ -1567,6 +1561,11 @@ def main():
         help="Replicas to merge (default: r1,r2,r3)",
     )
     p_top_merge.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+    p_top_merge.add_argument(
+        "--rename-files",
+        action="store_true",
+        help="Validate and rename completed legacy trajectory products without recomputing",
+    )
 
     # 6. analyze (alias: analysis)
     p_top_ana = sub.add_parser(
