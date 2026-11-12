@@ -6,187 +6,52 @@
 
 ---
 
-## 1. Installation
+## 1. Getting started
 
-ColabMDA divides work between your local computer and Google Colab:
+These tutorials guide you from protein structure preparation to molecular dynamics
+simulation and analysis. Start with Trp-cage for a quick test, or use KRAS to compare
+the WT and G12D variants. Each tutorial includes installation and Google login
+instructions. Use Linux or
+Windows through [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) for
+the local commands. Developer setup and support are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### Prerequisites
+| # | Tutorial | Preparation | Simulation | Purpose |
+| :---: | :--- | :--- | :--- | :--- |
+| 01 | [Trp-cage apo](docs/tutorials/colab/trpcage_apo.md) | Colab | Colab | Quick test |
+| 02 | [KRAS apo](docs/tutorials/colab/kras_apo_colab.md) | Colab | Colab | Cloud workflow |
+| 03 | [KRAS apo](docs/tutorials/colab/kras_apo.md) | Local | Colab | Local preparation, cloud simulation |
 
-On a fresh Ubuntu or WSL2 installation, install these system tools first:
+## 2. Workflow overview
 
-```bash
-sudo apt-get update
-sudo apt-get install -y git curl wget ca-certificates
-```
+Fetch experimental coordinates and the target sequence, build the required models,
+prepare the solvated system, equilibrate, run checkpointed production, then merge
+and analyze the trajectories. Each tutorial shows the files produced after each
+stage and ends with a collapsed directory tree.
 
-Git is needed when pip installs ColabMDA from its GitHub repository. The installer
-checks that `git`, `curl`, and `wget` are on `PATH` before downloading Miniforge,
-changing environments, or prompting for a MODELLER key. These checks also apply
-when running the installer on Colab.
+Local preparation can be transferred to Colab for GPU simulation. Results and
+checkpoints stay on Google Drive; analyzed deliverables can be pulled back for
+local inspection. The simulation engine also supports workstation and HPC use.
 
-### Local Workstation
-Run this one-time setup in your terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
-
-```bash
-# 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"
-
-# 2. Activate environment:
-source ~/miniforge3/etc/profile.d/conda.sh
-conda activate cmda
-
-# 3. Log in to Google Colab (one-time browser login):
-colab sessions
-```
-
-Run the activation commands in every new terminal or SSH session. The installer
-runs in a child shell, so it cannot activate the environment in your current terminal.
-
-When `colab sessions` prints an authorization URL:
-
-1. Keep that terminal open and open the printed URL in a browser. Over SSH, use
-   a browser on your own computer.
-2. Sign in with the Google account you use for Colab and approve access.
-3. Copy the authorization code Google displays.
-4. Paste the code into the same terminal at `Enter the authorization code:` and
-   press Enter. Keep the code private.
-
-> [!TIP]
-> **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
-> `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"`
-
-### Google Colab (Cloud)
-Run this once inside your Colab terminal (GPU or CPU runtime) in ~90 seconds:
-
-```bash
-# 1. Install cmda, OpenMM (CUDA/CPU), and AmberTools:
-curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
-
-# 2. Activate environment:
-source /root/miniforge3/etc/profile.d/conda.sh
-conda activate cmda
-```
-
-> [!TIP]
-> **GPU vs. CPU Runtime:** Use a GPU runtime for running simulations (`cmda sim`). For pulling deliverables (`cmda pull`) or running quick checks, you can launch an instant, free CPU session without waiting for GPU quota.
-
-<details>
-<summary><b>🛠️ Install from Source & Run Tests</b></summary>
-
-```bash
-git clone https://github.com/paulshamrat/ColabMDA.git ~/ColabMDA
-cd ~/ColabMDA
-bash scripts/setup.sh
-
-# Run test suite:
-pytest tests/ -v
-```
-</details>
-
----
-
-## 2. Tutorials
-
-All in-depth scientific tutorials, protonation tables, and simulation parameters are modularized in `docs/tutorials/colab/`:
-
-| # | Level | Tutorial | Platform | Description | Link |
-| :-: | :--- | :--- | :--- | :--- | :--- |
-| 01 | Quickstart | **Trp-Cage: Protein in Water** | Colab | 5-minute GPU simulation of a 20-residue miniprotein | [`trpcage_apo.md`](docs/tutorials/colab/trpcage_apo.md) |
-| 02 | Beginner | **KRAS: Protein in Water** | Colab | Direct cloud simulation and analysis on Google Drive | [`kras_apo_colab.md`](docs/tutorials/colab/kras_apo_colab.md) |
-| 03 | Beginner | **KRAS: Protein in Water** | Local + Colab | Local modeling and preparation with cloud GPU simulation | [`kras_apo.md`](docs/tutorials/colab/kras_apo.md) |
-
----
+## 3. Project directory structure
 
 <details>
 <summary><b>📁 View Standard Project Directory Layout</b></summary>
 
 ```text
-research/projects/cmda-example/           # Project root in Google Drive / local workspace
+research/projects/kras-example/          # Working project, separate from the tool repository
 └── data/
-    ├── apo/                              # Track 1: Apo state (protein in water)
-    │   ├── structure/
-    │   │   └── O76039_4BGQ/                      # Biological Target (UniProt) + Structural Template (PDB)
-    │   │       ├── raw/                          # Untouched experimental inputs (cmda fetch)
-    │   │       │   ├── 4bgq.cif                  # Raw crystallographic archive record
-    │   │       │   ├── template.pdb              # Cleaned monomer (waters/buffers stripped)
-    │   │       │   └── uniprot.fasta             # Canonical sequence for biological numbering
-    │   │       │
-    │   │       ├── variants/                     # Modeled coordinates (cmda model)
-    │   │       │   ├── WT/
-    │   │       │   │   ├── WT.pdb                # Canonical modeled Wild-Type coordinate
-    │   │       │   │   ├── target.B99990001.pdb  # Modeller build
-    │   │       │   │   ├── target.B99990001_with_cryst.pdb # Model with crystal headers
-    │   │       │   │   ├── target.ini            # Starting coordinate mesh
-    │   │       │   │   ├── target.rsr            # Spatial restraints
-    │   │       │   │   ├── target.sch            # Optimization schedule
-    │   │       │   │   ├── target.D00000001      # Restraint progress log
-    │   │       │   │   ├── target.V99990001      # Restraint violation profile
-    │   │       │   │   ├── target.ali            # PIR target sequence alignment
-    │   │       │   │   ├── alignment.ali         # PIR template pairwise alignment
-    │   │       │   │   ├── O76039.fasta          # Sequence reference
-    │   │       │   │   ├── 4bgq_clean.pdb        # Sanitized template
-    │   │       │   │   ├── 4bgq_orig.pdb         # Raw template backup
-    │   │       │   │   ├── 4bgq.pdb              # Isolated chain coordinate
-    │   │       │   │   ├── pipeline.log          # Modeller build log
-    │   │       │   │   └── MODEL_DONE            # Modeling completion gate
-    │   │       │   │
-    │   │       │   └── L119R/                    # Kinase-inactivating point mutant
-    │   │       │       ├── L119R.pdb             # Mutated coordinate
-    │   │       │       ├── WT_L119R.pdb          # Direct mutation coordinate
-    │   │       │       ├── WT_L119R_with_cryst.pdb # Mutant with crystal headers
-    │   │       │       ├── mutate.log            # Rotamer sampling & energy log
-    │   │       │       └── MODEL_DONE            # Mutant completion gate
-    │   │       │
-    │   │       └── STRUCTURE_DONE                # Verification completion marker
-    │   ├── simulation/
-    │   │   ├── WT/
-    │   │   │   ├── prep/                 # Solvated Amber system
-    │   │   │   │   ├── model.pdb         # Input receptor coordinates
-    │   │   │   │   ├── solvated.pdb      # Solvated visualization PDB
-    │   │   │   │   ├── system.prmtop     # Amber ff19SB parameters
-    │   │   │   │   ├── system.inpcrd     # Initial orthogonal coordinates
-    │   │   │   │   └── system.xml        # Serialized OpenMM system
-    │   │   │   │
-    │   │   │   ├── eq/                   # 24-stage equilibration
-    │   │   │   │   ├── eq.pdb            # Final relaxed coordinates
-    │   │   │   │   ├── system.xml        # OpenMM system topology & parameters
-    │   │   │   │   ├── state.xml         # OpenMM thermodynamic state snapshot
-    │   │   │   │   └── stages/           # Granular restart checkpoints (state_01.xml ... state_24.xml)
-    │   │   │   │
-    │   │   │   └── md/                   # Production MD replicas
-    │   │   │       ├── r1/               # Production replica 1
-    │   │   │       │   ├── md.dcd        # Continuous merged trajectory
-    │   │   │       │   ├── md.log        # Continuous merged thermodynamic log
-    │   │   │       │   ├── state.xml     # Latest OpenMM simulation state snapshot
-    │   │   │       │   ├── prod.chk      # OpenMM checkpoint binary for resume
-    │   │   │       │   ├── stripped.prmtop      # Solvent-stripped topology for PyMOL & analysis
-    │   │   │       │   ├── prod_keep_ligand.dcd # Continuous PBC-autoimaged stripped trajectory
-    │   │   │       │   ├── ca.prmtop     # Cα backbone topology
-    │   │   │       │   ├── prod_ca.dcd   # Cα backbone trajectory
-    │   │   │       │   ├── MERGE_DONE    # Merge completion marker
-    │   │   │       │   └── chunks/       # Raw crash-recovery chunks (0001.dcd, 0001.log, ...)
-    │   │   │       ├── r2/               # Independent velocity seed
-    │   │   │       └── r3/               # Triplicate simulation
-    │   │   └── L119R/
-    │   │       ├── prep/
-    │   │       ├── eq/
-    │   │       └── md/{r1, r2, r3}/
-    │   └── analysis/                     # Mirrored deliverables (Zero JSON policy)
-    │       ├── WT/
-    │       │   ├── eq/                   # qc.png, qc.txt
-    │       │   └── md/                   # r1/ (rmsd.png, rg.png, rmsf.png, summary.txt), r2/, r3/
-    │       ├── L119R/
-    │       │   ├── eq/
-    │       │   └── md/{r1, r2, r3}/
-    │       └── compare/                  # Flat cross-variant comparison (rmsd.png, rg.png, rmsf.png, summary.txt)
-    │
-    └── atpmg/                            # Track 2: Holo state (Kinase + ATP + Mg²⁺)
-        ├── structure/
-        │   ├── O76039_4BGQ/              # Inherited from apo (identical starting coordinates)
-        │   └── cofactors/atpmg/          # Homologous donor (CDK2 8FP5: atp.pdb, mg.pdb)
-        ├── simulation/
-        │   └── WT/prep/                  # tleap combine { REC LIG MG } + Hu 2024 parameters
-        └── analysis/
+    └── apo/                            # Protein in water
+        ├── structure/P01116_4LDJ/       # Experimental inputs and WT/G12D models
+        │   ├── raw/                    # Archive, template and sequence
+        │   ├── variants/               # WT and G12D model folders
+        │   └── STRUCTURE_DONE          # Completed fetch and mapping
+        ├── simulation/                 # One folder per variant
+        │   ├── WT/                     # prep/, eq/, md/r1/, md/r2/, md/r3/
+        │   └── G12D/                   # Same simulation stages
+        └── analysis/                   # QC, replica metrics, summaries and figures
+            ├── WT/                     # eq/, r1–r3/, aggregate/
+            ├── G12D/                   # Same analysis stages
+            └── compare/                # WT/G12D comparisons
 ```
 </details>
 
