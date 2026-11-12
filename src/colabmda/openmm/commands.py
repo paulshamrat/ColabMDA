@@ -130,6 +130,18 @@ def _read_topology_info(pdb_path: Path) -> dict | None:
         ion_names = {"NA", "CL", "SOD", "CLA", "K", "MG", "CA", "ZN"}
         water_names = {"HOH", "WAT", "SOL", "TIP3"}
 
+        if pdb_path.suffix.lower() == ".prmtop":
+            import MDAnalysis as mda
+
+            universe = mda.Universe(str(pdb_path))
+            return {
+                "atoms": universe.atoms.n_atoms,
+                "residues": len(universe.residues),
+                "protein_residues": len(universe.select_atoms("protein").residues),
+                "waters": sum(r.resname in water_names for r in universe.residues),
+                "ions": sum(r.resname.upper() in ion_names for r in universe.residues),
+            }
+
         with open(pdb_path) as f:
             for line in f:
                 if line.startswith(("ATOM", "HETATM")):
@@ -181,14 +193,13 @@ def openmm_status(pdbid_dir: str):
         logs = sorted(workdir.glob("prod_*to*ps.log"))
         dcds = sorted(workdir.glob("prod_*to*ps.dcd"))
 
+    from colabmda.openmm.merge import find_trajectory_pair
+
+    processed_pair = find_trajectory_pair(workdir)
     merged_dcd = (
-        workdir / "md.dcd"
-        if (workdir / "md.dcd").exists()
-        else (
-            workdir / "prod_keep_ligand.dcd"
-            if (workdir / "prod_keep_ligand.dcd").exists()
-            else workdir / "prod_full.dcd"
-        )
+        processed_pair[1]
+        if processed_pair
+        else (workdir / "md.dcd" if (workdir / "md.dcd").exists() else workdir / "prod_full.dcd")
     )
     merged_log = workdir / "md.log" if (workdir / "md.log").exists() else workdir / "prod_full.log"
 
@@ -221,12 +232,18 @@ def openmm_status(pdbid_dir: str):
     )
 
     topo_pdb = (
-        solv
-        if solv.exists()
+        processed_pair[0]
+        if processed_pair
         else (
-            merged_dcd.with_suffix(".pdb")
-            if merged_dcd.with_suffix(".pdb").exists()
-            else (workdir / "stripped.prmtop" if (workdir / "stripped.prmtop").exists() else None)
+            solv
+            if solv.exists()
+            else (
+                merged_dcd.with_suffix(".pdb")
+                if merged_dcd.with_suffix(".pdb").exists()
+                else (
+                    workdir / "stripped.prmtop" if (workdir / "stripped.prmtop").exists() else None
+                )
+            )
         )
     )
 

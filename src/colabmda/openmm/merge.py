@@ -26,6 +26,101 @@ import sys
 from pathlib import Path
 
 
+def find_trajectory_pair(directory, *, ca=False):
+    """Find a matching processed topology/trajectory pair, including older names."""
+    directory = Path(directory)
+    pairs = (
+        [("topCa.prmtop", "trajCa.dcd"), ("ca.prmtop", "prod_ca.dcd")]
+        if ca
+        else [
+            ("top.prmtop", "traj.dcd"),
+            ("stripped.prmtop", "prod_keep_ligand.dcd"),
+            ("stripped.system.prmtop", "prod_keep_ligand.dcd"),
+        ]
+    )
+    return next(
+        (
+            (directory / top, directory / traj)
+            for top, traj in pairs
+            if (directory / top).is_file() and (directory / traj).is_file()
+        ),
+        None,
+    )
+
+
+def rename_trajectory_files(directory):
+    """Validate completed products, then rename without rewriting scientific data."""
+    import hashlib
+
+    import MDAnalysis as mda
+    import numpy as np
+
+    directory = Path(directory)
+    if any((directory / "chunks").glob("*.tmp")):
+        raise ValueError("Uncommitted chunks remain; finish production before renaming")
+    if directory.is_symlink():
+        raise ValueError("Refusing a symlinked replica directory")
+    changes = []
+    planned = {}
+
+    def digest(path):
+        result = hashlib.sha256()
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                result.update(block)
+        return result.hexdigest()
+
+    for old, new in [
+        ("stripped.prmtop", "top.prmtop"),
+        ("stripped.system.prmtop", "top.prmtop"),
+        ("prod_keep_ligand.dcd", "traj.dcd"),
+        ("ca.prmtop", "topCa.prmtop"),
+        ("prod_ca.dcd", "trajCa.dcd"),
+        ("prod_full.log", "md.log"),
+    ]:
+        source, target = directory / old, directory / new
+        if source.is_symlink() or target.is_symlink():
+            raise ValueError("Refusing to rename symlinked simulation outputs")
+        if not source.exists():
+            continue
+        source_digest = digest(source)
+        if new in planned and planned[new] != source_digest:
+            raise ValueError(f"Conflicting legacy outputs for {target}")
+        planned[new] = source_digest
+        if target.exists() and source_digest != digest(target):
+            raise ValueError(f"Conflicting output: {target}")
+        changes.append((source, target))
+    frames = []
+    for ca in (False, True):
+        pair = find_trajectory_pair(directory, ca=ca)
+        if pair is None:
+            raise ValueError("Both matching solute and C-alpha trajectory pairs are required")
+        universe = mda.Universe(*(str(p) for p in pair))
+        if not universe.atoms.n_atoms or not len(universe.trajectory):
+            raise ValueError("Empty trajectory or topology")
+        for frame in universe.trajectory:
+            if not np.isfinite(frame.positions).all():
+                raise ValueError("Non-finite trajectory coordinates")
+        frames.append(len(universe.trajectory))
+        universe.trajectory.close()
+    if frames[0] != frames[1]:
+        raise ValueError("Solute and C-alpha frame counts differ")
+    chunks = sorted((directory / "chunks").glob("*.dcd"))
+    if chunks:
+        total = 0
+        for chunk in chunks:
+            with mda.coordinates.DCD.DCDReader(str(chunk)) as reader:
+                total += len(reader)
+        if total != frames[0]:
+            raise ValueError("Merged products do not cover all committed chunk frames")
+    for source, target in changes:
+        if target.exists():
+            source.unlink()  # An identical verified copy already has the desired name.
+        else:
+            source.rename(target)
+    return frames[0]
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="Merge MD chunk files")
     p.add_argument("pdbid", help="4-letter PDB ID directory")

@@ -231,6 +231,10 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
         "nvt.log",
         "npt.log",
         "prod_full.log",
+        "traj.dcd",
+        "top.prmtop",
+        "trajCa.dcd",
+        "topCa.prmtop",
     ]
     if extra_files:
         essentials += extra_files

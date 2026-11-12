@@ -360,16 +360,14 @@ def _state_views(
     for s, v in specs:
         paths = ProjectPaths(root, state=s)
         spec = SystemSpec.from_tag(s, variant=v)
-        if not paths.run_id:
-            prod = None
-            is_structure = True
-        else:
-            try:
-                prod = paths.replica_dir(spec, replica)
-                is_structure = structure or not (prod / "stripped.prmtop").is_file()
-            except Exception:
-                prod = None
-                is_structure = True
+        from colabmda.openmm.merge import find_trajectory_pair
+
+        try:
+            prod = paths.replica_dir(spec, replica)
+            pair = find_trajectory_pair(prod)
+        except (ValueError, FileNotFoundError):
+            prod, pair = None, None
+        is_structure = structure or pair is None
 
         if is_structure:
             topo = paths.model_pdb(spec)
@@ -382,7 +380,7 @@ def _state_views(
                 )
             traj = None
         else:
-            topo, traj = prod / "stripped.prmtop", prod / "prod_keep_ligand.dcd"
+            topo, traj = pair
         mapping_file = paths.structure_dir / "mapping/residues.json"
         u, panels, record = _view_dataset(
             topo,
@@ -391,14 +389,18 @@ def _state_views(
             "1" if is_structure else frames,
             resi,
             v,
-            prod / "prod_full.log" if not is_structure and prod else None,
+            (
+                (prod / "md.log" if (prod / "md.log").is_file() else prod / "prod_full.log")
+                if not is_structure and prod
+                else None
+            ),
             mapping_file if mapping_file.is_file() else None,
         )
         record["source_kind"] = "starting_model" if is_structure else "trajectory"
         datasets.append((f"{s} · {v}", u, panels, record))
     paths = ProjectPaths(root, state=specs[0][0])
     spec = SystemSpec.from_tag(specs[0][0], variant=specs[0][1])
-    if is_structure or not paths.run_id:
+    if is_structure:
         folder = paths.structure_dir / "models" / spec.variant
     else:
         folder = (
@@ -435,7 +437,6 @@ def _style_view(cmd, resi):
 
 def _render_views(datasets, output, camera="activation", camera_view=None, font_path=None):
     import hashlib
-    import json
 
     import MDAnalysis as mda
     import numpy as np
@@ -542,7 +543,9 @@ def _render_views(datasets, output, camera="activation", camera_view=None, font_
         width_inches=7,
         dpi=300,
     )
-    output.with_suffix(".json").write_text(json.dumps(metadata, indent=2) + "\n")
+    output.with_suffix(".log").write_text(
+        "".join(f"{key}: {value}\n" for key, value in metadata.items())
+    )
     marker.write_text("Verified PNG and native-reference display inputs generated\n")
     return output
 
@@ -564,8 +567,6 @@ def openmm_view(
     no_launch=False,
     frame="1",
 ):
-    import json
-
     try:
         import MDAnalysis as mda
     except ImportError:
@@ -676,7 +677,7 @@ zoom molecule and polymer.protein, 4
         raise ValueError("A trajectory is required for --frame all")
     core = "+".join(str(item[1]) + item[2] for item in record["core_residues"])
     movie = (
-        f'load_traj "{record["trajectory"]}", molecule, state=1\nintra_fit molecule and polymer.protein and name CA and resi {core}, 1\nalign molecule and polymer.protein and name CA and resi {core}, reference and polymer.protein and name CA and resi {core}, mobile_state=1, target_state=1, cycles=0\n'
+        f'load_traj "{record["trajectory"]}", molecule, state=1\nintra_fit molecule and polymer.protein and name CA and resi {core}, 1, quiet=1\nalign molecule and polymer.protein and name CA and resi {core}, reference and polymer.protein and name CA and resi {core}, mobile_state=1, target_state=1, cycles=0, quiet=1\n'
         if frame == "all"
         else ""
     )
@@ -701,20 +702,17 @@ set_view ({view})
 """
         + ("turn z, 90\n" if camera == "network" else "")
         + "zoom reference and polymer.protein, 4\ndelete reference\n"
+        + (f"mset 1 -{len(u.trajectory)}\nset movie_fps, 30\nmplay\n" if frame == "all" else "")
     )
     record["display_frames"] = "all" if frame == "all" else panels[0]["frame"]
-    pml.with_suffix(".json").write_text(
-        json.dumps(
-            dict(
-                record,
-                camera=camera,
-                source_camera=CDKL5_CAMERAS[camera],
-                camera_source=CAMERA_SOURCES[camera],
-                framing="Reframed to common WT reference",
-            ),
-            indent=2,
-        )
-        + "\n"
+    record.update(
+        camera=camera,
+        source_camera=CDKL5_CAMERAS[camera],
+        camera_source=CAMERA_SOURCES[camera],
+        framing="Reframed to common WT reference",
+    )
+    pml.with_suffix(".log").write_text(
+        "".join(f"{key}: {value}\n" for key, value in record.items())
     )
     if not no_launch:
         if not shutil.which("pymol"):
