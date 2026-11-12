@@ -39,6 +39,18 @@ conda activate cmda
 colab sessions
 ```
 
+Run the activation commands in every new terminal or SSH session. The installer
+runs in a child shell, so it cannot activate the environment in your current terminal.
+
+When `colab sessions` prints an authorization URL:
+
+1. Keep that terminal open and open the printed URL in a browser. Over SSH, use
+   a browser on your own computer.
+2. Sign in with the Google account you use for Colab and approve access.
+3. Copy the authorization code Google displays.
+4. Paste the code into the same terminal at `Enter the authorization code:` and
+   press Enter. Keep the code private.
+
 > [!TIP]
 > **Modeller Key:** Free for academic research ([register here](https://salilab.org/modeller/registration.html)). Enter it when prompted, or run:  
 > `KEY_MODELLER="YOUR_KEY" bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"`
