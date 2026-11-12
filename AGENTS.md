@@ -134,7 +134,7 @@ research/projects/<project-example>/
   - `simulation/md/` contains `md.log`, `npt.state.xml`, `system.xml`, `solvated.pdb`, `prod.chk`, stripped/autoimaged products (`top.prmtop`, `traj.dcd`), Cα backbone files (`topCa.prmtop`, `trajCa.dcd`), raw chunks in `chunks/`. Zero JSON receipts.
   - `analysis/` contains only scientific metrics (`.csv`), figures (`.png`), summary deliverables (`summary.txt`, `qc.txt`), with stage verification under logs/. Zero JSON files in `analysis/`.
   - **Native State Derivation & Gating**: Inter-stage validation, neutrality checks, and sequence identity gating must be derived dynamically and natively from the biological domain files themselves (e.g. parsing `system.prmtop` via `check_topology(..., save_receipt=False)`, verifying point mutations directly against `WT.pdb` coordinate atoms, parsing sequence from `uniprot.fasta`).
-  - **Text Completion Markers**: State markers (`STRUCTURE_DONE`, `MODEL_DONE`, `ANALYSIS_DONE`) record operational metadata (e.g., `seed`, `pdb`, `uniprot`, `range`) as clean, human-readable key-value lines without writing duplicate JSON ledgers.
+  - **Stage Completion Logs**: StageLog records operational metadata (e.g., `seed`, `pdb`, `uniprot`, `range`), verified output hashes and final status as plain text under mirrored `logs/` paths. Never create standalone completion flags or duplicate JSON ledgers.
 - **Equilibration (`eq`)**: Final relaxed coordinates are saved exclusively as
   `eq.pdb` (duplicate `equilibrated.pdb` eliminated). Intermediate restart states
   are saved into `stages/` as `state_01.xml` ... `state_24.xml`. All QC deliverables
