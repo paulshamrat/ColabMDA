@@ -5,7 +5,7 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 PRODUCTION_NS=${COLABMDA_EXAMPLE_NS:-1}
 CHECKPOINT_PS=100
 FRAME_PS=10
-test -s "$SYSTEM_DIR/02_eq/EQ_DONE"
+check_stage "$SYSTEM_DIR/02_eq" eq
 export PRODUCTION_NS CHECKPOINT_PS FRAME_PS
 python - <<'PYTHON'
 import json,os
@@ -21,4 +21,4 @@ PYTHON
 verify_run
 cmda sim --software-test --root "$PROJECT_ROOT" --state apo --variant WT --stage md --replica r1 --total-ns "$PRODUCTION_NS" --checkpoint-ps "$CHECKPOINT_PS" --traj-interval "$FRAME_PS"
 test -s "$SYSTEM_DIR/03_md/r1/prod.chk"
-printf 'Production command completed for %s ns; frame validation follows\n' "$PRODUCTION_NS" > "$SYSTEM_DIR/03_md/r1/MD_DONE"
+complete_stage "$SYSTEM_DIR/03_md/r1" md "Production command completed for $PRODUCTION_NS ns; frame validation follows"

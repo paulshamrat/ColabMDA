@@ -9,6 +9,7 @@ from Bio.PDB import PDBParser
 from openmm import System, unit
 from openmm.app import Topology, element
 
+from colabmda.core.logs import StageLog
 from colabmda.core.project import ProjectPaths
 from colabmda.core.taxonomy import SystemSpec
 from colabmda.core.workflow import check, sha
@@ -25,7 +26,7 @@ def test_state_layout_and_existing_run_compatibility(tmp_path, monkeypatch):
     assert paths.analysis_dir(spec) == tmp_path / "data/atpmg/analysis/trial01/L119R"
     assert paths.replica_analysis_dir(spec, "2").name == "r2"
     assert paths.compare_dir(spec.state_tag) == tmp_path / "data/atpmg/analysis/trial01/compare"
-    assert paths.log_dir(spec) == tmp_path / "logs/atpmg/trial01/L119R"
+    assert paths.log_dir(spec) == tmp_path / "logs/atpmg/simulation/trial01/L119R"
     (tmp_path / "data/02_simulation/trial01").mkdir(parents=True)
     legacy = ProjectPaths(tmp_path, state="apo")
     assert legacy.state_dir is None
@@ -86,7 +87,7 @@ def test_model_check_removes_marker_on_failed_identity(tmp_path):
     (folder / "MODEL_DONE").touch()
     with pytest.raises(ValueError, match="amino acids"):
         check(Namespace(root=str(tmp_path), state="apo", variant="WT", model=None))
-    assert not (folder / "MODEL_DONE").exists()
+    assert not StageLog(folder, "MODEL_DONE").exists()
 
 
 def test_research_rejects_short_equilibration(tmp_path, monkeypatch):
@@ -104,7 +105,7 @@ def test_research_rejects_short_equilibration(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="Quick equilibration requires"):
         _dispatch_sim(args)
     args.protocol = "staged"
-    with pytest.raises(SystemExit, match="PREP_DONE"):
+    with pytest.raises(SystemExit, match="verified preparation"):
         _dispatch_sim(args)
     monkeypatch.setattr("colabmda.core.workflow.verify_prepared", lambda *a: None)
     with pytest.raises(SystemExit, match="completed staged equilibration"):
@@ -200,7 +201,7 @@ def test_fetch_maps_label_offset_and_preserves_insertion(tmp_path, monkeypatch):
     assert workflow.fetch(args) == 0
     assert not (raw / "residues.json").exists()
     assert not (raw / "input.json").exists()
-    assert (raw.parent / "STRUCTURE_DONE").exists()
+    assert StageLog(raw.parent, "STRUCTURE_DONE").exists()
     meta = workflow.get_structure_metadata(raw.parent)
     assert meta["pdb"] == "TEST"
     assert meta["range"] == [1, 2]
@@ -213,7 +214,7 @@ def test_fetch_maps_label_offset_and_preserves_insertion(tmp_path, monkeypatch):
     args.mutations = "G1A"
     with pytest.raises(ValueError, match="coordinate gate"):
         workflow.fetch(args)
-    assert not (raw.parent / "STRUCTURE_DONE").exists()
+    assert not StageLog(raw.parent, "STRUCTURE_DONE").exists()
 
 
 def test_preparation_cannot_reuse_changed_inputs(tmp_path, monkeypatch):
@@ -272,7 +273,7 @@ def test_fetch_creates_flat_directory_structure(tmp_path, monkeypatch):
     )
     assert workflow.fetch(args) == 0
     folder = tmp_path / "data/apo/structure/TEST_TEST"
-    assert (folder / "STRUCTURE_DONE").exists()
+    assert StageLog(folder, "STRUCTURE_DONE").exists()
     assert (folder / "raw" / "template.pdb").exists()
     assert (folder / "raw" / "uniprot.fasta").exists()
     assert not (folder / "raw" / "input.json").exists()
@@ -361,13 +362,13 @@ def test_fetch_synthetic_pdb_without_uniprot(tmp_path, monkeypatch):
     fetch(args)
 
     target_dir = tmp_path / "data/apo/structure/1L2Y"
-    assert (target_dir / "STRUCTURE_DONE").exists()
+    assert StageLog(target_dir, "STRUCTURE_DONE").exists()
     assert (target_dir / "raw/template.pdb").exists()
     assert (target_dir / "raw/uniprot.fasta").exists()
     assert not (target_dir / "raw/residues.json").exists()
     assert not (target_dir / "raw/input.json").exists()
     assert (target_dir / "variants/WT/WT.pdb").exists()
-    assert (target_dir / "variants/WT/MODEL_DONE").exists()
+    assert StageLog(target_dir / "variants/WT", "MODEL_DONE").exists()
 
     meta = get_structure_metadata(target_dir)
     assert meta["pdb"] == "1L2Y"

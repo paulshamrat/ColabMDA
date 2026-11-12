@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from colabmda.core.logs import StageLog
 from colabmda.core.taxonomy import SystemSpec
 
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/projects"
@@ -122,7 +123,7 @@ class ProjectPaths:
             if base.is_dir():
                 # Direct check: does base itself have flat legacy outputs?
                 if (
-                    (base / "STRUCTURE_DONE").exists()
+                    (StageLog(base, "STRUCTURE_DONE")).exists()
                     or (base / "input.json").exists()
                     or (base / "mapping/input.json").exists()
                     or (base / "raw").exists()
@@ -134,7 +135,7 @@ class ProjectPaths:
                     for d in base.iterdir()
                     if d.is_dir()
                     and (
-                        (d / "STRUCTURE_DONE").exists()
+                        (StageLog(d, "STRUCTURE_DONE")).exists()
                         or (d / "input.json").exists()
                         or (d / "mapping/input.json").exists()
                         or (d / "models").exists()
@@ -485,7 +486,6 @@ class ProjectPaths:
         remain unchanged. A receipt preserves the old/new paths and file hashes.
         """
         import hashlib
-        import json
         import shutil
 
         if self.state_dir is None:
@@ -495,7 +495,6 @@ class ProjectPaths:
         if not source.exists():
             return None
         required = [
-            "ANALYSIS_DONE",
             "rmsd.csv",
             "rg.csv",
             "rmsf.csv",
@@ -503,7 +502,7 @@ class ProjectPaths:
             "figures/rg_vs_time.png",
             "figures/rmsf_per_residue.png",
         ]
-        if any(
+        if not StageLog(source, "ANALYSIS_DONE").exists() or any(
             not (source / name).is_file() or not (source / name).stat().st_size for name in required
         ):
             raise ValueError("Only completed legacy r1 analysis can be migrated")
@@ -554,32 +553,31 @@ class ProjectPaths:
             "files": before,
             "provenance": "Original metadata retained byte-for-byte; paths in historical receipts remain original",
         }
-        receipt = (
-            self.root
-            / "data/00_setup/analysis_migrations"
-            / f"{self.state_dir.name}_{self.run_id}_{spec.variant}.json"
-        )
+        from colabmda.core.logs import log_directory
+
+        receipt = log_directory(self.analysis_dir(spec)) / "migration.log"
         receipt.parent.mkdir(parents=True, exist_ok=True)
-        if receipt.exists() and json.loads(receipt.read_text()) != record:
+        receipt_text = "".join(f"{key}: {value!r}\n" for key, value in record.items())
+        if receipt.exists() and receipt.read_text() != receipt_text:
             raise ValueError("Conflicting migration receipt preserved")
-        receipt.write_text(json.dumps(record, indent=2) + "\n")
-        for name in markers:
-            dest = target / name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source / name, dest)
-        if inventory(source) != before or inventory(target) != before:
-            for name in markers:
-                (target / name).unlink(missing_ok=True)
-            raise ValueError("Final migration verification failed; original preserved")
+        receipt.write_text(receipt_text)
+        details = (
+            (source / "ANALYSIS_DONE").read_text()
+            if (source / "ANALYSIS_DONE").exists()
+            else StageLog(source, "ANALYSIS_DONE").read_text()
+        )
+        StageLog(target, "ANALYSIS_DONE").write_text(details)
+        if inventory(target) != {n: h for n, h in before.items() if n not in markers}:
+            raise ValueError("Migrated outputs changed; original preserved")
         shutil.rmtree(source)
+        StageLog(source, "ANALYSIS_DONE").path.unlink(missing_ok=True)
         return record
 
     def log_dir(self, spec: SystemSpec) -> Path:
         """Execution logs mirror state/run/variant, independently of scientific data."""
-        if self.state_dir is not None:
-            base = self.root / "logs" / self.state_dir.name
-            return base / self.run_id / spec.variant if self.run_id else base / spec.variant
-        return self.root / "logs" / "02_simulation" / self.run_id / spec.variant
+        from colabmda.core.logs import log_directory
+
+        return log_directory(self.variant_dir(spec))
 
     def compare_dir(self, state_tag: str) -> Path:
         """Cross-variant comparison folder for a state."""

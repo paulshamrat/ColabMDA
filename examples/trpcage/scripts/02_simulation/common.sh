@@ -13,3 +13,20 @@ mkdir -p "$PROJECT_ROOT/logs/02_simulation/$COLABMDA_RUN_ID"
 verify_run() {
     python -c 'import os; from colabmda.core.examples import record_run; record_run(os.environ["PROJECT_ROOT"], os.environ["COLABMDA_RUN_ID"])'
 }
+
+check_stage() {
+    python - "$1" "$2" <<'PY_STAGE'
+import sys
+from colabmda.core.logs import StageLog
+if not StageLog(sys.argv[1], sys.argv[2].upper() + "_DONE").exists():
+    raise SystemExit("Required stage is incomplete; inspect its log")
+PY_STAGE
+}
+
+complete_stage() {
+    python - "$1" "$2" "$3" <<'PY_STAGE'
+import sys
+from colabmda.core.logs import StageLog
+StageLog(sys.argv[1], sys.argv[2].upper() + "_DONE").write_text(sys.argv[3] + "\n")
+PY_STAGE
+}

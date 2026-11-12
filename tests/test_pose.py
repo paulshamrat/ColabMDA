@@ -139,5 +139,5 @@ def test_model_refuses_mutation_without_experimental_coordinate_density(tmp_path
 
 
 def test_model_requires_completed_fetch(tmp_path):
-    with pytest.raises(ValueError, match="STRUCTURE_DONE"):
+    with pytest.raises(ValueError, match="completed cmda fetch"):
         model(Namespace(root=tmp_path, state="apo", variant="WT", seed=13031))

@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 
+from colabmda.core.logs import StageLog
+
 import mdtraj as md
 import numpy as np
 import pandas as pd
@@ -68,11 +70,11 @@ record = {
     "software_pass": True,
     "equilibration_qc_pass": qc["passed"],
     "setup": setup,
-    "analysis": json.loads((analysis / "analysis.json").read_text()),
+    "analysis": StageLog(analysis, "ANALYSIS_DONE").read_text(),
     "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
 }
 (run / "summary.json").write_text(json.dumps(record, indent=2) + "\n")
-(run / "RUN_DONE").write_text(
+StageLog(run, "RUN_DONE").write_text(
     "Software checks passed; physical equilibration is reported separately in summary.json\n"
 )
-print("RUN_DONE", run, "physical QC:", qc["passed"])
+print("Run verified", run, "physical QC:", qc["passed"])

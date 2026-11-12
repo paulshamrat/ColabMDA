@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from colabmda.core.logs import StageLog
 from colabmda.openmm.figures import CDKL5_CAMERAS, _view_dataset
 
 
@@ -103,7 +104,7 @@ def test_movie_script_keeps_native_labels_and_common_reference(tmp_path):
     assert "zoom reference and polymer.protein" in script
     assert "resi 119" in script
     assert "Switch" not in script
-    assert "display_frames: all" in (tmp_path / "visualize.log").read_text()
+    assert "display_frames: all" in StageLog(tmp_path, "VISUALIZE_DONE").path.read_text()
     assert not (tmp_path / "visualize.json").exists()
     assert "mplay" in script
 

@@ -5,6 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from colabmda.core.logs import StageLog
+
 
 def _headless_pyplot():
     """Override inherited notebook backends before Matplotlib validates them."""
@@ -451,7 +453,7 @@ def _render_views(datasets, output, camera="activation", camera_view=None, font_
     if output.suffix.lower() != ".png":
         raise ValueError("Save rendered figures as PNG")
     output.parent.mkdir(parents=True, exist_ok=True)
-    marker = output.with_name(output.stem.upper() + "_DONE")
+    marker = StageLog(output.parent, output.stem.upper() + "_DONE")
     marker.unlink(missing_ok=True)
     counts = {len(panels) for _, _, panels, _ in datasets}
     if len(counts) != 1 or not datasets:
@@ -543,10 +545,7 @@ def _render_views(datasets, output, camera="activation", camera_view=None, font_
         width_inches=7,
         dpi=300,
     )
-    output.with_suffix(".log").write_text(
-        "".join(f"{key}: {value}\n" for key, value in metadata.items())
-    )
-    marker.write_text("Verified PNG and native-reference display inputs generated\n")
+    marker.write_text("".join(f"{key}: {value}\n" for key, value in metadata.items()))
     return output
 
 
@@ -711,7 +710,7 @@ set_view ({view})
         camera_source=CAMERA_SOURCES[camera],
         framing="Reframed to common WT reference",
     )
-    pml.with_suffix(".log").write_text(
+    StageLog(folder, "VISUALIZE_DONE").write_text(
         "".join(f"{key}: {value}\n" for key, value in record.items())
     )
     if not no_launch:

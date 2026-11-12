@@ -11,6 +11,7 @@ from Bio.Align import PairwiseAligner, substitution_matrices
 from Bio.PDB import PDBIO, PDBParser
 from Bio.SeqUtils import seq1
 
+from colabmda.core.logs import StageLog
 from colabmda.core.project import ProjectPaths, resolve_project_root
 from colabmda.core.taxonomy import SystemSpec
 from colabmda.modeller.structure import fetch_archive, verify_sequence
@@ -212,7 +213,7 @@ def assemble_public(args):
     out = parent / f"{args.variant}.pdb"
     if not out.exists() and (parent / "complex.pdb").exists():
         out = parent / "complex.pdb"
-    marker = parent / "ASSEMBLY_DONE"
+    marker = StageLog(parent, "ASSEMBLY_DONE")
     source = (
         apo / "variants" / args.variant / f"{args.variant}.pdb"
         if (apo / "variants" / args.variant / f"{args.variant}.pdb").exists()
@@ -223,8 +224,8 @@ def assemble_public(args):
         input_json
         if input_json.exists()
         else (
-            apo / "STRUCTURE_DONE"
-            if (apo / "STRUCTURE_DONE").exists()
+            StageLog(apo, "STRUCTURE_DONE")
+            if (StageLog(apo, "STRUCTURE_DONE")).exists()
             else (apo / "raw" / "template.pdb")
         )
     )

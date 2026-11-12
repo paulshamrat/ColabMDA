@@ -35,7 +35,7 @@ export OPENMM_CPU_THREADS="${SLURM_CPUS_PER_TASK:-4}"
 cd "$PROJECT_ROOT/data/$state/simulation/$COLABMDA_RUN_ID/$variant"
 test -s 01_prep/system.prmtop
 test -s 01_prep/system.inpcrd
-test -s 01_prep/PREP_DONE
+python -c 'from colabmda.core.logs import StageLog; assert StageLog("01_prep", "PREP_DONE").exists(), "Preparation is incomplete"'
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 if [[ "$stage" = smoke ]]; then
   srun cmda sim --state "$state" --variant "$variant" --stage em --protocol staged --root "$PROJECT_ROOT"
@@ -45,16 +45,19 @@ if [[ "$stage" = smoke ]]; then
     --software-test --steps 50 --checkpoint-ps 0.1 --replica r1 --root "$PROJECT_ROOT"
   python - <<'PY_CHECK'
 from pathlib import Path
+from colabmda.core.logs import StageLog
 import MDAnalysis as mda
 import numpy as np
-trajectory = Path("03_md/r1/prod_0to0.1ps.dcd")
+trajectory = Path("03_md/r1/chunks/0001.dcd")
+if not trajectory.exists():
+    trajectory = Path("03_md/r1/prod_0to0.1ps.dcd")
 universe = mda.Universe("01_prep/system.prmtop", str(trajectory))
 assert len(universe.trajectory) == 5
 for frame in universe.trajectory:
     assert np.isfinite(universe.atoms.positions).all()
 assert Path("03_md/r1/prod.chk").stat().st_size > 0
-Path("SMOKE_DONE").write_text("CUDA software smoke: five finite frames; not research equilibration\n")
-print("GPU_SMOKE_DONE", len(universe.atoms), "atoms, five finite frames")
+StageLog(Path.cwd(), "SMOKE_DONE").write_text("CUDA software smoke: five finite frames; not research equilibration\n")
+print("GPU software smoke verified", len(universe.atoms), "atoms, five finite frames")
 PY_CHECK
 elif [[ "$stage" = eq ]]; then
   cd 02_eq

@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 from MDAnalysis.analysis import rms
 
+from colabmda.core.logs import StageLog
+
 
 def _data_lines(path):
     with open(path) as f:
@@ -31,7 +33,7 @@ def _data_lines(path):
             yield s
 
 
-def _infer_interval(sim_dir, n_frames):
+def _production_times(sim_dir, n_frames):
     merged_log = (
         os.path.join(sim_dir, "md.log")
         if os.path.isfile(os.path.join(sim_dir, "md.log"))
@@ -46,8 +48,14 @@ def _infer_interval(sim_dir, n_frames):
                     times.append(float(parts[1]))
                 except Exception:
                     continue
-        if len(times) >= 2:
-            return (times[-1] - times[0]) / max(1, n_frames - 1)
+        times = np.asarray(times, dtype=float)
+        if (
+            len(times) != n_frames
+            or not np.isfinite(times).all()
+            or (len(times) > 1 and not (np.diff(times) > 0).all())
+        ):
+            raise ValueError("Production log times do not match trajectory frames")
+        return times
     return None
 
 
@@ -91,9 +99,11 @@ def _residue_labels(topology, ca_indices, reference=None):
 def analyze_single(sim_dir, topo_path, traj_path, interval_user=None, reference=None):
     u = mda.Universe(topo_path, traj_path)
     n_frames = len(u.trajectory)
-    interval = interval_user or _infer_interval(sim_dir, n_frames) or 10.0
-    # Correct time: Frames are at 1*int, 2*int ... N*int
-    times = (np.arange(n_frames) + 1) * interval
+    times = _production_times(sim_dir, n_frames) if interval_user is None else None
+    if times is None:
+        # Preserve the explicit interval and historical no-log API fallback.
+        interval = interval_user if interval_user is not None else 10.0
+        times = (np.arange(n_frames) + 1) * interval
 
     # RMSD
     rmsd_calc = rms.RMSD(u, u, select="backbone", ref_frame=0)
@@ -229,7 +239,7 @@ def aggregate_reports(folders, outdir):
         raise ValueError("Aggregate requires at least two distinct replicas")
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    (outdir / "AGGREGATE_DONE").unlink(missing_ok=True)
+    (StageLog(outdir, "AGGREGATE_DONE")).unlink(missing_ok=True)
     tables = {}
     hashes = {}
     for metric in ["rmsd", "rg", "rmsf"]:
