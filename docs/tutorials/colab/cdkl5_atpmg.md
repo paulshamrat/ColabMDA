@@ -266,13 +266,13 @@ cmda push -s cmda
 ## ⚡ Phase 3: Cloud GPU Simulation & Analysis (Google Colab)
 *Connect to Google Colab to run OpenMM molecular dynamics simulations on an NVIDIA GPU.*
 
-### 3.1. Connect to Colab GPU Console
+### 3.1. Connect to Colab GPU Terminal
 In your local terminal:
 ```bash
-colab console -s cmda
+colab ssh -s cmda
 ```
 
-Inside the Colab console terminal, run the cloud setup (~90 seconds) and navigate to the project directory:
+Inside the Colab terminal, run the cloud setup (the first installation can take several minutes) and navigate to the project directory:
 
 ```bash
 # 1. Install cmda, OpenMM (CUDA/CPU), and AmberTools:
@@ -560,7 +560,7 @@ Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive.
    ```bash
    colab new -s cmda --gpu T4
    colab drivemount --session cmda
-   colab console -s cmda
+   colab ssh -s cmda
    ```
 2. Re-run the exact same production command:
    ```bash
@@ -571,7 +571,7 @@ Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive.
 
 #### Python Trajectory & Catalytic Coordination Health Check
 
-To quickly verify trajectory health and check that $\text{Mg}^{2+}$ remained chelated to ATP during a chunk, run this snippet inside the Colab console:
+To quickly verify trajectory health and check that $\text{Mg}^{2+}$ remained chelated to ATP during a chunk, run this snippet inside the Colab terminal:
 
 ```python
 import MDAnalysis as mda

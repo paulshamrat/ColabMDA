@@ -62,7 +62,7 @@ When `colab sessions` prints an authorization URL:
    press Enter. Keep the code private.
 
 ### 1.2. Launch Cloud GPU (CLI option)
-Once logged in, provision a Google Colab GPU instance and enter the remote console:
+Once logged in, provision a Google Colab GPU instance and enter the remote terminal:
 
 ```bash
 # 1. Launch a Colab GPU instance:
@@ -71,15 +71,15 @@ colab new -s cmda --gpu T4
 # 2. Mount Google Drive (visit the printed link once, then press Enter):
 colab drivemount --session cmda
 
-# 3. Enter the Colab Console:
-colab console -s cmda
+# 3. Enter the Colab Terminal:
+colab ssh -s cmda
 ```
 
 ---
 
 ## 2. Cloud Environment Setup
 
-In the **browser terminal** or **CLI console**, provide your Modeller license key,
+In the **browser terminal** or **CLI terminal**, provide your Modeller license key,
 run the installer, and navigate to Google Drive:
 
 ```bash
@@ -343,9 +343,9 @@ and so on; `.tmp` files belong to the chunk currently being written. Replicas
 >    ```bash
 >    colab new -s cmda --gpu T4
 >    colab drivemount --session cmda
->    colab console -s cmda
+>    colab ssh -s cmda
 >    ```
-> 2. **Reinstall environment & navigate to Drive (Colab Console, ~90 seconds):**
+> 2. **Reinstall environment & navigate to Drive (Colab Terminal; installation can take several minutes):**
 >    ```bash
 >    curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
 >    source /root/miniforge3/etc/profile.d/conda.sh
@@ -515,7 +515,7 @@ steps below are optional.
 
 ### 8.1. Pull Data (CLI option)
 
-If you use the local CLI, exit the Colab console (`exit`) and return to your local
+If you use the local CLI, exit the Colab terminal (`exit`) and return to your local
 terminal. Download analyzed figures, summary tables, and trajectories:
 
 ```bash

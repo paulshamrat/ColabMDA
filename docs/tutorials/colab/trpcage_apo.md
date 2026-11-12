@@ -45,7 +45,7 @@ When `colab sessions` prints an authorization URL:
    press Enter. Keep the code private.
 
 ### 1.2. Launch Cloud GPU
-Once logged in, provision a Google Colab GPU instance and enter the remote console:
+Once logged in, provision a Google Colab GPU instance and enter the remote terminal:
 
 ```bash
 # 1. Launch a Colab GPU instance:
@@ -54,15 +54,15 @@ colab new -s cmda --gpu T4
 # 2. Mount Google Drive (visit the printed link once, then press Enter):
 colab drivemount --session cmda
 
-# 3. Enter the Colab Console:
-colab console -s cmda
+# 3. Enter the Colab Terminal:
+colab ssh -s cmda
 ```
 
 ---
 
 ## 2. Cloud Environment Setup
 
-Inside the active **Colab console terminal**, provide your Modeller license key, run the bootstrap installer, and navigate to Google Drive:
+Inside the active **Colab terminal**, provide your Modeller license key, run the bootstrap installer, and navigate to Google Drive:
 
 ```bash
 # 1. Export Modeller key & run automated installer:
@@ -246,9 +246,9 @@ and so on; `.tmp` files belong to the chunk currently being written.
 >    ```bash
 >    colab new -s cmda --gpu T4
 >    colab drivemount --session cmda
->    colab console -s cmda
+>    colab ssh -s cmda
 >    ```
-> 2. Re-activate environment & navigate to Drive in Colab console (~90 seconds):
+> 2. Re-activate environment & navigate to Drive in the Colab terminal:
 >    ```bash
 >    [ ! -d "/root/miniforge3/envs/cmda" ] && curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh | bash
 >    source /root/miniforge3/etc/profile.d/conda.sh
@@ -332,27 +332,29 @@ Stage log: `logs/apo/analysis/WT/r1/analysis.log`.
 ## 8. Download Deliverables & PyMOL Visualization
 
 ### 8.1. Download Deliverables to Local Machine
-In your **local terminal**, download the analysis deliverables and stripped trajectory using the `colab` CLI:
+In your **local terminal**, download the processed trajectories, matching topologies,
+models, analysis outputs and stage logs. Keep the project paths intact for `cmda view`:
 
 ```bash
-mkdir -p ~/research/projects/trpcage-example/data/apo
-
-# Download analysis figures and summaries:
-colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/analysis ~/research/projects/trpcage-example/data/apo/analysis
-
-# Download solvent-stripped trajectory and coordinates:
-colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/simulation/WT/md/r1/traj.dcd ~/research/projects/trpcage-example/data/apo/
-colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/structure/1L2Y/variants/WT/WT.pdb ~/research/projects/trpcage-example/data/apo/
+mkdir -p ~/research/projects/trpcage-example
+cd ~/research/projects/trpcage-example
+cmda pull -s cmda --project trpcage-example --traj
 ```
 
 <details>
 <summary><b>View transferred directory tree</b></summary>
 
 ```text
-~/research/projects/trpcage-example/data/apo/
-├── analysis/                                        # Downloaded analysis tables and figures
-├── WT.pdb                                           # Model for local visualization
-└── traj.dcd                                         # Downloaded stripped trajectory
+~/research/projects/trpcage-example/
+├── data/apo/
+│   ├── structure/1L2Y/variants/WT/WT.pdb              # Starting model
+│   ├── simulation/WT/md/r1/
+│   │   ├── top.prmtop                               # Matching solute topology
+│   │   ├── traj.dcd                                 # Solute trajectory
+│   │   ├── topCa.prmtop                             # Matching Cα topology
+│   │   └── trajCa.dcd                               # Cα trajectory
+│   └── analysis/WT/r1/                              # Tables and figures
+└── logs/apo/                                        # Mirrored stage logs
 ```
 
 </details>
