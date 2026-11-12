@@ -39,21 +39,34 @@ local inspection. The simulation engine also supports workstation and HPC use.
 
 ```text
 research/projects/kras-example/          # Working project, separate from the tool repository
-└── data/
-    └── apo/                            # Protein in water
-        ├── structure/P01116_4LDJ/       # Experimental inputs and WT/G12D models
-        │   ├── raw/                    # Archive, template and sequence
-        │   ├── variants/               # WT and G12D model folders
-        │   └── STRUCTURE_DONE          # Completed fetch and mapping
-        ├── simulation/                 # One folder per variant
-        │   ├── WT/                     # prep/, eq/, md/r1/, md/r2/, md/r3/
-        │   └── G12D/                   # Same simulation stages
-        └── analysis/                   # QC, replica metrics, summaries and figures
-            ├── WT/                     # eq/, r1–r3/, aggregate/
-            ├── G12D/                   # Same analysis stages
-            └── compare/                # WT/G12D comparisons
+├── data/
+│   └── apo/                            # Protein in water
+│       ├── structure/P01116_4LDJ/       # Experimental inputs and WT/G12D models
+│       │   ├── raw/                    # Archive, template and sequence
+│       │   └── variants/               # WT and G12D model folders
+│       ├── simulation/                 # One folder per variant
+│       │   ├── WT/                     # prep/, eq/, md/r1/, md/r2/, md/r3/
+│       │   └── G12D/                   # Same simulation stages
+│       └── analysis/                   # QC, replica metrics, summaries and figures
+│           ├── WT/                     # eq/, r1–r3/, aggregate/
+│           ├── G12D/                   # Same analysis stages
+│           └── compare/                # WT/G12D comparisons
+└── logs/                               # Execution logs and verified completion records
+    └── apo/                            # Same state and folder hierarchy as data/
+        ├── structure/P01116_4LDJ/       # structure.log and variant model logs
+        ├── simulation/                 # Variant preparation and replica merge logs
+        │   ├── WT/                     # prep/prep.log, md/r1/merge.log, ...
+        │   └── G12D/                   # Same log layout
+        └── analysis/                   # Replica analysis/view logs and aggregate logs
+            ├── WT/                     # r1/analysis.log, r1/visualize.log, ...
+            └── G12D/                   # Same log layout
 ```
 </details>
+
+Stage logs preserve metadata and verify the current output files before a stage
+is reused. Numerical simulation measurements remain beside their trajectory
+chunks. Existing projects can move legacy completion records into this layout
+with `cmda logs --migrate` after their runs have finished.
 
 <details>
 <summary><b>📜 Changelog History (v0.3.0, v0.2.0, v0.1.0)</b></summary>

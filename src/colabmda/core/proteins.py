@@ -14,6 +14,7 @@ from urllib.request import urlopen
 from Bio.PDB import PDBParser, Select
 from Bio.SeqUtils import seq1
 
+from colabmda.core.logs import StageLog
 from colabmda.modeller.structure import (
     fetch_archive,
     verify_sequence,
@@ -59,7 +60,7 @@ def fetch(root, name):
     root = Path(root).resolve()
     folder = root / "data/01_structure" / name
     folder.mkdir(parents=True, exist_ok=True)
-    marker = folder / "STRUCTURE_DONE"
+    marker = StageLog(folder, "STRUCTURE_DONE")
     marker.unlink(missing_ok=True)
     structure, archive, url = fetch_archive(spec["pdb"], folder)
     chain = next(iter(structure))["A"]
@@ -155,11 +156,11 @@ def verify_files(folder, files):
 def model(root, name):
     root = Path(root).resolve()
     folder = root / "data/01_structure" / name
-    if not (folder / "STRUCTURE_DONE").exists():
+    if not (StageLog(folder, "STRUCTURE_DONE")).exists():
         raise ValueError("Run structure fetch and mapping first")
     record = json.loads((folder / "input.json").read_text())
     verify_files(folder, record["files"])
-    marker = folder / "MODEL_DONE"
+    marker = StageLog(folder, "MODEL_DONE")
     if marker.exists():
         existing = json.loads((folder / "models.json").read_text())
         verify_files(folder, existing["files"])
@@ -288,7 +289,7 @@ def simulate(root, name, step, variant="WT"):
         raise ValueError("Set a fresh COLABMDA_RUN_ID, or the original ID to resume")
     os.environ.update(COLABMDA_PLATFORM="CUDA", COLABMDA_REQUIRE_GPU="1", MPLBACKEND="Agg")
     folder = root / "data/01_structure" / name
-    if not (folder / "MODEL_DONE").exists():
+    if not (StageLog(folder, "MODEL_DONE")).exists():
         raise ValueError("Build and verify the models first")
     inputs = json.loads((folder / "input.json").read_text())
     models = json.loads((folder / "models.json").read_text())
@@ -337,7 +338,7 @@ def simulate(root, name, step, variant="WT"):
     save_json(run / "provenance.json", provenance)
     args = ["--root", str(root), "--state", spec["state"], "--variant", variant]
     if step == "prepare":
-        if (system / "01_prep/PREP_DONE").exists():
+        if (StageLog(system / "01_prep", "PREP_DONE")).exists():
             if (system / "01_prep/topology_check.json").exists():
                 recorded = json.loads((system / "01_prep/topology_check.json").read_text())
                 verify_files(system / "01_prep", recorded["files"])
@@ -369,9 +370,9 @@ def simulate(root, name, step, variant="WT"):
         if name == "hras":
             check_complex(system / "01_prep/model.pdb")
         check_topology(system / "01_prep", name)
-        (system / "01_prep/PREP_DONE").write_text("Verified preparation outputs\n")
+        (StageLog(system / "01_prep", "PREP_DONE")).write_text("Verified preparation outputs\n")
     elif step == "equilibrate":
-        if not (system / "01_prep/PREP_DONE").exists():
+        if not (StageLog(system / "01_prep", "PREP_DONE")).exists():
             raise ValueError("Preparation incomplete")
         cli(
             "sim",
@@ -387,11 +388,11 @@ def simulate(root, name, step, variant="WT"):
         for filename in ["system.xml", "npt.state.xml", "equilibration_qc.json"]:
             if not (system / "02_eq" / filename).stat().st_size:
                 raise ValueError("Incomplete equilibration")
-        (system / "02_eq/EQ_DONE").write_text(
+        (StageLog(system / "02_eq", "EQ_DONE")).write_text(
             "Quick equilibration outputs verified; review physical QC\n"
         )
     elif step == "production":
-        if not (system / "02_eq/EQ_DONE").is_file():
+        if not (StageLog(system / "02_eq", "EQ_DONE")).is_file():
             raise ValueError("Equilibration incomplete")
         ns = float(os.environ.get("COLABMDA_EXAMPLE_NS", "0.1"))
         if ns <= 0 or abs(ns * 10 - round(ns * 10)) > 1e-8:
@@ -402,7 +403,7 @@ def simulate(root, name, step, variant="WT"):
             raise ValueError("Cannot shorten a completed/requested run; choose a new run ID")
         history.append({"requested_ns": ns})
         save_json(requests, history)
-        (run / "RUN_DONE").unlink(missing_ok=True)
+        (StageLog(run, "RUN_DONE")).unlink(missing_ok=True)
         cli(
             "sim",
             *args,
@@ -489,8 +490,10 @@ def check_run(run, system, name, variant, sequence):
             "analysis": analysis_record,
         },
     )
-    (run / "RUN_DONE").write_text("Software checks passed; physical equilibration QC is separate\n")
-    print(f"RUN_DONE: {name} {variant}, {ns} ns; physical QC: {qc['passed']}")
+    (StageLog(run, "RUN_DONE")).write_text(
+        "Software checks passed; physical equilibration QC is separate\n"
+    )
+    print(f"Run verified: {name} {variant}, {ns} ns; physical QC: {qc['passed']}")
 
 
 def check_topology(folder, name=None, *, spec=None, save_receipt=False):

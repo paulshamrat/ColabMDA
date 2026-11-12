@@ -24,13 +24,21 @@ conda activate "${COLABMDA_ENV:-colabmda}"
 export MPLBACKEND=Agg PYTHONUNBUFFERED=1
 run="$PROJECT_ROOT/data/$state/simulation/$COLABMDA_RUN_ID/$variant"
 analysis="$PROJECT_ROOT/data/$state/analysis/$COLABMDA_RUN_ID/$variant/r1"
-rm -f "$analysis/ANALYSIS_DONE"
+python - "$analysis" <<'PY_STAGE'
+import sys
+from colabmda.core.logs import StageLog
+StageLog(sys.argv[1], "ANALYSIS_DONE").unlink(missing_ok=True)
+PY_STAGE
 cd "$run/03_md"
 cmda merge --state "$state" --variant "$variant" --replicas r1 --root "$PROJECT_ROOT"
 mkdir -p "$analysis"
 cd "$analysis"
 cmda analyze --state "$state" --variant "$variant" --replicas r1 --root "$PROJECT_ROOT"
-for output in analysis.json rmsd.csv rg.csv rmsf.csv figures/rmsd_vs_time.png figures/rg_vs_time.png figures/rmsf_per_residue.png; do
+for output in rmsd.csv rg.csv rmsf.csv figures/rmsd_vs_time.png figures/rg_vs_time.png figures/rmsf_per_residue.png; do
   test -s "$output"
 done
-printf 'Verified r1 tables and figures generated\n' > ANALYSIS_DONE
+python - <<'PY_STAGE'
+from pathlib import Path
+from colabmda.core.logs import StageLog
+StageLog(Path.cwd(), "ANALYSIS_DONE").write_text("Verified r1 tables and figures generated\n")
+PY_STAGE

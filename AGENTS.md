@@ -73,16 +73,13 @@ research/projects/<project-example>/
         │       │   │   ├── <pdb>_orig.pdb    # Raw template backup
         │       │   │   ├── <pdb>.pdb         # Isolated chain coordinate
         │       │   │   ├── pipeline.log      # Modeller build log
-        │       │   │   └── MODEL_DONE        # Modeling completion gate
         │       │   │
         │       │   └── <mutant>/             # Point mutant
         │       │       ├── <mutant>.pdb      # Mutated coordinate
         │       │       ├── WT_<mutant>.pdb   # Direct mutation coordinate
         │       │       ├── WT_<mutant>_with_cryst.pdb # Mutant with crystal headers
         │       │       ├── mutate.log        # Rotamer sampling & energy log
-        │       │       └── MODEL_DONE        # Mutant completion gate
         │       │
-        │       └── STRUCTURE_DONE            # Structural QC gate
         │
         ├── simulation/
         │   ├── WT/
@@ -102,7 +99,6 @@ research/projects/<project-example>/
         │   │       │   ├── traj.dcd # Continuous PBC-autoimaged stripped trajectory
         │   │       │   ├── topCa.prmtop         # Cα backbone topology
         │   │       │   ├── trajCa.dcd       # Cα backbone trajectory
-        │   │       │   ├── MERGE_DONE        # Merge completion marker
         │   │       │   └── chunks/           # Raw crash-recovery chunks (0001.dcd, 0001.log, ...)
         │   │       ├── r2/                   # Independent velocity seed (triplicate)
         │   │       └── r3/                   # Independent velocity seed (triplicate)
@@ -130,15 +126,15 @@ research/projects/<project-example>/
   - **Direct Nouns Only**: Use `eq/` (24-stage equilibration), `md/r1/` (Production replica 1), `prep/` (Solvated Amber system).
   - **Step-by-Step Handover Context**: When documenting commands in guides, explicitly describe: (1) command run, (2) exact files generated, and (3) which subsequent step consumes those files.
 - **100% Native Biophysical Architecture Contract (Zero-JSON & Zero-TSV Policy)**:
-  Output trees (`data/`) must contain zero `.json` and zero `.tsv` receipts or audit clutter. Domain files (`.pdb`, `.fasta`, `.prmtop`, `.inpcrd`, `.xml`, `.log`, `.dcd`, `.chk`, `.csv`, `.png`) and plain text completion markers (`*_DONE`) are the sole sources of physical truth:
+  Output trees (`data/`) must contain zero `.json` and zero `.tsv` receipts or audit clutter. Domain files (`.pdb`, `.fasta`, `.prmtop`, `.inpcrd`, `.xml`, `.log`, `.dcd`, `.chk`, `.csv`, `.png`) and verified stage logs are the sole sources of physical truth:
   - `structure/raw/` contains only `.cif`, `template.pdb`, and `uniprot.fasta` (no `residues.json`, `input.json`).
-  - `structure/variants/` contains coordinate models (`.pdb`), native Modeller outputs (`.ali`, `.log`, etc.), and `MODEL_DONE` text marker (no `model_request.json`, `model_check.json`).
-  - `simulation/prep/` contains strictly native Amber files (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `build.in`, `leap.log`, `PREP_DONE`). No `prep.json` or `topology_check.json`.
-  - `simulation/eq/` contains `eq.pdb`, `system.xml`, `state.xml`, restart states in `stages/state_*.xml`, and `EQ_DONE`. Zero JSON receipts.
-  - `simulation/md/` contains `md.log`, `npt.state.xml`, `system.xml`, `solvated.pdb`, `prod.chk`, stripped/autoimaged products (`top.prmtop`, `traj.dcd`), Cα backbone files (`topCa.prmtop`, `trajCa.dcd`), raw chunks in `chunks/`, and `MERGE_DONE`. Zero JSON receipts.
-  - `analysis/` contains only scientific metrics (`.csv`), figures (`.png`), summary deliverables (`summary.txt`, `qc.txt`), and text markers (`ANALYSIS_DONE`, `AGGREGATE_DONE`, `COMPARE_DONE`). Zero JSON files in `analysis/`.
+  - `structure/variants/` contains coordinate models (`.pdb`), native Modeller outputs (`.ali`, `.log`, etc.), with model verification in logs/ (no `model_request.json`, `model_check.json`).
+  - `simulation/prep/` contains strictly native Amber files (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `build.in`, `leap.log`). No `prep.json` or `topology_check.json`.
+  - `simulation/eq/` contains `eq.pdb`, `system.xml`, `state.xml`, restart states in `stages/state_*.xml`. Zero JSON receipts.
+  - `simulation/md/` contains `md.log`, `npt.state.xml`, `system.xml`, `solvated.pdb`, `prod.chk`, stripped/autoimaged products (`top.prmtop`, `traj.dcd`), Cα backbone files (`topCa.prmtop`, `trajCa.dcd`), raw chunks in `chunks/`. Zero JSON receipts.
+  - `analysis/` contains only scientific metrics (`.csv`), figures (`.png`), summary deliverables (`summary.txt`, `qc.txt`), with stage verification under logs/. Zero JSON files in `analysis/`.
   - **Native State Derivation & Gating**: Inter-stage validation, neutrality checks, and sequence identity gating must be derived dynamically and natively from the biological domain files themselves (e.g. parsing `system.prmtop` via `check_topology(..., save_receipt=False)`, verifying point mutations directly against `WT.pdb` coordinate atoms, parsing sequence from `uniprot.fasta`).
-  - **Text Completion Markers**: State markers (`STRUCTURE_DONE`, `MODEL_DONE`, `PREP_DONE`, `ANALYSIS_DONE`) record operational metadata (e.g., `seed`, `pdb`, `uniprot`, `range`) as clean, human-readable key-value lines without writing duplicate JSON ledgers.
+  - **Text Completion Markers**: State markers (`STRUCTURE_DONE`, `MODEL_DONE`, `ANALYSIS_DONE`) record operational metadata (e.g., `seed`, `pdb`, `uniprot`, `range`) as clean, human-readable key-value lines without writing duplicate JSON ledgers.
 - **Equilibration (`eq`)**: Final relaxed coordinates are saved exclusively as
   `eq.pdb` (duplicate `equilibrated.pdb` eliminated). Intermediate restart states
   are saved into `stages/` as `state_01.xml` ... `state_24.xml`. All QC deliverables
@@ -184,7 +180,7 @@ research/projects/<project-example>/
   ff14SB/TIP3P defaults while delegating to shared equilibration/production stages.
 - Advance checkpoints only after complete trajectory/log chunks are published.
   Interrupted chunks replay from the previous checkpoint without time gaps.
-- Validate nonempty outputs before completion markers. RUN_DONE means software
+- Validate nonempty outputs before recording completion in stage logs. Run verification means software
   checks passed; physical equilibration QC remains separately visible.
 - Quick equilibration is a software test, not biological convergence or full
   staged-protocol validation. Never claim mutant/cofactor coverage from Trp-cage.
@@ -391,3 +387,16 @@ explicit run ID, generate a matching viewer PDB and start playback. Document one
 primary movie command and a collapsed manual alternative. Viewer provenance is
 plain-text `visualize.log`, not a generated JSON receipt. Keep complete tutorial
 trees before acknowledgements, citations and the visitor footer.
+
+## Completion logs — approved marker replacement
+
+Do not create standalone completion flags. Stage metadata and output verification
+are stored in plain-text stage logs under logs/, mirroring the owning data folder.
+Use StageLog for completion checks; an existing log alone does not prove success:
+its final status and current output hashes must pass validation. Invalidating a
+stage retains metadata in its log and prevents stale legacy flags from bypassing
+the current status. Legacy flags are readable for compatibility; cmda logs
+--migrate preserves their metadata and removes them after verifying outputs.
+Visual provenance also belongs in these logs. Native MD measurements and trajectory
+chunks stay paired in data/. Preserve raw scientific bytes during log migration.
+The README and current tutorials show logs/ rather than standalone flags.

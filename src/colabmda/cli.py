@@ -5,6 +5,8 @@ import re
 import shutil
 from pathlib import Path
 
+from colabmda.core.logs import StageLog
+
 DEFAULT_DRIVE_ROOT = "/content/drive/MyDrive/projects"
 ENV_ROOT = "COLABMDA_ROOT"
 ENV_PROJECT = "COLABMDA_PROJECT_DIR"
@@ -292,7 +294,7 @@ def _dispatch_prep(args) -> int:
                     from colabmda.core.proteins import check_topology
 
                     topo_check = check_topology(paths.prep_dir(spec), spec=spec, save_receipt=False)
-                    (paths.prep_dir(spec) / "PREP_DONE").write_text(
+                    (StageLog(paths.prep_dir(spec), "PREP_DONE")).write_text(
                         "Verified canonical coordinates, topology composition, charges and outputs\n"
                     )
                     net_q = topo_check.get("total_charge", 0.0) if topo_check else 0.0
@@ -717,6 +719,9 @@ def _dispatch_merge(args) -> int:
             chunk_paths = [c[2] for c in legacy_chunks]
         if getattr(args, "rename_files", False):
             frames = rename_trajectory_files(directory)
+            record = StageLog(directory, "MERGE_DONE")
+            details = record.read_text() if record.path.exists() or record.legacy.exists() else ""
+            record.write_text(details + "\nCompleted trajectory products verified after renaming\n")
             print(f"[OK] Renamed verified trajectory products: {directory} ({frames} frames)")
             merged_any = True
             continue
@@ -735,7 +740,7 @@ def _dispatch_merge(args) -> int:
             if rc or not (directory / filename).is_file() or not (directory / top).is_file():
                 raise RuntimeError(f"cpptraj {mode} failed: {output[-3000:]}")
         merge_logs(str(directory), str(directory / "md.log"))
-        (directory / "MERGE_DONE").write_text(
+        (StageLog(directory, "MERGE_DONE")).write_text(
             "Verified trajectory inputs and both stripped outputs\n"
         )
         merged_any = True
@@ -772,10 +777,10 @@ def _dispatch_analyze(args) -> int:
             raise FileNotFoundError(f"No matching merged trajectory/topology in {rep_dir}")
         inputs.append((rep_dir, pair, paths.replica_analysis_dir(spec, rep)))
     aggregate = paths.analysis_dir(spec) / "aggregate"
-    (aggregate / "AGGREGATE_DONE").unlink(missing_ok=True)
+    (StageLog(aggregate, "AGGREGATE_DONE")).unlink(missing_ok=True)
     for rep_dir, (top, traj), analysis_dir in inputs:
         analysis_dir.mkdir(parents=True, exist_ok=True)
-        marker = analysis_dir / "ANALYSIS_DONE"
+        marker = StageLog(analysis_dir, "ANALYSIS_DONE")
         marker.unlink(missing_ok=True)
         print(f"[OK] Running analysis for {name}/{rep_dir.name} -> {analysis_dir}")
         openmm_analysis(
@@ -811,7 +816,9 @@ def _dispatch_analyze(args) -> int:
             for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
         ):
             raise RuntimeError("Aggregate figures are incomplete")
-        (aggregate / "AGGREGATE_DONE").write_text("Verified aligned replica tables and figures\n")
+        (StageLog(aggregate, "AGGREGATE_DONE")).write_text(
+            "Verified aligned replica tables and figures\n"
+        )
 
     return 0
 
@@ -1567,6 +1574,12 @@ def main():
         help="Validate and rename completed legacy trajectory products without recomputing",
     )
 
+    p_logs = sub.add_parser("logs", help="Inspect or migrate stage completion logs")
+    p_logs.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+    p_logs.add_argument(
+        "--migrate", action="store_true", help="Move legacy completion records into logs/"
+    )
+
     # 6. analyze (alias: analysis)
     p_top_ana = sub.add_parser(
         "analyze",
@@ -1662,6 +1675,17 @@ def main():
 
     elif args.tool == "sim":
         raise SystemExit(_dispatch_sim(args))
+
+    elif args.tool == "logs":
+        from colabmda.core.logs import migrate_project_logs
+        from colabmda.core.project import resolve_project_root
+
+        root = resolve_project_root(args.root)
+        if args.migrate:
+            for path in migrate_project_logs(root):
+                print(f"[OK] {path}")
+        else:
+            print(root / "logs")
 
     elif args.tool == "merge":
         raise SystemExit(_dispatch_merge(args))

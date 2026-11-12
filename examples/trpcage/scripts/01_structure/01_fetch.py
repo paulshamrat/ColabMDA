@@ -4,6 +4,8 @@ import hashlib
 import io
 import json
 from pathlib import Path
+
+from colabmda.core.logs import StageLog
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
@@ -66,7 +68,7 @@ record = {
     "selection": "First NMR model, author chain A, standard protein residues; native numbering",
 }
 (folder / "input.json").write_text(json.dumps(record, indent=2) + "\n")
-(folder / "STRUCTURE_DONE").write_text(
+StageLog(folder, "STRUCTURE_DONE").write_text(
     "Deposited sequence, native numbering and coordinate presence verified\n"
 )
 print(json.dumps(record, indent=2))

@@ -155,7 +155,7 @@ def test_top_level_stage_command(tmp_path, monkeypatch):
         assert (variant_base / folder).is_dir()
     assert not (tmp_path / "data/atp_2mg_eb2/analysis").exists()
     assert not (variant_base / "04_analysis").exists()
-    assert (tmp_path / "logs/atp_2mg_eb2/cdkl5_staged_v1/WT").is_dir()
+    assert (tmp_path / "logs/atp_2mg_eb2/simulation/cdkl5_staged_v1/WT").is_dir()
     assert not (tmp_path / "scripts").exists()
 
 
