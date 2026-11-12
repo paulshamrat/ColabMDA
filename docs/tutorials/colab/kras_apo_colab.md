@@ -2,7 +2,8 @@
 
 This tutorial provides a streamlined simulation walkthrough for the **Apo state** of the **KRAS GTPase** (UniProt **P01116**, PDB **4LDJ** Chain A, residues **1–169**), comparing the Wild-Type (WT) protein against the oncogenic point mutant **G12D**.
 
-Everything is executed on a **Google Colab cloud GPU via the `colab` CLI**, with all outputs, checkpoints, and figures continuously persisted inside your **Google Drive**.
+Run the workflow on a **Google Colab cloud GPU** using either the browser terminal
+or the `colab` CLI. Outputs, checkpoints and figures are saved to **Google Drive**.
 
 ---
 
@@ -13,7 +14,23 @@ the end of this tutorial. Paths are relative to the project root unless stated o
 
 ## 1. Connect to Google Colab
 
-### 1.1. Local Setup
+### Browser-only option
+
+You can run this tutorial entirely in your browser without installing WSL2 or
+software on your computer.
+
+1. Open [Google Colab](https://colab.research.google.com/) and create a notebook.
+2. Select a GPU under **Runtime → Change runtime type** and connect to the runtime.
+3. Mount Google Drive from the **Files** panel, approve access, and open the
+   **Terminal** panel.
+4. Skip Sections 1.1 and 1.2. Continue with **Section 2: Cloud Environment Setup**,
+   running its commands in the browser's Colab terminal.
+
+Results stay on Google Drive. Local downloading and PyMOL viewing in Section 8
+are optional. You do not need `colab sessions` or any local CLI commands for this
+route.
+
+### 1.1. Local Setup (CLI option)
 Run this one-time setup in your local terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 
 ```bash
@@ -44,7 +61,7 @@ When `colab sessions` prints an authorization URL:
 4. Paste the code into the same terminal at `Enter the authorization code:` and
    press Enter. Keep the code private.
 
-### 1.2. Launch Cloud GPU
+### 1.2. Launch Cloud GPU (CLI option)
 Once logged in, provision a Google Colab GPU instance and enter the remote console:
 
 ```bash
@@ -62,7 +79,8 @@ colab console -s cmda
 
 ## 2. Cloud Environment Setup
 
-Inside the active **Colab console terminal**, provide your Modeller license key, run the bootstrap installer, and navigate to Google Drive:
+In the **browser terminal** or **CLI console**, provide your Modeller license key,
+run the installer, and navigate to Google Drive:
 
 ```bash
 # 1. Export Modeller key & run automated installer:
@@ -314,6 +332,12 @@ and so on; `.tmp` files belong to the chunk currently being written. Replicas
 > Google Colab GPU sessions have runtime limits (typically 4–12 hours) before the instance is recycled. Because a recycled Colab instance starts with a fresh filesystem, **you must reinstall the environment on the new instance**. Your simulation progress and checkpoints remain safe on Google Drive.
 >
 > If your session times out or disconnects:
+>
+> **Browser-only:** Repeat the browser steps in Section 1 to connect to a GPU
+> runtime, mount Drive and open its terminal. Then follow steps 2 and 3 below.
+>
+> **CLI option:** Follow all three steps below.
+>
 > 1. **Launch a new session & mount Drive (Local Terminal):**
 >    ```bash
 >    colab new -s cmda --gpu T4
@@ -477,16 +501,23 @@ data/apo/analysis/compare/
 
 </details>
 
-> **Downstream Handover:** These publication figures and statistical summaries are retrieved to your local machine in **Section 8 (`cmda pull`)** for final inspection and publication rendering.
+> **Downstream Handover:** Review the figures and tables on Google Drive, or use
+> **Section 8** to download them and inspect trajectories locally.
 
 ---
 
-## 8. Pull Results & Visualization
+## 8. Results & Optional Local Visualization
 
-Exit the Colab console (`exit`), then switch back to your local workstation terminal:
+**Browser-only:** Your results are already on Google Drive under
+`research/projects/kras-example/data/apo/analysis/`. Review the PNG figures and
+CSV tables there. You can also browse these files through Colab's **Files** panel
+under `/content/drive/MyDrive/` and use **Download** for individual files. The local
+steps below are optional.
 
-### 8.1. Pull Data
-Download analyzed figures, summary tables, and trajectories:
+### 8.1. Pull Data (CLI option)
+
+If you use the local CLI, exit the Colab console (`exit`) and return to your local
+terminal. Download analyzed figures, summary tables, and trajectories:
 
 ```bash
 mkdir -p ~/research/projects/kras-example
@@ -520,7 +551,7 @@ data/apo/
 
 ---
 
-### 8.2. PyMOL Trajectory Visualization
+### 8.2. PyMOL Trajectory Visualization (optional, local)
 
 To inspect trajectories, open the stripped topology (`stripped.prmtop`) paired with the stripped trajectory (`prod_keep_ligand.dcd`).
 
