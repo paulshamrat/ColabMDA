@@ -112,6 +112,8 @@ research/projects/cmda-example/
 ### 1.0. Local Machine Setup (One-Time)
 Run this one-time setup in your terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 
+On a fresh machine, [install the required system tools](../../../README.md#prerequisites) first.
+
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and Modeller:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/dev1/scripts/setup.sh)"

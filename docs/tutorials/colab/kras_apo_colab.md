@@ -111,6 +111,8 @@ All files reside inside your mounted Google Drive under a standardized hierarchy
 ### 1.1. Local Setup
 Run this one-time setup in your local terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 
+On a fresh machine, [install the required system tools](../../../README.md#prerequisites) first.
+
 ```bash
 # 1. Install cmda, OpenMM, AmberTools, PyMOL, and google-colab-cli:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/paulshamrat/ColabMDA/main/scripts/setup.sh)"

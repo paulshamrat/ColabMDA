@@ -10,6 +10,20 @@
 
 ColabMDA divides work between your local computer and Google Colab:
 
+### Prerequisites
+
+On a fresh Ubuntu or WSL2 installation, install these system tools first:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git curl wget ca-certificates
+```
+
+Git is needed when pip installs ColabMDA from its GitHub repository. The installer
+checks that `git`, `curl`, and `wget` are on `PATH` before downloading Miniforge,
+changing environments, or prompting for a MODELLER key. These checks also apply
+when running the installer on Colab.
+
 ### Local Workstation
 Run this one-time setup in your terminal on **Linux (Ubuntu)** or Windows via **[WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)**:
 

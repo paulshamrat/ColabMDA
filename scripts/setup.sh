@@ -28,6 +28,23 @@ OPENMM_CUDA_VERSION="${COLABMDA_CUDA_VERSION:-13.0}"
 ENV_NAME="${ENV_NAME:-cmda}"
 MINIFORGE_DIR="${MINIFORGE_DIR:-$HOME/miniforge3}"
 
+# Check system tools before downloads, environment changes or license prompts.
+missing_tools=()
+for tool in git curl wget; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    missing_tools+=("$tool")
+  fi
+done
+if (( ${#missing_tools[@]} )); then
+  printf '[ERROR] Missing required command(s): %s\n' "${missing_tools[*]}" >&2
+  printf '%s\n' \
+    'On Ubuntu/WSL2, run:' \
+    '  sudo apt-get update' \
+    '  sudo apt-get install -y git curl wget ca-certificates' \
+    'Then rerun this installer.' >&2
+  exit 1
+fi
+
 # Detect execution platform
 IS_COLAB=0
 if [[ -d "/content" ]]; then
