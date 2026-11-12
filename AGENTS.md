@@ -11,7 +11,7 @@
   core dependency specification. Optional MODELLER stays separate for license
   and Python compatibility. Do not recreate envs/ or duplicate bootstrap scripts.
 - `examples/{trpcage,fkbp,hras}/scripts/` contains thin user workflows, not engines.
-  Main README retains its complete baseline. Complete scientific commands and workflows live
+  Main README provides the overview and tutorial links. Complete scientific commands and workflows live
   in docs/tutorials/colab/ (trpcage_apo.md, kras_apo.md, kras_apo_colab.md, cdkl5_apo.md, cdkl5_atpmg.md). Keep one scientific workflow across platforms; no user YAML.
   examples/hpc/simulate.slurm is a thin scheduler adapter, not another MD engine.
   examples/hpc/analyze.slurm runs shared merge/analysis on CPUs without a GPU.
@@ -237,35 +237,22 @@ Do not claim a new GPU run when only CPU/template tests were performed.
 
 ## Documentation upkeep
 
-README.md is the complete maintained user guide. Preserve its established project
-information, numbered platform setup, project architecture, full modeling/apo/holo
-simulation protocol, small example, acknowledgements, changelog and citation
-sections. Make focused updates; do not replace the full guide with a quickstart
-or reorganize it without an explicit user request.
+README.md introduces the project, lists the three Trp-cage/KRAS tutorials with serial
+numbers, outlines the workflow,
+and keeps a collapsed project layout, changelog, acknowledgements and citations.
+Keep CDKL5 guides available but unlisted in the root README until requested. Use
+KRAS for the README project layout. Keep installation commands in each tutorial,
+not duplicated in the root README.
+Do not introduce a shared installation guide without an explicit user request.
 
-The root README's main workflow uses CDKL5 WT/L119R for apo and ATP/one-Mg,
-matching docs/tutorials/colab/cdkl5_apo.md and docs/tutorials/colab/cdkl5_atpmg.md. Keep the existing section order and use
-simple, direct, concise language. Trp-cage remains the optional quick test;
-FKBP12/H-Ras templates and historical evidence remain available. Do not claim
-L119R GPU validation from its CPU model/preparation checks. The default walkthrough
-must run from public inputs without another project or owner-supplied files.
-Use short cmda commands; put copying, hashing and checks in package operations.
-COLABMDA_PROJECT_DIR removes repeated --root arguments. Keep optional Python
-diagnostics separate from the main command sequence. Preserve historical study
-models and pilot evidence when adding the public-input route.
-
-Keep architecture consolidated in README section 2: tool repository, then shared
-simulation project. The Trp-cage quickstart tutorial belongs in docs/tutorials/colab/trpcage_apo.md; section 4
-is the short 4BGQ pilot.
-State guides link to the shared layout instead of repeating its tree. Keep one
-compact command reference near the end (section 5), with options available through
---help. Workflow sections retain runnable steps, not duplicate command catalogs.
-Place one badge row directly below the title: release, CI, license, repository,
-Issues, Black and Ruff. Keep the development/style badges visible there.
-Follow it with the Colab interruption problem, Drive checkpoint recovery,
-terminal workflow and HPC/workstation support, then where to start. Keep platform/dependency details
-in Platform Setup, with development/support links in CONTRIBUTING.md.
-Put state-guide links with the workflow and test outcomes in section 6, Validation.
+Each tutorial is self-contained: local prerequisites, installer, activation in each
+terminal, and browser authorization instructions precede the scientific workflow.
+Show a compact output tree after each stage's commands; put the complete workflow
+tree in a collapsed details block at the end. Verify filenames and downstream
+handoffs against the implementation. Preserve scientific commands, parameters,
+time conversions, checkpoint behavior and historical evidence when reorganizing.
+State which machine runs each step. Preserve the root badge row and project
+introduction; developer setup belongs in CONTRIBUTING.md.
 
 Developer rules belong in CONTRIBUTING.md and AGENTS.md. Maintain ordinary
 Markdown workflow guides under docs/ with nested platform setup, as explicitly

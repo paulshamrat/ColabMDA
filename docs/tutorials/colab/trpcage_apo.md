@@ -6,82 +6,8 @@ Everything is executed on a **Google Colab cloud GPU via the `colab` CLI**, with
 
 ---
 
-## Directory Structure
-
-All files reside inside your mounted Google Drive under a standardized hierarchy:
-
-```text
-/content/drive/MyDrive/research/projects/trpcage-example/
-└── data/
-    └── apo/
-        ├── structure/
-        │   └── 1L2Y/                             # Target: NMR PDB 1L2Y
-        │       ├── raw/                          # Untouched experimental inputs (cmda fetch)
-        │       │   ├── 1l2y.cif                  # Raw PDB archive record
-        │       │   ├── template.pdb              # Cleaned monomer (waters/buffers stripped)
-        │       │   └── uniprot.fasta             # Target sequence for biological numbering
-        │       │
-        │       ├── variants/                     # Modeled coordinates (cmda model)
-        │       │   └── WT/
-        │       │       ├── WT.pdb                # Canonical modeled Wild-Type coordinate
-        │       │       ├── target.B99990001.pdb  # Modeller build
-        │       │       ├── target.B99990001_with_cryst.pdb # Model with crystal headers
-        │       │       ├── target.ini            # Starting coordinate mesh
-        │       │       ├── target.rsr            # Spatial restraints
-        │       │       ├── target.sch            # Optimization schedule
-        │       │       ├── target.D00000001      # Restraint progress log
-        │       │       ├── target.V99990001      # Restraint violation profile
-        │       │       ├── target.ali            # PIR target sequence alignment
-        │       │       ├── alignment.ali         # PIR template pairwise alignment
-        │       │       ├── 1l2y_clean.pdb        # Sanitized template
-        │       │       ├── 1l2y_orig.pdb         # Raw template backup
-        │       │       ├── 1l2y.pdb              # Isolated coordinate
-        │       │       ├── pipeline.log          # Modeller build log
-        │       │       └── MODEL_DONE            # Modeling completion gate
-        │       │
-        │       └── STRUCTURE_DONE                # Verification QC gate marker
-        │
-        ├── simulation/
-        │   └── WT/
-        │       ├── prep/                         # Solvated Amber system
-        │       │   ├── model.pdb                 # Input receptor coordinates
-        │       │   ├── solvated.pdb              # Solvated visualization PDB (protein + OPC water box + ions)
-        │       │   ├── system.prmtop             # Amber ff19SB parameter/topology file
-        │       │   ├── system.inpcrd             # Initial orthogonal coordinates
-        │       │   └── system.xml                # Serialized OpenMM system
-        │       │
-        │       ├── eq/                           # Equilibration directory
-        │       │   ├── eq.pdb                    # Final relaxed coordinates
-        │       │   ├── system.xml                # OpenMM system topology & parameters
-        │       │   ├── state.xml                 # OpenMM thermodynamic state snapshot
-        │       │   └── stages/                   # Granular restart checkpoints
-        │       │
-        │       └── md/                           # Production replicas (1 ns)
-        │           └── r1/                       # Production replica 1
-        │               ├── md.dcd                # Continuous merged trajectory (full system)
-        │               ├── md.log                # Continuous merged thermodynamic log
-        │               ├── state.xml             # Latest OpenMM simulation state snapshot
-        │               ├── prod.chk              # OpenMM checkpoint binary for resume
-        │               ├── stripped.prmtop       # Solvent-stripped topology for PyMOL & analysis
-        │               ├── prod_keep_ligand.dcd  # Continuous PBC-autoimaged stripped trajectory
-        │               ├── ca.prmtop             # Cα backbone topology
-        │               ├── prod_ca.dcd           # Cα backbone trajectory
-        │               ├── MERGE_DONE            # Merge completion marker
-        │               └── chunks/               # Raw crash-recovery chunks
-        │
-        └── analysis/                             # Mirrored deliverables (Zero JSON policy)
-            └── WT/
-                ├── eq/                           # Equilibration QC deliverables (qc.png, qc.txt)
-                └── r1/                           # Per-replica metrics (figures/, rmsd.csv, rg.csv, rmsf.csv)
-                    ├── figures/
-                    │   ├── rmsd_vs_time.png
-                    │   ├── rg_vs_time.png
-                    │   └── rmsf_per_residue.png
-                    ├── rmsd.csv
-                    ├── rg.csv
-                    ├── rmsf.csv
-                    └── ANALYSIS_DONE
-```
+Outputs are shown after each stage. The complete directory tree is collapsed at
+the end of this tutorial. Paths are relative to the project root unless stated otherwise.
 
 ---
 
@@ -164,23 +90,31 @@ Fetch the 20-residue NMR coordinates (`1L2Y`, Model 1, Chain A) directly from th
 ```bash
 # 1. Download 1L2Y (Chain A, residues 1–20) & verify coordinates:
 cmda fetch --state apo --pdb-id 1L2Y --chain A
+```
 
+**Outputs from this stage:**
+
+```text
+data/apo/structure/1L2Y/
+├── raw/
+│   ├── 1l2y.cif                                     # Experimental archive; PDB fallback is possible
+│   ├── template.pdb                                 # Cleaned template coordinates
+│   └── uniprot.fasta                                # Sequence used for modeling
+└── STRUCTURE_DONE                                   # Completed fetch and mapping
+```
+
+```bash
 # 2. Model canonical Wild-Type coordinates:
 cmda model --state apo --variant WT
 ```
 
-*What `cmda fetch` generates in `data/apo/structure/1L2Y/raw/`:*
+**Outputs from this stage:**
 
-| File | Purpose | Scientific Role |
-| :--- | :--- | :--- |
-| **`1l2y.cif`** | Archive Copy | Raw crystallographic/NMR record directly from the RCSB PDB archive. |
-| **`template.pdb`** | Modeller Input | Stripped 20-residue monomer coordinates (`NLYIQWLKDGGPSSGRPPPS`). |
-| **`uniprot.fasta`** | Sequence Target | Canonical FASTA sequence for residue numbering. |
-| **`STRUCTURE_DONE`** | Gate Marker | Verification marker confirming all 20 Cα atoms and coordinates passed QC gates. |
-
-*What `cmda model` outputs in `data/apo/structure/1L2Y/variants/WT/`:*
-* `WT.pdb`: Canonical modeled Wild-Type coordinates.
-* `MODEL_DONE`: Modeling completion gate marker.
+```text
+data/apo/structure/1L2Y/variants/WT/
+├── WT.pdb                                           # Coordinates passed to preparation
+└── MODEL_DONE                                       # Completed model verification
+```
 
 > **Downstream Handover:** These validated coordinates (`WT.pdb`) are handed over to **Section 4 (`cmda prep`)** for PROPKA protonation and Amber OPC water box solvation.
 
@@ -194,23 +128,23 @@ ColabMDA runs **PROPKA 3** at physiological pH 7.4 to evaluate 3D electrostatic 
 cmda prep --state apo --variant WT
 ```
 
+**Outputs from this stage:**
+
+```text
+data/apo/simulation/WT/prep/
+├── model.pdb                                        # Prepared solute coordinates
+├── solvated.pdb                                     # Protein, water and ions
+├── system.prmtop                                    # Amber topology passed to equilibration
+├── system.inpcrd                                    # Amber coordinates passed to equilibration
+└── PREP_DONE                                        # Verified preparation outputs
+```
+
 | Residue | State | Physical Criteria |
 | :--- | :--- | :--- |
 | **Histidine** | `HID` / `HIE` / `HIP` | Neutral $\text{N}_\delta$, neutral $\text{N}_\epsilon$, or doubly protonated positive ($pK_a > 7.4$). |
 | **Acidic** | `ASP` / `GLU` | Standard carboxylate anions (`ASH`/`GLH` assigned if buried with $pK_a > 7.4$). |
 | **Basic** | `LYS` / `ARG` | Fully protonated cations (Lys8 and Arg16 in Trp-cage). |
 | **Cysteine** | `CYS` / `CYX` | Free neutral thiol (`CYS`) or disulfide bridge (`CYX`). |
-
-*What `cmda prep` outputs in `data/apo/simulation/WT/prep/`:*
-
-```text
-prep/
-├── model.pdb        # Input receptor coordinates copied for reproducibility
-├── solvated.pdb     # Solvated coordinates (protein, ~1,800 OPC waters, neutralizing Cl⁻ ion)
-├── system.prmtop    # Amber ff19SB topology containing all force field parameters
-├── system.inpcrd    # Solvated, charge-neutralized initial coordinates
-└── system.xml       # Serialized OpenMM system (physical forces, constraints, box vectors)
-```
 
 > **Downstream Handover:** These solvated parameters are loaded by OpenMM for GPU equilibration in **Section 5 (`cmda sim eq`)**.
 
@@ -228,6 +162,26 @@ cmda stage --state apo --variant WT
 cmda sim eq --state apo --variant WT --protocol quick
 ```
 
+**Outputs from this stage:**
+
+```text
+data/apo/
+├── simulation/
+│   └── WT/
+│       └── eq/
+│           ├── solvated.pdb                         # Topology coordinates used by OpenMM
+│           ├── system.xml                           # Serialized OpenMM system
+│           ├── em.state.xml                         # Minimized state
+│           ├── nvt.state.xml                        # State after NVT equilibration
+│           ├── npt.state.xml                        # Equilibrated state passed to production
+│           └── eq.pdb                               # Final equilibrated coordinates
+└── analysis/
+    └── WT/
+        └── eq/
+            ├── qc.txt                               # Equilibration diagnostics
+            └── qc.png                               # Thermodynamic and structural QC figure
+```
+
 > [!TIP]
 > **Full 24-Stage Progressive Ladder:** Omitting `--protocol quick` executes the complete 24-stage heating and restraint release ladder (`--protocol staged`).
 
@@ -239,11 +193,7 @@ cat data/apo/analysis/WT/eq/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.8 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
-*What `cmda sim eq` outputs:*
-* In `data/apo/simulation/WT/eq/`: `eq.pdb`, `system.xml`, `state.xml`, `stages/`.
-* In `data/apo/analysis/WT/eq/`: `qc.png` (6-panel publication QC plot) and `qc.txt` (pass/fail diagnostic receipt).
-
-> **Downstream Handover:** The final thermodynamic state (`eq/state.xml`) and topology serve as the physical starting point for independent production MD in **Section 6 (`cmda sim md`)**.
+> **Downstream Handover:** The final thermodynamic state (`eq/npt.state.xml`) and topology serve as the physical starting point for independent production MD in **Section 6 (`cmda sim md`)**.
 
 ---
 
@@ -254,6 +204,22 @@ Run 1 ns of checkpointed production molecular dynamics on the Colab GPU (~1 minu
 ```bash
 cmda sim md --state apo --variant WT --replica r1 --total-ns 1 --checkpoint-ps 100 --traj-interval 10
 ```
+
+**Outputs from this stage:**
+
+```text
+data/apo/simulation/WT/md/r1/
+├── system.xml                                       # Copied OpenMM system
+├── solvated.pdb                                     # Copied topology coordinates
+├── npt.state.xml                                    # Starting state copied from equilibration
+├── prod.chk                                         # Checkpoint used to resume production
+└── chunks/
+    ├── 0001.dcd                                     # First committed trajectory chunk
+    └── 0001.log                                     # Matching committed thermodynamic log
+```
+
+Each replica has its own folder. Committed chunks are numbered `0001`, `0002`,
+and so on; `.tmp` files belong to the chunk currently being written.
 
 > [!IMPORTANT]
 > **💡 How to Resume After a Session Timeout:**
@@ -295,31 +261,46 @@ cmda sim md --state apo --variant WT --replica r1 --total-ns 1 --checkpoint-ps 1
 Concatenate raw trajectory chunks, apply periodic boundary condition (PBC) autoimaging, strip bulk water, audit frame continuity, and calculate biophysical metrics:
 
 ```bash
-# 1. Merge chunks & autoimage PBC (produces continuous md.dcd and stripped trajectories):
+# 1. Merge chunks & autoimage PBC (produces autoimaged, stripped trajectories):
 cmda sim merge --state apo --variant WT --replica r1
+```
 
+**Outputs from this stage:**
+
+```text
+data/apo/simulation/WT/md/r1/
+├── prod_keep_ligand.dcd                             # Autoimaged trajectory without bulk solvent
+├── stripped.prmtop                                  # Matching topology; use with the trajectory above
+├── prod_ca.dcd                                      # Cα trajectory
+├── ca.prmtop                                        # Matching Cα topology
+├── prod_full.log                                    # Merged production log
+├── md.log                                           # Copy of the merged production log
+└── MERGE_DONE                                       # Verified merged outputs
+```
+
+```bash
 # 2. Audit frame counts & chunk continuity:
 cmda status --state apo --variant WT --replica r1
+```
 
+```bash
 # 3. Calculate biophysical metrics (RMSD, Rg, RMSF):
 cmda analyze --state apo --variant WT --replica r1
 ```
 
-*What `cmda sim merge` outputs in `data/apo/simulation/WT/md/r1/`:*
-* `md.dcd`: Continuous concatenated solvated trajectory.
-* `md.log`: Continuous concatenated thermodynamic log table.
-* `prod_keep_ligand.dcd`: PBC-autoimaged, solvent-stripped trajectory (<1 MB).
-* `stripped.prmtop`: Amber topology matching stripped trajectory (304 atoms).
-* `ca.prmtop`: Cα-only topology (20 atoms).
-* `prod_ca.dcd`: Cα-only trajectory.
-* `MERGE_DONE`: Merge verification gate marker.
+**Outputs from this stage:**
 
-*What `cmda analyze` outputs in `data/apo/analysis/WT/r1/`:*
-* `figures/rmsd_vs_time.png`: Backbone Cα RMSD over 1 ns.
-* `figures/rg_vs_time.png`: Radius of Gyration compactness.
-* `figures/rmsf_per_residue.png`: Per-residue root mean square fluctuations for residues 1–20.
-* `rmsd.csv`, `rg.csv`, `rmsf.csv`: Raw numeric data files.
-* `ANALYSIS_DONE`: Analysis completion marker.
+```text
+data/apo/analysis/WT/r1/
+├── rmsd.csv                                         # RMSD values
+├── rg.csv                                           # Radius of gyration values
+├── rmsf.csv                                         # Per-residue fluctuations
+├── figures/
+│   ├── rmsd_vs_time.png                             # RMSD plot
+│   ├── rg_vs_time.png                               # Radius of gyration plot
+│   └── rmsf_per_residue.png                         # Fluctuation plot
+└── ANALYSIS_DONE                                    # Verified replica tables and figures
+```
 
 ---
 
@@ -337,6 +318,15 @@ colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/
 # Download solvent-stripped trajectory and coordinates:
 colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/simulation/WT/md/r1/prod_keep_ligand.dcd ~/research/projects/trpcage-example/data/apo/
 colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/structure/1L2Y/variants/WT/WT.pdb ~/research/projects/trpcage-example/data/apo/
+```
+
+**Transferred outputs:**
+
+```text
+~/research/projects/trpcage-example/data/apo/
+├── analysis/               # Downloaded analysis tables and figures
+├── WT.pdb                  # Model for local visualization
+└── prod_keep_ligand.dcd     # Downloaded stripped trajectory
 ```
 
 ### 8.2. PyMOL Trajectory Visualization
@@ -390,3 +380,76 @@ If you use ColabMDA in your research, please cite the underlying studies:
 <p align="center">
   <img src="https://komarev.com/ghpvc/?username=paulshamrat&repo=ColabMDA&label=Visitors&color=blue&style=flat-square" alt="Visitors" />
 </p>
+
+## Complete project directory structure
+
+<details>
+<summary><b>View the complete workflow directory tree</b></summary>
+
+The tree covers the workflow outputs; MODELLER and preparation tools may also
+leave auxiliary files in their owning folders. Raw archives may use `.pdb`
+instead of `.cif` when the archive fallback is used.
+
+```text
+/content/drive/MyDrive/research/projects/trpcage-example/
+└── data/
+    └── apo/
+        ├── structure/
+        │   └── 1L2Y/
+        │       ├── raw/
+        │       │   ├── 1l2y.cif                     # Experimental archive; PDB fallback is possible
+        │       │   ├── template.pdb                 # Cleaned template coordinates
+        │       │   └── uniprot.fasta                # Sequence used for modeling
+        │       ├── STRUCTURE_DONE                   # Completed fetch and mapping
+        │       └── variants/
+        │           └── WT/
+        │               ├── WT.pdb                   # Coordinates passed to preparation
+        │               └── MODEL_DONE               # Completed model verification
+        ├── simulation/
+        │   └── WT/
+        │       ├── prep/
+        │       │   ├── model.pdb                    # Prepared solute coordinates
+        │       │   ├── solvated.pdb                 # Protein, water and ions
+        │       │   ├── system.prmtop                # Amber topology passed to equilibration
+        │       │   ├── system.inpcrd                # Amber coordinates passed to equilibration
+        │       │   └── PREP_DONE                    # Verified preparation outputs
+        │       ├── eq/
+        │       │   ├── solvated.pdb                 # Topology coordinates used by OpenMM
+        │       │   ├── system.xml                   # Serialized OpenMM system
+        │       │   ├── em.state.xml                 # Minimized state
+        │       │   ├── nvt.state.xml                # State after NVT equilibration
+        │       │   ├── npt.state.xml                # Equilibrated state passed to production
+        │       │   └── eq.pdb                       # Final equilibrated coordinates
+        │       └── md/
+        │           └── r1/
+        │               ├── system.xml               # Copied OpenMM system
+        │               ├── solvated.pdb             # Copied topology coordinates
+        │               ├── npt.state.xml            # Starting state copied from equilibration
+        │               ├── prod.chk                 # Checkpoint used to resume production
+        │               ├── chunks/
+        │               │   ├── 0001.dcd             # First committed trajectory chunk
+        │               │   └── 0001.log             # Matching committed thermodynamic log
+        │               ├── prod_keep_ligand.dcd     # Autoimaged trajectory without bulk solvent
+        │               ├── stripped.prmtop          # Matching topology; use with the trajectory above
+        │               ├── prod_ca.dcd              # Cα trajectory
+        │               ├── ca.prmtop                # Matching Cα topology
+        │               ├── prod_full.log            # Merged production log
+        │               ├── md.log                   # Copy of the merged production log
+        │               └── MERGE_DONE               # Verified merged outputs
+        └── analysis/
+            └── WT/
+                ├── eq/
+                │   ├── qc.txt                       # Equilibration diagnostics
+                │   └── qc.png                       # Thermodynamic and structural QC figure
+                └── r1/
+                    ├── rmsd.csv                     # RMSD values
+                    ├── rg.csv                       # Radius of gyration values
+                    ├── rmsf.csv                     # Per-residue fluctuations
+                    ├── figures/
+                    │   ├── rmsd_vs_time.png         # RMSD plot
+                    │   ├── rg_vs_time.png           # Radius of gyration plot
+                    │   └── rmsf_per_residue.png     # Fluctuation plot
+                    └── ANALYSIS_DONE                # Verified replica tables and figures
+```
+
+</details>
