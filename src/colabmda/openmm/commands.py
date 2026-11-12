@@ -130,6 +130,18 @@ def _read_topology_info(pdb_path: Path) -> dict | None:
         ion_names = {"NA", "CL", "SOD", "CLA", "K", "MG", "CA", "ZN"}
         water_names = {"HOH", "WAT", "SOL", "TIP3"}
 
+        if pdb_path.suffix.lower() == ".prmtop":
+            import MDAnalysis as mda
+
+            universe = mda.Universe(str(pdb_path))
+            return {
+                "atoms": universe.atoms.n_atoms,
+                "residues": len(universe.residues),
+                "protein_residues": len(universe.select_atoms("protein").residues),
+                "waters": sum(r.resname in water_names for r in universe.residues),
+                "ions": sum(r.resname.upper() in ion_names for r in universe.residues),
+            }
+
         with open(pdb_path) as f:
             for line in f:
                 if line.startswith(("ATOM", "HETATM")):

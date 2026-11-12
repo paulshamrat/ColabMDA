@@ -131,3 +131,16 @@ def test_view_without_run_id_loads_the_movie_instead_of_a_starting_model(
     assert "mset 1 -2" in script and "mplay" in script
     assert "source_kind: trajectory" in (output / "visualize.log").read_text()
     assert not list(output.glob("*.json"))
+
+
+def test_status_reads_amber_atom_and_residue_counts(products):
+    import MDAnalysis as mda
+
+    from colabmda.openmm.commands import _read_topology_info
+
+    universe = mda.Universe(str(products / "stripped.prmtop"))
+    info = _read_topology_info(products / "stripped.prmtop")
+    assert info["atoms"] == universe.atoms.n_atoms > 0
+    assert info["protein_residues"] == 3
+    assert info["residues"] == 3
+    assert info["waters"] == info["ions"] == 0
