@@ -92,7 +92,8 @@ Fetch the 20-residue NMR coordinates (`1L2Y`, Model 1, Chain A) directly from th
 cmda fetch --state apo --pdb-id 1L2Y --chain A
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/1L2Y/
@@ -103,18 +104,23 @@ data/apo/structure/1L2Y/
 └── STRUCTURE_DONE                                   # Completed fetch and mapping
 ```
 
+</details>
+
 ```bash
 # 2. Model canonical Wild-Type coordinates:
 cmda model --state apo --variant WT
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/structure/1L2Y/variants/WT/
 ├── WT.pdb                                           # Coordinates passed to preparation
 └── MODEL_DONE                                       # Completed model verification
 ```
+
+</details>
 
 > **Downstream Handover:** These validated coordinates (`WT.pdb`) are handed over to **Section 4 (`cmda prep`)** for PROPKA protonation and Amber OPC water box solvation.
 
@@ -128,7 +134,8 @@ ColabMDA runs **PROPKA 3** at physiological pH 7.4 to evaluate 3D electrostatic 
 cmda prep --state apo --variant WT
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/WT/prep/
@@ -138,6 +145,8 @@ data/apo/simulation/WT/prep/
 ├── system.inpcrd                                    # Amber coordinates passed to equilibration
 └── PREP_DONE                                        # Verified preparation outputs
 ```
+
+</details>
 
 | Residue | State | Physical Criteria |
 | :--- | :--- | :--- |
@@ -162,7 +171,8 @@ cmda stage --state apo --variant WT
 cmda sim eq --state apo --variant WT --protocol quick
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/
@@ -181,6 +191,8 @@ data/apo/
             ├── qc.txt                               # Equilibration diagnostics
             └── qc.png                               # Thermodynamic and structural QC figure
 ```
+
+</details>
 
 > [!TIP]
 > **Full 24-Stage Progressive Ladder:** Omitting `--protocol quick` executes the complete 24-stage heating and restraint release ladder (`--protocol staged`).
@@ -205,7 +217,8 @@ Run 1 ns of checkpointed production molecular dynamics on the Colab GPU (~1 minu
 cmda sim md --state apo --variant WT --replica r1 --total-ns 1 --checkpoint-ps 100 --traj-interval 10
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/WT/md/r1/
@@ -217,6 +230,8 @@ data/apo/simulation/WT/md/r1/
     ├── 0001.dcd                                     # First committed trajectory chunk
     └── 0001.log                                     # Matching committed thermodynamic log
 ```
+
+</details>
 
 Each replica has its own folder. Committed chunks are numbered `0001`, `0002`,
 and so on; `.tmp` files belong to the chunk currently being written.
@@ -265,7 +280,8 @@ Concatenate raw trajectory chunks, apply periodic boundary condition (PBC) autoi
 cmda sim merge --state apo --variant WT --replica r1
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/simulation/WT/md/r1/
@@ -278,6 +294,8 @@ data/apo/simulation/WT/md/r1/
 └── MERGE_DONE                                       # Verified merged outputs
 ```
 
+</details>
+
 ```bash
 # 2. Audit frame counts & chunk continuity:
 cmda status --state apo --variant WT --replica r1
@@ -288,7 +306,8 @@ cmda status --state apo --variant WT --replica r1
 cmda analyze --state apo --variant WT --replica r1
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/apo/analysis/WT/r1/
@@ -301,6 +320,8 @@ data/apo/analysis/WT/r1/
 │   └── rmsf_per_residue.png                         # Fluctuation plot
 └── ANALYSIS_DONE                                    # Verified replica tables and figures
 ```
+
+</details>
 
 ---
 
@@ -320,7 +341,8 @@ colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/
 colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/data/apo/structure/1L2Y/variants/WT/WT.pdb ~/research/projects/trpcage-example/data/apo/
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 ~/research/projects/trpcage-example/data/apo/
@@ -328,6 +350,8 @@ colab download -s cmda /content/drive/MyDrive/research/projects/trpcage-example/
 ├── WT.pdb                  # Model for local visualization
 └── prod_keep_ligand.dcd     # Downloaded stripped trajectory
 ```
+
+</details>
 
 ### 8.2. PyMOL Trajectory Visualization
 Inspect the production trajectory in PyMOL locally:

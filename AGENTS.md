@@ -247,8 +247,9 @@ Do not introduce a shared installation guide without an explicit user request.
 
 Each tutorial is self-contained: local prerequisites, installer, activation in each
 terminal, and browser authorization instructions precede the scientific workflow.
-Show a compact output tree after each stage's commands; put the complete workflow
-tree in a collapsed details block at the end. Verify filenames and downstream
+Show a compact output tree in a collapsed details block after each stage's
+commands. Keep commands visible and use a short summary label for the tree. Put
+the complete workflow tree in a collapsed details block at the end. Verify filenames and downstream
 handoffs against the implementation. Preserve scientific commands, parameters,
 time conversions, checkpoint behavior and historical evidence when reorganizing.
 State which machine runs each step. Preserve the root badge row and project

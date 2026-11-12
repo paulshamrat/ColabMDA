@@ -63,7 +63,8 @@ The tool performs a structural superposition of conserved catalytic core residue
 cmda assemble --state atpmg --variant WT --template 8FP5 --relax-sidechains
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/atpmg/structure/O76039_4BGQ/
@@ -76,6 +77,8 @@ data/atpmg/structure/O76039_4BGQ/
         ├── complex.pdb                              # Copy of the assembled complex
         └── ASSEMBLY_DONE                            # Verified assembly and donor fit
 ```
+
+</details>
 
 <details open>
 <summary><b>📄 Expected Terminal Output: Catalytic Superposition & Relaxation</b></summary>
@@ -131,7 +134,8 @@ Once verified, assemble the disease-associated mutant (**L119R**) onto the exact
 cmda assemble --state atpmg --variant L119R --template 8FP5 --relax-sidechains
 ```
 
-**Mutant assembly outputs:**
+<details>
+<summary><b>View mutant assembly directory tree</b></summary>
 
 ```text
 data/atpmg/structure/O76039_4BGQ/variants/L119R/
@@ -139,6 +143,8 @@ data/atpmg/structure/O76039_4BGQ/variants/L119R/
 ├── complex.pdb             # Copy of the assembled complex
 └── ASSEMBLY_DONE           # Verified assembly and donor fit
 ```
+
+</details>
 
 ---
 
@@ -176,7 +182,8 @@ cmda prep --state atpmg --variant WT
 cmda prep --state atpmg --variant L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/atpmg/simulation/
@@ -195,6 +202,8 @@ data/atpmg/simulation/
         ├── system.inpcrd                            # Amber coordinates passed to equilibration
         └── PREP_DONE                                # Verified preparation outputs
 ```
+
+</details>
 
 #### Atomic Breakdown: Solvated CDKL5 Holo Complex (WT)
 
@@ -233,7 +242,8 @@ colab drivemount --session cmda
 cmda push -s cmda
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 /content/drive/MyDrive/research/projects/cmda-example/
@@ -241,6 +251,8 @@ cmda push -s cmda
     ├── structure/          # Transferred structural inputs and models
     └── simulation/         # Transferred prepared systems
 ```
+
+</details>
 
 > [!TIP]
 > **Data Destination on Google Drive:**
@@ -300,7 +312,8 @@ cmda sim eq --state atpmg --variant L119R
 # cmda sim qc --state atpmg --variant L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/atpmg/
@@ -338,6 +351,8 @@ data/atpmg/
             └── qc.png                               # Thermodynamic and structural QC figure
 ```
 
+</details>
+
 ---
 
 ### 3.2.1. Intermediate Inspection Gate: Minimal Verification Checklist (Local Machine)
@@ -354,13 +369,16 @@ cmda pull -s cmda --stage eq
 # cmda pull -s cmda --stage eq --variant WT
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 data/atpmg/
 ├── simulation/             # Retrieved simulation deliverables
 └── analysis/               # Retrieved equilibration QC
 ```
+
+</details>
 
 > [!TIP]
 > **GPU vs. CPU Session for Retrieval:**
@@ -445,7 +463,8 @@ cmda sim md --state atpmg --variant L119R --replica r2 --total-ns 100
 cmda sim md --state atpmg --variant L119R --replica r3 --total-ns 100
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/atpmg/simulation/
@@ -470,6 +489,8 @@ data/atpmg/simulation/
                 ├── 0001.dcd                         # First committed trajectory chunk
                 └── 0001.log                         # Matching committed thermodynamic log
 ```
+
+</details>
 
 Each replica has its own folder. Committed chunks are numbered `0001`, `0002`,
 and so on; `.tmp` files belong to the chunk currently being written. Replicas
@@ -589,13 +610,16 @@ cmda pull -s cmda
 # cmda pull -s cmda --all
 ```
 
-**Transferred outputs:**
+<details>
+<summary><b>View transferred directory tree</b></summary>
 
 ```text
 data/atpmg/
 ├── simulation/             # Retrieved simulation deliverables
 └── analysis/               # Retrieved QC, numerical tables and figures
 ```
+
+</details>
 
 ---
 
@@ -611,7 +635,8 @@ cmda merge --state atpmg --variant WT
 cmda merge --state atpmg --variant L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/atpmg/simulation/
@@ -636,6 +661,8 @@ data/atpmg/simulation/
             ├── md.log                               # Copy of the merged production log
             └── MERGE_DONE                           # Verified merged outputs
 ```
+
+</details>
 
 ---
 
@@ -668,7 +695,8 @@ cmda analyze --state atpmg --variant WT
 cmda analyze --state atpmg --variant L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/atpmg/analysis/
@@ -694,12 +722,15 @@ data/atpmg/analysis/
         └── ANALYSIS_DONE                            # Verified replica tables and figures
 ```
 
+</details>
+
 ```bash
 # 2. Generate publication-grade comparative overlay plots (Mean ± SD)
 cmda compare --state atpmg --variants WT,L119R
 ```
 
-**Outputs from this stage:**
+<details>
+<summary><b>View stage directory tree</b></summary>
 
 ```text
 data/atpmg/analysis/compare/
@@ -712,6 +743,8 @@ data/atpmg/analysis/compare/
 │   └── rmsf_avg.png                                 # Copy of fluctuation comparison
 └── summary.txt                                      # Comparison statistics
 ```
+
+</details>
 
 This generates publication-ready 300 DPI figures under `data/atpmg/analysis/compare/`:
 * `summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
