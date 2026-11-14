@@ -142,12 +142,6 @@ def save_stage_artifacts(simulation, workdir, stage, description):
     os.makedirs(stage_dir, exist_ok=True)
     state_path = os.path.join(stage_dir, f"{int(stage):04d}.xml")
     save_stage_state(simulation, state_path)
-    legacy_path = os.path.join(stage_dir, f"state_{int(stage):02d}.xml")
-    if not os.path.exists(legacy_path):
-        try:
-            os.link(state_path, legacy_path)
-        except OSError:
-            shutil.copy2(state_path, legacy_path)
 
 
 def atomic_rename(tmp_path, final_path):

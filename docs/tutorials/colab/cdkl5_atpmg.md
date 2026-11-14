@@ -340,8 +340,8 @@ data/atpmg/
 │           ├── npt.state.xml                        # Equilibrated state passed to production
 │           ├── eq.pdb                               # Final equilibrated coordinates
 │           └── stages/
-│               ├── state_01.xml                     # First staged restart
-│               └── state_24.xml                     # Last of 24 staged restart states
+│               ├── 0001.xml                         # First staged restart (%04d)
+│               └── 0024.xml                         # Last of 24 staged restart states
 └── analysis/
     ├── WT/
     │   └── eq/
