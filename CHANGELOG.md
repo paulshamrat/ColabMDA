@@ -4,6 +4,19 @@ All notable changes to **ColabMDA** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.0] - 2026-11-14 (Canonical Biophysical Layout & Directory Standardization)
+
+### Added
+- **Sibling Trajectory Deliverables (`merge/`)**: Trajectory post-processing (`cmda merge`) routes stripped trajectories (`protein.dcd`, `calpha.dcd`) and topologies (`protein.prmtop`, `calpha.prmtop`) into dedicated `simulation/<variant>/md/<replica>/merge/` subdirectories, eliminating clutter alongside production `chunks/`.
+- **Uniform 4-Digit Stage Zero-Padding**: Equilibration stages and production chunks standardized to uniform 4-digit formatting (`stages/0001.xml` … `0024.xml`, `chunks/0001.dcd` … `%04d.dcd`).
+- **Symmetrical 3-Partition Analysis Layout**: Analysis outputs across `eq/`, `md/r1-r3/`, and `compare/` strictly segregated into `figures/`, `tables/`, and `view/` subdirectories with zero loose root files.
+- **Canonical Ensemble Statistics Routing (`md/avg/`)**: Triplicate aggregate statistics routed directly to `analysis/<variant>/md/avg/` with relative symlinks `avg` and `aggregate` pointing to `md/avg` for full backward compatibility.
+
+### Changed
+- Standardized tutorial documentation trees across all Colab tutorials (`kras_apo`, `kras_apo_colab`, `cdkl5_apo`, `cdkl5_atpmg`) to reflect the twin-tree architecture (`data/` vs `logs/`) and canonical subfolder organization.
+
+---
+
 ## [v0.3.0] - 2026-11-02 (Native Biophysical Architecture & Core Workflows)
 
 ### Added

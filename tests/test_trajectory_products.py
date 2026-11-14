@@ -145,3 +145,24 @@ def test_status_reads_amber_atom_and_residue_counts(products):
     assert info["protein_residues"] == 3
     assert info["residues"] == 3
     assert info["waters"] == info["ions"] == 0
+
+
+def test_find_trajectory_pair_prefers_canonical_merge_deliverables(products, tmp_path):
+    replica = tmp_path / "simulation/WT/md/r1"
+    merge_dir = replica / "merge"
+    merge_dir.mkdir(parents=True)
+    shutil.copy2(products / "stripped.prmtop", merge_dir / "protein.prmtop")
+    shutil.copy2(products / "prod_keep_ligand.dcd", merge_dir / "protein.dcd")
+    shutil.copy2(products / "ca.prmtop", merge_dir / "calpha.prmtop")
+    shutil.copy2(products / "prod_ca.dcd", merge_dir / "calpha.dcd")
+    shutil.copy2(products / "stripped.prmtop", replica / "top.prmtop")
+    shutil.copy2(products / "prod_keep_ligand.dcd", replica / "traj.dcd")
+
+    assert find_trajectory_pair(replica) == (
+        merge_dir / "protein.prmtop",
+        merge_dir / "protein.dcd",
+    )
+    assert find_trajectory_pair(replica, ca=True) == (
+        merge_dir / "calpha.prmtop",
+        merge_dir / "calpha.dcd",
+    )

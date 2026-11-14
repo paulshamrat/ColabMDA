@@ -29,23 +29,28 @@ from pathlib import Path
 def find_trajectory_pair(directory, *, ca=False):
     """Find a matching processed topology/trajectory pair, including older names."""
     directory = Path(directory)
+    search_dirs = (
+        [directory / "merge", directory] if (directory / "merge").is_dir() else [directory]
+    )
     pairs = (
-        [("topCa.prmtop", "trajCa.dcd"), ("ca.prmtop", "prod_ca.dcd")]
+        [
+            ("calpha.prmtop", "calpha.dcd"),
+            ("topCa.prmtop", "trajCa.dcd"),
+            ("ca.prmtop", "prod_ca.dcd"),
+        ]
         if ca
         else [
+            ("protein.prmtop", "protein.dcd"),
             ("top.prmtop", "traj.dcd"),
             ("stripped.prmtop", "prod_keep_ligand.dcd"),
             ("stripped.system.prmtop", "prod_keep_ligand.dcd"),
         ]
     )
-    return next(
-        (
-            (directory / top, directory / traj)
-            for top, traj in pairs
-            if (directory / top).is_file() and (directory / traj).is_file()
-        ),
-        None,
-    )
+    for sdir in search_dirs:
+        for top, traj in pairs:
+            if (sdir / top).is_file() and (sdir / traj).is_file():
+                return (sdir / top, sdir / traj)
+    return None
 
 
 def rename_trajectory_files(directory):

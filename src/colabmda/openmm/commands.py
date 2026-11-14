@@ -131,9 +131,13 @@ def _read_topology_info(pdb_path: Path) -> dict | None:
         water_names = {"HOH", "WAT", "SOL", "TIP3"}
 
         if pdb_path.suffix.lower() == ".prmtop":
+            import warnings
+
             import MDAnalysis as mda
 
-            universe = mda.Universe(str(pdb_path))
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*No coordinate reader found.*")
+                universe = mda.Universe(str(pdb_path), topology_format="PRMTOP")
             return {
                 "atoms": universe.atoms.n_atoms,
                 "residues": len(universe.residues),
