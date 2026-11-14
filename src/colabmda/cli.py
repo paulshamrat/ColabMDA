@@ -858,12 +858,7 @@ def _dispatch_analyze(args) -> int:
         from colabmda.openmm.analysis import aggregate_reports
         from colabmda.openmm.figures import plot_analysis
 
-        targets = [aggregate, avg]
-        if (
-            any("md" in p.parts for p in [item[2] for item in inputs])
-            or (paths.analysis_dir(spec) / "md").exists()
-        ):
-            targets.append(md_avg)
+        targets = [aggregate, avg, md_avg]
         for out_target in targets:
             out_target.mkdir(parents=True, exist_ok=True)
             aggregate_reports([item[2] for item in inputs], out_target)

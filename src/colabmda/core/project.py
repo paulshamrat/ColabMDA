@@ -465,8 +465,6 @@ class ProjectPaths:
                 return base / "md" / normalized
             if (base / "03_md" / normalized).exists():
                 return base / "03_md" / normalized
-            if (base / "md").exists():
-                return base / "md" / normalized
             if (base / normalized).exists():
                 return base / normalized
             if self.run_id:

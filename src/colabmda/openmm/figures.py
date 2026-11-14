@@ -734,6 +734,13 @@ set_view ({view})
     StageLog(folder, "VISUALIZE_DONE").write_text(
         "".join(f"{key}: {value}\n" for key, value in record.items())
     )
+    if folder.parent.name == "md":
+        legacy_folder = folder.parent.parent / folder.name
+        if not legacy_folder.exists():
+            try:
+                legacy_folder.symlink_to(f"md/{folder.name}")
+            except OSError:
+                pass
     if not no_launch:
         if not shutil.which("pymol"):
             raise RuntimeError(
