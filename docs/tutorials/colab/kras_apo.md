@@ -293,8 +293,8 @@ data/apo/
 │   │       ├── npt.state.xml                        # Equilibrated state passed to production
 │   │       ├── eq.pdb                               # Final equilibrated coordinates
 │   │       └── stages/
-│   │           ├── state_01.xml                     # First staged restart
-│   │           └── state_24.xml                     # Last of 24 staged restart states
+│   │           ├── 0001.xml                         # First staged restart (%04d)
+│   │           └── 0024.xml                         # Last of 24 staged restart states
 │   └── G12D/
 │       └── eq/
 │           ├── solvated.pdb                         # Topology coordinates used by OpenMM
@@ -304,17 +304,23 @@ data/apo/
 │           ├── npt.state.xml                        # Equilibrated state passed to production
 │           ├── eq.pdb                               # Final equilibrated coordinates
 │           └── stages/
-│               ├── state_01.xml                     # First staged restart
-│               └── state_24.xml                     # Last of 24 staged restart states
+│               ├── 0001.xml                         # First staged restart (%04d)
+│               └── 0024.xml                         # Last of 24 staged restart states
 └── analysis/
     ├── WT/
     │   └── eq/
-    │       ├── qc.txt                               # Equilibration diagnostics
-    │       └── qc.png                               # Thermodynamic and structural QC figure
+    │       ├── figures/
+    │       │   └── qc.png                           # Thermodynamic and structural QC figure
+    │       └── tables/
+    │           ├── qc.txt                           # Equilibration diagnostics
+    │           └── qc.csv                           # Numerical QC metrics table
     └── G12D/
         └── eq/
-            ├── qc.txt                               # Equilibration diagnostics
-            └── qc.png                               # Thermodynamic and structural QC figure
+            ├── figures/
+            │   └── qc.png                           # Thermodynamic and structural QC figure
+            └── tables/
+                ├── qc.txt                           # Equilibration diagnostics
+                └── qc.csv                           # Numerical QC metrics table
 ```
 
 </details>
