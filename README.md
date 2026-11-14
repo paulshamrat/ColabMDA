@@ -45,12 +45,12 @@ research/projects/kras-example/          # Working project, separate from the to
 │       │   ├── raw/                    # Archive, template and sequence
 │       │   └── variants/               # WT and G12D model folders
 │       ├── simulation/                 # One folder per variant
-│       │   ├── WT/                     # prep/, eq/, md/r1/, md/r2/, md/r3/
+│       │   ├── WT/                     # prep/, eq/, md/r1/ (chunks/, merge/), ...
 │       │   └── G12D/                   # Same simulation stages
 │       └── analysis/                   # QC, replica metrics, summaries and figures
-│           ├── WT/                     # eq/, r1–r3/, aggregate/
+│           ├── WT/                     # eq/ (figures/, tables/), r1–r3/ (figures/, tables/, view/), avg/
 │           ├── G12D/                   # Same analysis stages
-│           └── compare/                # WT/G12D comparisons
+│           └── compare/                # WT/G12D comparisons (figures/, tables/)
 └── logs/                               # Execution logs and verified completion records
     └── apo/                            # Same state and folder hierarchy as data/
         ├── structure/P01116_4LDJ/       # structure.log and variant model logs

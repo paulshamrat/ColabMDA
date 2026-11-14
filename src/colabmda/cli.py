@@ -725,20 +725,34 @@ def _dispatch_merge(args) -> int:
             print(f"[OK] Renamed verified trajectory products: {directory} ({frames} frames)")
             merged_any = True
             continue
+        merge_dir = directory / "merge"
+        merge_dir.mkdir(exist_ok=True)
         for mode, filename, top in [
-            ("keep_ligand", "traj.dcd", "top.prmtop"),
-            ("ca_backbone", "trajCa.dcd", "topCa.prmtop"),
+            ("keep_ligand", "protein.dcd", "protein.prmtop"),
+            ("ca_backbone", "calpha.dcd", "calpha.prmtop"),
         ]:
             script = generate_cpptraj_strip_script(
                 paths.prepared_prmtop(spec),
                 chunk_paths,
-                directory / filename,
-                output_top=directory / top,
+                merge_dir / filename,
+                output_top=merge_dir / top,
                 mode=mode,
             )
             rc, output = run_cpptraj(script, directory)
-            if rc or not (directory / filename).is_file() or not (directory / top).is_file():
+            if rc or not (merge_dir / filename).is_file() or not (merge_dir / top).is_file():
                 raise RuntimeError(f"cpptraj {mode} failed: {output[-3000:]}")
+            compat_traj = "traj.dcd" if mode == "keep_ligand" else "trajCa.dcd"
+            compat_top = "top.prmtop" if mode == "keep_ligand" else "topCa.prmtop"
+            if not (directory / compat_traj).exists():
+                try:
+                    os.link(merge_dir / filename, directory / compat_traj)
+                except OSError:
+                    shutil.copy2(merge_dir / filename, directory / compat_traj)
+            if not (directory / compat_top).exists():
+                try:
+                    os.link(merge_dir / top, directory / compat_top)
+                except OSError:
+                    shutil.copy2(merge_dir / top, directory / compat_top)
         merge_logs(str(directory), str(directory / "md.log"))
         (StageLog(directory, "MERGE_DONE")).write_text(
             "Verified trajectory inputs and both stripped outputs\n"
@@ -760,9 +774,12 @@ def _dispatch_analyze(args) -> int:
     paths = ProjectPaths(root, state=getattr(args, "state", None))
     spec = SystemSpec.from_tag(args.state, variant=args.variant)
     name = f"{spec.state_tag}_{spec.variant}"
-    replicas = list(
-        dict.fromkeys(r.strip() for r in getattr(args, "replicas", "r1").split(",") if r.strip())
-    )
+    replicas_arg = getattr(args, "replicas", None) or "r1,r2,r3"
+    is_default_reps = getattr(args, "replicas", None) is None or getattr(args, "replicas", "") in {
+        "r1,r2,r3",
+        "r1",
+    }
+    replicas = list(dict.fromkeys(r.strip() for r in replicas_arg.split(",") if r.strip()))
     if not replicas:
         raise ValueError("Select at least one analysis replica")
     if paths.state_dir is None and len(replicas) != 1:
@@ -774,10 +791,16 @@ def _dispatch_analyze(args) -> int:
 
         pair = find_trajectory_pair(rep_dir) or find_trajectory_pair(rep_dir, ca=True)
         if pair is None:
+            if is_default_reps and len(replicas) > 1:
+                continue
             raise FileNotFoundError(f"No matching merged trajectory/topology in {rep_dir}")
         inputs.append((rep_dir, pair, paths.replica_analysis_dir(spec, rep)))
+    if not inputs:
+        raise FileNotFoundError(f"No matching merged trajectory/topology in any replica for {name}")
     aggregate = paths.analysis_dir(spec) / "aggregate"
+    avg = paths.analysis_dir(spec) / "avg"
     (StageLog(aggregate, "AGGREGATE_DONE")).unlink(missing_ok=True)
+    (StageLog(avg, "AGGREGATE_DONE")).unlink(missing_ok=True)
     for rep_dir, (top, traj), analysis_dir in inputs:
         analysis_dir.mkdir(parents=True, exist_ok=True)
         marker = StageLog(analysis_dir, "ANALYSIS_DONE")
@@ -804,21 +827,54 @@ def _dispatch_analyze(args) -> int:
             for n in required
         ):
             raise RuntimeError("Analysis reports/figures are incomplete")
+        tables_dir = analysis_dir / "tables"
+        tables_dir.mkdir(exist_ok=True)
+        for m in ["rmsd", "rg", "rmsf"]:
+            csv_f = analysis_dir / f"{m}.csv"
+            if csv_f.is_file():
+                shutil.copy2(csv_f, tables_dir / f"{m}.csv")
+        fig_dir = analysis_dir / "figures"
+        for m, legacy_n in [
+            ("rmsd", "rmsd_vs_time.png"),
+            ("rg", "rg_vs_time.png"),
+            ("rmsf", "rmsf_per_residue.png"),
+        ]:
+            if (fig_dir / legacy_n).is_file():
+                shutil.copy2(fig_dir / legacy_n, fig_dir / f"{m}.png")
+        if (analysis_dir / "view.pdb").is_file() or (analysis_dir / "visualize.pml").is_file():
+            view_dir = analysis_dir / "view"
+            view_dir.mkdir(exist_ok=True)
+            for vf in ["view.pdb", "visualize.pml"]:
+                if (analysis_dir / vf).is_file():
+                    shutil.copy2(analysis_dir / vf, view_dir / vf)
         marker.write_text("Verified numerical tables and figures generated\n")
     if len(inputs) > 1:
         from colabmda.openmm.analysis import aggregate_reports
         from colabmda.openmm.figures import plot_analysis
 
-        aggregate_reports([item[2] for item in inputs], aggregate)
-        plot_analysis(aggregate)
-        if any(
-            not (aggregate / "figures" / n).is_file()
-            for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
-        ):
-            raise RuntimeError("Aggregate figures are incomplete")
-        (StageLog(aggregate, "AGGREGATE_DONE")).write_text(
-            "Verified aligned replica tables and figures\n"
-        )
+        for out_target in [aggregate, avg]:
+            out_target.mkdir(parents=True, exist_ok=True)
+            aggregate_reports([item[2] for item in inputs], out_target)
+            plot_analysis(out_target)
+            tables_target = out_target / "tables"
+            tables_target.mkdir(exist_ok=True)
+            fig_target = out_target / "figures"
+            for m in ["rmsd", "rg", "rmsf"]:
+                avg_csv = out_target / f"{m}_avg.csv"
+                if avg_csv.is_file():
+                    shutil.copy2(avg_csv, tables_target / f"{m}.csv")
+                    shutil.copy2(avg_csv, tables_target / f"{m}_avg.csv")
+                agg_fig = fig_target / f"{m}_aggregate.png"
+                if agg_fig.is_file():
+                    shutil.copy2(agg_fig, fig_target / f"{m}.png")
+            if any(
+                not (out_target / "figures" / n).is_file()
+                for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
+            ):
+                raise RuntimeError("Aggregate figures are incomplete")
+            (StageLog(out_target, "AGGREGATE_DONE")).write_text(
+                "Verified aligned replica tables and figures\n"
+            )
 
     return 0
 
@@ -837,6 +893,8 @@ def _dispatch_compare(args) -> int:
         spec = SystemSpec.from_tag(args.state, variant=var)
         var_analysis = paths.analysis_dir(spec)
         rep_dirs = [d for d in var_analysis.glob("r*") if d.is_dir()]
+        if not rep_dirs and (var_analysis / "md").is_dir():
+            rep_dirs = [d for d in (var_analysis / "md").glob("r*") if d.is_dir()]
         if not rep_dirs:
             rep_dirs = [var_analysis]
         series_list.append(f"{var}={','.join(str(d) for d in sorted(rep_dirs))}")
@@ -1589,7 +1647,10 @@ def main():
     p_top_ana.add_argument("--state", required=True, help="State tag")
     p_top_ana.add_argument("--variant", default="WT", help="Variant name")
     p_top_ana.add_argument(
-        "--replicas", "--replica", default="r1", help="Replicas to analyze, e.g. r1,r2,r3"
+        "--replicas",
+        "--replica",
+        default="r1,r2,r3",
+        help="Replicas to analyze, e.g. r1,r2,r3 (default: r1,r2,r3)",
     )
     p_top_ana.add_argument(
         "--metrics",

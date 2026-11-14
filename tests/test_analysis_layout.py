@@ -184,7 +184,12 @@ def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path,
         assert pd.read_csv(folder / "rmsf.csv")["Residue"].tolist() == [118, 119, 120]
         assert pd.read_csv(folder / "rmsd.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
         assert pd.read_csv(folder / "rg.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
+        assert (folder / "tables" / "rmsd.csv").is_file()
+        assert (folder / "figures" / "rmsd.png").is_file()
     assert StageLog(paths.analysis_dir(spec) / "aggregate", "AGGREGATE_DONE").is_file()
+    assert StageLog(paths.analysis_dir(spec) / "avg", "AGGREGATE_DONE").is_file()
+    assert (paths.analysis_dir(spec) / "avg" / "figures" / "rmsd.png").is_file()
+    assert (paths.analysis_dir(spec) / "avg" / "tables" / "rmsd.csv").is_file()
     assert not list(paths.variant_dir(spec).rglob("rmsd.csv"))
     # Failure must clear completion and invalidate a previously computed aggregate.
     monkeypatch.setattr(

@@ -67,6 +67,7 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
             eq_dir = stages_dir if os.path.exists(stages_dir) else legacy_dir
             for st in range(1, 25):
                 candidates = [
+                    os.path.join(eq_dir, f"{st:04d}.xml"),
                     os.path.join(eq_dir, f"state_{st:02d}.xml"),
                     os.path.join(eq_dir, f"stage_{st:02d}.state.xml"),
                 ]
@@ -112,6 +113,7 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
                     import xml.etree.ElementTree as ET
 
                     candidates = [
+                        os.path.join(eq_dir, f"{stage:04d}.xml"),
                         os.path.join(eq_dir, f"state_{stage:02d}.xml"),
                         os.path.join(eq_dir, f"stage_{stage:02d}.state.xml"),
                     ]

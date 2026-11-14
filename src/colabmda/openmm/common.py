@@ -140,8 +140,14 @@ def save_stage_artifacts(simulation, workdir, stage, description):
     """Write an OpenMM physical restart state for one equilibration stage."""
     stage_dir = os.path.join(workdir, "stages")
     os.makedirs(stage_dir, exist_ok=True)
-    state_path = os.path.join(stage_dir, f"state_{int(stage):02d}.xml")
+    state_path = os.path.join(stage_dir, f"{int(stage):04d}.xml")
     save_stage_state(simulation, state_path)
+    legacy_path = os.path.join(stage_dir, f"state_{int(stage):02d}.xml")
+    if not os.path.exists(legacy_path):
+        try:
+            os.link(state_path, legacy_path)
+        except OSError:
+            shutil.copy2(state_path, legacy_path)
 
 
 def atomic_rename(tmp_path, final_path):
@@ -177,6 +183,7 @@ def find_highest_completed_stage(
     gap = False
     for stage_num in range(start_stage, end_stage + 1):
         candidates = [
+            os.path.join(eq_dir, f"{stage_num:04d}.xml"),
             os.path.join(eq_dir, f"state_{stage_num:02d}.xml"),
             os.path.join(eq_dir, f"stage_{stage_num:02d}.state.xml"),
         ]
@@ -235,6 +242,10 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
         "top.prmtop",
         "trajCa.dcd",
         "topCa.prmtop",
+        "protein.prmtop",
+        "protein.dcd",
+        "calpha.prmtop",
+        "calpha.dcd",
     ]
     if extra_files:
         essentials += extra_files
@@ -245,7 +256,7 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
                 shutil.copy2(src, os.path.join(sync_dir, fn))
             except Exception:
                 pass
-    for folder in ["stages", "equilibration", "chunks"]:
+    for folder in ["stages", "equilibration", "chunks", "merge"]:
         src_folder = os.path.join(workdir, folder)
         if os.path.isdir(src_folder):
             shutil.copytree(src_folder, os.path.join(sync_dir, folder), dirs_exist_ok=True)

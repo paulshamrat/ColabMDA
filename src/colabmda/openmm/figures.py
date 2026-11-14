@@ -58,6 +58,8 @@ def openmm_compare(series_list, outdir):
         dfs = []
         for d in dirs:
             p = Path(d) / metric_file
+            if not p.exists():
+                p = Path(d) / "tables" / metric_file
             if p.exists():
                 dfs.append(pd.read_csv(p))
         if not dfs:
@@ -703,6 +705,14 @@ set_view ({view})
         + "zoom reference and polymer.protein, 4\ndelete reference\n"
         + (f"mset 1 -{len(u.trajectory)}\nset movie_fps, 30\nmplay\n" if frame == "all" else "")
     )
+    view_sub = folder / "view"
+    view_sub.mkdir(exist_ok=True)
+    (view_sub / "visualize.pml").write_text(pml.read_text())
+    if not (view_sub / "view.pdb").exists():
+        try:
+            os.link(target, view_sub / "view.pdb")
+        except OSError:
+            shutil.copy2(target, view_sub / "view.pdb")
     record["display_frames"] = "all" if frame == "all" else panels[0]["frame"]
     record.update(
         camera=camera,
@@ -826,6 +836,7 @@ def plot_analysis(outdir):
             target.mkdir(exist_ok=True)
             output = f"{key}_aggregate.png" if table.stem.endswith("_avg") else filename
             fig.savefig(target / output, dpi=300)
+            fig.savefig(target / f"{key}.png", dpi=300)
             plt.close(fig)
 
 
@@ -1060,6 +1071,9 @@ quit
     status_str = "PASSED" if passed else "REVIEW REQUIRED"
     fig.suptitle(f"Equilibration Quality Control: {status_str}", fontsize=9.5, fontweight="bold")
     fig.savefig(dest / "qc.png", dpi=300)
+    fig_dest = dest / "figures"
+    fig_dest.mkdir(exist_ok=True)
+    fig.savefig(fig_dest / "qc.png", dpi=300)
     if outdir is None and "simulation" not in root.resolve().parts:
         target = root / "figures"
         target.mkdir(exist_ok=True)
