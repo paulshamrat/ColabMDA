@@ -829,26 +829,30 @@ def _dispatch_analyze(args) -> int:
             for n in required
         ):
             raise RuntimeError("Analysis reports/figures are incomplete")
+
+        def _safe_copy(src: Path, dst: Path):
+            if not src.is_file():
+                return
+            if dst.exists() and dst.samefile(src):
+                return
+            shutil.copy2(src, dst)
+
         tables_dir = analysis_dir / "tables"
         tables_dir.mkdir(exist_ok=True)
         for m in ["rmsd", "rg", "rmsf"]:
-            csv_f = analysis_dir / f"{m}.csv"
-            if csv_f.is_file():
-                shutil.copy2(csv_f, tables_dir / f"{m}.csv")
+            _safe_copy(analysis_dir / f"{m}.csv", tables_dir / f"{m}.csv")
         fig_dir = analysis_dir / "figures"
         for m, legacy_n in [
             ("rmsd", "rmsd_vs_time.png"),
             ("rg", "rg_vs_time.png"),
             ("rmsf", "rmsf_per_residue.png"),
         ]:
-            if (fig_dir / legacy_n).is_file():
-                shutil.copy2(fig_dir / legacy_n, fig_dir / f"{m}.png")
+            _safe_copy(fig_dir / legacy_n, fig_dir / f"{m}.png")
         if (analysis_dir / "view.pdb").is_file() or (analysis_dir / "visualize.pml").is_file():
             view_dir = analysis_dir / "view"
             view_dir.mkdir(exist_ok=True)
             for vf in ["view.pdb", "visualize.pml"]:
-                if (analysis_dir / vf).is_file():
-                    shutil.copy2(analysis_dir / vf, view_dir / vf)
+                _safe_copy(analysis_dir / vf, view_dir / vf)
         marker.write_text("Verified numerical tables and figures generated\n")
     if len(inputs) > 1:
         from colabmda.openmm.analysis import aggregate_reports
@@ -869,12 +873,10 @@ def _dispatch_analyze(args) -> int:
             fig_target = out_target / "figures"
             for m in ["rmsd", "rg", "rmsf"]:
                 avg_csv = out_target / f"{m}_avg.csv"
-                if avg_csv.is_file():
-                    shutil.copy2(avg_csv, tables_target / f"{m}.csv")
-                    shutil.copy2(avg_csv, tables_target / f"{m}_avg.csv")
+                _safe_copy(avg_csv, tables_target / f"{m}.csv")
+                _safe_copy(avg_csv, tables_target / f"{m}_avg.csv")
                 agg_fig = fig_target / f"{m}_aggregate.png"
-                if agg_fig.is_file():
-                    shutil.copy2(agg_fig, fig_target / f"{m}.png")
+                _safe_copy(agg_fig, fig_target / f"{m}.png")
             if any(
                 not (out_target / "figures" / n).is_file()
                 for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
