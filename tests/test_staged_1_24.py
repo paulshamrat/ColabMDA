@@ -59,10 +59,11 @@ def test_staged_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     eq_artifacts = eq_dir / "stages" if (eq_dir / "stages").is_dir() else (eq_dir / "equilibration")
     assert eq_artifacts.is_dir()
     for stage_idx in range(1, 25):
+        canonical_xml = eq_artifacts / f"{stage_idx:04d}.xml"
         s_xml = eq_artifacts / f"state_{stage_idx:02d}.xml"
         if not s_xml.exists():
             s_xml = eq_artifacts / f"stage_{stage_idx:02d}.state.xml"
-        assert s_xml.exists(), f"Missing state XML for stage {stage_idx}"
+        assert canonical_xml.exists() or s_xml.exists(), f"Missing state XML for stage {stage_idx}"
 
     # Physical time survives the 1 fs -> 2 fs and NVT -> NPT context transfers.
     import xml.etree.ElementTree as ET

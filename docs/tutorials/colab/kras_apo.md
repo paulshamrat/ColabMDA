@@ -565,19 +565,21 @@ data/apo/simulation/
 ├── WT/
 │   └── md/
 │       └── r1/
-│           ├── traj.dcd                             # Autoimaged trajectory without bulk solvent
-│           ├── top.prmtop                           # Matching topology; use with the trajectory above
-│           ├── trajCa.dcd                           # Cα trajectory
-│           ├── topCa.prmtop                         # Matching Cα topology
-│           └── md.log                               # Copy of the merged production log
+│           ├── chunks/                              # Raw 1 ns simulation chunks
+│           └── merge/                               # Clean post-processed deliverables
+│               ├── protein.dcd                      # Autoimaged trajectory without bulk solvent
+│               ├── protein.prmtop                   # Matching protein topology (~2,600 atoms)
+│               ├── calpha.dcd                       # Cα trajectory
+│               └── calpha.prmtop                    # Matching Cα topology (~169 atoms)
 └── G12D/
     └── md/
         └── r1/
-            ├── traj.dcd                             # Autoimaged trajectory without bulk solvent
-            ├── top.prmtop                           # Matching topology; use with the trajectory above
-            ├── trajCa.dcd                           # Cα trajectory
-            ├── topCa.prmtop                         # Matching Cα topology
-            └── md.log                               # Copy of the merged production log
+            ├── chunks/                              # Raw 1 ns simulation chunks
+            └── merge/                               # Clean post-processed deliverables
+                ├── protein.dcd                      # Autoimaged trajectory without bulk solvent
+                ├── protein.prmtop                   # Matching protein topology (~2,600 atoms)
+                ├── calpha.dcd                       # Cα trajectory
+                └── calpha.prmtop                    # Matching Cα topology (~169 atoms)
 ```
 
 Stage logs: `logs/apo/simulation/WT/md/r1/merge.log`, `logs/apo/simulation/G12D/md/r1/merge.log`.
@@ -603,23 +605,32 @@ cmda analyze --state apo --variant G12D
 ```text
 data/apo/analysis/
 ├── WT/
-│   └── r1/
-│       ├── rmsd.csv                                 # RMSD values
-│       ├── rg.csv                                   # Radius of gyration values
-│       ├── rmsf.csv                                 # Per-residue fluctuations
-│       └── figures/
-│           ├── rmsd_vs_time.png                     # RMSD plot
-│           ├── rg_vs_time.png                       # Radius of gyration plot
-│           └── rmsf_per_residue.png                 # Fluctuation plot
+│   └── md/
+│       ├── r1/
+│       │   ├── figures/
+│       │   │   ├── rmsd.png                         # Backbone stability plot
+│       │   │   ├── rg.png                           # Compactness plot
+│       │   │   └── rmsf.png                         # Flexibility plot
+│       │   ├── tables/
+│       │   │   ├── rmsd.csv                         # Numerical tables
+│       │   │   ├── rg.csv
+│       │   │   └── rmsf.csv
+│       │   └── view/
+│       │       ├── view.pdb                         # Aligned reference frame
+│       │       └── visualize.pml                    # One-click PyMOL animation script
+│       └── avg/                                     # Triplicate Mean ± SD
+│           ├── figures/
+│           │   ├── rmsd.png                         # 3-run shaded error band
+│           │   ├── rg.png
+│           │   └── rmsf.png
+│           └── tables/
+│               ├── rmsd.csv
+│               ├── rg.csv
+│               └── rmsf.csv
 └── G12D/
-    └── r1/
-        ├── rmsd.csv                                 # RMSD values
-        ├── rg.csv                                   # Radius of gyration values
-        ├── rmsf.csv                                 # Per-residue fluctuations
-        └── figures/
-            ├── rmsd_vs_time.png                     # RMSD plot
-            ├── rg_vs_time.png                       # Radius of gyration plot
-            └── rmsf_per_residue.png                 # Fluctuation plot
+    └── md/
+        ├── r1/ (figures/, tables/, view/)
+        └── avg/ (figures/, tables/)
 ```
 
 Stage logs: `logs/apo/analysis/WT/r1/analysis.log`, `logs/apo/analysis/G12D/r1/analysis.log`.
@@ -791,8 +802,8 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
 │       │   │   │   ├── npt.state.xml                # Equilibrated state passed to production
 │       │   │   │   ├── eq.pdb                       # Final equilibrated coordinates
 │       │   │   │   └── stages/
-│       │   │   │       ├── state_01.xml             # First staged restart
-│       │   │   │       └── state_24.xml             # Last of 24 staged restart states
+│       │   │   │       ├── 0001.xml                 # First staged restart (%04d)
+│       │   │   │       └── 0024.xml                 # Last of 24 staged restart states
 │       │   │   └── md/
 │       │   │       ├── r1/
 │       │   │       │   ├── system.xml               # Copied OpenMM system
@@ -802,37 +813,13 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
 │       │   │       │   ├── chunks/
 │       │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
 │       │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
-│       │   │       │   ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
-│       │   │       │   ├── top.prmtop               # Matching topology; use with the trajectory above
-│       │   │       │   ├── trajCa.dcd               # Cα trajectory
-│       │   │       │   ├── topCa.prmtop             # Matching Cα topology
-│       │   │       │   └── md.log                   # Copy of the merged production log
-│       │   │       ├── r2/
-│       │   │       │   ├── system.xml               # Copied OpenMM system
-│       │   │       │   ├── solvated.pdb             # Copied topology coordinates
-│       │   │       │   ├── npt.state.xml            # Starting state copied from equilibration
-│       │   │       │   ├── prod.chk                 # Checkpoint used to resume production
-│       │   │       │   ├── chunks/
-│       │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
-│       │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
-│       │   │       │   ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
-│       │   │       │   ├── top.prmtop               # Matching topology; use with the trajectory above
-│       │   │       │   ├── trajCa.dcd               # Cα trajectory
-│       │   │       │   ├── topCa.prmtop             # Matching Cα topology
-│       │   │       │   └── md.log                   # Copy of the merged production log
-│       │   │       └── r3/
-│       │   │           ├── system.xml               # Copied OpenMM system
-│       │   │           ├── solvated.pdb             # Copied topology coordinates
-│       │   │           ├── npt.state.xml            # Starting state copied from equilibration
-│       │   │           ├── prod.chk                 # Checkpoint used to resume production
-│       │   │           ├── chunks/
-│       │   │           │   ├── 0001.dcd             # First committed trajectory chunk
-│       │   │           │   └── 0001.log             # Matching committed thermodynamic log
-│       │   │           ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
-│       │   │           ├── top.prmtop               # Matching topology; use with the trajectory above
-│       │   │           ├── trajCa.dcd               # Cα trajectory
-│       │   │           ├── topCa.prmtop             # Matching Cα topology
-│       │   │           └── md.log                   # Copy of the merged production log
+│       │   │       │   └── merge/
+│       │   │       │       ├── protein.dcd          # Autoimaged trajectory without bulk solvent
+│       │   │       │       ├── protein.prmtop       # Matching protein topology (~2,600 atoms)
+│       │   │       │       ├── calpha.dcd           # Cα trajectory
+│       │   │       │       └── calpha.prmtop        # Matching Cα topology
+│       │   │       ├── r2/ (chunks/, merge/)
+│       │   │       └── r3/ (chunks/, merge/)
 │       │   └── G12D/
 │       │       ├── prep/
 │       │       │   ├── model.pdb                    # Prepared solute coordinates
@@ -847,129 +834,45 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
 │       │       │   ├── npt.state.xml                # Equilibrated state passed to production
 │       │       │   ├── eq.pdb                       # Final equilibrated coordinates
 │       │       │   └── stages/
-│       │       │       ├── state_01.xml             # First staged restart
-│       │       │       └── state_24.xml             # Last of 24 staged restart states
+│       │       │       ├── 0001.xml                 # First staged restart (%04d)
+│       │       │       └── 0024.xml                 # Last of 24 staged restart states
 │       │       └── md/
-│       │           ├── r1/
-│       │           │   ├── system.xml               # Copied OpenMM system
-│       │           │   ├── solvated.pdb             # Copied topology coordinates
-│       │           │   ├── npt.state.xml            # Starting state copied from equilibration
-│       │           │   ├── prod.chk                 # Checkpoint used to resume production
-│       │           │   ├── chunks/
-│       │           │   │   ├── 0001.dcd             # First committed trajectory chunk
-│       │           │   │   └── 0001.log             # Matching committed thermodynamic log
-│       │           │   ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
-│       │           │   ├── top.prmtop               # Matching topology; use with the trajectory above
-│       │           │   ├── trajCa.dcd               # Cα trajectory
-│       │           │   ├── topCa.prmtop             # Matching Cα topology
-│       │           │   └── md.log                   # Copy of the merged production log
-│       │           ├── r2/
-│       │           │   ├── system.xml               # Copied OpenMM system
-│       │           │   ├── solvated.pdb             # Copied topology coordinates
-│       │           │   ├── npt.state.xml            # Starting state copied from equilibration
-│       │           │   ├── prod.chk                 # Checkpoint used to resume production
-│       │           │   ├── chunks/
-│       │           │   │   ├── 0001.dcd             # First committed trajectory chunk
-│       │           │   │   └── 0001.log             # Matching committed thermodynamic log
-│       │           │   ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
-│       │           │   ├── top.prmtop               # Matching topology; use with the trajectory above
-│       │           │   ├── trajCa.dcd               # Cα trajectory
-│       │           │   ├── topCa.prmtop             # Matching Cα topology
-│       │           │   └── md.log                   # Copy of the merged production log
-│       │           └── r3/
-│       │               ├── system.xml               # Copied OpenMM system
-│       │               ├── solvated.pdb             # Copied topology coordinates
-│       │               ├── npt.state.xml            # Starting state copied from equilibration
-│       │               ├── prod.chk                 # Checkpoint used to resume production
-│       │               ├── chunks/
-│       │               │   ├── 0001.dcd             # First committed trajectory chunk
-│       │               │   └── 0001.log             # Matching committed thermodynamic log
-│       │               ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
-│       │               ├── top.prmtop               # Matching topology; use with the trajectory above
-│       │               ├── trajCa.dcd               # Cα trajectory
-│       │               ├── topCa.prmtop             # Matching Cα topology
-│       │               └── md.log                   # Copy of the merged production log
+│       │           ├── r1/ (chunks/, merge/)
+│       │           ├── r2/ (chunks/, merge/)
+│       │           └── r3/ (chunks/, merge/)
 │       └── analysis/
 │           ├── WT/
 │           │   ├── eq/
-│           │   │   ├── qc.txt                       # Equilibration diagnostics
-│           │   │   └── qc.png                       # Thermodynamic and structural QC figure
-│           │   ├── r1/
-│           │   │   ├── rmsd.csv                     # RMSD values
-│           │   │   ├── rg.csv                       # Radius of gyration values
-│           │   │   ├── rmsf.csv                     # Per-residue fluctuations
-│           │   │   └── figures/
-│           │   │       ├── rmsd_vs_time.png         # RMSD plot
-│           │   │       ├── rg_vs_time.png           # Radius of gyration plot
-│           │   │       └── rmsf_per_residue.png     # Fluctuation plot
-│           │   ├── r2/
-│           │   │   ├── rmsd.csv                     # RMSD values
-│           │   │   ├── rg.csv                       # Radius of gyration values
-│           │   │   ├── rmsf.csv                     # Per-residue fluctuations
-│           │   │   └── figures/
-│           │   │       ├── rmsd_vs_time.png         # RMSD plot
-│           │   │       ├── rg_vs_time.png           # Radius of gyration plot
-│           │   │       └── rmsf_per_residue.png     # Fluctuation plot
-│           │   ├── r3/
-│           │   │   ├── rmsd.csv                     # RMSD values
-│           │   │   ├── rg.csv                       # Radius of gyration values
-│           │   │   ├── rmsf.csv                     # Per-residue fluctuations
-│           │   │   └── figures/
-│           │   │       ├── rmsd_vs_time.png         # RMSD plot
-│           │   │       ├── rg_vs_time.png           # Radius of gyration plot
-│           │   │       └── rmsf_per_residue.png     # Fluctuation plot
-│           │   └── aggregate/
-│           │       ├── rmsd_avg.csv                 # Replica mean and standard deviation
-│           │       ├── rg_avg.csv                   # Replica mean and standard deviation
-│           │       ├── rmsf_avg.csv                 # Replica mean and standard deviation
-│           │       └── figures/
-│           │           ├── rmsd_aggregate.png       # Replica RMSD summary
-│           │           ├── rg_aggregate.png         # Replica compactness summary
-│           │           └── rmsf_aggregate.png       # Replica fluctuation summary
+│           │   │   ├── figures/
+│           │   │   │   └── qc.png                   # QC plot
+│           │   │   └── tables/
+│           │   │       └── qc.csv                   # QC table
+│           │   └── md/
+│           │       ├── r1/
+│           │       │   ├── figures/
+│           │       │   │   ├── rmsd.png             # Backbone stability
+│           │       │   │   ├── rg.png               # Compactness
+│           │       │   │   └── rmsf.png             # Flexibility
+│           │       │   ├── tables/
+│           │       │   │   ├── rmsd.csv
+│           │       │   │   ├── rg.csv
+│           │       │   │   └── rmsf.csv
+│           │       │   └── view/
+│           │       │       ├── view.pdb
+│           │       │       └── visualize.pml
+│           │       ├── r2/ (figures/, tables/, view/)
+│           │       ├── r3/ (figures/, tables/, view/)
+│           │       └── avg/
+│           │           ├── figures/ (rmsd.png, rg.png, rmsf.png)
+│           │           └── tables/ (rmsd.csv, rg.csv, rmsf.csv)
 │           ├── G12D/
-│           │   ├── eq/
-│           │   │   ├── qc.txt                       # Equilibration diagnostics
-│           │   │   └── qc.png                       # Thermodynamic and structural QC figure
-│           │   ├── r1/
-│           │   │   ├── rmsd.csv                     # RMSD values
-│           │   │   ├── rg.csv                       # Radius of gyration values
-│           │   │   ├── rmsf.csv                     # Per-residue fluctuations
-│           │   │   └── figures/
-│           │   │       ├── rmsd_vs_time.png         # RMSD plot
-│           │   │       ├── rg_vs_time.png           # Radius of gyration plot
-│           │   │       └── rmsf_per_residue.png     # Fluctuation plot
-│           │   ├── r2/
-│           │   │   ├── rmsd.csv                     # RMSD values
-│           │   │   ├── rg.csv                       # Radius of gyration values
-│           │   │   ├── rmsf.csv                     # Per-residue fluctuations
-│           │   │   └── figures/
-│           │   │       ├── rmsd_vs_time.png         # RMSD plot
-│           │   │       ├── rg_vs_time.png           # Radius of gyration plot
-│           │   │       └── rmsf_per_residue.png     # Fluctuation plot
-│           │   ├── r3/
-│           │   │   ├── rmsd.csv                     # RMSD values
-│           │   │   ├── rg.csv                       # Radius of gyration values
-│           │   │   ├── rmsf.csv                     # Per-residue fluctuations
-│           │   │   └── figures/
-│           │   │       ├── rmsd_vs_time.png         # RMSD plot
-│           │   │       ├── rg_vs_time.png           # Radius of gyration plot
-│           │   │       └── rmsf_per_residue.png     # Fluctuation plot
-│           │   └── aggregate/
-│           │       ├── rmsd_avg.csv                 # Replica mean and standard deviation
-│           │       ├── rg_avg.csv                   # Replica mean and standard deviation
-│           │       ├── rmsf_avg.csv                 # Replica mean and standard deviation
-│           │       └── figures/
-│           │           ├── rmsd_aggregate.png       # Replica RMSD summary
-│           │           ├── rg_aggregate.png         # Replica compactness summary
-│           │           └── rmsf_aggregate.png       # Replica fluctuation summary
+│           │   ├── eq/ (figures/, tables/)
+│           │   └── md/ (r1–r3/, avg/)
 │           └── compare/
-│               ├── rmsd.png                         # Variant RMSD comparison
-│               ├── rg.png                           # Variant compactness comparison
-│               ├── rmsf.png                         # Variant fluctuation comparison
 │               ├── figures/
-│               │   ├── rmsd_avg.png                 # Copy of RMSD comparison
-│               │   ├── rg_avg.png                   # Copy of compactness comparison
-│               │   └── rmsf_avg.png                 # Copy of fluctuation comparison
+│               │   ├── rmsd.png                     # Variant RMSD comparison
+│               │   ├── rg.png                       # Variant compactness comparison
+│               │   └── rmsf.png                     # Variant fluctuation comparison
 │               └── summary.txt                      # Comparison statistics
 └── logs/                                            # Execution logs mirror the data folders
     └── apo/

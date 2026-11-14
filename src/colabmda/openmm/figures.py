@@ -57,7 +57,9 @@ def openmm_compare(series_list, outdir):
     def aggregate_system(dirs, metric_file):
         dfs = []
         for d in dirs:
-            p = Path(d) / metric_file
+            p = Path(d) / "tables" / metric_file
+            if not p.exists():
+                p = Path(d) / metric_file
             if p.exists():
                 dfs.append(pd.read_csv(p))
         if not dfs:
@@ -91,23 +93,31 @@ def openmm_compare(series_list, outdir):
             plt.title(title)
             plt.legend()
             plt.tight_layout()
-            # Save both legacy figure name and clean flat name
+            # Save canonical flat figure name in figures/
+            plt.savefig(outpath / filename.replace(".csv", ".png"), dpi=300)
+            # Save legacy names for backward compatibility
             plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
-            plt.savefig(Path(outdir) / filename.replace(".csv", ".png"), dpi=300)
         plt.close()
 
-    summary_file = Path(outdir) / "summary.txt"
+    tables_dir = Path(outdir) / "tables"
+    tables_dir.mkdir(parents=True, exist_ok=True)
     try:
-        with open(summary_file, "w") as sf:
-            sf.write("=========================================\n")
-            sf.write("COLABMDA CROSS-VARIANT COMPARISON SUMMARY\n")
-            sf.write("=========================================\n")
-            for item in series_list:
-                if "=" in item:
-                    lbl, d_str = item.split("=", 1)
-                    sf.write(f"Series: {lbl} (inputs: {d_str})\n")
-            sf.write("Deliverables: rmsd.png, rg.png, rmsf.png\n")
-            sf.write("=========================================\n")
+        content = "=========================================\n"
+        content += "COLABMDA CROSS-VARIANT COMPARISON SUMMARY\n"
+        content += "=========================================\n"
+        for item in series_list:
+            if "=" in item:
+                lbl, d_str = item.split("=", 1)
+                content += f"Series: {lbl} (inputs: {d_str})\n"
+        content += "Deliverables: rmsd.png, rg.png, rmsf.png\n"
+        content += "=========================================\n"
+        (tables_dir / "summary.txt").write_text(content)
+        csv_lines = ["series,inputs\n"]
+        for item in series_list:
+            if "=" in item:
+                lbl, d_str = item.split("=", 1)
+                csv_lines.append(f'"{lbl}","{d_str}"\n')
+        (tables_dir / "summary.csv").write_text("".join(csv_lines))
     except Exception:
         pass
     print(f"Aggregate plots saved in {outdir}")
@@ -703,6 +713,14 @@ set_view ({view})
         + "zoom reference and polymer.protein, 4\ndelete reference\n"
         + (f"mset 1 -{len(u.trajectory)}\nset movie_fps, 30\nmplay\n" if frame == "all" else "")
     )
+    view_sub = folder / "view"
+    view_sub.mkdir(exist_ok=True)
+    (view_sub / "visualize.pml").write_text(pml.read_text())
+    if not (view_sub / "view.pdb").exists():
+        try:
+            os.link(target, view_sub / "view.pdb")
+        except OSError:
+            shutil.copy2(target, view_sub / "view.pdb")
     record["display_frames"] = "all" if frame == "all" else panels[0]["frame"]
     record.update(
         camera=camera,
@@ -713,6 +731,13 @@ set_view ({view})
     StageLog(folder, "VISUALIZE_DONE").write_text(
         "".join(f"{key}: {value}\n" for key, value in record.items())
     )
+    if folder.parent.name == "md":
+        legacy_folder = folder.parent.parent / folder.name
+        if not legacy_folder.exists():
+            try:
+                legacy_folder.symlink_to(f"md/{folder.name}")
+            except OSError:
+                pass
     if not no_launch:
         if not shutil.which("pymol"):
             raise RuntimeError(
@@ -809,7 +834,16 @@ def plot_analysis(outdir):
         "rmsf": ("RMSF (Å)", "rmsf_per_residue.png"),
     }
     for key, (ylabel, filename) in names.items():
-        for table in [*root.rglob(f"{key}.csv"), *root.rglob(f"{key}_avg.csv")]:
+        tables = []
+        for stem in [key, f"{key}_avg"]:
+            candidate = root / "tables" / f"{stem}.csv"
+            if candidate.is_file():
+                tables.append(candidate)
+            elif (root / f"{stem}.csv").is_file():
+                tables.append(root / f"{stem}.csv")
+            else:
+                tables.extend(p for p in root.rglob(f"{stem}.csv") if p.parent.name != "tables")
+        for table in tables:
             data = pd.read_csv(table)
             fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
             ax.plot(data.iloc[:, 0], data.iloc[:, 1], color="#0072B2")
@@ -822,10 +856,15 @@ def plot_analysis(outdir):
                     alpha=0.2,
                 )
             ax.set(xlabel=data.columns[0], ylabel=ylabel)
-            target = table.parent / "figures"
+            target = (
+                table.parent.parent / "figures"
+                if table.parent.name == "tables"
+                else table.parent / "figures"
+            )
             target.mkdir(exist_ok=True)
             output = f"{key}_aggregate.png" if table.stem.endswith("_avg") else filename
             fig.savefig(target / output, dpi=300)
+            fig.savefig(target / f"{key}.png", dpi=300)
             plt.close(fig)
 
 
@@ -1060,6 +1099,9 @@ quit
     status_str = "PASSED" if passed else "REVIEW REQUIRED"
     fig.suptitle(f"Equilibration Quality Control: {status_str}", fontsize=9.5, fontweight="bold")
     fig.savefig(dest / "qc.png", dpi=300)
+    fig_dest = dest / "figures"
+    fig_dest.mkdir(exist_ok=True)
+    fig.savefig(fig_dest / "qc.png", dpi=300)
     if outdir is None and "simulation" not in root.resolve().parts:
         target = root / "figures"
         target.mkdir(exist_ok=True)
