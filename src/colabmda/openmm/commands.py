@@ -132,6 +132,7 @@ def _read_topology_info(pdb_path: Path) -> dict | None:
 
         if pdb_path.suffix.lower() == ".prmtop":
             import warnings
+
             import MDAnalysis as mda
 
             with warnings.catch_warnings():

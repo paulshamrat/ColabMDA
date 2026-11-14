@@ -48,7 +48,7 @@ research/projects/kras-example/          # Working project, separate from the to
 │       │   ├── WT/                     # prep/, eq/, md/r1/ (chunks/, merge/), ...
 │       │   └── G12D/                   # Same simulation stages
 │       └── analysis/                   # QC, replica metrics, summaries and figures
-│           ├── WT/                     # eq/ (figures/, tables/), r1–r3/ (figures/, tables/, view/), avg/
+│           ├── WT/                     # eq/ (figures/, tables/), md/r1–r3/ (figures/, tables/, view/), md/avg/
 │           ├── G12D/                   # Same analysis stages
 │           └── compare/                # WT/G12D comparisons (figures/, tables/)
 └── logs/                               # Execution logs and verified completion records
@@ -58,7 +58,7 @@ research/projects/kras-example/          # Working project, separate from the to
         │   ├── WT/                     # prep/prep.log, md/r1/merge.log, ...
         │   └── G12D/                   # Same log layout
         └── analysis/                   # Replica analysis/view logs and aggregate logs
-            ├── WT/                     # r1/analysis.log, r1/visualize.log, ...
+            ├── WT/                     # eq/qc.log, md/r1/analysis.log, md/avg/aggregate.log, ...
             └── G12D/                   # Same log layout
 ```
 </details>
