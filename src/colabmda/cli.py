@@ -858,28 +858,32 @@ def _dispatch_analyze(args) -> int:
         from colabmda.openmm.analysis import aggregate_reports
         from colabmda.openmm.figures import plot_analysis
 
-        targets = [aggregate, avg, md_avg]
-        for out_target in targets:
-            out_target.mkdir(parents=True, exist_ok=True)
-            aggregate_reports([item[2] for item in inputs], out_target)
-            plot_analysis(out_target)
-            tables_target = out_target / "tables"
-            tables_target.mkdir(exist_ok=True)
-            fig_target = out_target / "figures"
-            for m in ["rmsd", "rg", "rmsf"]:
-                avg_csv = out_target / f"{m}_avg.csv"
-                _safe_copy(avg_csv, tables_target / f"{m}.csv")
-                _safe_copy(avg_csv, tables_target / f"{m}_avg.csv")
-                agg_fig = fig_target / f"{m}_aggregate.png"
-                _safe_copy(agg_fig, fig_target / f"{m}.png")
-            if any(
-                not (out_target / "figures" / n).is_file()
-                for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
-            ):
-                raise RuntimeError("Aggregate figures are incomplete")
-            (StageLog(out_target, "AGGREGATE_DONE")).write_text(
-                "Verified aligned replica tables and figures\n"
-            )
+        md_avg.mkdir(parents=True, exist_ok=True)
+        aggregate_reports([item[2] for item in inputs], md_avg)
+        plot_analysis(md_avg)
+        tables_target = md_avg / "tables"
+        tables_target.mkdir(exist_ok=True)
+        fig_target = md_avg / "figures"
+        for m in ["rmsd", "rg", "rmsf"]:
+            avg_csv = md_avg / f"{m}_avg.csv"
+            _safe_copy(avg_csv, tables_target / f"{m}.csv")
+            _safe_copy(avg_csv, tables_target / f"{m}_avg.csv")
+            agg_fig = fig_target / f"{m}_aggregate.png"
+            _safe_copy(agg_fig, fig_target / f"{m}.png")
+        if any(
+            not (md_avg / "figures" / n).is_file()
+            for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
+        ):
+            raise RuntimeError("Aggregate figures are incomplete")
+        (StageLog(md_avg, "AGGREGATE_DONE")).write_text(
+            "Verified aligned replica tables and figures\n"
+        )
+        for alias in [avg, aggregate]:
+            if not alias.exists():
+                try:
+                    alias.symlink_to("md/avg")
+                except OSError:
+                    pass
 
     return 0
 
