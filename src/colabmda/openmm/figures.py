@@ -97,10 +97,8 @@ def openmm_compare(series_list, outdir):
             plt.savefig(outpath / filename.replace(".csv", ".png"), dpi=300)
             # Save legacy names for backward compatibility
             plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
-            plt.savefig(Path(outdir) / filename.replace(".csv", ".png"), dpi=300)
         plt.close()
 
-    summary_file = Path(outdir) / "summary.txt"
     tables_dir = Path(outdir) / "tables"
     tables_dir.mkdir(parents=True, exist_ok=True)
     try:
@@ -113,7 +111,6 @@ def openmm_compare(series_list, outdir):
                 content += f"Series: {lbl} (inputs: {d_str})\n"
         content += "Deliverables: rmsd.png, rg.png, rmsf.png\n"
         content += "=========================================\n"
-        summary_file.write_text(content)
         (tables_dir / "summary.txt").write_text(content)
         csv_lines = ["series,inputs\n"]
         for item in series_list:
