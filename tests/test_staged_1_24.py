@@ -69,9 +69,13 @@ def test_staged_1_24_full_pipeline(tmp_path: Path, monkeypatch):
     import xml.etree.ElementTree as ET
 
     for stage, expected_ps in [(14, 0.06), (18, 0.14), (24, 0.26)]:
-        s_xml = eq_artifacts / f"state_{stage:02d}.xml"
-        if not s_xml.exists():
-            s_xml = eq_artifacts / f"stage_{stage:02d}.state.xml"
+        candidates = [
+            eq_artifacts / f"{stage:04d}.xml",
+            eq_artifacts / f"state_{stage:02d}.xml",
+            eq_artifacts / f"stage_{stage:02d}.state.xml",
+        ]
+        s_xml = next((p for p in candidates if p.exists()), None)
+        assert s_xml is not None, f"Missing state XML for stage {stage}"
         xml_time = float(ET.parse(s_xml).getroot().attrib["time"])
         assert xml_time == pytest.approx(expected_ps)
 

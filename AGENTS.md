@@ -88,7 +88,7 @@ research/projects/<project-example>/
         │   │   │   ├── eq.pdb                # Final relaxed coordinates
         │   │   │   ├── system.xml            # OpenMM system topology & parameters
         │   │   │   ├── state.xml             # OpenMM thermodynamic state snapshot
-        │   │   │   └── stages/               # Granular restart checkpoints (state_01.xml ... state_24.xml)
+        │   │   │   └── stages/               # Granular restart checkpoints (0001.xml ... 0024.xml)
         │   │   └── md/                       # Production replicas (e.g. 100 ns)
         │   │       ├── r1/                   # Production replica 1
         │   │       │   ├── md.dcd            # Continuous merged trajectory (full system)
@@ -130,14 +130,14 @@ research/projects/<project-example>/
   - `structure/raw/` contains only `.cif`, `template.pdb`, and `uniprot.fasta` (no `residues.json`, `input.json`).
   - `structure/variants/` contains coordinate models (`.pdb`), native Modeller outputs (`.ali`, `.log`, etc.), with model verification in logs/ (no `model_request.json`, `model_check.json`).
   - `simulation/prep/` contains strictly native Amber files (`model.pdb`, `solvated.pdb`, `system.prmtop`, `system.inpcrd`, `build.in`, `leap.log`). No `prep.json` or `topology_check.json`.
-  - `simulation/eq/` contains `eq.pdb`, `system.xml`, `state.xml`, restart states in `stages/state_*.xml`. Zero JSON receipts.
+  - `simulation/eq/` contains `eq.pdb`, `system.xml`, `state.xml`, restart states in `stages/0001.xml` ... `0024.xml`. Zero JSON receipts.
   - `simulation/md/` contains `md.log`, `npt.state.xml`, `system.xml`, `solvated.pdb`, `prod.chk`, stripped/autoimaged products (`top.prmtop`, `traj.dcd`), Cα backbone files (`topCa.prmtop`, `trajCa.dcd`), raw chunks in `chunks/`. Zero JSON receipts.
   - `analysis/` contains only scientific metrics (`.csv`), figures (`.png`), summary deliverables (`summary.txt`, `qc.txt`), with stage verification under logs/. Zero JSON files in `analysis/`.
   - **Native State Derivation & Gating**: Inter-stage validation, neutrality checks, and sequence identity gating must be derived dynamically and natively from the biological domain files themselves (e.g. parsing `system.prmtop` via `check_topology(..., save_receipt=False)`, verifying point mutations directly against `WT.pdb` coordinate atoms, parsing sequence from `uniprot.fasta`).
   - **Stage Completion Logs**: StageLog records operational metadata (e.g., `seed`, `pdb`, `uniprot`, `range`), verified output hashes and final status as plain text under mirrored `logs/` paths. Never create standalone completion flags or duplicate JSON ledgers.
 - **Equilibration (`eq`)**: Final relaxed coordinates are saved exclusively as
   `eq.pdb` (duplicate `equilibrated.pdb` eliminated). Intermediate restart states
-  are saved into `stages/` as `state_01.xml` ... `state_24.xml`. All QC deliverables
+  are saved into `stages/` as `0001.xml` ... `0024.xml`. All QC deliverables
   belong in `analysis/<variant>/eq/` as `qc.png` and `qc.txt`.
 - **Production MD (`md/<replica>`)**: Processed trajectory/topology pairs are
   `traj.dcd`/`top.prmtop` and `trajCa.dcd`/`topCa.prmtop` across every state.
