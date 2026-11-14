@@ -465,7 +465,13 @@ class ProjectPaths:
                 return base / "md" / normalized
             if (base / "03_md" / normalized).exists():
                 return base / "03_md" / normalized
-            return base / normalized
+            if (base / "md").exists():
+                return base / "md" / normalized
+            if (base / normalized).exists():
+                return base / normalized
+            if self.run_id:
+                return base / normalized
+            return base / "md" / normalized
         return base
 
     def eq_analysis_dir(self, spec: SystemSpec) -> Path:

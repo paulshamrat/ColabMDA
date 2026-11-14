@@ -191,10 +191,24 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
                 json.dump(qc_data, handle, indent=2)
                 handle.write("\n")
 
+        tables_dest = os.path.join(out_target, "tables")
+        os.makedirs(tables_dest, exist_ok=True)
+        qc_txt_content = (
+            f"Status: {'PASSED' if passed else 'FAILED'}\n"
+            f"Temperature: {avg_temp:.2f} +/- {std_temp:.2f} K\n"
+            f"Density: {avg_dens:.4f} g/mL (slope: {slope:.6f} g/mL/ps)\n"
+        )
         with open(os.path.join(out_target, "qc.txt"), "w") as f:
-            f.write(f"Status: {'PASSED' if passed else 'FAILED'}\n")
-            f.write(f"Temperature: {avg_temp:.2f} +/- {std_temp:.2f} K\n")
-            f.write(f"Density: {avg_dens:.4f} g/mL (slope: {slope:.6f} g/mL/ps)\n")
+            f.write(qc_txt_content)
+        with open(os.path.join(tables_dest, "qc.txt"), "w") as f:
+            f.write(qc_txt_content)
+        with open(os.path.join(tables_dest, "qc.csv"), "w") as f:
+            f.write("metric,value,unit\n")
+            f.write(f"status,{'PASSED' if passed else 'FAILED'},\n")
+            f.write(f"temperature_mean,{avg_temp:.2f},K\n")
+            f.write(f"temperature_std,{std_temp:.2f},K\n")
+            f.write(f"density_mean,{avg_dens:.4f},g/mL\n")
+            f.write(f"density_slope,{slope:.6f},g/mL/ps\n")
 
         return passed
     finally:

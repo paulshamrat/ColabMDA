@@ -799,8 +799,10 @@ def _dispatch_analyze(args) -> int:
         raise FileNotFoundError(f"No matching merged trajectory/topology in any replica for {name}")
     aggregate = paths.analysis_dir(spec) / "aggregate"
     avg = paths.analysis_dir(spec) / "avg"
+    md_avg = paths.analysis_dir(spec) / "md" / "avg"
     (StageLog(aggregate, "AGGREGATE_DONE")).unlink(missing_ok=True)
     (StageLog(avg, "AGGREGATE_DONE")).unlink(missing_ok=True)
+    (StageLog(md_avg, "AGGREGATE_DONE")).unlink(missing_ok=True)
     for rep_dir, (top, traj), analysis_dir in inputs:
         analysis_dir.mkdir(parents=True, exist_ok=True)
         marker = StageLog(analysis_dir, "ANALYSIS_DONE")
@@ -852,7 +854,13 @@ def _dispatch_analyze(args) -> int:
         from colabmda.openmm.analysis import aggregate_reports
         from colabmda.openmm.figures import plot_analysis
 
-        for out_target in [aggregate, avg]:
+        targets = [aggregate, avg]
+        if (
+            any("md" in p.parts for p in [item[2] for item in inputs])
+            or (paths.analysis_dir(spec) / "md").exists()
+        ):
+            targets.append(md_avg)
+        for out_target in targets:
             out_target.mkdir(parents=True, exist_ok=True)
             aggregate_reports([item[2] for item in inputs], out_target)
             plot_analysis(out_target)
@@ -892,9 +900,9 @@ def _dispatch_compare(args) -> int:
     for var in variants:
         spec = SystemSpec.from_tag(args.state, variant=var)
         var_analysis = paths.analysis_dir(spec)
-        rep_dirs = [d for d in var_analysis.glob("r*") if d.is_dir()]
-        if not rep_dirs and (var_analysis / "md").is_dir():
-            rep_dirs = [d for d in (var_analysis / "md").glob("r*") if d.is_dir()]
+        rep_dirs = [d for d in (var_analysis / "md").glob("r*") if d.is_dir()]
+        if not rep_dirs:
+            rep_dirs = [d for d in var_analysis.glob("r*") if d.is_dir()]
         if not rep_dirs:
             rep_dirs = [var_analysis]
         series_list.append(f"{var}={','.join(str(d) for d in sorted(rep_dirs))}")

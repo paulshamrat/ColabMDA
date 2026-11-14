@@ -57,9 +57,9 @@ def openmm_compare(series_list, outdir):
     def aggregate_system(dirs, metric_file):
         dfs = []
         for d in dirs:
-            p = Path(d) / metric_file
+            p = Path(d) / "tables" / metric_file
             if not p.exists():
-                p = Path(d) / "tables" / metric_file
+                p = Path(d) / metric_file
             if p.exists():
                 dfs.append(pd.read_csv(p))
         if not dfs:
@@ -93,23 +93,34 @@ def openmm_compare(series_list, outdir):
             plt.title(title)
             plt.legend()
             plt.tight_layout()
-            # Save both legacy figure name and clean flat name
+            # Save canonical flat figure name in figures/
+            plt.savefig(outpath / filename.replace(".csv", ".png"), dpi=300)
+            # Save legacy names for backward compatibility
             plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
             plt.savefig(Path(outdir) / filename.replace(".csv", ".png"), dpi=300)
         plt.close()
 
     summary_file = Path(outdir) / "summary.txt"
+    tables_dir = Path(outdir) / "tables"
+    tables_dir.mkdir(parents=True, exist_ok=True)
     try:
-        with open(summary_file, "w") as sf:
-            sf.write("=========================================\n")
-            sf.write("COLABMDA CROSS-VARIANT COMPARISON SUMMARY\n")
-            sf.write("=========================================\n")
-            for item in series_list:
-                if "=" in item:
-                    lbl, d_str = item.split("=", 1)
-                    sf.write(f"Series: {lbl} (inputs: {d_str})\n")
-            sf.write("Deliverables: rmsd.png, rg.png, rmsf.png\n")
-            sf.write("=========================================\n")
+        content = "=========================================\n"
+        content += "COLABMDA CROSS-VARIANT COMPARISON SUMMARY\n"
+        content += "=========================================\n"
+        for item in series_list:
+            if "=" in item:
+                lbl, d_str = item.split("=", 1)
+                content += f"Series: {lbl} (inputs: {d_str})\n"
+        content += "Deliverables: rmsd.png, rg.png, rmsf.png\n"
+        content += "=========================================\n"
+        summary_file.write_text(content)
+        (tables_dir / "summary.txt").write_text(content)
+        csv_lines = ["series,inputs\n"]
+        for item in series_list:
+            if "=" in item:
+                lbl, d_str = item.split("=", 1)
+                csv_lines.append(f'"{lbl}","{d_str}"\n')
+        (tables_dir / "summary.csv").write_text("".join(csv_lines))
     except Exception:
         pass
     print(f"Aggregate plots saved in {outdir}")

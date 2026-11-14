@@ -188,8 +188,11 @@ def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path,
         assert (folder / "figures" / "rmsd.png").is_file()
     assert StageLog(paths.analysis_dir(spec) / "aggregate", "AGGREGATE_DONE").is_file()
     assert StageLog(paths.analysis_dir(spec) / "avg", "AGGREGATE_DONE").is_file()
+    assert StageLog(paths.analysis_dir(spec) / "md" / "avg", "AGGREGATE_DONE").is_file()
     assert (paths.analysis_dir(spec) / "avg" / "figures" / "rmsd.png").is_file()
     assert (paths.analysis_dir(spec) / "avg" / "tables" / "rmsd.csv").is_file()
+    assert (paths.analysis_dir(spec) / "md" / "avg" / "figures" / "rmsd.png").is_file()
+    assert (paths.analysis_dir(spec) / "md" / "avg" / "tables" / "rmsd.csv").is_file()
     assert not list(paths.variant_dir(spec).rglob("rmsd.csv"))
     # Failure must clear completion and invalidate a previously computed aggregate.
     monkeypatch.setattr(
@@ -212,3 +215,45 @@ def test_analysis_rejects_mismatched_or_invalid_recorded_times(tmp_path, times):
     )
     with pytest.raises(ValueError, match="times do not match"):
         _production_times(tmp_path, 2)
+
+
+def test_compare_and_qc_emit_canonical_nested_deliverables(tmp_path):
+    from colabmda.openmm.figures import openmm_compare
+    from colabmda.openmm.qc import analyze_logs
+
+    # Test openmm_compare canonical deliverables
+    rep1 = tmp_path / "WT" / "md" / "r1" / "tables"
+    rep1.mkdir(parents=True)
+    pd.DataFrame({"Time (ps)": [0, 10], "RMSD": [1.0, 1.2]}).to_csv(rep1 / "rmsd.csv", index=False)
+    pd.DataFrame({"Time (ps)": [0, 10], "Rg": [14.0, 14.1]}).to_csv(rep1 / "rg.csv", index=False)
+    pd.DataFrame({"Residue": [1, 2], "RMSF": [0.5, 0.6]}).to_csv(rep1 / "rmsf.csv", index=False)
+
+    out_compare = tmp_path / "compare"
+    openmm_compare([f"WT={rep1.parent}"], str(out_compare))
+    for m in ["rmsd", "rg", "rmsf"]:
+        assert (out_compare / "figures" / f"{m}.png").is_file()
+        assert (out_compare / "figures" / f"{m}_avg.png").is_file()
+    assert (out_compare / "tables" / "summary.txt").is_file()
+    assert (out_compare / "tables" / "summary.csv").is_file()
+
+    # Test analyze_logs canonical deliverables
+    eq_dir = tmp_path / "eq"
+    eq_dir.mkdir(parents=True)
+    (eq_dir / "nvt.log").write_text(
+        '#"Step","Time (ps)","Potential Energy (kJ/mole)","Temperature (K)"\n'
+        "1000,2,-50000,300\n2000,4,-51000,300\n"
+    )
+    (eq_dir / "npt.log").write_text(
+        '#"Step","Time (ps)","Potential Energy (kJ/mole)","Temperature (K)","Density (g/mL)"\n'
+        "1000,2,-52000,300,1.01\n2000,4,-52500,300,1.01\n"
+    )
+    stages_dir = eq_dir / "stages"
+    stages_dir.mkdir()
+    for s in range(1, 25):
+        (stages_dir / f"{s:04d}.xml").write_text("<State/>")
+    out_eq = tmp_path / "analysis" / "eq"
+    passed = analyze_logs(str(eq_dir), outdir=str(out_eq))
+    assert passed
+    assert (out_eq / "qc.txt").is_file()
+    assert (out_eq / "tables" / "qc.txt").is_file()
+    assert (out_eq / "tables" / "qc.csv").is_file()
