@@ -830,7 +830,16 @@ def plot_analysis(outdir):
         "rmsf": ("RMSF (Å)", "rmsf_per_residue.png"),
     }
     for key, (ylabel, filename) in names.items():
-        for table in [*root.rglob(f"{key}.csv"), *root.rglob(f"{key}_avg.csv")]:
+        tables = []
+        for stem in [key, f"{key}_avg"]:
+            candidate = root / "tables" / f"{stem}.csv"
+            if candidate.is_file():
+                tables.append(candidate)
+            elif (root / f"{stem}.csv").is_file():
+                tables.append(root / f"{stem}.csv")
+            else:
+                tables.extend(p for p in root.rglob(f"{stem}.csv") if p.parent.name != "tables")
+        for table in tables:
             data = pd.read_csv(table)
             fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
             ax.plot(data.iloc[:, 0], data.iloc[:, 1], color="#0072B2")
@@ -843,7 +852,11 @@ def plot_analysis(outdir):
                     alpha=0.2,
                 )
             ax.set(xlabel=data.columns[0], ylabel=ylabel)
-            target = table.parent / "figures"
+            target = (
+                table.parent.parent / "figures"
+                if table.parent.name == "tables"
+                else table.parent / "figures"
+            )
             target.mkdir(exist_ok=True)
             output = f"{key}_aggregate.png" if table.stem.endswith("_avg") else filename
             fig.savefig(target / output, dpi=300)
