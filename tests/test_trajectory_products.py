@@ -125,9 +125,12 @@ def test_view_without_run_id_loads_the_movie_instead_of_a_starting_model(
     model.residues.resids = [118, 119, 120]
     model.atoms.write(str(prep / "model.pdb"))
     openmm_view(state=state, variant="WT", root=root, frame="all", no_launch=True)
-    output = root / "data" / state / "analysis/WT/r1"
-    assert (output / "view.pdb").is_file()
-    script = (output / "visualize.pml").read_text()
+    output = root / "data" / state / "analysis/WT/md/r1"
+    assert (output / "view" / "view.pdb").is_file()
+    assert not (output / "view.pdb").exists()
+    assert not (output / "visualize.pml").exists()
+    assert not (root / "data" / state / "analysis/WT/r1").exists()
+    script = (output / "view" / "visualize.pml").read_text()
     assert str(replica / "traj.dcd") in script
     assert "mset 1 -2" in script and "mplay" in script
     assert "source_kind: trajectory" in StageLog(output, "VISUALIZE_DONE").path.read_text()
@@ -151,6 +154,8 @@ def test_find_trajectory_pair_prefers_canonical_merge_deliverables(products, tmp
     replica = tmp_path / "simulation/WT/md/r1"
     merge_dir = replica / "merge"
     merge_dir.mkdir(parents=True)
+    shutil.copy2(products / "stripped.prmtop", merge_dir / "stripped.prmtop")
+    shutil.copy2(products / "prod_keep_ligand.dcd", merge_dir / "stripped.dcd")
     shutil.copy2(products / "stripped.prmtop", merge_dir / "protein.prmtop")
     shutil.copy2(products / "prod_keep_ligand.dcd", merge_dir / "protein.dcd")
     shutil.copy2(products / "ca.prmtop", merge_dir / "calpha.prmtop")
@@ -159,10 +164,78 @@ def test_find_trajectory_pair_prefers_canonical_merge_deliverables(products, tmp
     shutil.copy2(products / "prod_keep_ligand.dcd", replica / "traj.dcd")
 
     assert find_trajectory_pair(replica) == (
-        merge_dir / "protein.prmtop",
-        merge_dir / "protein.dcd",
+        merge_dir / "stripped.prmtop",
+        merge_dir / "stripped.dcd",
     )
     assert find_trajectory_pair(replica, ca=True) == (
         merge_dir / "calpha.prmtop",
         merge_dir / "calpha.dcd",
     )
+
+
+def test_dispatch_merge_writes_only_canonical_stripped_by_default_and_optional_ca(
+    monkeypatch, tmp_path
+):
+    from argparse import Namespace
+
+    import colabmda.amber.cpptraj as cpptraj_mod
+    import colabmda.openmm.merge as merge_mod
+    from colabmda.cli import _dispatch_merge
+
+    prep_dir = tmp_path / "data/apo/simulation/WT/prep"
+    prep_dir.mkdir(parents=True)
+    (prep_dir / "system.prmtop").write_text("TOP\n", encoding="utf-8")
+
+    replica = tmp_path / "data/apo/simulation/WT/md/r1"
+    chunks = replica / "chunks"
+    chunks.mkdir(parents=True)
+    (chunks / "0001.dcd").write_bytes(b"DCD1")
+    (chunks / "0001.log").write_text('#"Step"\n1\n', encoding="utf-8")
+
+    monkeypatch.setattr(
+        cpptraj_mod,
+        "generate_cpptraj_strip_script",
+        lambda prmtop, chunk_paths, out_dcd, output_top=None, mode="keep_ligand": (
+            f"{mode}|{out_dcd}|{output_top}"
+        ),
+    )
+
+    def _fake_run_cpptraj(script, _cwd):
+        _mode, out_dcd, out_top = script.split("|")
+        from pathlib import Path
+
+        Path(out_dcd).write_bytes(b"STRIPPED")
+        Path(out_top).write_text("PRMTOP\n", encoding="utf-8")
+        return 0, ""
+
+    monkeypatch.setattr(cpptraj_mod, "run_cpptraj", _fake_run_cpptraj)
+    monkeypatch.setattr(
+        merge_mod,
+        "merge_logs",
+        lambda _rep, out_log: open(out_log, "w", encoding="utf-8").write("LOG\n"),
+    )
+
+    rc = _dispatch_merge(
+        Namespace(state="apo", variant="WT", replicas="r1", root=str(tmp_path), ca=False)
+    )
+    assert rc == 0
+
+    merge_dir = replica / "merge"
+    assert sorted(p.name for p in merge_dir.iterdir()) == [
+        "stripped.dcd",
+        "stripped.prmtop",
+    ]
+    assert (replica / "md.log").is_file()
+    for legacy in ("traj.dcd", "top.prmtop", "trajCa.dcd", "topCa.prmtop"):
+        assert not (replica / legacy).exists()
+
+    rc_ca = _dispatch_merge(
+        Namespace(state="apo", variant="WT", replicas="r1", root=str(tmp_path), ca=True)
+    )
+    assert rc_ca == 0
+    assert sorted(p.name for p in merge_dir.iterdir()) == [
+        "calpha.dcd",
+        "calpha.prmtop",
+        "stripped.dcd",
+        "stripped.prmtop",
+    ]

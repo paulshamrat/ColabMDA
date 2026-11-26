@@ -40,6 +40,7 @@ def find_trajectory_pair(directory, *, ca=False):
         ]
         if ca
         else [
+            ("stripped.prmtop", "stripped.dcd"),
             ("protein.prmtop", "protein.dcd"),
             ("top.prmtop", "traj.dcd"),
             ("stripped.prmtop", "prod_keep_ligand.dcd"),

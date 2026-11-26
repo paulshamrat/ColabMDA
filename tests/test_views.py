@@ -99,7 +99,9 @@ def test_movie_script_keeps_native_labels_and_common_reference(tmp_path):
         frame="all",
         no_launch=True,
     )
-    script = (tmp_path / "visualize.pml").read_text()
+    script = (tmp_path / "view" / "visualize.pml").read_text()
+    assert not (tmp_path / "visualize.pml").exists()
+    assert not (tmp_path / "view.pdb").exists()
     assert "load_traj" in script
     assert "zoom reference and polymer.protein" in script
     assert "resi 119" in script
@@ -142,7 +144,46 @@ def test_generated_movie_runs_with_native_pymol_commands(tmp_path):
         no_launch=True,
     )
     with pymol2.PyMOL() as session:
-        session.cmd.do((tmp_path / "visualize.pml").read_text(), echo=0)
+        session.cmd.do((tmp_path / "view" / "visualize.pml").read_text(), echo=0)
         session.cmd.mstop()
         assert session.cmd.count_states("molecule") == 3
         assert session.cmd.count_frames() == 3
+
+
+def test_view_supports_short_peptide_under_30_residues(tmp_path):
+    import MDAnalysis as mda
+
+    from colabmda.openmm.figures import openmm_view
+
+    lines = []
+    atom_id = 1
+    for res_id in range(1, 11):
+        for name, dx in (("N", -0.6), ("CA", 0.0), ("C", 0.6)):
+            x = res_id * 3.8 + dx
+            lines.append(
+                f"ATOM  {atom_id:5d}  {name:<3s} ALA A{res_id:4d}    "
+                f"{x:8.3f}{0.0:8.3f}{0.0:8.3f}  1.00  0.00           {name[0]}\n"
+            )
+            atom_id += 1
+    lines.append("END\n")
+    ref = tmp_path / "peptide.pdb"
+    ref.write_text("".join(lines), encoding="utf-8")
+
+    universe = mda.Universe(str(ref))
+    trajectory = tmp_path / "peptide.dcd"
+    with mda.Writer(str(trajectory), n_atoms=len(universe.atoms)) as writer:
+        writer.write(universe.atoms)
+
+    openmm_view(
+        pdb_dir=tmp_path,
+        topology=ref,
+        trajectory=trajectory,
+        reference=ref,
+        resi=1,
+        frame="all",
+        no_launch=True,
+    )
+    assert (tmp_path / "view" / "view.pdb").is_file()
+    assert (tmp_path / "view" / "visualize.pml").is_file()
+    assert not (tmp_path / "view.pdb").exists()
+    assert not (tmp_path / "visualize.pml").exists()

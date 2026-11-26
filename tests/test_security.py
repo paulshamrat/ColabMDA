@@ -17,6 +17,8 @@ def git(repo, *args):
 
 @pytest.fixture
 def guarded_repo(tmp_path):
+    if not (ROOT / ".githooks").is_dir():
+        pytest.skip("Git hooks directory required for credential hook acceptance")
     scanner = shutil.which("gitleaks")
     if not scanner:
         pytest.skip("Gitleaks required for credential hook acceptance")
@@ -85,6 +87,8 @@ def test_private_push_guard_and_deleted_historical_secret(guarded_repo):
 
 
 def test_initial_commit_scans_the_staged_index(tmp_path):
+    if not (ROOT / ".githooks").is_dir():
+        pytest.skip("Git hooks directory required for credential hook acceptance")
     scanner = shutil.which("gitleaks")
     if not scanner:
         pytest.skip("Gitleaks required for credential hook acceptance")
@@ -140,6 +144,8 @@ def test_installer_keeps_license_out_of_arguments_and_private_files(tmp_path):
 
 
 def test_hooks_keep_executable_bits_in_the_git_index():
+    if not (ROOT / ".git").exists():
+        pytest.skip("Git repository required for hook index check")
     rows = subprocess.check_output(
         [
             "git",

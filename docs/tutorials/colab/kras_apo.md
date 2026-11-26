@@ -376,15 +376,15 @@ data/apo/
 
 #### 2. Verify Status in 1 Second (Terminal)
 ```bash
-cat data/apo/analysis/WT/eq/qc.txt
-cat data/apo/analysis/G12D/eq/qc.txt
+cat data/apo/analysis/WT/eq/tables/qc.txt
+cat data/apo/analysis/G12D/eq/tables/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
 #### 3. Glance at 6-Panel QC Plot in 5 Seconds
 Open the unified 7-inch publication plot in any image viewer:
-* `data/apo/analysis/WT/eq/qc.png`
-* `data/apo/analysis/G12D/eq/qc.png`
+* `data/apo/analysis/WT/eq/figures/qc.png`
+* `data/apo/analysis/G12D/eq/figures/qc.png`
 
 *Expected Visual:*
 * **Panels A–D (Thermodynamics):** Temperature is flat at **$300\text{ K}$**; density is flat at **$\sim 1.01\text{ g/mL}$**; potential energy and volume are stable.
@@ -497,9 +497,23 @@ Production dynamics uses standard biophysical integration parameters optimized f
 | **Total Frames Generated** | **$10,000\text{ frames}$** | $\frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$ per $100\text{ ns}$ replica. |
 | **Storage Footprint** | **~3.6 GB $\to$ <200 MB** | Raw solvated chunks total ~3.6 GB; stripped trajectories (`cmda merge`) reduce this by >90% to <200 MB. |
 
+> [!NOTE]
+> **Customizing Frame & Checkpoint Frequency**
+> By default, `cmda sim md` saves a trajectory frame (`.dcd`) and matching thermodynamic log row (`.log`) every **10 ps** (`--traj-interval 10`, i.e., every 5,000 steps at 2 fs) and writes a committed chunk + restart checkpoint (`prod.chk`) every **1,000 ps / 1 ns** (`--checkpoint-ps 1000`).
+>
+> To change how often frames or chunks are saved, pass `--traj-interval` and/or `--checkpoint-ps` (both in picoseconds):
+> ```bash
+> # Example: save frames/logs every 50 ps (2,000 frames over 100 ns) with 1 ns chunks
+> cmda sim md --state apo --variant WT --replica r1 --total-ns 100 --traj-interval 50 --checkpoint-ps 1000
+>
+> # Example: save higher-resolution frames every 2 ps with 500 ps chunks
+> cmda sim md --state apo --variant WT --replica r1 --total-ns 100 --traj-interval 2 --checkpoint-ps 500
+> ```
+> Keep `--checkpoint-ps` a clean multiple of `--traj-interval`, and reuse the same `--traj-interval` and `--checkpoint-ps` values if you resume an interrupted run.
+
 #### Downstream Handover
 
-> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Section 3.4 (`cmda merge`)**, which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `traj.dcd` for statistical analysis.
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to **Section 3.4 (`cmda merge`)**, which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips solvent to produce `merge/stripped.dcd` for statistical analysis.
 
 #### 💡 Resuming After a Session Timeout
 Production MD writes periodic checkpoints (`prod.chk`) directly to Google Drive. If your session expires:
@@ -541,7 +555,7 @@ cmda status --state apo --variant WT --replica r1
   Topology File    : solvated.pdb
                      └─ 27273 atoms, 8388 residues
                      └─ (169 protein, 8170 water, 49 ions)
-  Trajectory File  : traj.dcd (10000 frames)
+  Trajectory File  : stripped.dcd (10000 frames)
   Log File         : md.log (10000 frames)
   Frames (from logs): 10000
   Sim time (ps/ns) : 100000.00 ps / 100.0000 ns (from chunk names)
@@ -572,27 +586,24 @@ data/apo/simulation/
 │   └── md/
 │       └── r1/
 │           ├── chunks/                              # Raw 1 ns simulation chunks
-│           └── merge/                               # Clean post-processed deliverables
-│               ├── protein.dcd                      # Autoimaged trajectory without bulk solvent
-│               ├── protein.prmtop                   # Matching protein topology (~2,600 atoms)
-│               ├── calpha.dcd                       # Cα trajectory
-│               └── calpha.prmtop                    # Matching Cα topology (~169 atoms)
+│           └── merge/                               # Canonical post-processed deliverables
+│               ├── stripped.dcd                     # Autoimaged trajectory without bulk solvent
+│               └── stripped.prmtop                  # Matching stripped topology (~2,600 atoms)
 └── G12D/
     └── md/
         └── r1/
             ├── chunks/                              # Raw 1 ns simulation chunks
-            └── merge/                               # Clean post-processed deliverables
-                ├── protein.dcd                      # Autoimaged trajectory without bulk solvent
-                ├── protein.prmtop                   # Matching protein topology (~2,600 atoms)
-                ├── calpha.dcd                       # Cα trajectory
-                └── calpha.prmtop                    # Matching Cα topology (~169 atoms)
+            └── merge/                               # Canonical post-processed deliverables
+                ├── stripped.dcd                     # Autoimaged trajectory without bulk solvent
+                └── stripped.prmtop                  # Matching stripped topology (~2,600 atoms)
 ```
 
 Stage logs: `logs/apo/simulation/WT/md/r1/merge.log`, `logs/apo/simulation/G12D/md/r1/merge.log`.
+Pass `--ca` to `cmda merge` only if you also want optional `calpha.dcd` and `calpha.prmtop`.
 
 </details>
 
-> **Downstream Handover:** The solvent-stripped trajectories (`traj.dcd`) and topologies (`top.prmtop`) are handed over to **Section 3.5 (`cmda analyze` / `cmda compare`)** for biophysical metric extraction, and to **Phase 4 (`cmda pull`)** for local PyMOL visualization.
+> **Downstream Handover:** The solvent-stripped trajectories (`merge/stripped.dcd`) and topologies (`merge/stripped.prmtop`) are handed over to **Section 3.5 (`cmda analyze` / `cmda compare`)** for biophysical metric extraction, and to **Phase 4 (`cmda pull`)** for local PyMOL visualization.
 
 ---
 
@@ -639,7 +650,7 @@ data/apo/analysis/
         └── avg/ (figures/, tables/)
 ```
 
-Stage logs: `logs/apo/analysis/WT/r1/analysis.log`, `logs/apo/analysis/G12D/r1/analysis.log`.
+Stage logs: `logs/apo/analysis/WT/md/r1/analysis.log`, `logs/apo/analysis/G12D/md/r1/analysis.log`.
 
 </details>
 
@@ -653,14 +664,13 @@ cmda compare --state apo --variants WT,G12D
 
 ```text
 data/apo/analysis/compare/
-├── rmsd.png                                         # Variant RMSD comparison
-├── rg.png                                           # Variant compactness comparison
-├── rmsf.png                                         # Variant fluctuation comparison
 ├── figures/
-│   ├── rmsd_avg.png                                 # Copy of RMSD comparison
-│   ├── rg_avg.png                                   # Copy of compactness comparison
-│   └── rmsf_avg.png                                 # Copy of fluctuation comparison
-└── summary.txt                                      # Comparison statistics
+│   ├── rmsd.png                                     # Variant RMSD comparison
+│   ├── rg.png                                       # Variant compactness comparison
+│   └── rmsf.png                                     # Variant fluctuation comparison
+└── tables/
+    ├── summary.csv                                  # Variant comparison table
+    └── summary.txt                                  # Comparison statistics
 ```
 
 </details>
@@ -698,7 +708,7 @@ data/apo/
 > [!TIP]
 > **What `cmda pull` Does:**
 > 1. Packages analysis CSVs, logs, summary manifests, and PNG plots from Google Drive.
-> 2. Excludes heavy raw trajectory files (`chunks/*.dcd`, `.chk`) by default so the download completes quickly. Pass `--traj` to include stripped trajectories (`traj.dcd`), or `--all` for full raw simulation chunks.
+> 2. Excludes heavy raw trajectory files (`chunks/*.dcd`, `.chk`) by default so the download completes quickly. Pass `--traj` to include stripped trajectories (`merge/stripped.dcd`), or `--all` for full raw simulation chunks.
 > 3. Extracts files non-destructively into your local `data/` folder.
 
 ---
@@ -718,8 +728,8 @@ PyMOL opens and starts playing all saved trajectory frames. Use its playback
 controls to pause, play or step through frames. `--frame all` displays the movie;
 `--frame 1` displays only the first frame.
 
-The command reads the matching `md/r1/top.prmtop` and `md/r1/traj.dcd` for the
-selected state and variant. It generates `view.pdb` and `visualize.pml` in the replica's analysis folder.
+The command reads the matching `md/r1/merge/stripped.prmtop` and `md/r1/merge/stripped.dcd` for the
+selected state and variant. It generates `view/view.pdb` and `view/visualize.pml` in the replica's analysis folder.
 Display provenance and verified completion are recorded in the matching
 `logs/` folder as `visualize.log`. The PDB has the same atoms as
 the processed trajectory, so loading is handled for you.
@@ -731,8 +741,8 @@ After the command has generated the viewing files, these commands can also be
 entered in PyMOL from the project directory:
 
 ```pml
-load data/apo/analysis/WT/r1/view.pdb, protein
-load_traj data/apo/simulation/WT/md/r1/traj.dcd, protein, state=1
+load data/apo/analysis/WT/md/r1/view/view.pdb, protein
+load_traj data/apo/simulation/WT/md/r1/merge/stripped.dcd, protein, state=1
 hide everything
 show cartoon, protein
 mplay
@@ -740,7 +750,7 @@ mplay
 
 For another variant or replica, change both paths together. Use `solvated.pdb`
 only with the original full-system chunks, whose atom count includes water and
-salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`.
+salt. The processed `merge/stripped.dcd` matches `merge/stripped.prmtop` and the generated `view/view.pdb`.
 
 </details>
 
@@ -820,10 +830,8 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
 │       │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
 │       │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
 │       │   │       │   └── merge/
-│       │   │       │       ├── protein.dcd          # Autoimaged trajectory without bulk solvent
-│       │   │       │       ├── protein.prmtop       # Matching protein topology (~2,600 atoms)
-│       │   │       │       ├── calpha.dcd           # Cα trajectory
-│       │   │       │       └── calpha.prmtop        # Matching Cα topology
+│       │   │       │       ├── stripped.dcd         # Autoimaged trajectory without bulk solvent
+│       │   │       │       └── stripped.prmtop      # Matching stripped topology (~2,600 atoms)
 │       │   │       ├── r2/ (chunks/, merge/)
 │       │   │       └── r3/ (chunks/, merge/)
 │       │   └── G12D/
@@ -879,7 +887,9 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
 │               │   ├── rmsd.png                     # Variant RMSD comparison
 │               │   ├── rg.png                       # Variant compactness comparison
 │               │   └── rmsf.png                     # Variant fluctuation comparison
-│               └── summary.txt                      # Comparison statistics
+│               └── tables/
+│                   ├── summary.csv                  # Variant comparison table
+│                   └── summary.txt                  # Comparison statistics
 └── logs/                                            # Execution logs mirror the data folders
     └── apo/
         ├── structure/
@@ -913,29 +923,34 @@ instead of `.cif` when the archive fallback is used. The `r2`, `r3` and
         │               └── merge.log                # Stage metadata and verified completion
         └── analysis/
             ├── WT/
-            │   ├── r1/
-            │   │   ├── analysis.log                 # Stage metadata and verified completion
-            │   │   └── visualize.log                # Movie inputs and display provenance
-            │   ├── r2/
-            │   │   ├── analysis.log                 # Stage metadata and verified completion
-            │   │   └── visualize.log                # Movie inputs and display provenance
-            │   ├── r3/
-            │   │   ├── analysis.log                 # Stage metadata and verified completion
-            │   │   └── visualize.log                # Movie inputs and display provenance
-            │   └── aggregate/
-            │       └── aggregate.log                # Stage metadata and verified completion
-            └── G12D/
-                ├── r1/
-                │   ├── analysis.log                 # Stage metadata and verified completion
-                │   └── visualize.log                # Movie inputs and display provenance
-                ├── r2/
-                │   ├── analysis.log                 # Stage metadata and verified completion
-                │   └── visualize.log                # Movie inputs and display provenance
-                ├── r3/
-                │   ├── analysis.log                 # Stage metadata and verified completion
-                │   └── visualize.log                # Movie inputs and display provenance
-                └── aggregate/
-                    └── aggregate.log                # Stage metadata and verified completion
+            │   ├── eq/qc.log                        # Stage metadata and verified completion
+            │   └── md/
+            │       ├── r1/
+            │       │   ├── analysis.log             # Stage metadata and verified completion
+            │       │   └── visualize.log            # Movie inputs and display provenance
+            │       ├── r2/
+            │       │   ├── analysis.log             # Stage metadata and verified completion
+            │       │   └── visualize.log            # Movie inputs and display provenance
+            │       ├── r3/
+            │       │   ├── analysis.log             # Stage metadata and verified completion
+            │       │   └── visualize.log            # Movie inputs and display provenance
+            │       └── avg/
+            │           └── aggregate.log            # Stage metadata and verified completion
+            ├── G12D/
+            │   ├── eq/qc.log                        # Stage metadata and verified completion
+            │   └── md/
+            │       ├── r1/
+            │       │   ├── analysis.log             # Stage metadata and verified completion
+            │       │   └── visualize.log            # Movie inputs and display provenance
+            │       ├── r2/
+            │       │   ├── analysis.log             # Stage metadata and verified completion
+            │       │   └── visualize.log            # Movie inputs and display provenance
+            │       ├── r3/
+            │       │   ├── analysis.log             # Stage metadata and verified completion
+            │       │   └── visualize.log            # Movie inputs and display provenance
+            │       └── avg/
+            │           └── aggregate.log            # Stage metadata and verified completion
+            └── compare/compare.log                  # Stage metadata and verified completion
 ```
 
 </details>

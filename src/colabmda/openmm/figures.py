@@ -93,10 +93,8 @@ def openmm_compare(series_list, outdir):
             plt.title(title)
             plt.legend()
             plt.tight_layout()
-            # Save canonical flat figure name in figures/
+            # Save canonical figure name in figures/
             plt.savefig(outpath / filename.replace(".csv", ".png"), dpi=300)
-            # Save legacy names for backward compatibility
-            plt.savefig(outpath / filename.replace(".csv", "_avg.png"), dpi=300)
         plt.close()
 
     tables_dir = Path(outdir) / "tables"
@@ -250,8 +248,10 @@ def _view_dataset(
         if (r.id[1] in core_residues if core_residues is not None else 30 <= r.id[1] <= 220)
         and (observed is None or r.id[1] in observed)
     ]
+    if len(core) < 3 and core_residues is None:
+        core = [i for i, r in enumerate(residues) if observed is None or r.id[1] in observed]
     if len(core) < 3:
-        raise ValueError("Insufficient matched core C-alpha atoms (30-220)")
+        raise ValueError("Insufficient matched core C-alpha atoms")
     ref_xyz = np.array([r["CA"].coord for r in residues])
     # Native labels are applied only to a derived viewer copy, never raw topology.
     for atom, residue in zip(ca, residues):
@@ -675,8 +675,9 @@ zoom molecule and polymer.protein, 4
         return 0
     label, u, panels, record = datasets[0]
     folder = Path(folder)
-    folder.mkdir(parents=True, exist_ok=True)
-    target = folder / "view.pdb"
+    view_sub = folder / "view"
+    view_sub.mkdir(parents=True, exist_ok=True)
+    target = view_sub / "view.pdb"
     u.atoms.positions = panels[0]["positions"]
     with mda.Writer(str(target), n_atoms=len(u.atoms)) as writer:
         writer.write(u.atoms)
@@ -690,7 +691,7 @@ zoom molecule and polymer.protein, 4
         if frame == "all"
         else ""
     )
-    pml = folder / "visualize.pml"
+    pml = view_sub / "visualize.pml"
     view = ",".join(map(str, CDKL5_CAMERAS[camera]))
     pml.write_text(
         f"""reinitialize
@@ -713,14 +714,6 @@ set_view ({view})
         + "zoom reference and polymer.protein, 4\ndelete reference\n"
         + (f"mset 1 -{len(u.trajectory)}\nset movie_fps, 30\nmplay\n" if frame == "all" else "")
     )
-    view_sub = folder / "view"
-    view_sub.mkdir(exist_ok=True)
-    (view_sub / "visualize.pml").write_text(pml.read_text())
-    if not (view_sub / "view.pdb").exists():
-        try:
-            os.link(target, view_sub / "view.pdb")
-        except OSError:
-            shutil.copy2(target, view_sub / "view.pdb")
     record["display_frames"] = "all" if frame == "all" else panels[0]["frame"]
     record.update(
         camera=camera,
@@ -731,13 +724,6 @@ set_view ({view})
     StageLog(folder, "VISUALIZE_DONE").write_text(
         "".join(f"{key}: {value}\n" for key, value in record.items())
     )
-    if folder.parent.name == "md":
-        legacy_folder = folder.parent.parent / folder.name
-        if not legacy_folder.exists():
-            try:
-                legacy_folder.symlink_to(f"md/{folder.name}")
-            except OSError:
-                pass
     if not no_launch:
         if not shutil.which("pymol"):
             raise RuntimeError(
@@ -829,20 +815,22 @@ def plot_analysis(outdir):
     root = Path(outdir)
     _publication_style()
     names = {
-        "rmsd": ("RMSD (Å)", "rmsd_vs_time.png"),
-        "rg": ("Rg (Å)", "rg_vs_time.png"),
-        "rmsf": ("RMSF (Å)", "rmsf_per_residue.png"),
+        "rmsd": "RMSD (Å)",
+        "rg": "Rg (Å)",
+        "rmsf": "RMSF (Å)",
     }
-    for key, (ylabel, filename) in names.items():
+    for key, ylabel in names.items():
         tables = []
         for stem in [key, f"{key}_avg"]:
             candidate = root / "tables" / f"{stem}.csv"
             if candidate.is_file():
                 tables.append(candidate)
-            elif (root / f"{stem}.csv").is_file():
+                break
+            if (root / f"{stem}.csv").is_file():
                 tables.append(root / f"{stem}.csv")
-            else:
-                tables.extend(p for p in root.rglob(f"{stem}.csv") if p.parent.name != "tables")
+                break
+        if not tables:
+            tables.extend(p for p in root.rglob(f"{key}.csv") if p.parent.name == "tables")
         for table in tables:
             data = pd.read_csv(table)
             fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
@@ -862,8 +850,6 @@ def plot_analysis(outdir):
                 else table.parent / "figures"
             )
             target.mkdir(exist_ok=True)
-            output = f"{key}_aggregate.png" if table.stem.endswith("_avg") else filename
-            fig.savefig(target / output, dpi=300)
             fig.savefig(target / f"{key}.png", dpi=300)
             plt.close(fig)
 
@@ -908,8 +894,12 @@ def plot_equilibration(workdir, outdir=None):
             passed = qc.get("passed", False)
         except Exception:
             pass
+    elif (dest / "tables" / "qc.txt").is_file():
+        passed = "Status: PASSED" in (dest / "tables" / "qc.txt").read_text()
     elif (dest / "qc.txt").is_file():
         passed = "Status: PASSED" in (dest / "qc.txt").read_text()
+    elif (root / "tables" / "qc.txt").is_file():
+        passed = "Status: PASSED" in (root / "tables" / "qc.txt").read_text()
     elif (root / "qc.txt").is_file():
         passed = "Status: PASSED" in (root / "qc.txt").read_text()
 
@@ -970,7 +960,9 @@ def plot_equilibration(workdir, outdir=None):
             drift = None
 
     # Append Cα RMSD to qc.txt if available
-    qc_txt_path = dest / "qc.txt"
+    qc_txt_path = dest / "tables" / "qc.txt"
+    if not qc_txt_path.is_file():
+        qc_txt_path = dest / "qc.txt"
     if qc_txt_path.is_file() and rmsd is not None:
         try:
             txt = qc_txt_path.read_text()
@@ -1098,12 +1090,7 @@ quit
 
     status_str = "PASSED" if passed else "REVIEW REQUIRED"
     fig.suptitle(f"Equilibration Quality Control: {status_str}", fontsize=9.5, fontweight="bold")
-    fig.savefig(dest / "qc.png", dpi=300)
     fig_dest = dest / "figures"
     fig_dest.mkdir(exist_ok=True)
     fig.savefig(fig_dest / "qc.png", dpi=300)
-    if outdir is None and "simulation" not in root.resolve().parts:
-        target = root / "figures"
-        target.mkdir(exist_ok=True)
-        fig.savefig(target / "equilibration_qc.png", dpi=300)
     plt.close(fig)

@@ -232,6 +232,8 @@ def sync_outputs(workdir, sync_dir, extra_files=None):
         "nvt.log",
         "npt.log",
         "prod_full.log",
+        "stripped.prmtop",
+        "stripped.dcd",
         "traj.dcd",
         "top.prmtop",
         "trajCa.dcd",
