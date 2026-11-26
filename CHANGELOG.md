@@ -4,6 +4,15 @@ All notable changes to **ColabMDA** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.2] - 2026-11-26 (Canonical Stripped Merge & Analysis Structure)
+
+### Changed
+- **Canonical Stripped Merge Deliverables (`merge/`)**: Default `cmda merge` emits only `merge/stripped.dcd` and `merge/stripped.prmtop` (with optional `--ca` for `merge/calpha.{dcd,prmtop}`) while retaining read-only fallback support for legacy filenames.
+- **Duplicate-Free Analysis Outputs**: Consolidated `analysis/` outputs under `figures/`, `tables/`, and `view/` with zero root duplicates or symlinks, fixed short-peptide alignment in `cmda view`, and fixed canonical `tables/qc.txt` Cα RMSD appending.
+- **MD Save-Frequency Documentation**: Added frame/checkpoint interval guidance (`--traj-interval`, `--checkpoint-ps`) across tutorials and CLI help.
+
+---
+
 ## [v0.4.1] - 2026-11-14 (Pure Canonical Stage Outputs & Tree Clutter Elimination)
 
 ### Changed

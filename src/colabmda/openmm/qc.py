@@ -198,8 +198,6 @@ def analyze_logs(workdir, strict=False, protocol=None, outdir=None):
             f"Temperature: {avg_temp:.2f} +/- {std_temp:.2f} K\n"
             f"Density: {avg_dens:.4f} g/mL (slope: {slope:.6f} g/mL/ps)\n"
         )
-        with open(os.path.join(out_target, "qc.txt"), "w") as f:
-            f.write(qc_txt_content)
         with open(os.path.join(tables_dest, "qc.txt"), "w") as f:
             f.write(qc_txt_content)
         with open(os.path.join(tables_dest, "qc.csv"), "w") as f:

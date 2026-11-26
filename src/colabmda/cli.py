@@ -641,8 +641,8 @@ def _dispatch_sim(args) -> int:
             f"  1. Pull deliverables to local workstation:\n"
             f"       cmda pull -s <session>\n"
             f"  2. Inspect equilibration stability:\n"
-            f"       Open: data/{spec.state_tag}/analysis/{spec.variant}/eq/qc.png\n"
-            f"       Read: data/{spec.state_tag}/analysis/{spec.variant}/eq/qc.txt\n"
+            f"       Open: data/{spec.state_tag}/analysis/{spec.variant}/eq/figures/qc.png\n"
+            f"       Read: data/{spec.state_tag}/analysis/{spec.variant}/eq/tables/qc.txt\n"
             f"  3. Visually verify in PyMOL GUI:\n"
             f"       File -> Open:\n"
             f"         • data/{spec.state_tag}/simulation/{spec.variant}/prep/model.pdb\n"
@@ -727,10 +727,10 @@ def _dispatch_merge(args) -> int:
             continue
         merge_dir = directory / "merge"
         merge_dir.mkdir(exist_ok=True)
-        for mode, filename, top in [
-            ("keep_ligand", "protein.dcd", "protein.prmtop"),
-            ("ca_backbone", "calpha.dcd", "calpha.prmtop"),
-        ]:
+        targets = [("keep_ligand", "stripped.dcd", "stripped.prmtop")]
+        if getattr(args, "ca", False):
+            targets.append(("ca_backbone", "calpha.dcd", "calpha.prmtop"))
+        for mode, filename, top in targets:
             script = generate_cpptraj_strip_script(
                 paths.prepared_prmtop(spec),
                 chunk_paths,
@@ -741,21 +741,9 @@ def _dispatch_merge(args) -> int:
             rc, output = run_cpptraj(script, directory)
             if rc or not (merge_dir / filename).is_file() or not (merge_dir / top).is_file():
                 raise RuntimeError(f"cpptraj {mode} failed: {output[-3000:]}")
-            compat_traj = "traj.dcd" if mode == "keep_ligand" else "trajCa.dcd"
-            compat_top = "top.prmtop" if mode == "keep_ligand" else "topCa.prmtop"
-            if not (directory / compat_traj).exists():
-                try:
-                    os.link(merge_dir / filename, directory / compat_traj)
-                except OSError:
-                    shutil.copy2(merge_dir / filename, directory / compat_traj)
-            if not (directory / compat_top).exists():
-                try:
-                    os.link(merge_dir / top, directory / compat_top)
-                except OSError:
-                    shutil.copy2(merge_dir / top, directory / compat_top)
         merge_logs(str(directory), str(directory / "md.log"))
         (StageLog(directory, "MERGE_DONE")).write_text(
-            "Verified trajectory inputs and both stripped outputs\n"
+            "Verified trajectory inputs and stripped output\n"
         )
         merged_any = True
     if not merged_any:
@@ -817,42 +805,18 @@ def _dispatch_analyze(args) -> int:
             reference=str(paths.model_pdb(spec)),
         )
         required = [
-            "rmsd.csv",
-            "rg.csv",
-            "rmsf.csv",
-            "figures/rmsd_vs_time.png",
-            "figures/rg_vs_time.png",
-            "figures/rmsf_per_residue.png",
+            "tables/rmsd.csv",
+            "tables/rg.csv",
+            "tables/rmsf.csv",
+            "figures/rmsd.png",
+            "figures/rg.png",
+            "figures/rmsf.png",
         ]
         if any(
             not (analysis_dir / n).is_file() or not (analysis_dir / n).stat().st_size
             for n in required
         ):
             raise RuntimeError("Analysis reports/figures are incomplete")
-
-        def _safe_copy(src: Path, dst: Path):
-            if not src.is_file():
-                return
-            if dst.exists() and dst.samefile(src):
-                return
-            shutil.copy2(src, dst)
-
-        tables_dir = analysis_dir / "tables"
-        tables_dir.mkdir(exist_ok=True)
-        for m in ["rmsd", "rg", "rmsf"]:
-            _safe_copy(analysis_dir / f"{m}.csv", tables_dir / f"{m}.csv")
-        fig_dir = analysis_dir / "figures"
-        for m, legacy_n in [
-            ("rmsd", "rmsd_vs_time.png"),
-            ("rg", "rg_vs_time.png"),
-            ("rmsf", "rmsf_per_residue.png"),
-        ]:
-            _safe_copy(fig_dir / legacy_n, fig_dir / f"{m}.png")
-        if (analysis_dir / "view.pdb").is_file() or (analysis_dir / "visualize.pml").is_file():
-            view_dir = analysis_dir / "view"
-            view_dir.mkdir(exist_ok=True)
-            for vf in ["view.pdb", "visualize.pml"]:
-                _safe_copy(analysis_dir / vf, view_dir / vf)
         marker.write_text("Verified numerical tables and figures generated\n")
     if len(inputs) > 1:
         from colabmda.openmm.analysis import aggregate_reports
@@ -861,29 +825,19 @@ def _dispatch_analyze(args) -> int:
         md_avg.mkdir(parents=True, exist_ok=True)
         aggregate_reports([item[2] for item in inputs], md_avg)
         plot_analysis(md_avg)
-        tables_target = md_avg / "tables"
-        tables_target.mkdir(exist_ok=True)
-        fig_target = md_avg / "figures"
-        for m in ["rmsd", "rg", "rmsf"]:
-            avg_csv = md_avg / f"{m}_avg.csv"
-            _safe_copy(avg_csv, tables_target / f"{m}.csv")
-            _safe_copy(avg_csv, tables_target / f"{m}_avg.csv")
-            agg_fig = fig_target / f"{m}_aggregate.png"
-            _safe_copy(agg_fig, fig_target / f"{m}.png")
-        if any(
-            not (md_avg / "figures" / n).is_file()
-            for n in ["rmsd_aggregate.png", "rg_aggregate.png", "rmsf_aggregate.png"]
-        ):
-            raise RuntimeError("Aggregate figures are incomplete")
+        avg_required = [
+            "tables/rmsd.csv",
+            "tables/rg.csv",
+            "tables/rmsf.csv",
+            "figures/rmsd.png",
+            "figures/rg.png",
+            "figures/rmsf.png",
+        ]
+        if any(not (md_avg / n).is_file() or not (md_avg / n).stat().st_size for n in avg_required):
+            raise RuntimeError("Aggregate figures or tables are incomplete")
         (StageLog(md_avg, "AGGREGATE_DONE")).write_text(
             "Verified aligned replica tables and figures\n"
         )
-        for alias in [avg, aggregate]:
-            if not alias.exists():
-                try:
-                    alias.symlink_to("md/avg")
-                except OSError:
-                    pass
 
     return 0
 
@@ -1445,7 +1399,7 @@ def main():
         "path",
         nargs="?",
         default=None,
-        help="Optional specific remote file or subfolder to pull (e.g. data/apo/analysis/WT/eq/qc.png)",
+        help="Optional specific remote file or subfolder to pull (e.g. data/apo/analysis/WT/eq/figures/qc.png)",
     )
     p_top_pull.add_argument(
         "-s",
@@ -1486,7 +1440,7 @@ def main():
     p_top_pull.add_argument(
         "--traj",
         action="store_true",
-        help="Download processed trajectories (traj.dcd) while skipping raw chunks",
+        help="Download processed trajectories (stripped.dcd) while skipping raw chunks",
     )
     p_top_pull.add_argument(
         "--all",
@@ -1606,7 +1560,12 @@ def main():
     p_top_sim.add_argument(
         "--steps", type=int, default=None, help="Override step count for testing"
     )
-    p_top_sim.add_argument("--checkpoint-ps", type=float, default=1000.0)
+    p_top_sim.add_argument(
+        "--checkpoint-ps",
+        type=float,
+        default=1000.0,
+        help="Chunk and checkpoint interval in ps (default: 1000.0)",
+    )
     p_top_sim.add_argument(
         "--equil-time", type=float, default=100.0, help="Equilibration duration in ps"
     )
@@ -1635,6 +1594,11 @@ def main():
         help="Replicas to merge (default: r1,r2,r3)",
     )
     p_top_merge.add_argument("--root", "--project", dest="root", default=None, help=ROOT_HELP)
+    p_top_merge.add_argument(
+        "--ca",
+        action="store_true",
+        help="Also write C-alpha trajectory (merge/calpha.dcd and merge/calpha.prmtop)",
+    )
     p_top_merge.add_argument(
         "--rename-files",
         action="store_true",

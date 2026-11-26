@@ -45,7 +45,12 @@ def test_analyze_logs_passing(tmp_path: Path):
 
     plot_equilibration(str(tmp_path))
     # Check generated artifacts
-    assert (tmp_path / "figures/equilibration_qc.png").exists()
+    assert (tmp_path / "figures/qc.png").exists()
+    assert not (tmp_path / "figures/equilibration_qc.png").exists()
+    assert not (tmp_path / "qc.png").exists()
+    assert not (tmp_path / "qc.txt").exists()
+    assert (tmp_path / "tables/qc.txt").exists()
+    assert (tmp_path / "tables/qc.csv").exists()
     assert (tmp_path / "equilibration_qc.json").exists()
 
     with open(tmp_path / "equilibration_qc.json") as f:
@@ -154,4 +159,4 @@ def test_qc_plot_overrides_invalid_notebook_backend(tmp_path):
     env = dict(os.environ, MPLBACKEND="module://missing_notebook_backend")
     code = "from colabmda.openmm.figures import plot_equilibration; import sys; plot_equilibration(sys.argv[1])"
     subprocess.run([sys.executable, "-c", code, str(tmp_path)], env=env, check=True)
-    assert (tmp_path / "figures/equilibration_qc.png").stat().st_size > 0
+    assert (tmp_path / "figures/qc.png").stat().st_size > 0

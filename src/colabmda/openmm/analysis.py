@@ -192,29 +192,24 @@ def run_trajectory_analysis(
                 rep_out.mkdir(parents=True, exist_ok=True)
                 res_outdirs.append(rep_out)
 
-                # Copy equilibration QC plot if it exists in the replica folder
-                qc_src = Path(rd) / "equilibration_qc.png"
-                if qc_src.exists():
-                    import shutil
-
-                    shutil.copy2(qc_src, rep_out / "equilibration_qc.png")
-
     if not results:
         raise ValueError("Error: No valid trajectory data found.")
 
     for result, target in zip(results, res_outdirs):
+        tables_dir = target / "tables"
+        tables_dir.mkdir(parents=True, exist_ok=True)
         pd.DataFrame({"Time (ps)": result["times"], "RMSD (Å)": result["rmsd"]}).to_csv(
-            target / "rmsd.csv", index=False
+            tables_dir / "rmsd.csv", index=False
         )
         pd.DataFrame({"Time (ps)": result["times"], "Rg (Å)": result["rg"]}).to_csv(
-            target / "rg.csv", index=False
+            tables_dir / "rg.csv", index=False
         )
         pd.DataFrame({"Residue": result["resids"], "RMSF (Å)": result["rmsf"]}).to_csv(
-            target / "rmsf.csv", index=False
+            tables_dir / "rmsf.csv", index=False
         )
     if len(results) > 1:
-        agg = outdir_path / "aggregate"
-        agg.mkdir(exist_ok=True)
+        agg_tables = outdir_path / "md" / "avg" / "tables"
+        agg_tables.mkdir(parents=True, exist_ok=True)
         for key in ("rmsd", "rg", "rmsf"):
             length = min(len(r[key]) for r in results)
             if key == "rmsf" and any(r["resids"] != results[0]["resids"] for r in results):
@@ -227,7 +222,7 @@ def run_trajectory_analysis(
                     "Mean": values.mean(axis=0),
                     "Std": values.std(axis=0),
                 }
-            ).to_csv(agg / f"{key}_avg.csv", index=False)
+            ).to_csv(agg_tables / f"{key}.csv", index=False)
     print(f"Analysis tables saved in: {outdir_path}")
     return outdir_path
 
@@ -239,11 +234,20 @@ def aggregate_reports(folders, outdir):
         raise ValueError("Aggregate requires at least two distinct replicas")
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
+    tables_out = outdir / "tables"
+    tables_out.mkdir(parents=True, exist_ok=True)
     (StageLog(outdir, "AGGREGATE_DONE")).unlink(missing_ok=True)
     tables = {}
     hashes = {}
     for metric in ["rmsd", "rg", "rmsf"]:
-        inputs = [folder / f"{metric}.csv" for folder in folders]
+        inputs = [
+            (
+                folder / "tables" / f"{metric}.csv"
+                if (folder / "tables" / f"{metric}.csv").is_file()
+                else folder / f"{metric}.csv"
+            )
+            for folder in folders
+        ]
         frames = [pd.read_csv(p) for p in inputs]
         axis = frames[0].iloc[:, 0]
         if axis.empty:
@@ -271,7 +275,7 @@ def aggregate_reports(folders, outdir):
             {axis.name: axis, "Mean": data.mean(axis=0), "Std": data.std(axis=0)}
         )
     for metric, frame in tables.items():
-        frame.to_csv(outdir / f"{metric}_avg.csv", index=False)
+        frame.to_csv(tables_out / f"{metric}.csv", index=False)
     return outdir
 
 

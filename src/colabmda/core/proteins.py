@@ -469,10 +469,20 @@ def check_run(run, system, name, variant, sequence):
             or len(trajectory.topology.select("resname MG")) != 1
         ):
             raise ValueError("GDP/Mg lost during preparation or merging")
-    for filename in ["rmsd_vs_time.png", "rg_vs_time.png", "rmsf_per_residue.png"]:
-        if not (analysis / "figures" / filename).stat().st_size:
+    for metric, legacy_fig in [
+        ("rmsd.png", "rmsd_vs_time.png"),
+        ("rg.png", "rg_vs_time.png"),
+        ("rmsf.png", "rmsf_per_residue.png"),
+    ]:
+        fig = analysis / "figures" / metric
+        if not fig.is_file():
+            fig = analysis / "figures" / legacy_fig
+        if not fig.stat().st_size:
             raise ValueError("Missing analysis figure")
-    if not (system / "02_eq/figures/equilibration_qc.png").stat().st_size:
+    qc_fig = system / "02_eq/figures/qc.png"
+    if not qc_fig.is_file():
+        qc_fig = system / "02_eq/figures/equilibration_qc.png"
+    if not qc_fig.stat().st_size:
         raise ValueError("Missing equilibration figure")
     qc = json.loads((system / "02_eq/equilibration_qc.json").read_text())
     analysis_json = analysis / "analysis.json"

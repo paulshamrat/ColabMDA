@@ -197,8 +197,10 @@ def test_top_level_compare_command(tmp_path, monkeypatch):
     assert res.returncode == 0, f"Compare failed: {res.stderr}"
     compare_fig_dir = tmp_path / "data/apo/analysis/run01/compare/figures"
     assert compare_fig_dir.is_dir()
-    for name in ["rmsd_avg.png", "rg_avg.png", "rmsf_avg.png"]:
+    for name in ["rmsd.png", "rg.png", "rmsf.png"]:
         assert (compare_fig_dir / name).is_file()
+    for legacy in ["rmsd_avg.png", "rg_avg.png", "rmsf_avg.png"]:
+        assert not (compare_fig_dir / legacy).exists()
 
 
 def test_sim_positional_stage_argument(monkeypatch):

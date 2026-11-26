@@ -191,8 +191,11 @@ data/apo/
 └── analysis/
     └── WT/
         └── eq/
-            ├── qc.txt                               # Equilibration diagnostics
-            └── qc.png                               # Thermodynamic and structural QC figure
+            ├── figures/
+            │   └── qc.png                           # Thermodynamic and structural QC figure
+            └── tables/
+                ├── qc.txt                           # Equilibration diagnostics
+                └── qc.csv                           # Numerical QC metrics table
 ```
 
 </details>
@@ -204,7 +207,7 @@ data/apo/
 Verify thermodynamic and structural convergence:
 
 ```bash
-cat data/apo/analysis/WT/eq/qc.txt
+cat data/apo/analysis/WT/eq/tables/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.8 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
@@ -272,6 +275,20 @@ and so on; `.tmp` files belong to the chunk currently being written.
 | **Total Frames Generated** | **$100\text{ frames}$** | $\frac{1,000\text{ ps}}{10\text{ ps}} = 100\text{ frames}$ for a fast $1\text{ ns}$ benchmark run. |
 | **Storage Footprint** | **~35 MB $\to$ <1 MB** | Stripped trajectories (`cmda merge`) reduce trajectory size to <1 MB. |
 
+> [!NOTE]
+> **Customizing Frame & Checkpoint Frequency**
+> By default, `cmda sim md` saves a trajectory frame (`.dcd`) and matching thermodynamic log row (`.log`) every **10 ps** (`--traj-interval 10`, i.e., every 5,000 steps at 2 fs) and writes a committed chunk + restart checkpoint (`prod.chk`) every **1,000 ps / 1 ns** (`--checkpoint-ps 1000`).
+>
+> To change how often frames or chunks are saved, pass `--traj-interval` and/or `--checkpoint-ps` (both in picoseconds):
+> ```bash
+> # Example: save frames/logs every 50 ps (2,000 frames over 100 ns) with 1 ns chunks
+> cmda sim md --state apo --variant WT --replica r1 --total-ns 100 --traj-interval 50 --checkpoint-ps 1000
+>
+> # Example: save higher-resolution frames every 2 ps with 500 ps chunks
+> cmda sim md --state apo --variant WT --replica r1 --total-ns 100 --traj-interval 2 --checkpoint-ps 500
+> ```
+> Keep `--checkpoint-ps` a clean multiple of `--traj-interval`, and reuse the same `--traj-interval` and `--checkpoint-ps` values if you resume an interrupted run.
+
 ---
 
 ## 7. Merge & Analysis
@@ -288,14 +305,14 @@ cmda merge --state apo --variant WT --replica r1
 
 ```text
 data/apo/simulation/WT/md/r1/
-├── traj.dcd                                         # Autoimaged trajectory without bulk solvent
-├── top.prmtop                                       # Matching topology; use with the trajectory above
-├── trajCa.dcd                                       # Cα trajectory
-├── topCa.prmtop                                     # Matching Cα topology
+├── merge/
+│   ├── stripped.dcd                                 # Autoimaged trajectory without bulk solvent
+│   └── stripped.prmtop                              # Matching topology; use with the trajectory above
 └── md.log                                           # Copy of the merged production log
 ```
 
 Stage log: `logs/apo/simulation/WT/md/r1/merge.log`.
+Pass `--ca` to `cmda merge` only if you also want optional `calpha.dcd` and `calpha.prmtop`.
 
 </details>
 
@@ -313,17 +330,18 @@ cmda analyze --state apo --variant WT --replica r1
 <summary><b>View stage directory tree</b></summary>
 
 ```text
-data/apo/analysis/WT/r1/
-├── rmsd.csv                                         # RMSD values
-├── rg.csv                                           # Radius of gyration values
-├── rmsf.csv                                         # Per-residue fluctuations
-└── figures/
-    ├── rmsd_vs_time.png                             # RMSD plot
-    ├── rg_vs_time.png                               # Radius of gyration plot
-    └── rmsf_per_residue.png                         # Fluctuation plot
+data/apo/analysis/WT/md/r1/
+├── figures/
+│   ├── rmsd.png                                     # RMSD plot
+│   ├── rg.png                                       # Radius of gyration plot
+│   └── rmsf.png                                     # Fluctuation plot
+└── tables/
+    ├── rmsd.csv                                     # RMSD values
+    ├── rg.csv                                       # Radius of gyration values
+    └── rmsf.csv                                     # Per-residue fluctuations
 ```
 
-Stage log: `logs/apo/analysis/WT/r1/analysis.log`.
+Stage log: `logs/apo/analysis/WT/md/r1/analysis.log`.
 
 </details>
 
@@ -349,11 +367,10 @@ cmda pull -s cmda --project trpcage-example --traj
 ├── data/apo/
 │   ├── structure/1L2Y/variants/WT/WT.pdb              # Starting model
 │   ├── simulation/WT/md/r1/
-│   │   ├── top.prmtop                               # Matching solute topology
-│   │   ├── traj.dcd                                 # Solute trajectory
-│   │   ├── topCa.prmtop                             # Matching Cα topology
-│   │   └── trajCa.dcd                               # Cα trajectory
-│   └── analysis/WT/r1/                              # Tables and figures
+│   │   └── merge/
+│   │       ├── stripped.prmtop                      # Matching stripped topology
+│   │       └── stripped.dcd                         # Stripped trajectory
+│   └── analysis/WT/md/r1/                           # Tables, figures, and PyMOL view files
 └── logs/apo/                                        # Mirrored stage logs
 ```
 
@@ -373,8 +390,8 @@ PyMOL opens and starts playing all saved trajectory frames. Use its playback
 controls to pause, play or step through frames. `--frame all` displays the movie;
 `--frame 1` displays only the first frame.
 
-The command reads the matching `md/r1/top.prmtop` and `md/r1/traj.dcd` for the
-selected state and variant. It generates `view.pdb` and `visualize.pml` in the replica's analysis folder.
+The command reads the matching `md/r1/merge/stripped.prmtop` and `md/r1/merge/stripped.dcd` for the
+selected state and variant. It generates `view/view.pdb` and `view/visualize.pml` in the replica's analysis folder.
 Display provenance and verified completion are recorded in the matching
 `logs/` folder as `visualize.log`. The PDB has the same atoms as
 the processed trajectory, so loading is handled for you.
@@ -386,8 +403,8 @@ After the command has generated the viewing files, these commands can also be
 entered in PyMOL from the project directory:
 
 ```pml
-load data/apo/analysis/WT/r1/view.pdb, protein
-load_traj data/apo/simulation/WT/md/r1/traj.dcd, protein, state=1
+load data/apo/analysis/WT/md/r1/view/view.pdb, protein
+load_traj data/apo/simulation/WT/md/r1/merge/stripped.dcd, protein, state=1
 hide everything
 show cartoon, protein
 mplay
@@ -395,7 +412,7 @@ mplay
 
 For another variant or replica, change both paths together. Use `solvated.pdb`
 only with the original full-system chunks, whose atom count includes water and
-salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`.
+salt. The processed `merge/stripped.dcd` matches `merge/stripped.prmtop` and the generated `view/view.pdb`.
 
 </details>
 
@@ -468,24 +485,31 @@ instead of `.cif` when the archive fallback is used.
 │       │               ├── chunks/
 │       │               │   ├── 0001.dcd             # First committed trajectory chunk
 │       │               │   └── 0001.log             # Matching committed thermodynamic log
-│       │               ├── traj.dcd                 # Autoimaged trajectory without bulk solvent
-│       │               ├── top.prmtop               # Matching topology; use with the trajectory above
-│       │               ├── trajCa.dcd               # Cα trajectory
-│       │               ├── topCa.prmtop             # Matching Cα topology
+│       │               ├── merge/
+│       │               │   ├── stripped.dcd         # Autoimaged trajectory without bulk solvent
+│       │               │   └── stripped.prmtop      # Matching topology; use with the trajectory above
 │       │               └── md.log                   # Copy of the merged production log
 │       └── analysis/
 │           └── WT/
 │               ├── eq/
-│               │   ├── qc.txt                       # Equilibration diagnostics
-│               │   └── qc.png                       # Thermodynamic and structural QC figure
-│               └── r1/
-│                   ├── rmsd.csv                     # RMSD values
-│                   ├── rg.csv                       # Radius of gyration values
-│                   ├── rmsf.csv                     # Per-residue fluctuations
-│                   └── figures/
-│                       ├── rmsd_vs_time.png         # RMSD plot
-│                       ├── rg_vs_time.png           # Radius of gyration plot
-│                       └── rmsf_per_residue.png     # Fluctuation plot
+│               │   ├── figures/
+│               │   │   └── qc.png                   # Thermodynamic and structural QC figure
+│               │   └── tables/
+│               │       ├── qc.txt                   # Equilibration diagnostics
+│               │       └── qc.csv                   # Numerical QC metrics table
+│               └── md/
+│                   └── r1/
+│                       ├── figures/
+│                       │   ├── rmsd.png             # RMSD plot
+│                       │   ├── rg.png               # Radius of gyration plot
+│                       │   └── rmsf.png             # Fluctuation plot
+│                       ├── tables/
+│                       │   ├── rmsd.csv             # RMSD values
+│                       │   ├── rg.csv               # Radius of gyration values
+│                       │   └── rmsf.csv             # Per-residue fluctuations
+│                       └── view/
+│                           ├── view.pdb             # Viewer reference coordinates
+│                           └── visualize.pml        # PyMOL movie script
 └── logs/                                            # Execution logs mirror the data folders
     └── apo/
         ├── structure/
@@ -503,9 +527,10 @@ instead of `.cif` when the archive fallback is used.
         │               └── merge.log                # Stage metadata and verified completion
         └── analysis/
             └── WT/
-                └── r1/
-                    ├── analysis.log                 # Stage metadata and verified completion
-                    └── visualize.log                # Movie inputs and display provenance
+                └── md/
+                    └── r1/
+                        ├── analysis.log             # Stage metadata and verified completion
+                        └── visualize.log            # Movie inputs and display provenance
 ```
 
 </details>

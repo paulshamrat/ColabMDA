@@ -115,9 +115,10 @@ def test_aggregation_rejects_unmatched_times_and_native_labels(tmp_path):
         )
     out = tmp_path / "aggregate"
     aggregate_reports(folders, out)
-    values = pd.read_csv(out / "rmsd_avg.csv")
+    values = pd.read_csv(out / "tables" / "rmsd.csv")
     np.testing.assert_allclose(values["Mean"], [1.5, 3.5])
     np.testing.assert_allclose(values["Std"], [0.5, 0.5])
+    assert not (out / "rmsd_avg.csv").exists()
     frame = pd.read_csv(folders[1] / "rmsd.csv")
     frame.iloc[1, 0] = 30
     frame.to_csv(folders[1] / "rmsd.csv", index=False)
@@ -181,18 +182,19 @@ def test_real_amber_replica_analysis_routes_reports_outside_simulation(tmp_path,
     for rep in ["r1", "r2"]:
         folder = paths.replica_analysis_dir(spec, rep)
         assert StageLog(folder, "ANALYSIS_DONE").is_file()
-        assert pd.read_csv(folder / "rmsf.csv")["Residue"].tolist() == [118, 119, 120]
-        assert pd.read_csv(folder / "rmsd.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
-        assert pd.read_csv(folder / "rg.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
-        assert (folder / "tables" / "rmsd.csv").is_file()
+        assert pd.read_csv(folder / "tables" / "rmsf.csv")["Residue"].tolist() == [118, 119, 120]
+        assert pd.read_csv(folder / "tables" / "rmsd.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
+        assert pd.read_csv(folder / "tables" / "rg.csv")["Time (ps)"].tolist() == [2, 4, 6, 8]
         assert (folder / "figures" / "rmsd.png").is_file()
-    assert StageLog(paths.analysis_dir(spec) / "aggregate", "AGGREGATE_DONE").is_file()
-    assert StageLog(paths.analysis_dir(spec) / "avg", "AGGREGATE_DONE").is_file()
+        assert not (folder / "rmsd.csv").exists()
+        assert not (folder / "figures" / "rmsd_vs_time.png").exists()
     assert StageLog(paths.analysis_dir(spec) / "md" / "avg", "AGGREGATE_DONE").is_file()
-    assert (paths.analysis_dir(spec) / "avg" / "figures" / "rmsd.png").is_file()
-    assert (paths.analysis_dir(spec) / "avg" / "tables" / "rmsd.csv").is_file()
     assert (paths.analysis_dir(spec) / "md" / "avg" / "figures" / "rmsd.png").is_file()
     assert (paths.analysis_dir(spec) / "md" / "avg" / "tables" / "rmsd.csv").is_file()
+    assert not (paths.analysis_dir(spec) / "avg").exists()
+    assert not (paths.analysis_dir(spec) / "aggregate").exists()
+    assert not (paths.analysis_dir(spec) / "md" / "avg" / "rmsd_avg.csv").exists()
+    assert not (paths.analysis_dir(spec) / "md" / "avg" / "figures" / "rmsd_aggregate.png").exists()
     assert not list(paths.variant_dir(spec).rglob("rmsd.csv"))
     # Failure must clear completion and invalidate a previously computed aggregate.
     monkeypatch.setattr(
@@ -232,7 +234,7 @@ def test_compare_and_qc_emit_canonical_nested_deliverables(tmp_path):
     openmm_compare([f"WT={rep1.parent}"], str(out_compare))
     for m in ["rmsd", "rg", "rmsf"]:
         assert (out_compare / "figures" / f"{m}.png").is_file()
-        assert (out_compare / "figures" / f"{m}_avg.png").is_file()
+        assert not (out_compare / "figures" / f"{m}_avg.png").exists()
     assert (out_compare / "tables" / "summary.txt").is_file()
     assert (out_compare / "tables" / "summary.csv").is_file()
 
@@ -254,6 +256,6 @@ def test_compare_and_qc_emit_canonical_nested_deliverables(tmp_path):
     out_eq = tmp_path / "analysis" / "eq"
     passed = analyze_logs(str(eq_dir), outdir=str(out_eq))
     assert passed
-    assert (out_eq / "qc.txt").is_file()
+    assert not (out_eq / "qc.txt").exists()
     assert (out_eq / "tables" / "qc.txt").is_file()
     assert (out_eq / "tables" / "qc.csv").is_file()

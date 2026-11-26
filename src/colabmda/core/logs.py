@@ -114,40 +114,43 @@ class StageLog:
         if stage == "merge":
             from colabmda.openmm.merge import find_trajectory_pair
 
-            pair, ca = find_trajectory_pair(folder), find_trajectory_pair(folder, ca=True)
-            return (
-                [*pair, *ca, first([folder / "md.log", folder / "prod_full.log"])]
-                if pair and ca
-                else []
-            )
+            pair = find_trajectory_pair(folder)
+            if not pair:
+                return []
+            items = [*pair]
+            ca = find_trajectory_pair(folder, ca=True)
+            if ca:
+                items.extend(ca)
+            items.append(first([folder / "md.log", folder / "prod_full.log"]))
+            return items
         if stage == "analysis":
             return [
-                folder / name
-                for name in [
-                    "rmsd.csv",
-                    "rg.csv",
-                    "rmsf.csv",
-                    "figures/rmsd_vs_time.png",
-                    "figures/rg_vs_time.png",
-                    "figures/rmsf_per_residue.png",
-                ]
+                first([folder / "tables/rmsd.csv", folder / "rmsd.csv"]),
+                first([folder / "tables/rg.csv", folder / "rg.csv"]),
+                first([folder / "tables/rmsf.csv", folder / "rmsf.csv"]),
+                first([folder / "figures/rmsd.png", folder / "figures/rmsd_vs_time.png"]),
+                first([folder / "figures/rg.png", folder / "figures/rg_vs_time.png"]),
+                first([folder / "figures/rmsf.png", folder / "figures/rmsf_per_residue.png"]),
             ]
         if stage == "aggregate":
             return [
-                folder / name
-                for name in [
-                    "rmsd_avg.csv",
-                    "rg_avg.csv",
-                    "rmsf_avg.csv",
-                    "figures/rmsd_aggregate.png",
-                    "figures/rg_aggregate.png",
-                    "figures/rmsf_aggregate.png",
-                ]
+                first([folder / "tables/rmsd.csv", folder / "rmsd_avg.csv"]),
+                first([folder / "tables/rg.csv", folder / "rg_avg.csv"]),
+                first([folder / "tables/rmsf.csv", folder / "rmsf_avg.csv"]),
+                first([folder / "figures/rmsd.png", folder / "figures/rmsd_aggregate.png"]),
+                first([folder / "figures/rg.png", folder / "figures/rg_aggregate.png"]),
+                first([folder / "figures/rmsf.png", folder / "figures/rmsf_aggregate.png"]),
             ]
         if stage == "visualize":
             return [
-                folder / "visualize.pml",
-                first([folder / "view.pdb", *sorted(folder.glob("*.pdb"))]),
+                first([folder / "view/visualize.pml", folder / "visualize.pml"]),
+                first(
+                    [
+                        folder / "view/view.pdb",
+                        folder / "view.pdb",
+                        *sorted(folder.glob("*.pdb")),
+                    ]
+                ),
             ]
         if stage in {"run", "md", "smoke"}:
             return sorted(folder.rglob("prod.chk")) + sorted(folder.rglob("*.dcd"))

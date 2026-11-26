@@ -395,15 +395,15 @@ data/atpmg/
 
 #### 2. Verify Status in 1 Second (Terminal)
 ```bash
-cat data/atpmg/analysis/WT/eq/qc.txt
-cat data/atpmg/analysis/L119R/eq/qc.txt
+cat data/atpmg/analysis/WT/eq/tables/qc.txt
+cat data/atpmg/analysis/L119R/eq/tables/qc.txt
 ```
 *Expected Output:* `Status: PASSED`, `Cα RMSD: ~0.83 Å` (Confirms temperature $\approx 300\text{ K}$, density $\approx 1.01\text{ g/mL}$, fold intact).
 
 #### 3. Glance at 6-Panel QC Plot in 5 Seconds
 Open the unified 7-inch publication plot in any image viewer:
-* `data/atpmg/analysis/WT/eq/qc.png`
-* `data/atpmg/analysis/L119R/eq/qc.png`
+* `data/atpmg/analysis/WT/eq/figures/qc.png`
+* `data/atpmg/analysis/L119R/eq/figures/qc.png`
 
 *Expected Visual:*
 * **Panels A–D (Thermodynamics):** Temperature is flat at **$300\text{ K}$**; density is flat at **$\sim 1.01\text{ g/mL}$**; potential energy and volume are stable.
@@ -518,9 +518,23 @@ Production dynamics uses standard biophysical integration parameters optimized f
 | **Total Frames Generated** | **$10,000\text{ frames}$** | $\frac{100,000\text{ ps}}{10\text{ ps}} = 10,000\text{ frames}$ per $100\text{ ns}$ replica. |
 | **Storage Footprint** | **~5.5 GB $\to$ ~580 MB** | Raw solvated chunks total ~5.5 GB; stripped holo trajectories (`cmda merge`) reduce this by >90% to ~580 MB. |
 
+> [!NOTE]
+> **Customizing Frame & Checkpoint Frequency**
+> By default, `cmda sim md` saves a trajectory frame (`.dcd`) and matching thermodynamic log row (`.log`) every **10 ps** (`--traj-interval 10`, i.e., every 5,000 steps at 2 fs) and writes a committed chunk + restart checkpoint (`prod.chk`) every **1,000 ps / 1 ns** (`--checkpoint-ps 1000`).
+>
+> To change how often frames or chunks are saved, pass `--traj-interval` and/or `--checkpoint-ps` (both in picoseconds):
+> ```bash
+> # Example: save frames/logs every 50 ps (2,000 frames over 100 ns) with 1 ns chunks
+> cmda sim md --state atpmg --variant WT --replica r1 --total-ns 100 --traj-interval 50 --checkpoint-ps 1000
+>
+> # Example: save higher-resolution frames every 2 ps with 500 ps chunks
+> cmda sim md --state atpmg --variant WT --replica r1 --total-ns 100 --traj-interval 2 --checkpoint-ps 500
+> ```
+> Keep `--checkpoint-ps` a clean multiple of `--traj-interval`, and reuse the same `--traj-interval` and `--checkpoint-ps` values if you resume an interrupted run.
+
 #### Downstream Handover
 
-> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to the merge stage (`cmda merge`), which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips bulk water into `traj.dcd` (preserving CDKL5 + ATP + Mg²⁺) for active-site and conformational analysis.
+> **Downstream Handover:** These 100 raw 1-ns chunk files are handed over to the merge stage (`cmda merge`), which joins them, eliminates periodic boundary condition (PBC) box jumps, and strips bulk water into `merge/stripped.dcd` (preserving CDKL5 + ATP + Mg²⁺) for active-site and conformational analysis.
 
 | Strategy | Trajectory Contents | Saving Frequency | Frames per 100 ns | Size per Replica |
 | :--- | :--- | :--- | :--- | :--- |
@@ -550,7 +564,7 @@ cmda status --state atpmg --variant WT --replica r1
   Topology File    : solvated.pdb
                      └─ 45862 atoms, 13952 residues
                      └─ (303 protein, 1 ATP, 1 MG, 13648 water, 82 ions)
-  Trajectory File  : traj.dcd (10000 frames)
+  Trajectory File  : stripped.dcd (10000 frames)
   Log File         : md.log (10000 frames)
   Frames (from logs): 10000
   Sim time (ps/ns) : 100000.00 ps / 100.0000 ns (from chunk names)
@@ -655,10 +669,8 @@ data/atpmg/simulation/
 │           │   ├── 0001.dcd                         # First committed chunk (%04d)
 │           │   └── 0001.log
 │           └── merge/
-│               ├── protein.dcd                      # Autoimaged trajectory without bulk solvent
-│               ├── protein.prmtop                   # Matching protein topology (~4,800 atoms)
-│               ├── calpha.dcd                       # Cα trajectory
-│               └── calpha.prmtop                    # Matching Cα topology (~297 atoms)
+│               ├── stripped.dcd                     # Autoimaged trajectory without bulk solvent
+│               └── stripped.prmtop                  # Matching stripped topology (~4,800 atoms)
 └── L119R/
     └── md/
         └── r1/
@@ -666,13 +678,12 @@ data/atpmg/simulation/
             │   ├── 0001.dcd                         # First committed chunk (%04d)
             │   └── 0001.log
             └── merge/
-                ├── protein.dcd                      # Autoimaged trajectory without bulk solvent
-                ├── protein.prmtop                   # Matching protein topology (~4,800 atoms)
-                ├── calpha.dcd                       # Cα trajectory
-                └── calpha.prmtop                    # Matching Cα topology (~297 atoms)
+                ├── stripped.dcd                     # Autoimaged trajectory without bulk solvent
+                └── stripped.prmtop                  # Matching stripped topology (~4,800 atoms)
 ```
 
 Stage logs: `logs/atpmg/simulation/WT/md/r1/merge.log`, `logs/atpmg/simulation/L119R/md/r1/merge.log`.
+Pass `--ca` to `cmda merge` only if you also want optional `calpha.dcd` and `calpha.prmtop`.
 
 </details>
 
@@ -684,15 +695,15 @@ Stage logs: `logs/atpmg/simulation/WT/md/r1/merge.log`, `logs/atpmg/simulation/L
 > ### Do Not Pair Holo Trajectories with Water Topologies or Apo Topologies!
 > During `cmda merge --state atpmg`, ColabMDA strips bulk water and counterions but **strictly preserves the catalytic complex: Protein + ATP + $\text{Mg}^{2+}$**.
 >
-> 1. **Stripped Atom Count:** The resulting trajectory `traj.dcd` contains atoms for **CDKL5 (4,792 atoms) + ATP (43 atoms) + $\text{Mg}^{2+}$ (1 atom) = 4,836 atoms**.
-> 2. **Correct Topology Pairing:** Always pair `traj.dcd` with:
+> 1. **Stripped Atom Count:** The resulting trajectory `merge/stripped.dcd` contains atoms for **CDKL5 (4,792 atoms) + ATP (43 atoms) + $\text{Mg}^{2+}$ (1 atom) = 4,836 atoms**.
+> 2. **Correct Topology Pairing:** Always pair `merge/stripped.dcd` with:
 >    ```text
->    data/atpmg/simulation/WT/md/r1/top.prmtop
+>    data/atpmg/simulation/WT/md/r1/merge/stripped.prmtop
 >    ```
 > 3. **Common Fatal Errors:**
->    * **Crash A:** Pairing `traj.dcd` with `system.prmtop` (which contains ~45,000 atoms including water) will cause MDAnalysis/VMD/PyMOL to throw:
+>    * **Crash A:** Pairing `merge/stripped.dcd` with `system.prmtop` (which contains ~45,000 atoms including water) will cause MDAnalysis/VMD/PyMOL to throw:
 >      `ValueError: Topology and trajectory atom counts do not match (4836 vs 45862)`.
->    * **Crash B:** Pairing `traj.dcd` with Apo's `top.prmtop` (which contains only 4,792 protein atoms and lacks ATP/Mg) will cause:
+>    * **Crash B:** Pairing `merge/stripped.dcd` with Apo's `stripped.prmtop` (which contains only 4,792 protein atoms and lacks ATP/Mg) will cause:
 >      `ValueError: Topology and trajectory atom counts do not match (4836 vs 4792)`.
 
 ---
@@ -741,7 +752,7 @@ data/atpmg/analysis/
         └── avg/ (figures/, tables/)
 ```
 
-Stage logs: `logs/atpmg/analysis/WT/r1/analysis.log`, `logs/atpmg/analysis/L119R/r1/analysis.log`.
+Stage logs: `logs/atpmg/analysis/WT/md/r1/analysis.log`, `logs/atpmg/analysis/L119R/md/r1/analysis.log`.
 
 </details>
 
@@ -767,10 +778,10 @@ data/atpmg/analysis/compare/
 </details>
 
 This generates publication-ready 300 DPI figures under `data/atpmg/analysis/compare/`:
-* `summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
-* `rmsd.png` (Backbone and ligand stability time-series overlay)
-* `rg.png` (Radius of Gyration domain closure comparison)
-* `rmsf.png` (Per-residue fluctuation profiles highlighting P-loop stiffening)
+* `tables/summary.txt` (Executive summary table with Mean ± SD for RMSD, Rg, Temp)
+* `figures/rmsd.png` (Backbone and ligand stability time-series overlay)
+* `figures/rg.png` (Radius of Gyration domain closure comparison)
+* `figures/rmsf.png` (Per-residue fluctuation profiles highlighting P-loop stiffening)
 
 #### How to Interpret the Comparative Figures:
 
@@ -778,10 +789,10 @@ This generates publication-ready 300 DPI figures under `data/atpmg/analysis/comp
    * **Active Site Fidelity:** Assesses whether ATP remains firmly bound within the catalytic pocket. A stable Holo complex displays a plateaued ligand RMSD ($< 1.8\text{ Å}$ relative to the initial superposed pose).
    * **Comparative Drift:** If the L119R mutant destabilizes the binding cleft, the ligand RMSD will exhibit increased drift or large standard-deviation fluctuations.
 
-2. **Radius of Gyration Compaction (`rg_avg.png`):**
+2. **Radius of Gyration Compaction (`rg.png`):**
    * **Domain Closure:** Protein kinases undergo a characteristic conformational transition where the N-lobe and C-lobe rotate toward each other to clamp over the nucleotide. In Holo simulations, the average $R_g$ is typically **$0.3–0.5\text{ Å}$ lower** than in Apo simulations, confirming stable catalytic domain closure.
 
-3. **Per-Residue Dynamic Flexibility (`rmsf_avg.png`):**
+3. **Per-Residue Dynamic Flexibility (`rmsf.png`):**
    * **P-Loop Stiffening:** In Apo simulations, the glycine-rich P-loop (residues 18–26) is highly flexible ($\text{RMSF} \sim 2.0–2.8\text{ Å}$). In Holo simulations, coordination with the triphosphate tail dampens these fluctuations ($\text{RMSF} \sim 0.8–1.2\text{ Å}$).
    * **Activation Loop & $\alpha\text{C}$-Helix:** Identifies whether the mutation alters dynamics in the activation segment (residues 163–180) or weakens the conserved salt bridge between Lys42 and Glu60.
 
@@ -802,8 +813,8 @@ PyMOL opens and starts playing all saved trajectory frames. Use its playback
 controls to pause, play or step through frames. `--frame all` displays the movie;
 `--frame 1` displays only the first frame.
 
-The command reads the matching `md/r1/top.prmtop` and `md/r1/traj.dcd` for the
-selected state and variant. It generates `view.pdb` and `visualize.pml` in the replica's analysis folder.
+The command reads the matching `md/r1/merge/stripped.prmtop` and `md/r1/merge/stripped.dcd` for the
+selected state and variant. It generates `view/view.pdb` and `view/visualize.pml` in the replica's analysis folder.
 Display provenance and verified completion are recorded in the matching
 `logs/` folder as `visualize.log`. The PDB has the same atoms as
 the processed trajectory, so loading is handled for you.
@@ -815,8 +826,8 @@ After the command has generated the viewing files, these commands can also be
 entered in PyMOL from the project directory:
 
 ```pml
-load data/atpmg/analysis/WT/r1/view.pdb, protein
-load_traj data/atpmg/simulation/WT/md/r1/traj.dcd, protein, state=1
+load data/atpmg/analysis/WT/md/r1/view/view.pdb, protein
+load_traj data/atpmg/simulation/WT/md/r1/merge/stripped.dcd, protein, state=1
 hide everything
 show cartoon, protein
 mplay
@@ -824,7 +835,7 @@ mplay
 
 For another variant or replica, change both paths together. Use `solvated.pdb`
 only with the original full-system chunks, whose atom count includes water and
-salt. The processed `traj.dcd` matches `top.prmtop` and the generated `view.pdb`.
+salt. The processed `merge/stripped.dcd` matches `merge/stripped.prmtop` and the generated `view/view.pdb`.
 
 </details>
 
@@ -916,10 +927,8 @@ apo models remain under `data/apo/` as described in the apo tutorial.
 │       │   │       │   │   ├── 0001.dcd             # First committed trajectory chunk
 │       │   │       │   │   └── 0001.log             # Matching committed thermodynamic log
 │       │   │       │   └── merge/
-│       │   │       │       ├── protein.dcd          # Autoimaged trajectory without bulk solvent
-│       │   │       │       ├── protein.prmtop       # Matching protein topology (~4,843 atoms (protein + ATP/Mg))
-│       │   │       │       ├── calpha.dcd           # Cα trajectory
-│       │   │       │       └── calpha.prmtop        # Matching Cα topology (~297 atoms)
+│       │   │       │       ├── stripped.dcd         # Autoimaged trajectory without bulk solvent
+│       │   │       │       └── stripped.prmtop      # Matching stripped topology (~4,843 atoms (protein + ATP/Mg))
 │       │   │       ├── r2/ (chunks/, merge/)
 │       │   │       └── r3/ (chunks/, merge/)
 │       │   └── L119R/
@@ -1027,7 +1036,8 @@ apo models remain under `data/apo/` as described in the apo tutorial.
             │       ├── r2/ (analysis.log, visualize.log)
             │       ├── r3/ (analysis.log, visualize.log)
             │       └── avg/aggregate.log
-            └── compare/compare.log```
+            └── compare/compare.log
+```
 
 </details>
 
